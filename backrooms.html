@@ -110,6 +110,11 @@
   .wslot .k { position:absolute; top:0; left:4px; font-size:14px; color:rgba(216,194,88,.55); }
   .wslot.owned { color:#fff; border-color:rgba(216,194,88,.7); }
   .wslot.equipped { border-color:#ffd94a; box-shadow:0 0 14px rgba(255,217,74,.5); transform:translateY(-4px); }
+  #minimap {
+    position:absolute; bottom:22px; left:24px; width:180px; height:180px;
+    border:2px solid rgba(216,194,88,.5); background:rgba(0,0,0,.6);
+    image-rendering:pixelated; display:none;
+  }
   #interactPrompt {
     position:absolute; bottom:130px; left:50%; transform:translateX(-50%);
     font-size:28px; color:#d98cff; display:none;
@@ -238,7 +243,7 @@
 <div id="hud">
   <div id="crosshair"></div>
   <div id="cooldownTxt"></div>
-  <div id="safeBadge">✔ STREFA SAFE<br><small>[1] oddal kamerę • [2] przybliż</small></div>
+  <div id="safeBadge">✔ STREFA SAFE<br><small>[0] oddal kamerę • [9] przybliż</small></div>
   <div id="coinHud">🪙 0</div>
   <div id="timerHud">0:00</div>
   <div id="mpHud"></div>
@@ -249,7 +254,9 @@
     <div class="wslot" id="ws-pistol"><span class="k">2</span>🔫</div>
     <div class="wslot" id="ws-sniper"><span class="k">3</span>🎯</div>
     <div class="wslot" id="ws-minigun"><span class="k">4</span>⚙️</div>
+    <div class="wslot" id="ws-map"><span class="k">5</span>🗺️</div>
   </div>
+  <canvas id="minimap" width="150" height="150"></canvas>
   <div id="interactPrompt">[E] CZARNY RYNEK</div>
   <div id="announce"></div>
 </div>
@@ -271,8 +278,8 @@
   </div>
   <div id="mpStatus"></div>
   <div class="controls">
-    <b>WASD</b> ruch • <b>MYSZ</b> rozglądanie • <b>SHIFT</b> sprint • <b>1–4</b> broń • <b>E</b> rynek<br>
-    <b>LPM</b> strzał / błysk • <b>PPM</b> celowanie (snajperka) • w SAFE: <b>1/2</b> = kamera<br>
+    <b>WASD</b> ruch • <b>SPACJA</b> skok • <b>SHIFT</b> sprint • <b>1–5</b> przedmioty • <b>E</b> rynek<br>
+    <b>LPM</b> strzał / błysk • <b>PPM</b> celowanie (snajperka) • w SAFE: <b>0</b> oddal / <b>9</b> przybliż kamerę<br>
     Jesteś naukowcem w kombinezonie ☢. Nie jesteś tu sam.
   </div>
   <div id="audioStatus">⏳ szukam dźwięków na Wikimedia Commons…</div>
@@ -304,6 +311,11 @@
         <div class="top"><span class="nm">⚙️ Minigun</span><span class="pr">5 000 🪙</span></div>
         <div class="ds">Jedyna broń, która ZABIJA Potwora… ale on odrodzi się po 1 minucie w losowym miejscu (nigdy w SAFE). Przytrzymaj LPM.</div>
         <button data-item="minigun">KUP</button>
+      </div>
+      <div class="sItem">
+        <div class="top"><span class="nm">🗺️ Mapa</span><span class="pr">10 🪙</span></div>
+        <div class="ds">Minimapa w lewym dolnym rogu: korytarze, strefy SAFE i pozycja CZARNEGO RYNKU. Klawisz [5] chowa/pokazuje.</div>
+        <button data-item="map">KUP</button>
       </div>
     </div>
     <button id="closeShop">WRÓĆ DO GRY [ESC]</button>
@@ -342,6 +354,7 @@ const WEAPONS = {
   pistol:     { price: 40,   slot: 2, cooldown: 0.7,   name: 'Pistolet' },
   sniper:     { price: 100,  slot: 3, cooldown: 4.0,   name: 'Snajperka' },
   minigun:    { price: 5000, slot: 4, cooldown: 0.085, name: 'Minigun' },
+  map:        { price: 10,   slot: 5, cooldown: 0,     name: 'Mapa' },
 };
 
 /* deterministyczny generator losowy — ten sam seed = ten sam labirynt
@@ -1248,45 +1261,72 @@ function buildCoins() {
 let enemyParts = {};
 function buildEnemy() {
   enemyGroup = new THREE.Group();
-  const skin = new THREE.MeshPhongMaterial({ color: 0x2a211a, shininess: 30, specular: 0x554433 });
-  const skinDark = new THREE.MeshPhongMaterial({ color: 0x1a140f, shininess: 25, specular: 0x443322 });
+  const skin = new THREE.MeshPhongMaterial({ color: 0x231b14, shininess: 55, specular: 0x665544 });
+  const skinDark = new THREE.MeshPhongMaterial({ color: 0x140f0a, shininess: 45, specular: 0x554433 });
 
-  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.36, 1.5, 8), skin);
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.38, 1.55, 8), skin);
   torso.position.y = 1.55;
-  torso.rotation.x = 0.22; // garb — pochylony do przodu
+  torso.rotation.x = 0.35; // mocno zgarbiony
 
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.26, 10, 8), skinDark);
-  head.scale.set(1, 1.25, 1.05);
-  head.position.set(0, 2.42, 0.22);
+  // guzy kręgosłupa na garbie
+  for (let i = 0; i < 4; i++) {
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.09 - i * 0.012, 6, 5), skinDark);
+    b.position.set(0, 2.15 - i * 0.22, -0.28 - i * 0.03);
+    enemyGroup.add(b);
+  }
+
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 8), skinDark);
+  head.scale.set(0.9, 1.45, 1.0); // wydłużona czaszka
+  head.position.set(0, 2.5, 0.3);
 
   const eyesMat = new THREE.MeshBasicMaterial({ color: 0xfff7aa });
-  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 5), eyesMat);
-  eyeL.position.set(-0.1, 2.48, 0.43);
-  const eyeR = eyeL.clone();
-  eyeR.position.x = 0.1;
+  const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.055, 6, 5), eyesMat);
+  eyeL.position.set(-0.09, 2.6, 0.48);
+  const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.038, 6, 5), eyesMat); // asymetria
+  eyeR.position.set(0.1, 2.57, 0.48);
 
-  const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.05, 0.06),
-    new THREE.MeshBasicMaterial({ color: 0x050302 }));
-  mouth.position.set(0, 2.3, 0.44);
+  // rozdziawiona paszcza z zębami
+  const maw = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.06),
+    new THREE.MeshBasicMaterial({ color: 0x000000 }));
+  maw.position.set(0, 2.35, 0.46);
+  const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.09, 0.2), skinDark);
+  jaw.position.set(0, 2.26, 0.4);
+  const teethMat = new THREE.MeshBasicMaterial({ color: 0xd8d0b8 });
+  for (let i = 0; i < 4; i++) {
+    const tooth = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.06, 4), teethMat);
+    tooth.position.set(-0.075 + i * 0.05, 2.38, 0.47);
+    tooth.rotation.x = Math.PI; // kły w dół
+    enemyGroup.add(tooth);
+  }
 
-  const armGeo = new THREE.CylinderGeometry(0.055, 0.075, 1.5, 6);
-  const armL = new THREE.Mesh(armGeo, skin);
-  armL.position.set(-0.38, 1.55, 0.12);
-  armL.rotation.z = 0.28; armL.rotation.x = 0.35;
-  const armR = new THREE.Mesh(armGeo, skin);
-  armR.position.set(0.38, 1.55, 0.12);
-  armR.rotation.z = -0.28; armR.rotation.x = 0.35;
-  const handGeo = new THREE.SphereGeometry(0.1, 6, 5);
-  const handL = new THREE.Mesh(handGeo, skinDark); handL.position.set(-0.58, 0.78, 0.42);
-  const handR = new THREE.Mesh(handGeo, skinDark); handR.position.set(0.58, 0.78, 0.42);
+  // ręce z pivotem w barku — dłoń i szpony podążają za ramieniem
+  const mkArm = (side) => {
+    const g = new THREE.Group();
+    g.position.set(0.33 * side, 2.1, 0.08); // bark
+    const limb = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 1.6, 6), skin);
+    limb.position.y = -0.8;
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 5), skinDark);
+    hand.position.y = -1.6;
+    g.add(limb, hand);
+    for (let i = 0; i < 3; i++) { // szpony
+      const claw = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.17, 4), skinDark);
+      claw.position.set((i - 1) * 0.055, -1.73, 0.02);
+      claw.rotation.x = Math.PI;
+      g.add(claw);
+    }
+    g.rotation.z = -0.1 * side;
+    g.rotation.x = 0.25;
+    return g;
+  };
+  const armL = mkArm(-1), armR = mkArm(1); // sięgają niemal do ziemi
 
   const legGeo = new THREE.CylinderGeometry(0.08, 0.11, 1.15, 6);
   const legL = new THREE.Mesh(legGeo, skinDark); legL.position.set(-0.17, 0.55, 0);
   const legR = new THREE.Mesh(legGeo, skinDark); legR.position.set(0.17, 0.55, 0);
 
-  enemyGroup.add(torso, head, eyeL, eyeR, mouth, armL, armR, handL, handR, legL, legR);
+  enemyGroup.add(torso, head, eyeL, eyeR, maw, jaw, armL, armR, legL, legR);
   enemyGroup.scale.setScalar(1.2); // ~3,2 m — góruje w korytarzu
-  enemyParts = { torso, head, eyeL, eyeR, eyesMat, armL, armR, handL, handR, legL, legR, wounds: [] };
+  enemyParts = { torso, head, eyeL, eyeR, eyesMat, armL, armR, legL, legR, jaw, wounds: [] };
 
   enemyLight = new THREE.PointLight(0xffeeaa, 0.4, 7, 1.8); // poświata oczu
   enemyLight.position.y = 2.45;
@@ -1336,12 +1376,18 @@ function buildScientist(color) {
   const legGeo = new THREE.CylinderGeometry(0.11, 0.13, 0.5, 8);
   const legL = new THREE.Mesh(legGeo, suitDark); legL.position.set(-0.16, 0.25, 0);
   const legR = new THREE.Mesh(legGeo, suitDark); legR.position.set(0.16, 0.25, 0);
-  const armGeo = new THREE.CylinderGeometry(0.08, 0.09, 0.6, 8);
+  // ręce zwisają wzdłuż ciała, zakończone rękawicami
+  const armGeo = new THREE.CylinderGeometry(0.08, 0.09, 0.62, 8);
   const armL = new THREE.Mesh(armGeo, suit);
-  armL.position.set(-0.5, 1.05, 0); armL.rotation.z = 0.35;
+  armL.position.set(-0.44, 1.0, 0); armL.rotation.z = 0.12;
   const armR = new THREE.Mesh(armGeo, suit);
-  armR.position.set(0.5, 1.05, 0); armR.rotation.z = -0.35;
-  g.add(body, hood, visor, tank, badge, legL, legR, armL, armR);
+  armR.position.set(0.44, 1.0, 0); armR.rotation.z = -0.12;
+  const gloveMat = new THREE.MeshLambertMaterial({ color: 0x2a2a2e });
+  const glL = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), gloveMat);
+  glL.position.set(-0.48, 0.66, 0);
+  const glR = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), gloveMat);
+  glR.position.set(0.48, 0.66, 0);
+  g.add(body, hood, visor, tank, badge, legL, legR, armL, armR, glL, glR);
   g.userData.legs = [legL, legR];
   return g;
 }
@@ -1529,7 +1575,7 @@ const player = {
   pos: new THREE.Vector3(), yaw: 0, pitch: 0,
   stamina: CFG.staminaMax, bobPhase: 0, prevBobSin: 0, inSafe: false,
   coins: 0, weapons: {}, equipped: null, cooldowns: {}, aiming: false,
-  recoil: 0, safeZoom: 0,
+  recoil: 0, safeZoom: 0, y: 0, velY: 0,
 };
 const enemy = {
   pos: new THREE.Vector3(), path: [], repathT: 0, grace: 0,
@@ -1555,6 +1601,7 @@ function findFarthestFloor(fromX, fromY) {
 function resetPlayerInventory() {
   player.coins = 0; player.weapons = {}; player.equipped = null;
   player.cooldowns = {}; player.aiming = false; player.recoil = 0; player.safeZoom = 0;
+  player.y = 0; player.velY = 0;
   updateCoinHud(); updateWeaponBar(); applyEquipVisibility(); setAiming(false);
 }
 
@@ -1980,11 +2027,11 @@ function killEnemy() {
 document.addEventListener('keydown', e => {
   keys[e.code] = true;
   if (state === 'playing') {
-    // w SAFE klawisze 1/2 sterują kamerą (obsługa w updatePlayer)
-    if (e.code === 'Digit1' && !player.inSafe) equip('flashlight');
-    if (e.code === 'Digit2' && !player.inSafe) equip('pistol');
+    if (e.code === 'Digit1') equip('flashlight');
+    if (e.code === 'Digit2') equip('pistol');
     if (e.code === 'Digit3') equip('sniper');
     if (e.code === 'Digit4') equip('minigun');
+    if (e.code === 'Digit5' && player.weapons.map) minimapVisible = !minimapVisible;
     if (e.code === 'KeyE' && market.spawned && nearMarket()) openShop();
   } else if (state === 'shop' && e.code === 'Escape') {
     closeShop();
@@ -2065,7 +2112,8 @@ document.querySelectorAll('#shop button[data-item]').forEach(btn => {
     if (player.coins < def.price) { AudioSys.play('uiError', 0.7); return; }
     player.coins -= def.price;
     player.weapons[item] = true;
-    player.equipped = item;
+    if (item === 'map') minimapVisible = true;
+    else player.equipped = item;
     AudioSys.play('buy', 0.9);
     updateCoinHud(); updateShopButtons(); updateWeaponBar(); applyEquipVisibility();
   });
@@ -2193,6 +2241,20 @@ function updatePlayer(dt) {
   player.recoil = Math.max(0, player.recoil - dt * 0.8);
   muzzleLight.intensity = Math.max(0, muzzleLight.intensity - dt * 30);
 
+  // skok (SPACJA) + grawitacja
+  if (keys.Space && player.y <= 0.001 && player.velY <= 0) {
+    player.velY = 5.2;
+    AudioSys.playSlice('steps', 0.15, 0.3, 1.3, 1.5);
+  }
+  player.velY -= 14 * dt;
+  const newY = player.y + player.velY * dt;
+  if (newY <= 0) {
+    if (player.y > 0 && player.velY < -3) AudioSys.playSlice('steps', 0.2, 0.5, 0.8, 1.0);
+    player.y = 0; player.velY = Math.max(0, player.velY * 0);
+  } else {
+    player.y = newY;
+  }
+
   const [pcx, pcy] = worldToCell(player.pos.x, player.pos.z);
   const wasSafe = player.inSafe;
   player.inSafe = cellAt(pcx, pcy) === 2;
@@ -2200,18 +2262,18 @@ function updatePlayer(dt) {
   ui.safeBadge.style.display = player.inSafe ? 'block' : 'none';
   ui.stamina.style.width = player.stamina + '%';
 
-  // --- kamera SAFE: [1] oddala do widoku TPP, [2] przybliża ---
+  // --- kamera SAFE: [0] oddala do widoku TPP, [9] przybliża ---
   if (player.inSafe) {
-    if (keys.Digit1) player.safeZoom = Math.min(1, player.safeZoom + dt * 1.2);
-    if (keys.Digit2) player.safeZoom = Math.max(0, player.safeZoom - dt * 1.2);
+    if (keys.Digit0) player.safeZoom = Math.min(1, player.safeZoom + dt * 1.2);
+    if (keys.Digit9) player.safeZoom = Math.max(0, player.safeZoom - dt * 1.2);
   } else {
     player.safeZoom = Math.max(0, player.safeZoom - dt * 2.5);
   }
   const camDist = player.safeZoom * 5;
 
-  const bobY = Math.sin(player.bobPhase) * 0.055 * (moving ? 1 : 0);
+  const bobY = Math.sin(player.bobPhase) * 0.055 * (moving && player.y === 0 ? 1 : 0);
   const breathe = Math.sin(performance.now() / 900) * 0.012;
-  const eyeY = CFG.eyeHeight + bobY + breathe;
+  const eyeY = CFG.eyeHeight + player.y + bobY + breathe;
   camera.rotation.order = 'YXZ';
   camera.rotation.y = player.yaw;
   camera.rotation.x = player.pitch + player.recoil;
@@ -2224,7 +2286,7 @@ function updatePlayer(dt) {
     while (d > 0.3 && isWallAtWorld(player.pos.x - fx * d, player.pos.z - fz * d, 0.35)) d -= 0.3;
     camera.position.set(player.pos.x - fx * d, eyeY + d * 0.25, player.pos.z - fz * d);
     selfModel.visible = true;
-    selfModel.position.set(player.pos.x, 0, player.pos.z);
+    selfModel.position.set(player.pos.x, player.y, player.pos.z);
     selfModel.rotation.y = player.yaw + Math.PI;
     const [l0, l1] = selfModel.userData.legs;
     l0.position.z = moving ? Math.sin(player.bobPhase) * 0.15 : 0;
@@ -2257,10 +2319,13 @@ function updatePlayer(dt) {
 /* wspólna animacja chodu Potwora */
 function animMonster(t, moving) {
   const p = enemyParts;
-  p.armL.rotation.x = 0.35 + (moving ? Math.sin(t * 7) * 0.5 : 0);
-  p.armR.rotation.x = 0.35 + (moving ? -Math.sin(t * 7) * 0.5 : 0);
+  // ramiona obracają się w barku — dłonie i szpony podążają razem z nimi
+  p.armL.rotation.x = 0.25 + (moving ? Math.sin(t * 7) * 0.6 : Math.sin(t * 1.3) * 0.07);
+  p.armR.rotation.x = 0.25 + (moving ? -Math.sin(t * 7) * 0.6 : -Math.sin(t * 1.3) * 0.07);
   p.legL.position.z = moving ? Math.sin(t * 8) * 0.22 : 0;
   p.legR.position.z = moving ? -Math.sin(t * 8) * 0.22 : 0;
+  // kłapiąca szczęka
+  p.jaw.position.y = 2.26 - Math.abs(Math.sin(t * (moving ? 5 : 1.8))) * (moving ? 0.07 : 0.03);
   if (Math.random() < 0.04) p.head.rotation.z = (Math.random() - 0.5) * 0.7; // drgawki
   p.head.rotation.z *= 0.9;
 }
@@ -2402,6 +2467,26 @@ function updateEnemy(dt) {
         AudioSys.playSlice('steps', 0.3, Math.min(0.9, 5 / distToPlayer), 0.5, 0.65, 600);
       }
     }
+  } else if (tw) {
+    // ścieżka A* kończy się na ŚRODKU pola (pole ma 6 m) — bez tego Potwór
+    // zatrzymywał się obok stojącego gracza i go nie łapał; teraz dochodzi
+    // prosto do dokładnej pozycji celu, gdy tylko go widzi
+    const dx = tw[0] - enemy.pos.x, dz = tw[1] - enemy.pos.z;
+    const d = Math.hypot(dx, dz);
+    const [tcx, tcy] = worldToCell(tw[0], tw[1]);
+    if (d > 0.1 && hasLineOfSight(ecx, ecy, tcx, tcy)) {
+      moving = true;
+      const nx = enemy.pos.x + dx / d * speed * dt;
+      const nz = enemy.pos.z + dz / d * speed * dt;
+      if (!isWallAtWorld(nx, enemy.pos.z, 0.4)) enemy.pos.x = nx;
+      if (!isWallAtWorld(enemy.pos.x, nz, 0.4)) enemy.pos.z = nz;
+      enemy.faceYaw = Math.atan2(dx, dz);
+      enemy.stepT -= dt;
+      if (enemy.stepT <= 0 && distToPlayer < 22) {
+        enemy.stepT = enemy.slowT > 0 ? 0.6 : 0.4;
+        AudioSys.playSlice('steps', 0.3, Math.min(0.85, 5 / distToPlayer), 0.5, 0.65, 600);
+      }
+    }
   }
 
   enemyGroup.position.set(enemy.pos.x, moving ? Math.abs(Math.sin(t * 7)) * 0.1 : 0, enemy.pos.z);
@@ -2508,6 +2593,39 @@ function updateDead(dt) {
   }
 }
 
+/* ---------- MINIMAPA (przedmiot 🗺️ ze sklepu, klawisz 5) ---------- */
+let minimapVisible = true, minimapT = 0;
+const mmCanvas = document.getElementById('minimap');
+const mmCtx = mmCanvas.getContext('2d');
+function drawMinimap() {
+  const S = mmCanvas.width, sc = S / CFG.gridW;
+  mmCtx.fillStyle = 'rgba(10,8,4,0.92)';
+  mmCtx.fillRect(0, 0, S, S);
+  for (let y = 0; y < CFG.gridH; y++) for (let x = 0; x < CFG.gridW; x++) {
+    const v = grid[y][x];
+    if (v === 1) continue;
+    mmCtx.fillStyle = v === 2 ? '#1e7a44' : '#6b5e33';
+    mmCtx.fillRect(x * sc, y * sc, sc, sc);
+  }
+  if (market.spawned) { // czarny rynek — fioletowy znacznik
+    const mx = (market.pos.x / CFG.cell + CFG.gridW / 2) * sc;
+    const my = (market.pos.z / CFG.cell + CFG.gridH / 2) * sc;
+    mmCtx.fillStyle = '#c77dff';
+    mmCtx.fillRect(mx - 3, my - 3, 6, 6);
+    mmCtx.fillStyle = '#f0d4ff';
+    mmCtx.fillRect(mx - 1, my - 1, 2, 2);
+  }
+  // gracz + kierunek patrzenia
+  const px = (player.pos.x / CFG.cell + CFG.gridW / 2) * sc;
+  const py = (player.pos.z / CFG.cell + CFG.gridH / 2) * sc;
+  mmCtx.strokeStyle = '#fff';
+  mmCtx.beginPath(); mmCtx.moveTo(px, py);
+  mmCtx.lineTo(px - Math.sin(player.yaw) * 8, py - Math.cos(player.yaw) * 8);
+  mmCtx.stroke();
+  mmCtx.fillStyle = '#fff';
+  mmCtx.beginPath(); mmCtx.arc(px, py, 3, 0, 7); mmCtx.fill();
+}
+
 /* ---------- ziarno filmowe (post-processing) ---------- */
 const grainCanvas = document.getElementById('grain');
 const gctx = grainCanvas.getContext('2d');
@@ -2560,6 +2678,10 @@ function animate() {
     updateCoins(dt, t);
     updateMarket(dt);
     Net.updateAvatars(dt);
+    const showMap = !!player.weapons.map && minimapVisible;
+    mmCanvas.style.display = showMap ? 'block' : 'none';
+    minimapT -= dt;
+    if (showMap && minimapT <= 0) { minimapT = 0.15; drawMinimap(); }
   } else if (state === 'dead') {
     updateDead(dt);
   } else if (state === 'menu') {
