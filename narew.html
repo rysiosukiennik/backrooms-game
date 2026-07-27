@@ -821,6 +821,38 @@ function texBark() {
 }
 
 
+/* ---- tkaniny na ubrania: kafelkowe, więc nie trzeba dopasowywać UV ---- */
+function texDzins() {
+  return makeCanvas(64, (ctx, s) => {
+    ctx.fillStyle = '#3c5480'; ctx.fillRect(0, 0, s, s);
+    for (let i = 0; i < s; i += 2) {          // splot skośny
+      ctx.strokeStyle = 'rgba(255,255,255,.07)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(s, i - s * 0.5); ctx.stroke();
+      ctx.strokeStyle = 'rgba(0,0,0,.10)';
+      ctx.beginPath(); ctx.moveTo(0, i + 1); ctx.lineTo(s, i + 1 - s * 0.5); ctx.stroke();
+    }
+    for (let i = 0; i < 700; i++) {           // przetarcia
+      ctx.fillStyle = `rgba(255,255,255,${Math.random() * .05})`;
+      ctx.fillRect(Math.random() * s, Math.random() * s, 1, 1);
+    }
+  });
+}
+
+function texTkanina() {                        // biała baza — barwi ją kolor materiału
+  return makeCanvas(64, (ctx, s) => {
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, s, s);
+    for (let i = 0; i < 1400; i++) {
+      const v = Math.random() < 0.5 ? 0 : 255;
+      ctx.fillStyle = `rgba(${v},${v},${v},.07)`;
+      ctx.fillRect(Math.random() * s, Math.random() * s, 2, 1);
+    }
+    for (let i = 0; i < s; i += 4) {           // delikatny rządek splotu
+      ctx.fillStyle = 'rgba(0,0,0,.05)';
+      ctx.fillRect(0, i, s, 1);
+    }
+  });
+}
+
 function texRoad() {
   return makeCanvas(128, (ctx, s) => {
     ctx.fillStyle = '#3b3b3e'; ctx.fillRect(0, 0, s, s);
@@ -3194,16 +3226,23 @@ function refreshGrass(center) {
 /* ---------- postać gracza (multiplayer + widok TPP) ---------- */
 function buildPerson(shirt) {
   const g = new THREE.Group();
-  // materiały: matowa kurtka, denim, skóra, buty z połyskiem
-  const kurtka = new THREE.MeshPhongMaterial({ color: shirt, shininess: 12, specular: 0x141414 });
-  const koszulka = new THREE.MeshLambertMaterial({ color: 0xe9e5dd });
-  const jeans = new THREE.MeshPhongMaterial({ color: 0x33456b, shininess: 6, specular: 0x0c0c0c });
+  // Materiały na prawdziwych tkaninach: biała baza splotu barwiona kolorem,
+  // dzięki czemu ubranie ma fakturę zamiast płaskiej plamy koloru.
+  const tk = textures.tkanina, dz = textures.dzins;
+  const kurtka = new THREE.MeshPhongMaterial({ color: shirt, map: tk, shininess: 14, specular: 0x161616 });
+  const koszulka = new THREE.MeshLambertMaterial({ color: 0xe9e5dd, map: tk });
+  const jeans = new THREE.MeshPhongMaterial({ color: 0xffffff, map: dz, shininess: 5, specular: 0x0a0a0a });
   const skin = new THREE.MeshLambertMaterial({ color: 0xc28a5f });
   const skinC = new THREE.MeshLambertMaterial({ color: 0xb37b52 });
   const wlosy = new THREE.MeshLambertMaterial({ color: 0x241a12 });
   const but = new THREE.MeshPhongMaterial({ color: 0x17130f, shininess: 55, specular: 0x333333 });
   const bialy = new THREE.MeshLambertMaterial({ color: 0xe4e2dc });
   const ciemny = new THREE.MeshLambertMaterial({ color: 0x1a1a1c });
+  const oczyBiel = new THREE.MeshLambertMaterial({ color: 0xf2efe6 });
+  const tecza = new THREE.MeshLambertMaterial({ color: 0x4a6b8a });
+  const usta = new THREE.MeshLambertMaterial({ color: 0x8f5a4a });
+  // wariant postaci z czapką — zależny od koloru kurtki, więc każdy gracz ma swój
+  const wCzapce = ((shirt >> 4) & 1) === 1;
 
   // stożek ścięty: podstawa ludzkiej sylwetki, dużo miększa od prostopadłościanu
   const rura = (rTop, rBot, h, mat, segs) => {
@@ -3257,21 +3296,67 @@ function buildPerson(shirt) {
     Math.PI * 0.75, Math.PI * 0.5, Math.PI * 0.28, Math.PI * 0.3), wlosy);
   grzywka.scale.set(0.98, 1.0, 1.06);
   grzywka.position.y = 0.10;
-  const nos = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.05, 6), skin);
-  nos.rotation.x = Math.PI / 2 + 0.5;
-  nos.position.set(0, 0.055, 0.098);
-  const brwiL = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.009, 0.012), wlosy);
-  brwiL.position.set(-0.035, 0.093, 0.088);
-  const brwiR = brwiL.clone(); brwiR.position.x = 0.035;
-  const okoMat = new THREE.MeshBasicMaterial({ color: 0x17110b });
-  const okoL = new THREE.Mesh(new THREE.SphereGeometry(0.013, 8, 6), okoMat);
-  okoL.position.set(-0.035, 0.075, 0.09);
-  const okoR = okoL.clone(); okoR.position.x = 0.035;
-  const uchoL = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), skinC);
-  uchoL.scale.set(0.45, 1, 0.8);
-  uchoL.position.set(-0.098, 0.065, 0.005);
-  const uchoR = uchoL.clone(); uchoR.position.x = 0.098;
-  glowa.add(czaszka, zuchwa, wlosyM, grzywka, nos, brwiL, brwiR, okoL, okoR, uchoL, uchoR);
+  // kości policzkowe — dają twarzy kształt zamiast gładkiej kuli
+  const policzekL = new THREE.Mesh(new THREE.SphereGeometry(0.038, 8, 6), skin);
+  policzekL.scale.set(1, 0.7, 0.7);
+  policzekL.position.set(-0.055, 0.062, 0.062);
+  const policzekR = policzekL.clone(); policzekR.position.x = 0.055;
+
+  const nos = new THREE.Mesh(new THREE.ConeGeometry(0.021, 0.055, 7), skin);
+  nos.rotation.x = Math.PI / 2 + 0.45;
+  nos.position.set(0, 0.052, 0.1);
+  const brwiL = new THREE.Mesh(new THREE.BoxGeometry(0.038, 0.011, 0.014), wlosy);
+  brwiL.position.set(-0.036, 0.096, 0.088);
+  brwiL.rotation.z = 0.12;
+  const brwiR = brwiL.clone(); brwiR.position.x = 0.036; brwiR.rotation.z = -0.12;
+
+  // oko: białko + tęczówka + źrenica, zamiast czarnej kropki
+  const mkOko = (bok) => {
+    const o = new THREE.Group();
+    o.position.set(bok * 0.036, 0.076, 0.082);
+    const bialko = new THREE.Mesh(new THREE.SphereGeometry(0.016, 10, 8), oczyBiel);
+    bialko.scale.set(1, 0.62, 0.5);
+    const iris = new THREE.Mesh(new THREE.SphereGeometry(0.0085, 8, 6), tecza);
+    iris.position.z = 0.009; iris.scale.z = 0.5;
+    const zrenica = new THREE.Mesh(new THREE.SphereGeometry(0.004, 6, 5),
+      new THREE.MeshBasicMaterial({ color: 0x0a0806 }));
+    zrenica.position.z = 0.013; zrenica.scale.z = 0.5;
+    const powieka = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.008, 0.016), skin);
+    powieka.position.y = 0.012;
+    o.add(bialko, iris, zrenica, powieka);
+    return o;
+  };
+  const okoL = mkOko(-1), okoR = mkOko(1);
+
+  const ustaM = new THREE.Mesh(new THREE.BoxGeometry(0.042, 0.009, 0.014), usta);
+  ustaM.position.set(0, 0.012, 0.086);
+  const broda = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), skinC);
+  broda.scale.set(1, 0.6, 0.6);
+  broda.position.set(0, -0.012, 0.062);
+
+  const uchoL = new THREE.Mesh(new THREE.SphereGeometry(0.024, 8, 6), skinC);
+  uchoL.scale.set(0.4, 1, 0.75);
+  uchoL.position.set(-0.1, 0.062, 0.004);
+  const uchoR = uchoL.clone(); uchoR.position.x = 0.1;
+
+  glowa.add(czaszka, zuchwa, wlosyM, grzywka, policzekL, policzekR, nos,
+            brwiL, brwiR, okoL, okoR, ustaM, broda, uchoL, uchoR);
+
+  // czapka z daszkiem — połowa postaci ją nosi
+  if (wCzapce) {
+    const czapkaMat = new THREE.MeshLambertMaterial({ color: shirt, map: tk });
+    const czasza = new THREE.Mesh(new THREE.SphereGeometry(0.118, 14, 10,
+      0, Math.PI * 2, 0, Math.PI * 0.5), czapkaMat);
+    czasza.scale.set(0.98, 0.9, 1.02);
+    czasza.position.y = 0.105;
+    const daszek = new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.115, 0.014, 14,
+      1, false, -0.9, 1.8), czapkaMat);
+    daszek.position.set(0, 0.1, 0.05);
+    daszek.rotation.x = -0.12;
+    daszek.scale.z = 1.35;
+    glowa.add(czasza, daszek);
+    wlosyM.visible = false; grzywka.visible = false;
+  }
 
   /* ---- ręce: bark → ramię → przedramię → dłoń ---- */
   const mkRamie = (bok) => {
@@ -3287,10 +3372,18 @@ function buildPerson(shirt) {
     const dlon = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), skin);
     dlon.scale.set(0.8, 1.25, 0.5);
     dlon.position.y = -0.31;
+    const kciuk = new THREE.Mesh(new THREE.SphereGeometry(0.017, 6, 5), skin);
+    kciuk.scale.set(0.9, 1.5, 0.7);
+    kciuk.position.set(bok * -0.03, -0.295, 0.012);
     const mankiet = new THREE.Mesh(new THREE.TorusGeometry(0.048, 0.014, 6, 10), kurtka);
     mankiet.rotation.x = Math.PI / 2;
-    lokiec.add(przedramie, nadgarstek, dlon, mankiet);
-    bark.add(kula, ramie, lokiec);
+    const lokiecKula = new THREE.Mesh(new THREE.SphereGeometry(0.048, 10, 8), kurtka);
+    lokiec.add(lokiecKula, przedramie, nadgarstek, dlon, kciuk, mankiet);
+    // naramiennik: szew na ramieniu, jak w kurtkach z gry
+    const szew = new THREE.Mesh(new THREE.TorusGeometry(0.056, 0.008, 5, 12), kurtka);
+    szew.rotation.x = Math.PI / 2;
+    szew.position.y = -0.03;
+    bark.add(kula, szew, ramie, lokiec);
     bark.userData.lokiec = lokiec;
     return bark;
   };
@@ -3306,22 +3399,46 @@ function buildPerson(shirt) {
     const lydka = rura(0.066, 0.048, 0.42, jeans, 12);
     const kostka = new THREE.Mesh(new THREE.SphereGeometry(0.046, 8, 6), jeans);
     kostka.position.y = -0.42;
+    // but sportowy: cholewka, zaokrąglony czub, gruba biała podeszwa i pasek
     const but2 = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.085, 0.245), but);
     but2.position.set(0, -0.45, 0.045);
     const czub = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), but);
     czub.scale.set(1, 0.85, 1.1);
     czub.position.set(0, -0.45, 0.15);
-    const podeszwa = new THREE.Mesh(new THREE.BoxGeometry(0.105, 0.032, 0.26), bialy);
-    podeszwa.position.set(0, -0.487, 0.05);
-    kolano.add(lydka, kostka, but2, czub, podeszwa);
-    biodro.add(udo, kolano);
+    const podeszwa = new THREE.Mesh(new THREE.BoxGeometry(0.108, 0.038, 0.27), bialy);
+    podeszwa.position.set(0, -0.489, 0.05);
+    const nosek = new THREE.Mesh(new THREE.SphereGeometry(0.052, 8, 6), bialy);
+    nosek.scale.set(1, 0.42, 1.05);
+    nosek.position.set(0, -0.487, 0.152);
+    const pasekButa = new THREE.Mesh(new THREE.BoxGeometry(0.103, 0.016, 0.09), bialy);
+    pasekButa.position.set(0, -0.44, 0.1);
+    pasekButa.rotation.x = 0.35;
+    const jezyk = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.05, 0.02), ciemny);
+    jezyk.position.set(0, -0.4, 0.15);
+    jezyk.rotation.x = 0.3;
+    // pięta i kolano jako kulki — sylwetka przestaje być poskładana z rurek
+    const pieta = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 6), but);
+    pieta.scale.set(1, 0.8, 0.9);
+    pieta.position.set(0, -0.452, -0.055);
+    const rzepka = new THREE.Mesh(new THREE.SphereGeometry(0.062, 10, 8), jeans);
+    rzepka.position.y = 0.005;
+    kolano.add(rzepka, lydka, kostka, but2, czub, podeszwa, nosek, pasekButa, jezyk, pieta);
+    const biodroKula = new THREE.Mesh(new THREE.SphereGeometry(0.082, 10, 8), jeans);
+    biodro.add(biodroKula, udo, kolano);
     biodro.userData.kolano = kolano;
     return biodro;
   };
   const legL = mkNoga(-1), legR = mkNoga(1);
 
   g.add(miednica, tors, pas, klamra, szyja, glowa, armL, armR, legL, legR);
-  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  // Cień rzucają tylko duże części. Oczy, brwi, kciuk czy sznurówki i tak go
+  // nie dają widocznego, a każdy drobiazg to osobne wejście do mapy cieni.
+  g.traverse(o => {
+    if (!o.isMesh) return;
+    o.receiveShadow = true;
+    o.geometry.computeBoundingSphere();
+    o.castShadow = o.geometry.boundingSphere.radius > 0.05;
+  });
   g.userData.limbs = { legL, legR, armL, armR, glowa, tors };
   return g;
 }
@@ -3495,6 +3612,8 @@ function buildWorld(seed) {
   if (Pogoda.stan === 'ładowanie') Pogoda.pobierz();
   textures.road = tex(texRoad(), 1, 1);
   textures.dirt = tex(texDirt(), 1, 1);
+  textures.dzins = tex(texDzins(), 2, 3);
+  textures.tkanina = tex(texTkanina(), 2, 2);
 
   const aniso = renderer.capabilities.getMaxAnisotropy();
   for (const k in textures) if (textures[k].anisotropy !== undefined) textures[k].anisotropy = aniso;
