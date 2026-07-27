@@ -5,6 +5,27 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NAREW — posesja nad jeziorem</title>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+<script>
+/* Gra otwarta prosto z dysku sama przechodzi tam, gdzie działa YouTube:
+   najpierw lokalny serwer, a gdy go nie ma — na wersję internetową.
+   Bez tego filmy nigdy nie zagrają, bo protokół file: jest przez YouTube blokowany. */
+(function () {
+  if (location.protocol !== 'file:') return;
+  var LOKALNY = 'http://localhost:8080/narew.html';
+  var SIECIOWY = 'https://rysiosukiennik.github.io/backrooms-game/narew.html';
+  var poszlo = false;
+  function idz(adres) { if (!poszlo) { poszlo = true; location.replace(adres); } }
+
+  var s = document.createElement('script');
+  s.src = LOKALNY.replace('narew.html', 'ping.js') + '?t=' + Date.now();
+  s.onload = function () { idz(LOKALNY); };
+  s.onerror = function () { if (navigator.onLine) idz(SIECIOWY); };
+  document.head.appendChild(s);
+
+  // gdyby serwer milczał, a internetu nie było — zostajemy i pokazujemy ostrzeżenie
+  setTimeout(function () { if (!poszlo && navigator.onLine) idz(SIECIOWY); }, 1800);
+})();
+</script>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   html,body { width:100%; height:100%; overflow:hidden; background:#000;
@@ -321,6 +342,7 @@
     <b>N</b> otwiera NAREWFLIX, <b>Y</b> — NAREWKĘ z filmami z YouTube (<b>L</b> wkleja własny link)<br>
     W klocu na podłodze leży butelka: <b>E</b> podnosi, <b>Q</b> nabiera wody z Narwi, <b>G</b> pije<br>
     Łóżko w klocu: wejdź i śpij klawiszem <b>F</b> • w Narwi stoi Jan Sukiennik — <b>R</b> wystrzeliwuje w górę<br>
+    Świecąca płyta w klocu: <b>T</b> teleportuje nad Narew i z powrotem<br>
     Filmy wybiera się klawiszami <b>1–8</b> albo celując w ekran i klikając <b>LPM</b><br>
     Za klocem wzgórze z ogródkiem. Bramą na wschód wychodzisz nad Narew — koryto rzeki,
     starorzecze i rowy odwzorowane z map OpenStreetMap dla Gzowa. W rzece można pływać.<br>
@@ -376,6 +398,9 @@
 <!-- CSS3DRenderer: pozwala wstawić odtwarzacz YouTube w płaszczyznę ekranu TV
      (obrazu z serwisu nie da się nałożyć na teksturę WebGL) -->
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS3DRenderer.js"></script>
+<!-- wczytywanie prawdziwych modeli 3D ze szkieletem i animacjami -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
 <!-- oficjalne API odtwarzacza YouTube: pozwala odczytać spis odcinków playlisty
      i przeskakiwać między nimi (samej listy nie da się pobrać inaczej bez klucza) -->
 <script src="https://www.youtube.com/iframe_api"></script>
@@ -2565,6 +2590,147 @@ function wystrzel() {
 }
 
 /* ================================================================
+   TELEPORT — płyta w klocu przenosi nad Narew do Jana i z powrotem [T]
+================================================================ */
+const teleport = { pad: null, pierscien: null, x: 12, z: -14, r: 1.9, powrot: null };
+
+function buildTeleport() {
+  const g = new THREE.Group();
+  g.position.set(teleport.x, 0.07, teleport.z);
+
+  const plyta = new THREE.Mesh(new THREE.CylinderGeometry(teleport.r, teleport.r, 0.06, 32),
+    new THREE.MeshPhongMaterial({ color: 0x0d2b38, emissive: 0x0b3a4a, shininess: 90 }));
+  const swiatlo = new THREE.Mesh(new THREE.CylinderGeometry(teleport.r * 0.82, teleport.r * 0.82, 0.075, 32),
+    new THREE.MeshBasicMaterial({ color: 0x39d4ff, transparent: true, opacity: 0.55 }));
+  const pierscien = new THREE.Mesh(new THREE.TorusGeometry(teleport.r * 0.9, 0.055, 8, 40),
+    new THREE.MeshBasicMaterial({ color: 0x8ff0ff }));
+  pierscien.rotation.x = Math.PI / 2;
+  pierscien.position.y = 0.14;
+  const slup = new THREE.Mesh(new THREE.CylinderGeometry(teleport.r * 0.55, teleport.r * 0.75, 2.6, 20, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0x39d4ff, transparent: true, opacity: 0.13,
+      side: THREE.DoubleSide, depthWrite: false }));
+  slup.position.y = 1.35;
+
+  g.add(plyta, swiatlo, pierscien, slup);
+  worldGroup.add(g);
+  teleport.pad = g;
+  teleport.pierscien = pierscien;
+}
+
+function naTeleporcie() {
+  return teleport.pad &&
+    Math.hypot(player.pos.x - teleport.x, player.pos.z - teleport.z) < teleport.r;
+}
+
+/* brzeg przy Janie: schodzimy od niego w stronę posesji, aż będzie płytko */
+function brzegPrzyJanie() {
+  const dx = -jan.x, dz = -jan.z;
+  const d = Math.hypot(dx, dz) || 1;
+  for (let k = 2; k < 60; k += 1.5) {
+    const x = jan.x + dx / d * k, z = jan.z + dz / d * k;
+    if (waterDepth(x, z) < 0.25) return [x, z];
+  }
+  return [jan.x + 12, jan.z];
+}
+
+function przenies(x, z, opis) {
+  ui.senFade.style.transition = 'opacity .18s';
+  ui.senFade.style.opacity = 1;
+  setTimeout(() => {
+    player.pos.set(x, 0, z);
+    player.y = wysokoscPodlogi(x, z);
+    player.velY = 0; player.flying = false; player.lot = 0;
+    ui.senFade.style.opacity = 0;
+    setTimeout(() => { ui.senFade.style.transition = 'opacity 1.1s'; }, 250);
+    announce(opis, '#8ff0ff', 2.6);
+  }, 190);
+  AudioSys.burst(1400, 1.6, 0.35, 0.5, 'lowpass', 300);
+}
+
+function uzyjTeleportu() {
+  if (naTeleporcie()) {
+    const [x, z] = brzegPrzyJanie();
+    teleport.powrot = { x: teleport.x, z: teleport.z };
+    przenies(x, z, '⚡ Teleport nad Narew — do Jana');
+    return;
+  }
+  if (przyJanie() || (teleport.powrot &&
+      Math.hypot(player.pos.x - jan.x, player.pos.z - jan.z) < 30)) {
+    przenies(teleport.x, teleport.z + 3, '⚡ Powrót do kloca');
+    return;
+  }
+  announce('Teleport jest w klocu — stań na świecącej płycie', '#ffb877', 2.6);
+}
+
+function updateTeleport(dt, t) {
+  if (!teleport.pierscien) return;
+  teleport.pierscien.rotation.z = t * 1.2;
+  teleport.pierscien.position.y = 0.14 + Math.sin(t * 2.2) * 0.06;
+}
+
+/* ================================================================
+   MICHAEL JACKSON — tancerz w klocu, sunie moonwalkiem tam i z powrotem
+================================================================ */
+const mj = { model: null, t: 0, bazaX: 15, bazaZ: 9, faza: 0 };
+
+function buildMJ() {
+  const g = buildPersonProsty(0xb4121f, { mj: true });   // czerwona kurtka sceniczna
+
+  // złote pasy na piersi — kurtka z teledysku
+  const zloto = new THREE.MeshPhongMaterial({ color: 0xd8b64a, shininess: 120, specular: 0xfff0c0 });
+  for (let i = 0; i < 3; i++) {
+    const pas = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.022, 0.02), zloto);
+    pas.position.set(0.02, 1.5 - i * 0.11, 0.15);
+    pas.rotation.z = -0.35;
+    g.add(pas);
+  }
+  const naramiennik = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), zloto);
+  naramiennik.scale.set(1, 0.5, 1);
+  naramiennik.position.set(-0.2, 1.47, 0);
+  g.add(naramiennik);
+
+  const tab = new THREE.Mesh(new THREE.PlaneGeometry(2.9, 0.72),
+    new THREE.MeshBasicMaterial({ map: texImie('MICHAEL JACKSON'), transparent: true }));
+  tab.position.y = 2.4;
+  g.add(tab);
+  g.userData.tabliczka = tab;
+
+  g.position.set(mj.bazaX, 0.06, mj.bazaZ);
+  worldGroup.add(g);
+  mj.model = g;
+}
+
+function updateMJ(dt, t) {
+  if (!mj.model) return;
+  mj.t += dt;
+  const okres = 6.0, dlugosc = 6.5;
+  const f = (mj.t % okres) / okres;
+  const tam = f < 0.5;
+  const p = tam ? f * 2 : (1 - f) * 2;                 // 0 → 1 → 0
+
+  mj.model.position.x = mj.bazaX - p * dlugosc;
+
+  // zwrot PRZECIWNY do kierunku jazdy — na tym polega moonwalk
+  let obrot = tam ? Math.PI / 2 : -Math.PI / 2;
+
+  // piruet na nawrotach
+  const okno = 0.05;
+  if (Math.abs(f - 0.5) < okno) obrot += ((f - 0.5 + okno) / (2 * okno)) * Math.PI * 2;
+  else if (f > 1 - okno) obrot += ((f - 1 + okno) / (2 * okno)) * Math.PI * 2;
+  mj.model.rotation.y = obrot;
+
+  // stopy przebierają, choć ciało jedzie w drugą stronę
+  mj.faza += dt * 7.5;
+  animPerson(mj.model, mj.faza, true, false);
+
+  // kapelusz w rytm i lekkie ugięcie kolan
+  mj.model.position.y = 0.06 + Math.abs(Math.sin(mj.faza * 0.5)) * 0.035;
+  const tab = mj.model.userData.tabliczka;
+  if (tab) tab.rotation.y = -mj.model.rotation.y +
+    Math.atan2(camera.position.x - mj.model.position.x, camera.position.z - mj.model.position.z);
+}
+
+/* ================================================================
    ŁÓŻKO — stoi w klocu, wchodzi się na nie i śpi klawiszem [F]
 ================================================================ */
 const sen = { aktywny: false, t: 0, przespane: 0 };
@@ -3224,7 +3390,95 @@ function refreshGrass(center) {
 }
 
 /* ---------- postać gracza (multiplayer + widok TPP) ---------- */
+/* ================================================================
+   POSTACIE — prawdziwy model 3D ze szkieletem (glTF) z animacjami
+   chodu i biegu. Model dociąga się z sieci; zanim przyjdzie (albo gdy
+   nie ma internetu) gra używa zapasowej postaci składanej z brył.
+================================================================ */
+let modelPostaci = null, klipyPostaci = {}, skalaPostaci = 1;
+const mixery = [];
+
+function wczytajModelPostaci() {
+  if (typeof THREE.GLTFLoader === 'undefined') return;
+  const url = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/models/gltf/Soldier.glb';
+  new THREE.GLTFLoader().load(url, (gltf) => {
+    modelPostaci = gltf.scene;
+    for (const k of gltf.animations) klipyPostaci[k.name] = k;
+    // skalujemy do ludzkiego wzrostu, niezależnie od jednostek autora modelu
+    const bb = new THREE.Box3().setFromObject(modelPostaci);
+    const wys = bb.max.y - bb.min.y;
+    skalaPostaci = wys > 0.01 ? 1.82 / wys : 1;
+    odswiezPostacie();
+  }, undefined, () => { ostatniBlad = 'nie udało się wczytać modelu postaci'; });
+}
+
+/* podmienia postacie już stojące w świecie, gdy model dojedzie z sieci */
+function odswiezPostacie() {
+  if (!worldBuilt || !modelPostaci) return;
+  if (selfModel) {
+    const widoczny = selfModel.visible;
+    worldGroup.remove(selfModel);
+    selfModel = buildPerson(0xd8583f);
+    selfModel.visible = widoczny;
+    worldGroup.add(selfModel);
+  }
+  if (jan.model) {
+    const poz = jan.model.position.clone(), rot = jan.model.rotation.y;
+    const tab = jan.model.userData.tabliczka;
+    worldGroup.remove(jan.model);
+    const g = buildPerson(0x2f6db0);
+    g.position.copy(poz); g.rotation.y = rot;
+    if (tab) { g.add(tab); g.userData.tabliczka = tab; }
+    worldGroup.add(g);
+    jan.model = g;
+  }
+  for (const id in Net.remotes) {          // gracze sieciowi dostaną nowe ciała
+    const r = Net.remotes[id];
+    if (r.avatar) { scene.remove(r.avatar); r.avatar = null; }
+  }
+}
+
+function buildPersonGLB(shirt) {
+  const g = new THREE.Group();
+  const model = THREE.SkeletonUtils.clone(modelPostaci);
+  model.scale.setScalar(skalaPostaci);
+  // Model jest zwrócony w −Z, a cała gra zakłada postać patrzącą w +Z
+  // (tak zbudowana jest wersja zapasowa). Bez tego obrotu avatary chodziły tyłem.
+  model.rotation.y = Math.PI;
+  model.traverse(o => {
+    if (!o.isMesh && !o.isSkinnedMesh) return;
+    o.castShadow = true;
+    o.receiveShadow = true;
+    o.frustumCulled = false;            // skinning wychodzi poza pierwotną bryłę
+    o.material = o.material.clone();
+    // barwa gracza jako delikatny odcień na oryginalnej teksturze
+    o.material.color = new THREE.Color(shirt).lerp(new THREE.Color(0xffffff), 0.6);
+  });
+  g.add(model);
+
+  const mixer = new THREE.AnimationMixer(model);
+  const akcje = {};
+  for (const nazwa of ['Idle', 'Walk', 'Run']) {
+    const klip = klipyPostaci[nazwa];
+    if (!klip) continue;
+    const a = mixer.clipAction(klip);
+    a.play();
+    a.setEffectiveWeight(nazwa === 'Idle' ? 1 : 0);
+    akcje[nazwa] = a;
+  }
+  mixery.push(mixer);
+  g.userData.glb = { mixer, akcje, model };
+  return g;
+}
+
 function buildPerson(shirt) {
+  return modelPostaci ? buildPersonGLB(shirt) : buildPersonProsty(shirt);
+}
+
+/* zapasowa postać z brył — działa bez internetu i zanim model się wczyta.
+   Druga rola: kostiumy, których model żołnierza nie udźwignie (opcje.mj). */
+function buildPersonProsty(shirt, opcje) {
+  const mjStyl = !!(opcje && opcje.mj);
   const g = new THREE.Group();
   // Materiały na prawdziwych tkaninach: biała baza splotu barwiona kolorem,
   // dzięki czemu ubranie ma fakturę zamiast płaskiej plamy koloru.
@@ -3342,8 +3596,31 @@ function buildPerson(shirt) {
   glowa.add(czaszka, zuchwa, wlosyM, grzywka, policzekL, policzekR, nos,
             brwiL, brwiR, okoL, okoR, ustaM, broda, uchoL, uchoR);
 
-  // czapka z daszkiem — połowa postaci ją nosi
-  if (wCzapce) {
+  // kostium sceniczny: kapelusz, ciemne okulary, biała rękawiczka
+  if (mjStyl) {
+    const czern = new THREE.MeshPhongMaterial({ color: 0x0d0d10, shininess: 70, specular: 0x444444 });
+    const rondo = new THREE.Mesh(new THREE.CylinderGeometry(0.185, 0.185, 0.016, 20), czern);
+    rondo.position.y = 0.145;
+    const glowka = new THREE.Mesh(new THREE.CylinderGeometry(0.098, 0.104, 0.11, 18), czern);
+    glowka.position.y = 0.2;
+    const wstazka = new THREE.Mesh(new THREE.CylinderGeometry(0.106, 0.106, 0.028, 18),
+      new THREE.MeshLambertMaterial({ color: 0x24242a }));
+    wstazka.position.y = 0.158;
+    const wglebienie = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.02, 0.14), czern);
+    wglebienie.position.y = 0.253;
+    glowa.add(rondo, glowka, wstazka, wglebienie);
+
+    const okulary = new THREE.Mesh(new THREE.BoxGeometry(0.155, 0.036, 0.012),
+      new THREE.MeshPhongMaterial({ color: 0x101014, shininess: 140, specular: 0xaaaaaa }));
+    okulary.position.set(0, 0.078, 0.093);
+    const zausznikL = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.01, 0.09), czern);
+    zausznikL.position.set(-0.075, 0.076, 0.05);
+    const zausznikR = zausznikL.clone(); zausznikR.position.x = 0.075;
+    glowa.add(okulary, zausznikL, zausznikR);
+
+    wlosyM.scale.set(1.02, 0.9, 1.04);      // loki spod kapelusza
+    grzywka.visible = true;
+  } else if (wCzapce) {
     const czapkaMat = new THREE.MeshLambertMaterial({ color: shirt, map: tk });
     const czasza = new THREE.Mesh(new THREE.SphereGeometry(0.118, 14, 10,
       0, Math.PI * 2, 0, Math.PI * 0.5), czapkaMat);
@@ -3375,7 +3652,15 @@ function buildPerson(shirt) {
     const kciuk = new THREE.Mesh(new THREE.SphereGeometry(0.017, 6, 5), skin);
     kciuk.scale.set(0.9, 1.5, 0.7);
     kciuk.position.set(bok * -0.03, -0.295, 0.012);
-    const mankiet = new THREE.Mesh(new THREE.TorusGeometry(0.048, 0.014, 6, 10), kurtka);
+    // biała rękawiczka na prawej dłoni — znak rozpoznawczy kostiumu
+    if (mjStyl && bok > 0) {
+      const rekawiczka = new THREE.MeshPhongMaterial({ color: 0xf6f4ee, shininess: 90, specular: 0xffffff });
+      dlon.material = rekawiczka;
+      kciuk.material = rekawiczka;
+      nadgarstek.material = rekawiczka;
+    }
+    const mankiet = new THREE.Mesh(new THREE.TorusGeometry(0.048, 0.014, 6, 10),
+      mjStyl ? new THREE.MeshLambertMaterial({ color: 0xd8b64a }) : kurtka);
     mankiet.rotation.x = Math.PI / 2;
     const lokiecKula = new THREE.Mesh(new THREE.SphereGeometry(0.048, 10, 8), kurtka);
     lokiec.add(lokiecKula, przedramie, nadgarstek, dlon, kciuk, mankiet);
@@ -3422,6 +3707,19 @@ function buildPerson(shirt) {
     pieta.position.set(0, -0.452, -0.055);
     const rzepka = new THREE.Mesh(new THREE.SphereGeometry(0.062, 10, 8), jeans);
     rzepka.position.y = 0.005;
+
+    // białe skarpety wystające spod za krótkich spodni + czarne lakierki
+    if (mjStyl) {
+      const skarpeta = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.05, 0.11, 10),
+        new THREE.MeshLambertMaterial({ color: 0xf4f2ea }));
+      skarpeta.position.y = -0.375;
+      kolano.add(skarpeta);
+      const lakier = new THREE.MeshPhongMaterial({ color: 0x0b0b0d, shininess: 150, specular: 0xdddddd });
+      but2.material = lakier; czub.material = lakier; pieta.material = lakier;
+      nosek.material = lakier;
+      podeszwa.material = new THREE.MeshLambertMaterial({ color: 0x1a1a1c });
+      pasekButa.visible = false; jezyk.visible = false;
+    }
     kolano.add(rzepka, lydka, kostka, but2, czub, podeszwa, nosek, pasekButa, jezyk, pieta);
     const biodroKula = new THREE.Mesh(new THREE.SphereGeometry(0.082, 10, 8), jeans);
     biodro.add(biodroKula, udo, kolano);
@@ -3585,6 +3883,9 @@ function disposeWorld() {
   worldGroup = null;
   treeCols.length = 0; treeList.length = 0;
   birds = []; squirrels = []; tvScreen = null;
+  mixery.length = 0;
+  teleport.pad = null; teleport.pierscien = null; teleport.powrot = null;
+  mj.model = null; mj.t = 0;
   jan.model = null; jan.odliczanie = 0; jan.krok = 0;
   if (butelka.wRece) camera.remove(butelka.wRece);
   butelka.wSwiecie = butelka.wRece = butelka.wodaSwiat = butelka.wodaReka = null;
@@ -3631,6 +3932,8 @@ function buildWorld(seed) {
   buildGrass();
 
   buildLozko();
+  buildTeleport();
+  buildMJ();
   postawButelke();
   buildJana();
 
@@ -3749,12 +4052,15 @@ const Net = {
 
   ensureAvatar(id) {
     const r = this.remotes[id];
-    if (!r.avatar) {
+    if (!r.avatar && r.x !== undefined) {
       // kolor koszulki z id — każdy gracz inny
       let h = 0;
       for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
       const col = new THREE.Color().setHSL((h % 360) / 360, 0.65, 0.5);
       r.avatar = buildPerson(col.getHex());
+      // od razu na swoim miejscu — inaczej nowy gracz przylatuje ze środka mapy
+      r.avatar.position.set(r.x, r.y || 0, r.z);
+      r.avatar.rotation.y = (r.yaw || 0) + Math.PI;
       scene.add(r.avatar);
     }
     return r.avatar;
@@ -3773,16 +4079,48 @@ const Net = {
       if (r.x === undefined) continue;
       const av = this.ensureAvatar(id);
       const target = new THREE.Vector3(r.x, r.y || 0, r.z);
-      const moving = av.position.distanceTo(target) > 0.06;
+      const przed = av.position.clone();
       av.position.lerp(target, Math.min(1, dt * 12));
       av.rotation.y = (r.yaw || 0) + Math.PI;
-      animPerson(av, t * 8, moving, !!r.sw);
+
+      // Faza kroku liczona z faktycznie przebytej drogi, a nie z zegara —
+      // dzięki temu stopy nie suną po ziemi. Znak mówi, czy gracz idzie
+      // przodem czy się cofa, więc animacja nie leci wtedy na odwrót.
+      const ruchX = av.position.x - przed.x, ruchZ = av.position.z - przed.z;
+      const droga = Math.hypot(ruchX, ruchZ);
+      const predkosc = dt > 0 ? droga / dt : 0;
+      const fx = -Math.sin(r.yaw || 0), fz = -Math.cos(r.yaw || 0);
+      const kierunek = droga > 1e-4 && (ruchX * fx + ruchZ * fz) < 0 ? -1 : 1;
+      r.faza = (r.faza || 0) + kierunek * droga * 5.5;
+      const idzie = predkosc > 0.2;
+      animPerson(av, r.faza, idzie, !!r.sw, predkosc > 5.4, { predkosc, kierunek });
     }
   },
 };
 
 /* wspólna animacja chodu / pływania dla postaci */
-function animPerson(g, phase, moving, swimming) {
+function animPerson(g, phase, moving, swimming, biegnie, tempo) {
+  // model ze szkieletem: przenikamy między staniem, chodem i biegiem
+  const glb = g.userData.glb;
+  if (glb) {
+    const cel = swimming ? 'Idle' : (moving ? (biegnie ? 'Run' : 'Walk') : 'Idle');
+    for (const nazwa in glb.akcje) {
+      const a = glb.akcje[nazwa];
+      const w = a.getEffectiveWeight();
+      a.setEffectiveWeight(w + ((nazwa === cel ? 1 : 0) - w) * 0.15);
+    }
+    // Tempo animacji dopasowane do rzeczywistej prędkości, a przy cofaniu
+    // klip leci wstecz — inaczej stopy sunęłyby po ziemi jak w moonwalku.
+    if (tempo && moving) {
+      const baza = cel === 'Run' ? 4.6 : 1.45;
+      const s = Math.max(0.35, Math.min(2.4, (tempo.predkosc || baza) / baza));
+      glb.mixer.timeScale = (tempo.kierunek < 0 ? -1 : 1) * s;
+    } else {
+      glb.mixer.timeScale = 1;
+    }
+    g.rotation.x = swimming ? -1.15 : 0;
+    return;
+  }
   const l = g.userData.limbs;
   if (swimming) {
     g.rotation.x = -1.15;                       // leży na wodzie
@@ -4515,6 +4853,7 @@ document.addEventListener('keydown', e => {
     if (e.code === 'KeyG') wypijWode();
     if (e.code === 'KeyF') idzSpac();
     if (e.code === 'KeyR') zacznijOdliczanie();
+    if (e.code === 'KeyT') uzyjTeleportu();
     if (e.code === 'F3') { e.preventDefault(); pokazDiagnoze(); }
     // dowolny ruch przerywa sen
     if (sen.aktywny && ['KeyW','KeyA','KeyS','KeyD','Space','Escape'].includes(e.code)) obudz();
@@ -4917,7 +5256,8 @@ function updatePlayer(dt) {
     selfModel.visible = true;
     selfModel.position.set(player.pos.x, player.y, player.pos.z);
     selfModel.rotation.y = player.yaw + Math.PI;
-    animPerson(selfModel, player.bobPhase, moving, player.swimming);
+    animPerson(selfModel, player.bobPhase, moving, player.swimming, wantSprint,
+      { predkosc: moving ? speed : 0, kierunek: fwd < 0 ? -1 : 1 });
   } else {
     camera.position.set(player.pos.x, eyeY, player.pos.z);
     selfModel.visible = false;
@@ -4954,6 +5294,9 @@ function updatePlayer(dt) {
     ui.interact.style.display = 'block';
   } else if (przyJanie()) {
     ui.interact.textContent = jan.odliczanie > 0 ? 'Trzymaj się…' : '[R] daj się wystrzelić';
+    ui.interact.style.display = 'block';
+  } else if (naTeleporcie()) {
+    ui.interact.textContent = '[T] teleport nad Narew, do Jana';
     ui.interact.style.display = 'block';
   } else if (naLozku(player.pos.x, player.pos.z)) {
     ui.interact.textContent = '[F] śpij';
@@ -5042,6 +5385,9 @@ function animate() {
     updateButelke(dt);
     updateSen(dt);
     updateJan(dt, t);
+    updateTeleport(dt, t);
+    updateMJ(dt, t);
+    for (const m of mixery) m.update(dt);      // szkielety postaci
     updateEnemy(dt);
     Net.updateAvatars(dt);
     // szum wody rośnie w miarę zbliżania się do koryta Narwi
@@ -5125,6 +5471,7 @@ camera.lookAt(0, 40, 0);
 if (!Net.available()) setMpStatus('⚠ PeerJS nie załadował się — dostępne tylko SOLO');
 aktualizujZegar();
 panel.init();
+wczytajModelPostaci();
 if (!YT_W_OKNIE) document.getElementById('ostrzezenieFile').style.display = 'block';
 document.getElementById('menuSub').textContent =
   'GZOWO · POSESJA NAD NARWIĄ · ' + PAL.nazwa;
