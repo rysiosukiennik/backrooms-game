@@ -468,7 +468,55 @@ const CFG = {
   monsterSpeed: 4.6, monsterChaseSpeed: 6.0, monsterKillDist: 1.8,
 };
 
-const SUN_DIR = new THREE.Vector3(-0.42, 0.20, -0.88).normalize(); // nisko nad doliną
+const SUN_DIR = new THREE.Vector3(-0.42, 0.20, -0.88).normalize(); // nadpisywane co klatkę
+
+/* ================================================================
+   SŁOŃCE — liczone z astronomii dla Gzowa (52,61 N / 21,11 E).
+   Deklinacja z dnia roku, kąt godzinny z zegara, więc w grze świta
+   i zmierzcha się wtedy, kiedy naprawdę.
+================================================================ */
+const Slonce = {
+  szerokosc: 52.6115 * Math.PI / 180,
+  wysokosc: 0,          // radiany nad horyzontem
+  azymut: 0,            // radiany od północy, zgodnie ze wskazówkami
+  dzien: 1,             // 0 = noc, 1 = pełny dzień
+  zmierzch: 0,          // 1 tuż przy horyzoncie
+
+  policz(data) {
+    const d = data || new Date();
+    const start = new Date(d.getFullYear(), 0, 0);
+    const dzienRoku = Math.floor((d - start) / 86400000);
+    // deklinacja Słońca — przechył osi Ziemi w danym dniu
+    const dekl = 23.44 * Math.PI / 180 *
+      Math.sin(2 * Math.PI * (dzienRoku - 81) / 365);
+    // czas słoneczny: zegar plus poprawka na długość geograficzną
+    const godzina = d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
+    const strefa = -d.getTimezoneOffset() / 60;
+    const czasSloneczny = godzina + (21.1123 - strefa * 15) / 15;
+    const H = (czasSloneczny - 12) * 15 * Math.PI / 180;
+
+    const sinH = Math.sin(this.szerokosc) * Math.sin(dekl) +
+                 Math.cos(this.szerokosc) * Math.cos(dekl) * Math.cos(H);
+    this.wysokosc = Math.asin(Math.max(-1, Math.min(1, sinH)));
+    const cosA = (Math.sin(dekl) - Math.sin(this.wysokosc) * Math.sin(this.szerokosc)) /
+                 (Math.cos(this.wysokosc) * Math.cos(this.szerokosc) || 1e-6);
+    let A = Math.acos(Math.max(-1, Math.min(1, cosA)));
+    if (H > 0) A = 2 * Math.PI - A;          // po południu słońce jest na zachodzie
+    this.azymut = A;
+
+    const stopnie = this.wysokosc * 180 / Math.PI;
+    this.dzien = Math.max(0, Math.min(1, (stopnie + 6) / 12));   // zmrok od −6° do +6°
+    this.zmierzch = Math.max(0, 1 - Math.abs(stopnie) / 12);
+
+    // kierunek NA słońce: azymut liczony od północy (−Z) przez wschód (+X)
+    const cosW = Math.cos(this.wysokosc);
+    SUN_DIR.set(Math.sin(A) * cosW, Math.sin(this.wysokosc), -Math.cos(A) * cosW);
+    if (SUN_DIR.lengthSq() < 1e-6) SUN_DIR.set(0, 1, 0);
+    SUN_DIR.normalize();
+    return this;
+  },
+};
+Slonce.policz();
 
 /* ================================================================
    GZOWO — geometria z OpenStreetMap (© współtwórcy OSM, licencja ODbL)
@@ -656,62 +704,162 @@ let rng = Math.random;
    AUDIO — całość syntezowana w WebAudio (działa też bez internetu)
 ================================================================ */
 const AudioSys = {
-  ctx: null, master: null, noise: null, ready: false,
+  ctx: null, master: null, sucho: null, pogloski: null, konwolwer: null,
+  noise: null, brzowy: null, ready: false,
   windGain: null, windFilter: null, waterGain: null, birdT: 4,
+  liscieGain: null, owadyGain: null, wnetrzeT: 0, oddechT: 0,
 
   init() {
     if (this.ctx) return;
     const AC = window.AudioContext || window.webkitAudioContext;
     this.ctx = new AC();
-    this.master = this.ctx.createGain();
-    this.master.gain.value = 0.85;
-    this.master.connect(this.ctx.destination);
 
-    // wspólny bufor szumu — źródło wiatru, kroków i plusków
+    // Wyjście przez kompresor: pojedyncze zdarzenia nie przebijają już tła,
+    // a cała mieszanka trzyma równy poziom.
+    const komp = this.ctx.createDynamicsCompressor();
+    komp.threshold.value = -18; komp.knee.value = 24;
+    komp.ratio.value = 3.5; komp.attack.value = 0.006; komp.release.value = 0.25;
+    komp.connect(this.ctx.destination);
+
+    this.master = this.ctx.createGain();
+    this.master.gain.value = 0.9;
+    this.master.connect(komp);
+
+    // dwie szyny: sucha i przez pogłos — proporcję ustawia otoczenie
+    this.sucho = this.ctx.createGain();
+    this.sucho.gain.value = 1;
+    this.sucho.connect(this.master);
+
+    this.konwolwer = this.ctx.createConvolver();
+    this.konwolwer.buffer = this.zbudujPoglos(2.4, 2.6);
+    this.pogloski = this.ctx.createGain();
+    this.pogloski.gain.value = 0.08;          // na dworze ledwie muśnięcie
+    this.pogloski.connect(this.konwolwer);
+    this.konwolwer.connect(this.master);
+
+    // szum biały i brązowy — biały do syków, brązowy do dudnień
     const sr = this.ctx.sampleRate, len = sr * 2;
     this.noise = this.ctx.createBuffer(1, len, sr);
     const d = this.noise.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+
+    this.brzowy = this.ctx.createBuffer(1, len, sr);
+    const b = this.brzowy.getChannelData(0);
+    let ost = 0;
+    for (let i = 0; i < len; i++) {
+      ost = (ost + (Math.random() * 2 - 1) * 0.02) / 1.02;
+      b[i] = ost * 3.2;
+    }
     this.ready = true;
+  },
+
+  /* impuls pogłosu liczony na miejscu — kilka linii zamiast pliku wav */
+  zbudujPoglos(sekundy, zanik) {
+    const sr = this.ctx.sampleRate;
+    const len = Math.max(1, Math.floor(sr * sekundy));
+    const buf = this.ctx.createBuffer(2, len, sr);
+    for (let k = 0; k < 2; k++) {
+      const ch = buf.getChannelData(k);
+      for (let i = 0; i < len; i++) {
+        const t = i / len;
+        ch[i] = (Math.random() * 2 - 1) * Math.pow(1 - t, zanik);
+      }
+    }
+    return buf;
   },
 
   resume() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); },
 
-  /* pętla szumu przez filtr — baza wiatru i szumu wody */
-  loop(freq, q, vol, type = 'lowpass') {
+  /* pętla szumu przez filtr — baza wiatru, liści i wody */
+  loop(freq, q, vol, type = 'lowpass', brazowy) {
     const src = this.ctx.createBufferSource();
-    src.buffer = this.noise; src.loop = true;
+    src.buffer = brazowy ? this.brzowy : this.noise;
+    src.loop = true;
     const f = this.ctx.createBiquadFilter();
     f.type = type; f.frequency.value = freq; f.Q.value = q;
     const g = this.ctx.createGain(); g.gain.value = vol;
-    src.connect(f); f.connect(g); g.connect(this.master);
+    src.connect(f); f.connect(g);
+    g.connect(this.sucho); g.connect(this.pogloski);
     src.start();
     return { src, f, g };
   },
 
   startAmbience() {
     if (!this.ready || this.windGain) return;
-    const wind = this.loop(420, 0.6, 0.055);
+    const wind = this.loop(420, 0.6, 0.05, 'lowpass', true);
     this.windGain = wind.g; this.windFilter = wind.f;
     const water = this.loop(900, 0.9, 0.0);
     this.waterGain = water.g;
+    const liscie = this.loop(2600, 0.8, 0.0, 'bandpass');   // szelest w koronach
+    this.liscieGain = liscie.g;
+    const owady = this.loop(5200, 12, 0.0, 'bandpass');     // świerszcze o zmierzchu
+    this.owadyGain = owady.g;
+    this.muzyka();
   },
 
-  /* wiatr faluje, szum wody rośnie przy brzegu */
-  ambienceTick(t, distToWater) {
+  /* Tło muzyczne: dwa cicho pulsujące dźwięki w skali pasującej do pory roku.
+     Nie melodia, tylko poduszka pod krajobraz.                              */
+  muzyka() {
+    const bazy = { wiosna: 220, lato: 196, jesien: 174.6, zima: 164.8 };
+    const baza = bazy[SEASON] || 196;
+    const mieszalnik = this.ctx.createGain();
+    mieszalnik.gain.value = 0.035;
+    mieszalnik.connect(this.sucho);
+    mieszalnik.connect(this.pogloski);
+    for (const [mnoznik, detune] of [[1, -4], [1.5, 3], [2, 6]]) {
+      const o = this.ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.value = baza * mnoznik;
+      o.detune.value = detune;
+      const g = this.ctx.createGain();
+      g.gain.value = 0;
+      // powolne falowanie głośności, każdy głos w swoim tempie
+      const lfo = this.ctx.createOscillator();
+      lfo.frequency.value = 0.03 + Math.random() * 0.05;
+      const lfoG = this.ctx.createGain();
+      lfoG.gain.value = 0.5;
+      lfo.connect(lfoG); lfoG.connect(g.gain);
+      o.connect(g); g.connect(mieszalnik);
+      o.start(); lfo.start();
+    }
+  },
+
+  /* Wiatr, liście, woda i owady — poziomy zależne od miejsca i pory dnia.
+     Do tego pogłos: w klocu robi się wnętrze, na dworze prawie znika.     */
+  ambienceTick(t, distToWater, wKlocu, bliskoDrzew) {
     if (!this.windGain) return;
-    const g = 0.04 + Math.abs(Math.sin(t * 0.17)) * 0.045 + Math.abs(Math.sin(t * 0.061)) * 0.03;
-    this.windGain.gain.value = g;
+    const podmuch = 0.035 + Math.abs(Math.sin(t * 0.17)) * 0.04 + Math.abs(Math.sin(t * 0.061)) * 0.028;
+    this.windGain.gain.value = podmuch;
     this.windFilter.frequency.value = 340 + Math.sin(t * 0.13) * 180;
+
     const w = Math.max(0, 1 - distToWater / 120);
-    this.waterGain.gain.value = w * w * 0.07;
+    this.waterGain.gain.value = w * w * 0.075;
+
+    if (this.liscieGain) {
+      const cel = (bliskoDrzew ? 0.03 : 0.004) * (0.6 + podmuch * 6);
+      const g = this.liscieGain.gain;
+      g.value += (cel - g.value) * 0.02;
+    }
+    if (this.owadyGain) {
+      const godz = new Date().getHours();
+      const zmierzch = (godz >= 19 && godz <= 23) || (godz >= 4 && godz <= 6);
+      const cel = zmierzch && !wKlocu ? 0.016 : 0.0;
+      const g = this.owadyGain.gain;
+      g.value += (cel - g.value) * 0.01;
+    }
+    if (this.pogloski) {
+      const cel = wKlocu ? 0.5 : 0.07;
+      const g = this.pogloski.gain;
+      g.value += (cel - g.value) * 0.03;
+    }
   },
 
-  burst(freq, q, vol, dur, type = 'bandpass', sweepTo = null) {
+  /* pojedyncze zdarzenie: szum przez filtr z obwiednią */
+  burst(freq, q, vol, dur, type = 'bandpass', sweepTo = null, brazowy = false) {
     if (!this.ready) return;
     const now = this.ctx.currentTime;
     const src = this.ctx.createBufferSource();
-    src.buffer = this.noise;
+    src.buffer = brazowy ? this.brzowy : this.noise;
     src.playbackRate.value = 0.8 + Math.random() * 0.5;
     const f = this.ctx.createBiquadFilter();
     f.type = type; f.frequency.value = freq; f.Q.value = q;
@@ -719,16 +867,49 @@ const AudioSys = {
     const g = this.ctx.createGain();
     g.gain.setValueAtTime(vol, now);
     g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
-    src.connect(f); f.connect(g); g.connect(this.master);
+    src.connect(f); f.connect(g);
+    g.connect(this.sucho); g.connect(this.pogloski);
     src.start(now, Math.random() * 1.5);
     src.stop(now + dur + 0.02);
   },
 
-  step(sprint) { this.burst(sprint ? 1500 : 1100, 1.1, sprint ? 0.28 : 0.18, 0.16); },
-  stepWater()  { this.burst(700, 0.7, 0.3, 0.35, 'lowpass', 260); },
+  /* Kroki zależne od podłoża: trawa szeleści, beton stuka, piach szurа,
+     drewno pudłuje. Każdy krok inaczej wysoki, więc nie brzmi jak metronom. */
+  krok(rodzaj, sprint) {
+    const moc = sprint ? 1.5 : 1;
+    const r = 0.85 + Math.random() * 0.3;
+    if (rodzaj === 'woda') { this.burst(700 * r, 0.7, 0.3 * moc, 0.35, 'lowpass', 260); return; }
+    if (rodzaj === 'beton') {
+      this.burst(2400 * r, 2.2, 0.16 * moc, 0.07);
+      this.burst(160 * r, 1.4, 0.13 * moc, 0.13, 'lowpass', null, true);
+      return;
+    }
+    if (rodzaj === 'piach') { this.burst(1700 * r, 0.9, 0.14 * moc, 0.19); return; }
+    if (rodzaj === 'drewno') {
+      this.burst(900 * r, 3.0, 0.16 * moc, 0.1);
+      this.burst(220 * r, 2.0, 0.12 * moc, 0.16, 'lowpass', null, true);
+      return;
+    }
+    // trawa: szelest plus miękkie uderzenie
+    this.burst(1250 * r, 1.1, 0.15 * moc, 0.15);
+    this.burst(130 * r, 1.0, 0.09 * moc, 0.12, 'lowpass', null, true);
+  },
+
+  step(sprint) { this.krok('trawa', sprint); },
+  stepWater()  { this.krok('woda', false); },
   splash()     { this.burst(1400, 0.5, 0.5, 0.7, 'lowpass', 200); },
-  land()       { this.burst(300, 1.0, 0.3, 0.22, 'lowpass'); },
+  land()       { this.burst(300, 1.0, 0.3, 0.22, 'lowpass', null, true); },
   ui()         { this.burst(2200, 3.0, 0.12, 0.07); },
+
+  /* zadyszka przy niskiej kondycji */
+  oddech(kondycja, dt) {
+    if (!this.ready) return;
+    this.oddechT -= dt;
+    if (this.oddechT > 0 || kondycja > 45) return;
+    const ciezko = 1 - kondycja / 45;
+    this.oddechT = 1.5 - ciezko * 0.7;
+    this.burst(520, 0.7, 0.03 + ciezko * 0.06, 0.32, 'lowpass', 240);
+  },
 
   /* ptak — krótki ćwierk (2–3 szybkie sylaby) */
   bird() {
@@ -1873,7 +2054,9 @@ function pushOutOfTrees(pos, r) {
 ================================================================ */
 let renderer, scene, camera, clock, canvas;
 let worldGroup = null;
-let sun, sky, water, waterMat, grassMesh, grassAnchor = new THREE.Vector3(1e9, 0, 1e9);
+let sun, swiatloNieba, swiatloOgolne, slonceT = 0;
+const KIERUNEK_SWIATLA = new THREE.Vector3(0, 1, 0);   // słońce albo księżyc
+let sky, water, waterMat, grassMesh, grassAnchor = new THREE.Vector3(1e9, 0, 1e9);
 let birds = [];
 const treeCols = [];         // kolizje pni
 const treeList = [];         // pozycje do minimapy
@@ -1910,8 +2093,9 @@ function initRenderer() {
   sun.shadow.normalBias = 0.6;
   scene.add(sun, sun.target);
 
-  scene.add(new THREE.HemisphereLight(0x9fc0ff, 0x4a5a2c, 0.75));
-  scene.add(new THREE.AmbientLight(0xffd7b0, 0.25));
+  swiatloNieba = new THREE.HemisphereLight(0x9fc0ff, 0x4a5a2c, 0.75);
+  swiatloOgolne = new THREE.AmbientLight(0xffd7b0, 0.25);
+  scene.add(swiatloNieba, swiatloOgolne);
 
   initCSS3D();
 
@@ -1978,6 +2162,7 @@ function buildSky() {
       ground: { value: new THREE.Color(PAL.niebo.ground) },
       time: { value: 0 },
       camPos: { value: new THREE.Vector3() },
+      dzien: { value: 1 },                               // 0 = noc, 1 = pełny dzień
       coverAdj: { value: 0 },                            // z prawdziwego zachmurzenia
       cloudSun: { value: new THREE.Color(PAL.chmury.sun) },   // oświetlone szczyty
       cloudLit: { value: new THREE.Color(PAL.chmury.lit) },   // ciepły bok od słońca
@@ -1992,7 +2177,18 @@ function buildSky() {
     fragmentShader: `
       uniform vec3 sunDir, zenith, middle, horizon, ground, camPos;
       uniform vec3 cloudSun, cloudLit, cloudDark;
-      uniform float time, coverAdj;
+      uniform float time, coverAdj, dzien;
+
+      /* gwiazdy: siatka kierunków, w losowych oczkach jasny punkt */
+      float gwiazdy(vec3 d) {
+        vec3 p = d * 190.0;
+        vec3 i = floor(p);
+        float h = fract(sin(dot(i, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+        if (h < 0.9955) return 0.0;
+        vec3 f = fract(p) - 0.5;
+        float migot = 0.65 + 0.35 * sin(time * (1.5 + fract(h * 57.0) * 3.0) + h * 30.0);
+        return exp(-dot(f, f) * 55.0) * (0.35 + 0.65 * fract(h * 91.7)) * migot;
+      }
       varying vec3 vDir;
 
       /* --- szum wartościowy + fBm: baza kształtu chmur --- */
@@ -2055,6 +2251,7 @@ function buildSky() {
 
         vec3 col = mix(cloudDark, cloudLit, light);
         col = mix(col, cloudSun, pow(light, 3.0) * 0.85);
+        col *= 0.14 + 0.86 * dzien;          // nocą chmury są tylko ciemniejszą plamą
 
         // prześwit słońca przez cienkie brzegi chmury
         float sd = max(dot(normalize(d), normalize(sunDir)), 0.0);
@@ -2074,8 +2271,22 @@ function buildSky() {
           col = mix(horizon, ground, clamp(-h * 6.0, 0.0, 1.0));
         }
         float sd = max(dot(d, normalize(sunDir)), 0.0);
-        col += vec3(1.0, 0.72, 0.42) * pow(sd, 9.0) * 0.55;      // łuna
-        col += vec3(1.0, 0.93, 0.80) * pow(sd, 900.0) * 3.2;     // tarcza
+        col += vec3(1.0, 0.72, 0.42) * pow(sd, 9.0) * 0.55 * dzien;   // łuna
+        col += vec3(1.0, 0.93, 0.80) * pow(sd, 900.0) * 3.2 * dzien;  // tarcza
+
+        // ---- noc: ciemny granat, gwiazdy i księżyc naprzeciw słońca ----
+        vec3 nocne = mix(vec3(0.012, 0.018, 0.045), vec3(0.03, 0.045, 0.10),
+                         clamp(h * 2.2, 0.0, 1.0));
+        if (h < 0.0) nocne = vec3(0.01, 0.012, 0.02);
+        col = mix(nocne, col, dzien);
+        if (h > -0.02) {
+          float noc = 1.0 - dzien;
+          col += vec3(0.95, 0.96, 1.0) * gwiazdy(d) * noc;
+          vec3 ks = -normalize(sunDir);
+          float md = max(dot(d, ks), 0.0);
+          col += vec3(0.98, 0.97, 0.90) * pow(md, 3000.0) * 4.0 * noc;  // tarcza
+          col += vec3(0.55, 0.60, 0.78) * pow(md, 26.0) * 0.14 * noc;   // poświata
+        }
 
         // trzy warstwy od najwyższej do najniższej — paralaksa daje głębię
         // coverAdj przychodzi z prawdziwego zachmurzenia nad Gzowem
@@ -2907,6 +3118,23 @@ function postawButelke() {
   butelka.ma = false; butelka.pelna = false; butelka.respawnT = 0;
 }
 
+/* po czym właśnie stąpamy — od tego zależy dźwięk kroku */
+function podlozePodNogami() {
+  const x = player.pos.x, z = player.pos.z;
+  if (player.swimming) return 'woda';
+  const gl = waterDepth(x, z);
+  if (gl > 0.25) return 'woda';
+  if (naLozku(x, z)) return 'drewno';
+  const hb = CFG.blockW / 2, hd = CFG.blockD / 2;
+  if (Math.abs(x) < hb && Math.abs(z) < hd) return 'beton';   // posadzka w klocu
+  if (gl > -0.35) return 'piach';                             // pas brzegu
+  for (const r of ROADS) {                                    // drogi
+    if (distToPolyline(x, z, r.pts) < r.w / 2)
+      return r.kind === 'asfalt' ? 'beton' : 'piach';
+  }
+  return 'trawa';
+}
+
 /* czy stoimy przy wodzie na tyle blisko, żeby nabrać */
 function przyWodzie() {
   if (waterDepth(player.pos.x, player.pos.z) > 0.05) return true;
@@ -3487,6 +3715,52 @@ function zbierzPostacie() {
 }
 
 function liczCiala() { return zbierzPostacie().length; }
+
+/* Przestawia całe oświetlenie pod aktualną wysokość słońca: barwę i moc
+   światła, mgłę, ekspozycję i nocną paletę nieba. Liczone co dwie sekundy,
+   bo słońce nie rusza się szybciej niż o ułamek stopnia.                  */
+function aktualizujSlonce(dt) {
+  slonceT -= dt;
+  if (slonceT > 0) return;
+  slonceT = 2;
+  Slonce.policz();
+
+  const d = Slonce.dzien;
+  const wysoko = Math.max(0, Math.sin(Slonce.wysokosc));
+
+  // W nocy główne światło przejmuje księżyc: świeci z przeciwnej strony nieba,
+  // jest chłodne i słabe, ale daje cienie — bez tego świat byłby czarną płachtą.
+  const noc = d < 0.12;
+  KIERUNEK_SWIATLA.copy(SUN_DIR);
+  if (noc) KIERUNEK_SWIATLA.negate();
+
+  if (sun) {
+    if (noc) {
+      sun.color.setHex(0x8fa8d8);
+      sun.intensity = 0.42;
+    } else {
+      sun.color.copy(new THREE.Color(PAL.slonce).lerp(new THREE.Color(0xfff4e2), wysoko));
+      sun.intensity = 0.15 + 2.5 * d * (0.45 + 0.55 * wysoko);
+    }
+  }
+  if (swiatloNieba) {
+    swiatloNieba.intensity = 0.24 + 0.56 * d;
+    swiatloNieba.color.copy(new THREE.Color(0x2b3d66).lerp(new THREE.Color(0x9fc0ff), d));
+  }
+  if (swiatloOgolne) {
+    swiatloOgolne.intensity = 0.11 + 0.18 * d;
+    swiatloOgolne.color.copy(new THREE.Color(0x33436b).lerp(new THREE.Color(PAL.slonce), d));
+  }
+  if (scene.fog) {
+    scene.fog.color.copy(new THREE.Color(0x0a1020).lerp(new THREE.Color(PAL.mgla), d));
+  }
+  renderer.toneMappingExposure = PAL.ekspozycja * (0.88 + 0.26 * d);
+  if (sky) {
+    sky.material.uniforms.sunDir.value.copy(SUN_DIR);
+    sky.material.uniforms.dzien.value = d;
+  }
+  if (waterMat) waterMat.uniforms.sunDir.value.copy(SUN_DIR);
+}
 
 /* Sprząta ciała, które zostały po starym świecie albo po zerwanym połączeniu:
    wszystko z animowaną siatką, co nie jest graczem, Janem ani tancerzem. */
@@ -5381,8 +5655,7 @@ function updatePlayer(dt) {
     player.bobPhase += dt * (player.swimming ? 4 : wantSprint ? 11 : 7.5);
     const sNow = Math.sin(player.bobPhase);
     if (player.prevBobSin > 0 && sNow <= 0 && !player.flying) {
-      if (player.swimming || wading) AudioSys.stepWater();
-      else AudioSys.step(wantSprint);
+      AudioSys.krok(podlozePodNogami(), wantSprint);
       if (hintT < 14) { hintT += 1; if (hintT >= 14) ui.hint.style.opacity = 0; }
     }
     player.prevBobSin = sNow;
@@ -5555,6 +5828,7 @@ function animate() {
   const t = performance.now() / 1000;
 
   if (worldBuilt) {
+    aktualizujSlonce(dt);
     waterMat.uniforms.time.value = t;
 
     // niebo podąża za kamerą; chmury są liczone w shaderze nieba,
@@ -5579,7 +5853,9 @@ function animate() {
 
     // cień słońca chodzi za graczem — mapa cieni jest mała, ale ostra
     const c = camera.position;
-    sun.position.set(c.x + SUN_DIR.x * 260, SUN_DIR.y * 260 + 60, c.z + SUN_DIR.z * 260);
+    // w dzień świeci słońce, w nocy księżyc — stąd osobny wektor kierunku
+    const k = KIERUNEK_SWIATLA;
+    sun.position.set(c.x + k.x * 260, Math.max(40, k.y * 260) + 40, c.z + k.z * 260);
     sun.target.position.set(c.x, 0, c.z);
     sun.target.updateMatrixWorld();
   }
@@ -5596,10 +5872,20 @@ function animate() {
     for (const m of mixery) m.update(dt);      // szkielety postaci
     updateEnemy(dt);
     Net.updateAvatars(dt);
-    // szum wody rośnie w miarę zbliżania się do koryta Narwi
+    // tło: woda przy rzece, szelest przy drzewach, pogłos w klocu
+    const wKlocu = Math.abs(player.pos.x) < CFG.blockW / 2 &&
+                   Math.abs(player.pos.z) < CFG.blockD / 2;
+    let najblizszeDrzewo = 999;
+    for (const tr of treeCols) {
+      const d = Math.hypot(tr.x - player.pos.x, tr.z - player.pos.z);
+      if (d < najblizszeDrzewo) najblizszeDrzewo = d;
+      if (najblizszeDrzewo < 6) break;
+    }
     AudioSys.ambienceTick(t,
-      Math.max(0, distToPolyline(player.pos.x, player.pos.z, NAREW_PTS) - CFG.riverHalf));
+      Math.max(0, distToPolyline(player.pos.x, player.pos.z, NAREW_PTS) - CFG.riverHalf),
+      wKlocu, najblizszeDrzewo < 14);
     AudioSys.birdTick(dt);
+    AudioSys.oddech(player.stamina, dt);
 
     zegarT -= dt;
     if (zegarT <= 0) { zegarT = 0.5; aktualizujZegar(); }
