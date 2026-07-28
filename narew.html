@@ -3399,40 +3399,68 @@ function refreshGrass(center) {
 let modelPostaci = null, klipyPostaci = {}, skalaPostaci = 1;
 const mixery = [];
 
-function wczytajModelPostaci() {
-  if (typeof THREE.GLTFLoader === 'undefined') return;
-  const url = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/models/gltf/Soldier.glb';
-  new THREE.GLTFLoader().load(url, (gltf) => {
+/* Model bywa blokowany albo CDN nie odpowiada, a wtedy zostaje postać z brył.
+   Próbujemy więc kolejno kilku źródeł, zanim się poddamy.                  */
+const ZRODLA_MODELU = [
+  'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r128/examples/models/gltf/Soldier.glb',
+  'https://raw.githubusercontent.com/mrdoob/three.js/r128/examples/models/gltf/Soldier.glb',
+  'https://unpkg.com/three@0.128.0/examples/models/gltf/Soldier.glb',
+];
+let stanModelu = 'ładowanie';
+
+function wczytajModelPostaci(nr) {
+  const i = nr || 0;
+  if (typeof THREE.GLTFLoader === 'undefined') {
+    stanModelu = 'brak GLTFLoadera';
+    return;
+  }
+  if (i >= ZRODLA_MODELU.length) {
+    stanModelu = 'nie udało się pobrać — postacie zapasowe';
+    ostatniBlad = stanModelu;
+    announce('⚠ Model postaci się nie wczytał — sylwetki zastępcze', '#ffb877', 5);
+    return;
+  }
+  new THREE.GLTFLoader().load(ZRODLA_MODELU[i], (gltf) => {
     modelPostaci = gltf.scene;
     for (const k of gltf.animations) klipyPostaci[k.name] = k;
     // skalujemy do ludzkiego wzrostu, niezależnie od jednostek autora modelu
     const bb = new THREE.Box3().setFromObject(modelPostaci);
     const wys = bb.max.y - bb.min.y;
     skalaPostaci = wys > 0.01 ? 1.82 / wys : 1;
+    stanModelu = 'wczytany (źródło ' + (i + 1) + ')';
     odswiezPostacie();
-  }, undefined, () => { ostatniBlad = 'nie udało się wczytać modelu postaci'; });
+  }, undefined, () => {
+    stanModelu = 'źródło ' + (i + 1) + ' nie odpowiedziało';
+    wczytajModelPostaci(i + 1);        // próbujemy następnego serwera
+  });
 }
+
+/* Każda postać ma znacznik: glb (model ze szkieletem) albo limbs (wersja
+   z brył). Po tym je liczymy i po tym poznajemy ciała osierocone.        */
+function czyPostac(o) {
+  return o && o.type === 'Group' && o !== worldGroup &&
+    (!!o.userData.glb || !!o.userData.limbs);
+}
+
+function zbierzPostacie() {
+  const lista = [];
+  const zbierz = (rodzic) => {
+    if (!rodzic) return;
+    for (const o of rodzic.children) if (czyPostac(o)) lista.push(o);
+  };
+  zbierz(scene);
+  zbierz(worldGroup);
+  return lista;
+}
+
+function liczCiala() { return zbierzPostacie().length; }
 
 /* Sprząta ciała, które zostały po starym świecie albo po zerwanym połączeniu:
    wszystko z animowaną siatką, co nie jest graczem, Janem ani tancerzem. */
 function odetnijSieroty() {
   const znane = new Set([selfModel, jan.model, mj.model]);
   for (const id in Net.remotes) znane.add(Net.remotes[id].avatar);
-  // tylko bezpośrednie dzieci sceny i grupy świata — postacie dodaje się właśnie
-  // tam. Pełny obchód drzewa złapałby też wnętrza poprawnych postaci.
-  const doUsuniecia = [];
-  const zbierz = (rodzic) => {
-    if (!rodzic) return;
-    for (const o of rodzic.children) {
-      if (o.type !== 'Group' || znane.has(o)) continue;
-      if (o === worldGroup) continue;          // to cały świat, nie postać
-      let skin = false;
-      o.traverse(c => { if (c.isSkinnedMesh) skin = true; });
-      if (skin) doUsuniecia.push(o);
-    }
-  };
-  zbierz(scene);
-  zbierz(worldGroup);
+  const doUsuniecia = zbierzPostacie().filter(o => !znane.has(o));
   for (const o of doUsuniecia) if (o.parent) o.parent.remove(o);
   return doUsuniecia.length;
 }
@@ -4188,6 +4216,10 @@ const Net = {
 
   ensureAvatar(id) {
     const r = this.remotes[id];
+    // nigdy nie stawiamy ciała dla samego siebie — inaczej własny avatar
+    // stanąłby dokładnie w miejscu gracza i nakładał się na jego postać
+    if (this.peer && id === this.peer.id) return null;
+    if (r.avatar && !r.avatar.parent) r.avatar = null;   // zostało po starym świecie
     if (!r.avatar && r.x !== undefined) {
       // kolor koszulki z id — każdy gracz inny
       let h = 0;
@@ -4216,6 +4248,7 @@ const Net = {
       const r = this.remotes[id];
       if (r.x === undefined) continue;
       const av = this.ensureAvatar(id);
+      if (!av) continue;
       const target = new THREE.Vector3(r.x, r.y || 0, r.z);
       const przed = av.position.clone();
       av.position.lerp(target, Math.min(1, dt * 12));
@@ -4568,6 +4601,8 @@ function pokazDiagnoze() {
     w(api, 'skrypt API YouTube'),
     w(ytGotowy, 'odtwarzacz gotowy'),
     w(!!ekranCSS, 'ekran wpasowany w telewizor'),
+    w(!!modelPostaci, 'model postaci: ' + stanModelu),
+    w(true, 'ciał w świecie: ' + liczCiala()),
     w(Narewka.pozycje.length > 0, 'pozycje w NAREWCE: ' + Narewka.pozycje.length),
     // ta linia ma sens tylko wtedy, gdy playlista jest wybrana
     (terazGra && terazGra.lista)
