@@ -1817,6 +1817,12 @@ function blockedStatic(x, z, r, y) {
 
 function blocked(x, z, r, y) {
   if (blockedStatic(x, z, r, y)) return true;
+  // postacie są solidne — nie da się wejść w Jana ani w tancerza
+  for (const p of [jan, mj]) {
+    if (!p.model) continue;
+    const dx = x - p.model.position.x, dz = z - p.model.position.z;
+    if (dx * dx + dz * dz < (0.45 + r) * (0.45 + r)) return true;
+  }
   for (const tr of treeCols) {           // pnie i grządki
     const dx = x - tr.x, dz = z - tr.z;
     if (dx * dx + dz * dz < (tr.r + r) * (tr.r + r)) return true;
@@ -1824,8 +1830,32 @@ function blocked(x, z, r, y) {
   return false;
 }
 
-/* wypycha gracza na krawędź pnia — daje płynne ślizganie się wokół drzewa */
+/* odsuwa gracza od postaci, która sama się porusza — bez tego tancerz
+   wchodziłby w gracza i obie sylwetki nakładałyby się na siebie */
+function odsunGracza(px, pz, promien) {
+  const dx = player.pos.x - px, dz = player.pos.z - pz;
+  const d2 = dx * dx + dz * dz;
+  if (d2 >= promien * promien) return;
+  const d = Math.sqrt(d2);
+  if (d < 1e-4) { player.pos.x = px + promien; return; }
+  player.pos.x = px + dx / d * promien;
+  player.pos.z = pz + dz / d * promien;
+}
+
+/* wypycha gracza na krawędź pnia — daje płynne ślizganie się wokół drzewa.
+   Tak samo traktujemy postacie, żeby nie dało się w nie wejść. */
 function pushOutOfTrees(pos, r) {
+  for (const p of [jan, mj]) {
+    if (!p.model) continue;
+    const rr = 0.45 + r;
+    const dx = pos.x - p.model.position.x, dz = pos.z - p.model.position.z;
+    const d2 = dx * dx + dz * dz;
+    if (d2 >= rr * rr) continue;
+    const d = Math.sqrt(d2);
+    if (d < 1e-4) { pos.x = p.model.position.x + rr; continue; }
+    pos.x = p.model.position.x + dx / d * rr;
+    pos.z = p.model.position.z + dz / d * rr;
+  }
   for (const tr of treeCols) {
     const dx = pos.x - tr.x, dz = pos.z - tr.z;
     const rr = tr.r + r;
@@ -2723,6 +2753,9 @@ function updateMJ(dt, t) {
   // stopy przebierają, choć ciało jedzie w drugą stronę
   mj.faza += dt * 7.5;
   animPerson(mj.model, mj.faza, true, false);
+
+  // tancerz sunie po stałym torze, więc to on odsuwa gracza, a nie odwrotnie
+  odsunGracza(mj.model.position.x, mj.model.position.z, 0.95);
 
   // kapelusz w rytm i lekkie ugięcie kolan
   mj.model.position.y = 0.06 + Math.abs(Math.sin(mj.faza * 0.5)) * 0.035;
