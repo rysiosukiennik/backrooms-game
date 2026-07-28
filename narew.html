@@ -2521,7 +2521,7 @@ function buildJana() {
   jan.x = x; jan.z = z;
   jan.y = groundHeight(x, z);
 
-  const g = buildPerson(0x2f6db0);                   // niebieska kurtka
+  const g = buildPerson(0x2f6db0, { mj: false });   // Jan bez kostiumu scenicznego
   g.position.set(x, jan.y, z);
   g.rotation.y = Math.atan2(-x, -z) + Math.PI;       // zwrócony w stronę posesji
 
@@ -2674,20 +2674,21 @@ function updateTeleport(dt, t) {
 const mj = { model: null, t: 0, bazaX: 15, bazaZ: 9, faza: 0 };
 
 function buildMJ() {
-  const g = buildPersonProsty(0xb4121f, { mj: true });   // czerwona kurtka sceniczna
+  const g = buildPerson(0xb4121f);            // ten sam realistyczny model co gracze
 
-  // złote pasy na piersi — kurtka z teledysku
-  const zloto = new THREE.MeshPhongMaterial({ color: 0xd8b64a, shininess: 120, specular: 0xfff0c0 });
-  for (let i = 0; i < 3; i++) {
-    const pas = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.022, 0.02), zloto);
-    pas.position.set(0.02, 1.5 - i * 0.11, 0.15);
-    pas.rotation.z = -0.35;
-    g.add(pas);
+  if (!g.userData.glb) {                      // dekoracje pasują tylko do wersji z brył
+    const zloto = new THREE.MeshPhongMaterial({ color: 0xd8b64a, shininess: 120, specular: 0xfff0c0 });
+    for (let i = 0; i < 3; i++) {
+      const pas = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.022, 0.02), zloto);
+      pas.position.set(0.02, 1.5 - i * 0.11, 0.15);
+      pas.rotation.z = -0.35;
+      g.add(pas);
+    }
+    const naramiennik = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), zloto);
+    naramiennik.scale.set(1, 0.5, 1);
+    naramiennik.position.set(-0.2, 1.47, 0);
+    g.add(naramiennik);
   }
-  const naramiennik = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), zloto);
-  naramiennik.scale.set(1, 0.5, 1);
-  naramiennik.position.set(-0.2, 1.47, 0);
-  g.add(naramiennik);
 
   const tab = new THREE.Mesh(new THREE.PlaneGeometry(2.9, 0.72),
     new THREE.MeshBasicMaterial({ map: texImie('MICHAEL JACKSON'), transparent: true }));
@@ -3412,6 +3413,30 @@ function wczytajModelPostaci() {
   }, undefined, () => { ostatniBlad = 'nie udało się wczytać modelu postaci'; });
 }
 
+/* Sprząta ciała, które zostały po starym świecie albo po zerwanym połączeniu:
+   wszystko z animowaną siatką, co nie jest graczem, Janem ani tancerzem. */
+function odetnijSieroty() {
+  const znane = new Set([selfModel, jan.model, mj.model]);
+  for (const id in Net.remotes) znane.add(Net.remotes[id].avatar);
+  // tylko bezpośrednie dzieci sceny i grupy świata — postacie dodaje się właśnie
+  // tam. Pełny obchód drzewa złapałby też wnętrza poprawnych postaci.
+  const doUsuniecia = [];
+  const zbierz = (rodzic) => {
+    if (!rodzic) return;
+    for (const o of rodzic.children) {
+      if (o.type !== 'Group' || znane.has(o)) continue;
+      if (o === worldGroup) continue;          // to cały świat, nie postać
+      let skin = false;
+      o.traverse(c => { if (c.isSkinnedMesh) skin = true; });
+      if (skin) doUsuniecia.push(o);
+    }
+  };
+  zbierz(scene);
+  zbierz(worldGroup);
+  for (const o of doUsuniecia) if (o.parent) o.parent.remove(o);
+  return doUsuniecia.length;
+}
+
 /* podmienia postacie już stojące w świecie, gdy model dojedzie z sieci */
 function odswiezPostacie() {
   if (!worldBuilt || !modelPostaci) return;
@@ -3426,11 +3451,19 @@ function odswiezPostacie() {
     const poz = jan.model.position.clone(), rot = jan.model.rotation.y;
     const tab = jan.model.userData.tabliczka;
     worldGroup.remove(jan.model);
-    const g = buildPerson(0x2f6db0);
+    const g = buildPerson(0x2f6db0, { mj: false });
     g.position.copy(poz); g.rotation.y = rot;
     if (tab) { g.add(tab); g.userData.tabliczka = tab; }
     worldGroup.add(g);
     jan.model = g;
+  }
+  odetnijSieroty();
+  if (mj.model) {                          // tancerz też dostaje realistyczne ciało
+    const poz = mj.model.position.clone(), rot = mj.model.rotation.y;
+    worldGroup.remove(mj.model);
+    buildMJ();
+    mj.model.position.copy(poz);
+    mj.model.rotation.y = rot;
   }
   for (const id in Net.remotes) {          // gracze sieciowi dostaną nowe ciała
     const r = Net.remotes[id];
@@ -3438,7 +3471,92 @@ function odswiezPostacie() {
   }
 }
 
-function buildPersonGLB(shirt) {
+/* Doczepia przedmiot do kości szkieletu tak, żeby jechał z animacją.
+   Kości Mixamo mają własne osie i skalę, więc kompensujemy jedno i drugie:
+   obrót odwracamy do układu modelu, a rozmiar dzielimy przez skalę kości. */
+function doczepDoKosci(kosc, mesh, offsetSwiat) {
+  const q = new THREE.Quaternion();
+  kosc.getWorldQuaternion(q);
+  const sk = new THREE.Vector3();
+  kosc.getWorldScale(sk);
+
+  const uchwyt = new THREE.Group();
+  uchwyt.quaternion.copy(q.clone().invert());
+  uchwyt.scale.setScalar(1 / (sk.x || 1));
+
+  const pozycjaSwiat = new THREE.Vector3();
+  kosc.getWorldPosition(pozycjaSwiat);
+  const cel = pozycjaSwiat.clone().add(offsetSwiat);
+  kosc.add(uchwyt);
+  uchwyt.position.copy(kosc.worldToLocal(cel));
+  uchwyt.add(mesh);
+  return uchwyt;
+}
+
+/* strój sceniczny nałożony na model ze szkieletem */
+function ubierzWMJ(korzen) {
+  const kosci = {};
+  korzen.traverse(o => {
+    if (!o.isBone) return;
+    const n = o.name.toLowerCase();
+    if (n.endsWith('head')) kosci.glowa = o;
+    if (n.endsWith('righthand')) kosci.prawaDlon = o;
+    if (n.endsWith('leftfoot')) kosci.lewaStopa = o;
+    if (n.endsWith('rightfoot')) kosci.prawaStopa = o;
+  });
+  korzen.updateWorldMatrix(true, true);
+
+  const czern = new THREE.MeshPhongMaterial({ color: 0x0c0c10, shininess: 90, specular: 0x555555 });
+  const biel = new THREE.MeshPhongMaterial({ color: 0xf7f5ef, shininess: 80, specular: 0xffffff });
+  const lakier = new THREE.MeshPhongMaterial({ color: 0x08080a, shininess: 170, specular: 0xffffff });
+
+  // kapelusz: rondo, główka i wstążka; model patrzy w −Z, więc tam jest przód
+  if (kosci.glowa) {
+    const kapelusz = new THREE.Group();
+    const rondo = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.018, 24), czern);
+    const glowka = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.112, 0.13, 20), czern);
+    glowka.position.y = 0.072;
+    const wstazka = new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.115, 0.03, 20),
+      new THREE.MeshLambertMaterial({ color: 0x23232a }));
+    wstazka.position.y = 0.022;
+    kapelusz.add(rondo, glowka, wstazka);
+    kapelusz.rotation.x = -0.08;
+    doczepDoKosci(kosci.glowa, kapelusz, new THREE.Vector3(0, 0.16, -0.01));
+
+    const okulary = new THREE.Group();
+    const szkla = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.042, 0.015),
+      new THREE.MeshPhongMaterial({ color: 0x0a0a0e, shininess: 200, specular: 0xcccccc }));
+    const zausznikL = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.012, 0.1), czern);
+    zausznikL.position.set(-0.076, 0, 0.05);
+    const zausznikR = zausznikL.clone(); zausznikR.position.x = 0.076;
+    okulary.add(szkla, zausznikL, zausznikR);
+    doczepDoKosci(kosci.glowa, okulary, new THREE.Vector3(0, 0.055, -0.088));
+  }
+
+  // biała rękawiczka na prawej dłoni
+  if (kosci.prawaDlon) {
+    const rekawiczka = new THREE.Mesh(new THREE.SphereGeometry(0.062, 12, 10), biel);
+    rekawiczka.scale.set(0.85, 1.25, 0.7);
+    doczepDoKosci(kosci.prawaDlon, rekawiczka, new THREE.Vector3(0, -0.02, 0));
+  }
+
+  // białe skarpety i czarne lakierki
+  for (const s of [kosci.lewaStopa, kosci.prawaStopa]) {
+    if (!s) continue;
+    const stopa = new THREE.Group();
+    const skarpeta = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.055, 0.12, 12), biel);
+    skarpeta.position.y = 0.1;
+    const mokasyn = new THREE.Mesh(new THREE.BoxGeometry(0.105, 0.07, 0.24), lakier);
+    mokasyn.position.set(0, 0.015, -0.05);
+    const czubek = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), lakier);
+    czubek.scale.set(0.95, 0.62, 1.1);
+    czubek.position.set(0, 0.012, -0.15);
+    stopa.add(skarpeta, mokasyn, czubek);
+    doczepDoKosci(s, stopa, new THREE.Vector3(0, 0.02, 0));
+  }
+}
+
+function buildPersonGLB(shirt, mjStyl) {
   const g = new THREE.Group();
   const model = THREE.SkeletonUtils.clone(modelPostaci);
   model.scale.setScalar(skalaPostaci);
@@ -3451,9 +3569,18 @@ function buildPersonGLB(shirt) {
     o.receiveShadow = true;
     o.frustumCulled = false;            // skinning wychodzi poza pierwotną bryłę
     o.material = o.material.clone();
-    // barwa gracza jako delikatny odcień na oryginalnej teksturze
-    o.material.color = new THREE.Color(shirt).lerp(new THREE.Color(0xffffff), 0.6);
+    if (mjStyl) {
+      // czarny strój z czerwoną kurtką; wizjer chowamy, bo to nie żołnierz
+      if (/visor/i.test(o.name)) { o.visible = false; return; }
+      o.material.color = new THREE.Color(shirt);
+      o.material.shininess = 40;
+      if (o.material.specular) o.material.specular.setHex(0x333333);
+    } else {
+      // barwa gracza jako delikatny odcień na oryginalnej teksturze
+      o.material.color = new THREE.Color(shirt).lerp(new THREE.Color(0xffffff), 0.6);
+    }
   });
+  if (mjStyl) ubierzWMJ(model);
   g.add(model);
 
   const mixer = new THREE.AnimationMixer(model);
@@ -3471,8 +3598,12 @@ function buildPersonGLB(shirt) {
   return g;
 }
 
-function buildPerson(shirt) {
-  return modelPostaci ? buildPersonGLB(shirt) : buildPersonProsty(shirt);
+/* Skiny graczy: realistyczny model w stroju scenicznym. NPC (Jan) dostają
+   ten sam model bez kostiumu, żeby dało się ich odróżnić od graczy. */
+function buildPerson(shirt, opcje) {
+  const mjStyl = !opcje || opcje.mj !== false;      // domyślnie strój sceniczny
+  return modelPostaci ? buildPersonGLB(shirt, mjStyl)
+                      : buildPersonProsty(shirt, { mj: mjStyl });
 }
 
 /* zapasowa postać z brył — działa bez internetu i zanim model się wczyta.
@@ -3884,6 +4015,11 @@ function disposeWorld() {
   treeCols.length = 0; treeList.length = 0;
   birds = []; squirrels = []; tvScreen = null;
   mixery.length = 0;
+  for (const id in Net.remotes) {          // ciała graczy giną razem ze światem
+    const r = Net.remotes[id];
+    if (r.avatar && r.avatar.parent) r.avatar.parent.remove(r.avatar);
+    r.avatar = null;
+  }
   teleport.pad = null; teleport.pierscien = null; teleport.powrot = null;
   mj.model = null; mj.t = 0;
   jan.model = null; jan.odliczanie = 0; jan.krok = 0;
@@ -4061,14 +4197,16 @@ const Net = {
       // od razu na swoim miejscu — inaczej nowy gracz przylatuje ze środka mapy
       r.avatar.position.set(r.x, r.y || 0, r.z);
       r.avatar.rotation.y = (r.yaw || 0) + Math.PI;
-      scene.add(r.avatar);
+      // do grupy świata, nie do sceny — inaczej przy przebudowie świata stare
+      // ciało zostaje w punkcie zero i nakłada się na nowe
+      (worldGroup || scene).add(r.avatar);
     }
     return r.avatar;
   },
 
   removeAvatar(id) {
     const r = this.remotes[id];
-    if (r && r.avatar) scene.remove(r.avatar);
+    if (r && r.avatar && r.avatar.parent) r.avatar.parent.remove(r.avatar);
     delete this.remotes[id];
   },
 
