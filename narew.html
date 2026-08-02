@@ -5044,20 +5044,32 @@ function buildWiate() {
 
   // dach: jedna połać ze spadkiem w stronę ogrodu
   const kat = Math.atan2(WIATA.spad, WIATA.d);
-  const dach = new THREE.Mesh(new THREE.BoxGeometry(WIATA.w + 0.9, 0.22,
-    Math.hypot(WIATA.d, WIATA.spad) + 0.9), blacha);
-  dach.position.set(0, WIATA.h + WIATA.spad / 2 + 0.22, 0);
-  dach.rotation.x = -kat;
-  dach.castShadow = true; dach.receiveShadow = true;
-  g.add(dach);
+  // Połać: zamiast jednej gładkiej płyty kładziemy wąskie arkusze z fałdami.
+  // Fałdy blachy siedzą normalnie w mapie normalnych, której nie pobieram,
+  // więc płaska płyta wyglądała jak tafla szkła — tu robi je geometria.
+  const polac = new THREE.Group();
+  polac.position.set(0, WIATA.h + WIATA.spad / 2 + 0.24, 0);
+  polac.rotation.x = -kat;
+  g.add(polac);
+
+  const dlugosc = Math.hypot(WIATA.d, WIATA.spad) + 0.9;
+  const plyta = new THREE.Mesh(new THREE.BoxGeometry(WIATA.w + 0.9, 0.12, dlugosc), blacha);
+  plyta.castShadow = true; plyta.receiveShadow = true;
+  polac.add(plyta);
+
+  const ile = Math.round((WIATA.w + 0.9) / 0.62);
+  for (let i = 0; i < ile; i++) {
+    const zebro = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.11, dlugosc), blacha);
+    zebro.position.set(-(WIATA.w + 0.9) / 2 + 0.31 + i * 0.62, 0.1, 0);
+    zebro.castShadow = true; zebro.receiveShadow = true;
+    polac.add(zebro);
+  }
 
   // krokwie widoczne od spodu
   for (let i = -2; i <= 2; i++) {
-    const k = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1,
-      Math.hypot(WIATA.d, WIATA.spad)), drewno);
-    k.position.set(i * (WIATA.w / 5), WIATA.h + WIATA.spad / 2 + 0.13, 0);
-    k.rotation.x = -kat;
-    g.add(k);
+    const k = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.12, dlugosc - 0.9), drewno);
+    k.position.set(i * (WIATA.w / 5), -0.12, 0);
+    polac.add(k);
   }
 
   // ława i stos drewna pod tylną ścianą
