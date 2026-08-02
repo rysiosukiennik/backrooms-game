@@ -5015,8 +5015,9 @@ function buildWiate() {
 
   const drewno = new THREE.MeshPhongMaterial({ color: 0xb08d63, map: textures.deski,
     shininess: 18, specular: 0x1a1410 });
-  const blacha = new THREE.MeshPhongMaterial({ color: 0xc9ced6, map: textures.blacha,
-    shininess: 70, specular: 0x555b63 });
+  // ciemniejsza i matowa, bo z połyskiem 70 dach odbijał całe niebo i wyglądał jak szyba
+  const blacha = new THREE.MeshPhongMaterial({ color: 0x8b9199, map: textures.blacha,
+    shininess: 12, specular: 0x2a2e33 });
   const beton = new THREE.MeshLambertMaterial({ color: 0xcfcdc7, map: textures.concrete });
 
   const posadzka = new THREE.Mesh(new THREE.BoxGeometry(WIATA.w + 0.6, 0.18, WIATA.d + 0.6), beton);
@@ -5043,7 +5044,7 @@ function buildWiate() {
 
   // dach: jedna połać ze spadkiem w stronę ogrodu
   const kat = Math.atan2(WIATA.spad, WIATA.d);
-  const dach = new THREE.Mesh(new THREE.BoxGeometry(WIATA.w + 0.9, 0.1,
+  const dach = new THREE.Mesh(new THREE.BoxGeometry(WIATA.w + 0.9, 0.22,
     Math.hypot(WIATA.d, WIATA.spad) + 0.9), blacha);
   dach.position.set(0, WIATA.h + WIATA.spad / 2 + 0.22, 0);
   dach.rotation.x = -kat;
