@@ -961,6 +961,38 @@ function tex(canvas, repeat = 1, repeatY = null) {
   return t;
 }
 
+/* Zdjęcia powierzchni z katalogu tekstury/ — materiały CC0 z ambientCG.
+   Gdyby pliku nie było (gra przeniesiona sama, bez katalogu), tekstura
+   wraca na rysowaną wersję, więc świat nigdy nie zostaje bez pokrycia. */
+
+function foto(plik, repeat = 1, repeatY = null, zapas = null) {
+  // Zaczynamy od wersji rysowanej, a zdjęcie podmieniamy dopiero, gdy dojedzie.
+  // Bez tego materiał z jeszcze niewczytaną mapą renderuje się na czarno.
+  const t = zapas ? new THREE.CanvasTexture(zapas()) : new THREE.Texture();
+  const img = new Image();
+  img.onload = () => { t.image = img; t.needsUpdate = true; };
+  img.src = 'tekstury/' + plik;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(repeat, repeatY == null ? repeat : repeatY);
+  t.encoding = THREE.sRGBEncoding;
+  t.zPliku = plik;                    // po tym poznajemy zdjęcie przy klonowaniu
+  t.zapasRysowany = zapas;
+  return t;
+}
+
+/* Ta sama powierzchnia w innej skali. Zwykłe clone() nie wystarcza: kopiuje
+   obrazek w chwili wywołania, a zdjęcie dojeżdża z sieci później i klon
+   zostaje pusty — stąd czarna ziemia. Dlatego wczytujemy je jeszcze raz
+   (przeglądarka bierze plik z pamięci podręcznej, więc nic nie kosztuje). */
+function klonFoto(t, rx, ry) {
+  if (t.zPliku) return foto(t.zPliku, rx, ry, t.zapasRysowany);
+  const k = t.clone();
+  k.needsUpdate = true;
+  k.wrapS = k.wrapT = THREE.RepeatWrapping;
+  k.repeat.set(rx, ry);
+  return k;
+}
+
 function texGrass() {
   return makeCanvas(256, (ctx, s) => {
     ctx.fillStyle = PAL.trawaBaza; ctx.fillRect(0, 0, s, s);
@@ -3721,6 +3753,17 @@ function blockedStatic(x, z, r, y) {
     if (!isGate) return true;
   }
 
+  // wiata: blokują tylko słupy, między nimi przechodzi się swobodnie
+  if (h < WIATA.h + WIATA.spad) {
+    const wx = x - WIATA.x, wz = z - WIATA.z;
+    const hw = WIATA.w / 2 - 0.2, hd = WIATA.d / 2 - 0.2;
+    if (Math.abs(wx) < hw + r + 0.3 && Math.abs(wz) < hd + r + 0.3) {
+      for (const sx of [-1, 0, 1]) for (const sz of [-1, 1]) {
+        if (Math.abs(wx - sx * hw) < 0.11 + r && Math.abs(wz - sz * hd) < 0.11 + r) return true;
+      }
+    }
+  }
+
   // płotek ogródka na szczycie wzgórza — z furtką od strony kloca (+Z)
   const gdx = x - CFG.hillX, gdz = z - CFG.hillZ;
   const gd = Math.hypot(gdx, gdz);
@@ -4109,9 +4152,7 @@ function buildGround() {
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geo.computeVertexNormals();
 
-  const map = textures.grass.clone();
-  map.needsUpdate = true;
-  map.repeat.set(S / 10, S / 10);            // kafel trawy co 10 m
+  const map = klonFoto(textures.grass, S / 10, S / 10);   // kafel trawy co 10 m
   const terrain = new THREE.Mesh(geo,
     new THREE.MeshLambertMaterial({ map, vertexColors: true }));
   terrain.receiveShadow = true;
@@ -4282,14 +4323,11 @@ function buildRoads() {
 
 /* ---------- wielki szary kloc (na razie lita bryła) ---------- */
 function buildBlock() {
-  const map = textures.concrete.clone();
-  map.needsUpdate = true;
-  map.repeat.set(4, 0.45); // kafle betonu mniej więcej kwadratowe przy 56 × 6,2 m
+  // kafle betonu mniej więcej kwadratowe przy 56 × 6,2 m
+  const map = klonFoto(textures.concrete, 4, 0.45);
   // lekka emisja zastępuje lampy w środku — nic nie kosztuje w innych materiałach
   const side = new THREE.MeshLambertMaterial({ map, emissive: 0x1b1712 });
-  const topMap = textures.concrete.clone();
-  topMap.needsUpdate = true;
-  topMap.repeat.set(6, 6);
+  const topMap = klonFoto(textures.concrete, 6, 6);
   const top = new THREE.MeshLambertMaterial({ map: topMap, color: 0xa8a6a0 });
 
   const hb = CFG.blockW / 2, hd = CFG.blockD / 2, wt = CFG.wallThick, H = CFG.blockH;
@@ -4720,10 +4758,11 @@ function buildLozko() {
   const g = new THREE.Group();
   g.position.set(CFG.lozkoX, 0.06, CFG.lozkoZ);
 
-  const drewno = new THREE.MeshPhongMaterial({ color: 0x6b4a2f, shininess: 28, specular: 0x201810 });
-  const materac = new THREE.MeshLambertMaterial({ color: 0xe6e0d2 });
-  const kolder = new THREE.MeshLambertMaterial({ color: 0x39567d });
-  const poduszka = new THREE.MeshLambertMaterial({ color: 0xf2eee2 });
+  const drewno = new THREE.MeshPhongMaterial({ color: 0xb08d63, map: textures.deski,
+    shininess: 22, specular: 0x201810 });
+  const materac = new THREE.MeshLambertMaterial({ color: 0xe6e0d2, map: textures.tkanina });
+  const kolder = new THREE.MeshLambertMaterial({ color: 0x6f8fc0, map: textures.tkanina });
+  const poduszka = new THREE.MeshLambertMaterial({ color: 0xf2eee2, map: textures.tkanina });
 
   const W = CFG.lozkoSzer, D = CFG.lozkoDlug, H = CFG.lozkoWys;
 
@@ -4802,6 +4841,35 @@ const butelka = {
   ma: false, pelna: false, respawnT: 0, wypite: 0,
 };
 
+/* etykieta butelki z małym znaczkiem kaucji — rysowana, bo to napis,
+   a nie powierzchnia; własny znak, nie logo żadnego systemu zwrotu */
+function texEtykieta() {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 128;
+  const x = c.getContext('2d');
+  x.fillStyle = '#e8e2d0'; x.fillRect(0, 0, 512, 128);
+  x.fillStyle = '#3f6d4f'; x.fillRect(0, 0, 512, 10); x.fillRect(0, 118, 512, 10);
+  x.textAlign = 'center';
+  x.fillStyle = '#2f5c42';
+  x.font = 'bold 40px Arial, sans-serif';
+  x.fillText('NAREW', 150, 62);
+  x.font = 'bold 17px Arial, sans-serif';
+  x.fillText('ŹRÓDLANA', 150, 86);
+  // znaczek kaucji: strzałki w kółko i kwota
+  x.strokeStyle = '#2f5c42'; x.lineWidth = 5;
+  x.beginPath(); x.arc(370, 64, 30, 0.5, 5.0); x.stroke();
+  x.beginPath();
+  x.moveTo(392, 40); x.lineTo(383, 18); x.lineTo(404, 26); x.closePath();
+  x.fillStyle = '#2f5c42'; x.fill();
+  x.font = 'bold 20px Arial, sans-serif';
+  x.fillText('0,50', 370, 60);
+  x.font = 'bold 13px Arial, sans-serif';
+  x.fillText('KAUCJA', 370, 78);
+  const t = new THREE.CanvasTexture(c);
+  t.encoding = THREE.sRGBEncoding;
+  return t;
+}
+
 function buildButelke() {
   const g = new THREE.Group();
   const szklo = new THREE.MeshPhongMaterial({
@@ -4809,7 +4877,7 @@ function buildButelke() {
     shininess: 180, specular: 0xffffff,
   });
   const korek = new THREE.MeshPhongMaterial({ color: 0x2f6d4f, shininess: 60 });
-  const etykieta = new THREE.MeshLambertMaterial({ color: 0xe8e2d0 });
+  const etykieta = new THREE.MeshLambertMaterial({ map: texEtykieta() });
 
   const korpus = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.045, 0.16, 12), szklo);
   korpus.position.y = 0.08;
@@ -4928,6 +4996,89 @@ function updateButelke(dt) {
   }
   // butelka w ręce znika w widoku zza pleców
   butelka.wRece.visible = butelka.ma && player.camDist < 0.3;
+}
+
+/* ================================================================
+   WIATA — dwadzieścia metrów od zachodniej ściany kloca.
+   Drewniane słupy, blaszany dach, betonowa posadzka, ława pod ścianą.
+   Wszystko z tych samych zdjęć CC0, co reszta świata.
+================================================================ */
+const WIATA = {
+  x: -(CFG.blockW / 2 + 20), z: 6,     // 20 m od ściany kloca
+  w: 16, d: 11, h: 3.6, spad: 1.3,     // szerokość, głębokość, wysokość i spadek dachu
+};
+
+function buildWiate() {
+  const g = new THREE.Group();
+  g.position.set(WIATA.x, 0, WIATA.z);
+  const hw = WIATA.w / 2, hd = WIATA.d / 2;
+
+  const drewno = new THREE.MeshPhongMaterial({ color: 0xb08d63, map: textures.deski,
+    shininess: 18, specular: 0x1a1410 });
+  const blacha = new THREE.MeshPhongMaterial({ color: 0xc9ced6, map: textures.blacha,
+    shininess: 70, specular: 0x555b63 });
+  const beton = new THREE.MeshLambertMaterial({ color: 0xcfcdc7, map: textures.concrete });
+
+  const posadzka = new THREE.Mesh(new THREE.BoxGeometry(WIATA.w + 0.6, 0.18, WIATA.d + 0.6), beton);
+  posadzka.position.y = 0.05;
+  posadzka.receiveShadow = true;
+  g.add(posadzka);
+
+  // sześć słupów: cztery narożne i dwa pośrodku dłuższych boków
+  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, -1], [0, 1]]) {
+    const wys = WIATA.h + (sz < 0 ? WIATA.spad : 0);
+    const slup = new THREE.Mesh(new THREE.BoxGeometry(0.22, wys, 0.22), drewno);
+    slup.position.set(sx * (hw - 0.2), wys / 2 + 0.14, sz * (hd - 0.2));
+    slup.castShadow = true; slup.receiveShadow = true;
+    g.add(slup);
+  }
+
+  // oczep pod dachem, po obu dłuższych bokach
+  for (const sz of [-1, 1]) {
+    const belka = new THREE.Mesh(new THREE.BoxGeometry(WIATA.w - 0.2, 0.2, 0.22), drewno);
+    belka.position.set(0, WIATA.h + (sz < 0 ? WIATA.spad : 0) + 0.05, sz * (hd - 0.2));
+    belka.castShadow = true;
+    g.add(belka);
+  }
+
+  // dach: jedna połać ze spadkiem w stronę ogrodu
+  const kat = Math.atan2(WIATA.spad, WIATA.d);
+  const dach = new THREE.Mesh(new THREE.BoxGeometry(WIATA.w + 0.9, 0.1,
+    Math.hypot(WIATA.d, WIATA.spad) + 0.9), blacha);
+  dach.position.set(0, WIATA.h + WIATA.spad / 2 + 0.22, 0);
+  dach.rotation.x = -kat;
+  dach.castShadow = true; dach.receiveShadow = true;
+  g.add(dach);
+
+  // krokwie widoczne od spodu
+  for (let i = -2; i <= 2; i++) {
+    const k = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1,
+      Math.hypot(WIATA.d, WIATA.spad)), drewno);
+    k.position.set(i * (WIATA.w / 5), WIATA.h + WIATA.spad / 2 + 0.13, 0);
+    k.rotation.x = -kat;
+    g.add(k);
+  }
+
+  // ława i stos drewna pod tylną ścianą
+  const lawa = new THREE.Mesh(new THREE.BoxGeometry(WIATA.w - 1.6, 0.14, 0.5), drewno);
+  lawa.position.set(0, 0.62, -hd + 0.75);
+  lawa.castShadow = true;
+  g.add(lawa);
+  for (const sx of [-1, 1]) {
+    const noga = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.5, 0.44), drewno);
+    noga.position.set(sx * (WIATA.w / 2 - 1.4), 0.34, -hd + 0.75);
+    g.add(noga);
+  }
+  for (let i = 0; i < 9; i++) {
+    const kloda = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.12, 1.1, 8),
+      new THREE.MeshLambertMaterial({ color: 0x9a7550, map: textures.bark }));
+    kloda.rotation.z = Math.PI / 2;
+    kloda.position.set(hw - 1.1, 0.26 + ((i / 3) | 0) * 0.23, -hd + 0.9 + (i % 3) * 0.25);
+    kloda.castShadow = true;
+    g.add(kloda);
+  }
+
+  worldGroup.add(g);
 }
 
 /* ================================================================
@@ -5443,6 +5594,7 @@ function stworzScene3D(fov, poz, cel) {
   scena.add(slonce, slonce.target);
 
   const kam = new THREE.PerspectiveCamera(fov, TV.W / TV.H, 0.4, 260);
+  kam.rotation.order = 'YXZ';        // najpierw obrót w poziomie, potem w pionie
   kam.position.set(poz[0], poz[1], poz[2]);
   kam.lookAt(cel[0], cel[1], cel[2]);
 
@@ -5463,6 +5615,14 @@ function stworzScene3D(fov, poz, cel) {
   });
   rt.texture.encoding = renderer.outputEncoding;
   return { scena, kam, rt, hudC, hudT };
+}
+
+/* Rozglądanie w grach 3D: przeciągnięcie LPM obraca postać i podnosi wzrok.
+   Kursor zostaje wolny, bo na ekranie są jeszcze przyciski do klikania.   */
+function obrocMysza3D(mod, dx, dy) {
+  if (!mod) return;
+  mod.kier -= dx * 0.0032;
+  mod.pitch = Math.max(-0.85, Math.min(0.85, (mod.pitch || 0) - dy * 0.0026));
 }
 
 /* ekran telewizora przełączony na scenkę; zwraca poprzednią teksturę */
@@ -5630,9 +5790,7 @@ const SzpTV = {
     this.kam = s3.kam; this.rt = s3.rt; this.hudC = s3.hudC; this.hudT = s3.hudT;
 
     // trawnik z tej samej tekstury, co teren w grze
-    const mapa = textures.grass.clone();
-    mapa.needsUpdate = true;
-    mapa.repeat.set(9, 9);
+    const mapa = klonFoto(textures.grass, 9, 9);
     const ziemia = new THREE.Mesh(new THREE.PlaneGeometry(90, 90),
       new THREE.MeshLambertMaterial({ map: mapa }));
     ziemia.rotation.x = -Math.PI / 2;
@@ -5664,7 +5822,7 @@ const SzpTV = {
     this.przy = null; this.rolataT = 0; this.kolejka = 2; this.blysk = 0;
     if (this.roleta) this.roleta.position.y = 4.55;
     this.czas = 0; this.koniec = 0; this.info = '';
-    this.wx = 0; this.wz = 5.4; this.kier = 0;      // twarzą do okienka recepcji
+    this.wx = 0; this.wz = 5.4; this.kier = 0; this.pitch = 0;   // twarzą do okienka
     this.wet.position.set(0, 0, 5.4);
     this.wet.rotation.y = 0;
     this.kam.position.set(0, 1.62, 5.4);
@@ -5910,7 +6068,7 @@ const SzpTV = {
     this.faza += dt * (idzie ? 8 : 2);
     animPerson(this.wet, this.faza, idzie, false, false, 1);
     this.kam.position.set(this.wx, 1.62 + Math.sin(this.faza) * (idzie ? 0.03 : 0), this.wz);
-    this.kam.rotation.set(0, this.kier + Math.PI, 0);
+    this.kam.rotation.set(this.pitch || 0, this.kier + Math.PI, 0);
 
     if (NAREBLOX.zjedz('Space') && !this.koniec) this.akcja();
     if (NAREBLOX.zjedz('KeyQ') && !this.koniec) {
@@ -6123,10 +6281,7 @@ const WojnaTV = {
     sc.add(trawa);
 
     // działka: betonowy plac, na którym stawia się budynki
-    const beton = textures.concrete.clone();
-    beton.needsUpdate = true;
-    beton.wrapS = beton.wrapT = THREE.RepeatWrapping;
-    beton.repeat.set(7, 6);
+    const beton = klonFoto(textures.concrete, 7, 6);
     const plac = new THREE.Mesh(new THREE.PlaneGeometry(28, 22),
       new THREE.MeshLambertMaterial({ map: beton }));
     plac.rotation.x = -Math.PI / 2;
@@ -6206,7 +6361,7 @@ const WojnaTV = {
       s.pad.material.color.setHex(0x9c8256);
     }
     this.kasa = WOJ.kasaStart; this.armia = 0; this.czas = 0;
-    this.x = 0; this.z = 12; this.kier = Math.PI; this.blysk = 0;
+    this.x = 0; this.z = 12; this.kier = Math.PI; this.pitch = 0; this.blysk = 0;
     this.koniec = 0; this.info = '';
     this.gracz.position.set(0, 0, 12);
     this.gracz.rotation.y = Math.PI;
@@ -6355,7 +6510,7 @@ const WojnaTV = {
     this.faza += dt * (idzie ? 8 : 2);
     animPerson(this.gracz, this.faza, idzie, false, false, 1);
     this.kam.position.set(this.x, 1.62 + Math.sin(this.faza) * (idzie ? 0.03 : 0), this.z);
-    this.kam.rotation.set(0, this.kier + Math.PI, 0);
+    this.kam.rotation.set(this.pitch || 0, this.kier + Math.PI, 0);
 
     if (NAREBLOX.zjedz('Space') && !this.koniec) this.akcja();
 
@@ -6753,8 +6908,9 @@ function buildTrees() {
   }
   const barwy = PAL.kwitnaca ? greens.concat([PAL.kwitnaca]) : greens;
   const crowns = barwy.map((col, ci) => {
-    const mat = dodajWiatr(new THREE.MeshPhongMaterial({ color: col, flatShading: true,
-      shininess: 0, specular: 0x000000 }), 0.16, false);
+    // zdjęcie liści na koronie; barwa pory roku zostaje jako podbarwienie
+    const mat = dodajWiatr(new THREE.MeshPhongMaterial({ color: col, map: textures.liscie,
+      flatShading: true, shininess: 0, specular: 0x000000 }), 0.16, false);
     const count = items.filter(it => it.kind === ci).length * 2 + 2;
     const im = new THREE.InstancedMesh(crownGeo, mat, count);
     im.castShadow = true; im.receiveShadow = true;
@@ -7561,10 +7717,14 @@ function buildWorld(seed) {
   worldGroup = new THREE.Group();
   scene.add(worldGroup);
 
-  textures.grass = tex(texGrass(), 500);
-  textures.concrete = tex(texConcrete(), 1);
+  // powierzchnie ze zdjęć; rysowane generatory zostają jako zapas
+  textures.grass = foto('trawa.jpg', 500, 500, texGrass);
+  textures.concrete = foto('beton.jpg', 1, 1, texConcrete);
   textures.stone = tex(texStone(), 1);
-  textures.bark = tex(texBark(), 1, 4);
+  textures.bark = foto('kora.jpg', 1, 4, texBark);
+  textures.liscie = foto('liscie.jpg', 1, 1, texGrass);
+  textures.deski = foto('deski.jpg', 1, 1, texConcrete);
+  textures.blacha = foto('blacha.jpg', 4, 2, texConcrete);
   textures.blade = texBlade();
   textures.sign = texSign();
   textures.tv = TV.tex || TV.init();
@@ -7572,7 +7732,7 @@ function buildWorld(seed) {
   textures.road = tex(texRoad(), 1, 1);
   textures.dirt = tex(texDirt(), 1, 1);
   textures.dzins = tex(texDzins(), 2, 3);
-  textures.tkanina = tex(texTkanina(), 2, 2);
+  textures.tkanina = foto('tkanina.jpg', 2, 2, texTkanina);
 
   const aniso = renderer.capabilities.getMaxAnisotropy();
   for (const k in textures) if (textures[k].anisotropy !== undefined) textures[k].anisotropy = aniso;
@@ -7586,6 +7746,7 @@ function buildWorld(seed) {
   buildGarden();
   buildFence();
   buildTrees();
+  buildWiate();
   buildKajaki();
   buildSquirrels();
   buildGrass();
@@ -8755,7 +8916,8 @@ document.addEventListener('mousemove', e => {
     // movementX bywa zerowe poza blokadą — liczymy różnicę sami
     const dx = e.movementX || (e.clientX - lastMX);
     const dy = e.movementY || (e.clientY - lastMY);
-    lookBy(dx, dy);
+    if (NAREBLOX.mod3d) obrocMysza3D(NAREBLOX.mod3d, dx, dy);
+    else lookBy(dx, dy);
   }
   lastMX = e.clientX; lastMY = e.clientY;
 });
@@ -8775,7 +8937,9 @@ document.addEventListener('mousedown', e => {
   // się kliknąć kafelka ani sterowania odtwarzacza (pauza, głośność, pełny ekran).
   if (state === 'playing' && document.pointerLockElement !== canvas) {
     const wolnyKursor = terazGra || TV.menuOtwarte();
-    dragging = !wolnyKursor;
+    // w grze 3D kursor zostaje wolny (przyciski na ekranie), ale przeciąganie
+    // LPM rozgląda się po scence — bez tego nie dało się obrócić głowy
+    dragging = !wolnyKursor || !!NAREBLOX.mod3d;
     if (!wolnyKursor) tryLock();
   }
 });
