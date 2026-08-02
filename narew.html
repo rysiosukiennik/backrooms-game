@@ -6979,7 +6979,9 @@ function refreshGrass(center) {
     // pod wodą i na kamieniach trawa nie rośnie
     // zimą kępek trawy nie ma — spod śniegu nic nie wystaje
     const hide = !PAL.trawaWidoczna || gy < -0.05 ||
-      (Math.abs(x) < CFG.blockW / 2 && Math.abs(z) < CFG.blockD / 2);
+      (Math.abs(x) < CFG.blockW / 2 && Math.abs(z) < CFG.blockD / 2) ||
+      // pod wiatą jest posadzka, więc kępki trawy nie mają przez co przerosnąć
+      (Math.abs(x - WIATA.x) < WIATA.w / 2 + 0.4 && Math.abs(z - WIATA.z) < WIATA.d / 2 + 0.4);
     const s = hide ? 0.0001 : 0.85 + Math.random() * 0.8;
     e.set(0, Math.random() * Math.PI, 0); q.setFromEuler(e);
     v.set(x, gy, z);
