@@ -1,0 +1,182 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Nagranie Roblox — gra</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #0b0b0d; overflow: hidden;
+    font: 14px/1.4 "Segoe UI", system-ui, sans-serif; color: #e8e8ea; }
+
+  /* scena = dokładny prostokąt nagrania, żeby postać chodziła po całym kadrze */
+  #scena { position: absolute; inset: 0; margin: auto; }
+  #tlo { width: 100%; height: 100%; display: block; }
+
+  #gracz { position: absolute; left: 0; top: 0; width: 100px; height: 170px;
+    margin: -150px 0 0 -50px; transform-origin: 50% 100%; will-change: transform; }
+  #cien { position: absolute; left: 0; top: 0; width: 74px; height: 20px;
+    margin: -14px 0 0 -37px; border-radius: 50%;
+    background: radial-gradient(ellipse, rgba(0,0,0,.55), rgba(0,0,0,0) 70%); }
+
+  /* chód: kończyny bujają się tylko w ruchu */
+  .konczyna { transform-origin: 50px 62px; }
+  .idzie .konczyna { animation: krok .46s infinite ease-in-out; }
+  .idzie .tyl { animation-delay: -.23s; }
+  @keyframes krok { 0%,100% { transform: rotate(19deg) } 50% { transform: rotate(-19deg) } }
+  .idzie #cialo { animation: kolysanie .46s infinite ease-in-out; }
+  @keyframes kolysanie { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-3px) } }
+
+  /* zastygnięcie — zatrzymuje każdą animację na scenie */
+  .stop * { animation-play-state: paused !important; }
+
+  #mroz { position: absolute; inset: 0; display: none; place-items: center;
+    background: rgba(90,150,220,.14); backdrop-filter: saturate(.45) brightness(.85); }
+  .stop #mroz { display: grid; }
+  #mroz div { font-size: 40px; font-weight: 800; letter-spacing: 5px;
+    color: #dff1ff; text-shadow: 0 3px 22px rgba(0,0,0,.9); }
+  #mroz small { display: block; text-align: center; margin-top: 10px;
+    font-size: 14px; font-weight: 500; letter-spacing: 1px; opacity: .85; }
+
+  #hud { position: fixed; left: 14px; bottom: 14px; z-index: 5;
+    background: rgba(12,12,16,.72); border: 1px solid rgba(255,255,255,.14);
+    border-radius: 10px; padding: 10px 13px; }
+  #hud b { color: #ffd479; }
+  #hud kbd { background: #2a2a33; border: 1px solid #444; border-bottom-width: 2px;
+    border-radius: 4px; padding: 1px 6px; font: inherit; font-size: 12px; }
+</style>
+
+<div id="scena">
+  <video id="tlo" src="/video.mp4" autoplay muted loop playsinline></video>
+  <div id="cien"></div>
+
+  <svg id="gracz" viewBox="0 0 100 170">
+    <!-- katany za plecami -->
+    <g stroke="#c9ced6" stroke-width="3" stroke-linecap="round">
+      <line x1="30" y1="96" x2="70" y2="20"/>
+      <line x1="70" y1="96" x2="30" y2="20"/>
+    </g>
+    <g stroke="#1b1b1f" stroke-width="7" stroke-linecap="round">
+      <line x1="33" y1="90" x2="41" y2="75"/>
+      <line x1="67" y1="90" x2="59" y2="75"/>
+    </g>
+
+    <!-- tylna ręka i noga -->
+    <g class="konczyna tyl">
+      <rect x="21" y="62" width="13" height="34" rx="3" fill="#7d1620"/>
+      <rect x="21" y="90" width="13" height="12" rx="3" fill="#17171b"/>
+    </g>
+    <g class="konczyna tyl">
+      <rect x="39" y="108" width="15" height="42" rx="3" fill="#7d1620"/>
+      <rect x="39" y="140" width="15" height="14" rx="3" fill="#17171b"/>
+    </g>
+
+    <g id="cialo">
+      <!-- tułów -->
+      <rect x="32" y="58" width="36" height="52" rx="5" fill="#b32234"/>
+      <rect x="32" y="58" width="8"  height="52" rx="4" fill="#1c1c21"/>
+      <rect x="60" y="58" width="8"  height="52" rx="4" fill="#1c1c21"/>
+      <path d="M42 60 L50 78 L58 60" stroke="#17171b" stroke-width="4" fill="none"/>
+      <rect x="44" y="84" width="12" height="9" rx="2" fill="#2a2a30"/>
+
+      <!-- głowa w masce -->
+      <rect x="33" y="20" width="34" height="34" rx="7" fill="#c22a3c"/>
+      <ellipse cx="43" cy="37" rx="7.5" ry="5.5" fill="#15151a"/>
+      <ellipse cx="57" cy="37" rx="7.5" ry="5.5" fill="#15151a"/>
+      <ellipse cx="43" cy="36" rx="4.5" ry="3"   fill="#f2f2f4"/>
+      <ellipse cx="57" cy="36" rx="4.5" ry="3"   fill="#f2f2f4"/>
+      <rect x="33" y="52" width="34" height="7" rx="3" fill="#17171b"/>
+    </g>
+
+    <!-- przednia noga i ręka -->
+    <g class="konczyna">
+      <rect x="46" y="108" width="15" height="42" rx="3" fill="#a01f2e"/>
+      <rect x="46" y="140" width="15" height="14" rx="3" fill="#17171b"/>
+    </g>
+    <g class="konczyna">
+      <rect x="66" y="62" width="13" height="34" rx="3" fill="#a01f2e"/>
+      <rect x="66" y="90" width="13" height="12" rx="3" fill="#17171b"/>
+    </g>
+  </svg>
+
+  <div id="mroz"><div>ZASTYGŁO<small>P albo spacja — odmroź</small></div></div>
+</div>
+
+<div id="hud">
+  <b>WSAD</b> / strzałki — chodzenie &nbsp;·&nbsp;
+  <kbd>Shift</kbd> — bieg &nbsp;·&nbsp;
+  <kbd>P</kbd> / <kbd>spacja</kbd> — zastygnij
+</div>
+
+<script>
+  const scena = document.getElementById('scena');
+  const tlo   = document.getElementById('tlo');
+  const gracz = document.getElementById('gracz');
+  const cien  = document.getElementById('cien');
+
+  // postać stoi w połowie szerokości, w dolnej części kadru
+  let x = 50, y = 78, kierunek = 1, stop = false;
+  const klawisze = new Set();
+
+  // dopasuj prostokąt sceny do proporcji nagrania (jak object-fit: contain)
+  function dopasuj() {
+    const pr = (tlo.videoWidth || 1856) / (tlo.videoHeight || 1072);
+    const ow = innerWidth, oh = innerHeight;
+    let w = ow, h = ow / pr;
+    if (h > oh) { h = oh; w = oh * pr; }
+    scena.style.width = w + 'px';
+    scena.style.height = h + 'px';
+  }
+  addEventListener('resize', dopasuj);
+  tlo.addEventListener('loadedmetadata', dopasuj);
+  dopasuj();
+
+  addEventListener('keydown', e => {
+    if (e.key === 'p' || e.key === 'P' || e.code === 'Space') { e.preventDefault(); przelacz(); return; }
+    klawisze.add(e.key.toLowerCase());
+  });
+  addEventListener('keyup', e => klawisze.delete(e.key.toLowerCase()));
+  addEventListener('blur', () => klawisze.clear());
+
+  function przelacz() {
+    stop = !stop;
+    document.body.classList.toggle('stop', stop);
+    if (stop) { tlo.pause(); klawisze.clear(); } else { tlo.play(); }
+  }
+
+  const wcisniete = (...k) => k.some(n => klawisze.has(n));
+
+  function klatka() {
+    if (!stop) {
+      const tempo = wcisniete('shift') ? 1.05 : 0.52;
+      let dx = 0, dy = 0;
+      if (wcisniete('a', 'arrowleft'))  dx -= 1;
+      if (wcisniete('d', 'arrowright')) dx += 1;
+      if (wcisniete('w', 'arrowup'))    dy -= 1;
+      if (wcisniete('s', 'arrowdown'))  dy += 1;
+
+      const rusza = dx || dy;
+      if (rusza) {
+        const norm = (dx && dy) ? 0.707 : 1;      // po skosie nie szybciej
+        x += dx * tempo * norm;
+        y += dy * tempo * norm * 0.62;            // w głąb wolniej — perspektywa
+        x = Math.max(3, Math.min(97, x));
+        y = Math.max(30, Math.min(97, y));        // nie wyżej niż linia horyzontu
+        if (dx) kierunek = dx > 0 ? 1 : -1;
+      }
+      document.body.classList.toggle('idzie', !!rusza);
+    }
+
+    // im dalej w głąb kadru, tym mniejsza postać
+    const skala = 0.34 + 0.72 * ((y - 30) / 67);
+    ustaw(skala);
+    requestAnimationFrame(klatka);
+  }
+
+  function ustaw(skala) {
+    const w = scena.clientWidth, h = scena.clientHeight;
+    const px = x / 100 * w, py = y / 100 * h;
+    gracz.style.transform = `translate(${px}px, ${py}px) scale(${skala}) scaleX(${kierunek})`;
+    cien.style.transform  = `translate(${px}px, ${py}px) scale(${skala})`;
+    cien.style.opacity    = 0.35 + 0.4 * skala;
+  }
+
+  requestAnimationFrame(klatka);
+</script>

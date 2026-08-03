@@ -1,0 +1,9 @@
+# Nagrania z Robloxa czyta serwer prosto z Videos\Roblox.
+# Gdyby ktos wrzucil film do projektu, git ma go pominac:
+# jeden plik ma ponad 100 MB, czyli wiecej niz przyjmuje GitHub.
+*.mp4
+*.mkv
+*.mov
+*.webm
+
+node_modules/

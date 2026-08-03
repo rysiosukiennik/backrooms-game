@@ -1,0 +1,379 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Miasto 3D — Roblox</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #7fb2e5;
+    font: 14px/1.45 "Segoe UI", system-ui, sans-serif; color: #eef1f5; }
+  canvas { display: block; }
+
+  #hud { position: fixed; left: 14px; bottom: 14px; z-index: 5; pointer-events: none;
+    background: rgba(10,12,18,.72); border: 1px solid rgba(255,255,255,.15);
+    border-radius: 10px; padding: 10px 14px; }
+  #hud kbd { background: #2c2c36; border: 1px solid #4a4a56; border-bottom-width: 2px;
+    border-radius: 4px; padding: 1px 6px; font: inherit; font-size: 12px; }
+
+  /* nagranie obok, jako podgląd źródła */
+  #obok { position: fixed; right: 14px; top: 14px; z-index: 5; width: 300px;
+    border: 1px solid rgba(255,255,255,.25); border-radius: 10px; overflow: hidden;
+    background: #000; box-shadow: 0 8px 30px rgba(0,0,0,.5); }
+  #obok video { width: 100%; display: block; }
+  #obok span { position: absolute; left: 8px; top: 6px; font-size: 11px;
+    letter-spacing: .5px; text-shadow: 0 1px 4px #000; opacity: .9; }
+
+  #mroz { position: fixed; inset: 0; z-index: 6; display: none; place-items: center;
+    background: rgba(90,150,220,.16); backdrop-filter: saturate(.4) brightness(.85); }
+  #mroz.on { display: grid; }
+  #mroz b { font-size: 44px; letter-spacing: 6px; text-shadow: 0 4px 24px rgba(0,0,0,.9); }
+  #mroz small { display: block; text-align: center; margin-top: 8px; font-weight: 500;
+    letter-spacing: 1px; opacity: .85; }
+
+  /* guzik pauzy — działa myszką, więc nie zależy od tego, gdzie siedzi kursor klawiatury */
+  #pauza { position: fixed; left: 50%; top: 14px; transform: translateX(-50%); z-index: 7;
+    background: rgba(16,18,26,.85); color: #fff; border: 1px solid rgba(255,255,255,.28);
+    border-radius: 999px; padding: 9px 20px; font: 600 14px/1 "Segoe UI", system-ui, sans-serif;
+    cursor: pointer; letter-spacing: .5px; }
+  #pauza:hover { background: rgba(40,46,64,.95); }
+
+  /* komunikat, gdy stoisz przy ludziku z nagrania */
+  #blisko { position: fixed; left: 50%; bottom: 76px; transform: translateX(-50%); z-index: 5;
+    display: none; background: rgba(200,40,58,.9); border-radius: 999px;
+    padding: 8px 18px; font-weight: 600; letter-spacing: .3px; }
+  #blisko.on { display: block; }
+</style>
+
+<div id="obok"><span>NAGRANIE</span><video src="/video.mp4" autoplay muted loop playsinline></video></div>
+
+<button id="pauza">⏸ ZASTYGNIJ &nbsp;(P)</button>
+<div id="blisko">dotykasz ludzika z nagrania</div>
+
+<div id="hud">
+  <kbd>WSAD</kbd> chodzenie &nbsp;·&nbsp; <kbd>Shift</kbd> bieg &nbsp;·&nbsp;
+  <kbd>spacja</kbd> skok &nbsp;·&nbsp; <b>myszka</b> obrót kamery &nbsp;·&nbsp;
+  <b>kółko</b> zoom &nbsp;·&nbsp; <kbd>P</kbd> zastygnij
+</div>
+
+<div id="mroz"><div><b>ZASTYGŁO</b><small>kliknij albo naciśnij P — odmroź</small></div></div>
+
+<script type="importmap">
+{ "imports": { "three": "/three.module.js" } }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { zbudujPostac, animujChod, PROMIEN, SKIN_GRACZ, SKIN_NAGRANIE } from '/postac.js';
+
+/* ---------- scena ---------- */
+const scena = new THREE.Scene();
+scena.background = new THREE.Color(0x8fc0ea);
+scena.fog = new THREE.Fog(0x8fc0ea, 120, 340);
+
+const kamera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.1, 800);
+const rend = new THREE.WebGLRenderer({ antialias: true });
+rend.setPixelRatio(Math.min(devicePixelRatio, 2));
+rend.setSize(innerWidth, innerHeight);
+rend.shadowMap.enabled = true;
+rend.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(rend.domElement);
+
+scena.add(new THREE.HemisphereLight(0xbfd8f5, 0x55524d, 1.05));
+const slonce = new THREE.DirectionalLight(0xfff2d8, 1.5);
+slonce.position.set(60, 90, 40);
+slonce.castShadow = true;
+slonce.shadow.mapSize.set(2048, 2048);
+const c = slonce.shadow.camera;
+c.left = -110; c.right = 110; c.top = 110; c.bottom = -110; c.far = 300;
+scena.add(slonce);
+
+const mat = (kolor, opcje = {}) => new THREE.MeshLambertMaterial({ color: kolor, ...opcje });
+const KOSTKA = new THREE.BoxGeometry(1, 1, 1);
+
+function blok(w, h, d, kolor, x, y, z, rodzic = scena) {
+  const m = new THREE.Mesh(KOSTKA, mat(kolor));
+  m.scale.set(w, h, d);
+  m.position.set(x, y + h / 2, z);
+  m.castShadow = m.receiveShadow = true;
+  rodzic.add(m);
+  return m;
+}
+
+/* ---------- mapa ---------- */
+const KRATA = 60;        // rozstaw ulic
+const ULICA = 16;        // szerokość jezdni
+const ZASIEG = 2;        // ile kwartałów w każdą stronę
+const KRANIEC = KRATA * ZASIEG + KRATA / 2;
+const przeszkody = [];   // prostopadłościany blokujące gracza
+
+// asfalt pod wszystkim
+const asfalt = new THREE.Mesh(new THREE.PlaneGeometry(KRANIEC * 2, KRANIEC * 2), mat(0x3a3a3e));
+asfalt.rotation.x = -Math.PI / 2;
+asfalt.receiveShadow = true;
+scena.add(asfalt);
+
+// woda i horyzont za miastem
+const woda = new THREE.Mesh(new THREE.PlaneGeometry(2400, 2400), mat(0x2f6ea8));
+woda.rotation.x = -Math.PI / 2;
+woda.position.y = -0.6;
+scena.add(woda);
+
+// chodniki + kwartały zabudowy
+const paleta = [0xd9c98a, 0xb5643f, 0xc9cdd2, 0x8fa3b0, 0xd7d2c6, 0xa8b7a0];
+for (let ix = -ZASIEG; ix <= ZASIEG; ix++) {
+  for (let iz = -ZASIEG; iz <= ZASIEG; iz++) {
+    const cx = ix * KRATA, cz = iz * KRATA;
+    const bok = KRATA - ULICA;
+
+    // krawężnik / chodnik
+    const chodnik = blok(bok, 0.45, bok, 0xb9b9b4, cx, 0, cz);
+    chodnik.castShadow = false;
+
+    // trawnik w środku kwartału zamiast budynku — trochę oddechu
+    if ((ix + iz) % 4 === 0) {
+      blok(bok - 8, 0.15, bok - 8, 0x6f9b57, cx, 0.45, cz).castShadow = false;
+      for (let t = 0; t < 3; t++) {
+        const tx = cx + (Math.random() - 0.5) * (bok - 16);
+        const tz = cz + (Math.random() - 0.5) * (bok - 16);
+        blok(1.2, 5, 1.2, 0x6b4a2f, tx, 0.6, tz);
+        blok(7, 6, 7, 0x4f8f45, tx, 5.2, tz);
+      }
+      continue;
+    }
+
+    // 1–2 budynki na kwartał
+    const ile = Math.random() < 0.45 ? 2 : 1;
+    for (let b = 0; b < ile; b++) {
+      const w = ile === 1 ? bok - 6 : (bok - 10) / 2;
+      const d = bok - 6;
+      const h = 12 + Math.random() * 46;
+      const ox = ile === 1 ? 0 : (b === 0 ? -(w + 3) / 2 : (w + 3) / 2);
+      const kolor = paleta[Math.floor(Math.random() * paleta.length)];
+      const bud = blok(w, h, d, kolor, cx + ox, 0.45, cz);
+
+      // okna — cienkie ciemne płytki na dwóch ścianach
+      const rzedy = Math.floor(h / 5), kolumny = Math.floor(w / 5);
+      for (let r = 0; r < rzedy; r++) {
+        for (let k = 0; k < kolumny; k++) {
+          const oy = 0.45 + 3.4 + r * 5;
+          const okx = cx + ox - w / 2 + 3 + k * 5;
+          blok(2.6, 2.8, 0.3, 0x2c3c4c, okx, oy, cz + d / 2 + 0.1).castShadow = false;
+          blok(0.3, 2.8, 2.6, 0x2c3c4c, cx + ox + w / 2 + 0.1, oy, cz - d / 2 + 3 + k * 5).castShadow = false;
+        }
+      }
+      przeszkody.push(new THREE.Box3().setFromObject(bud));
+    }
+  }
+}
+
+// pasy na jezdni, przejścia, latarnie i światła
+const pasGeo = new THREE.BoxGeometry(1, 0.02, 4);
+for (let i = -ZASIEG; i <= ZASIEG; i++) {
+  const os = i * KRATA;
+  for (let p = -KRANIEC; p < KRANIEC; p += 10) {
+    for (const [x, z] of [[os, p], [p, os]]) {
+      const linia = new THREE.Mesh(pasGeo, mat(0xe8c33d));
+      linia.position.set(x, 0.03, z);
+      if (x === os && z === p) linia.rotation.y = 0; else linia.rotation.y = Math.PI / 2;
+      linia.receiveShadow = true;
+      scena.add(linia);
+    }
+  }
+  // przejścia dla pieszych przy każdym skrzyżowaniu
+  for (let j = -ZASIEG; j <= ZASIEG; j++) {
+    const sx = i * KRATA, sz = j * KRATA;
+    for (const znak of [-1, 1]) {
+      for (let k = -6; k <= 6; k += 2.4) {
+        blok(1.4, 0.04, 5, 0xf0f0f0, sx + k, 0, sz + znak * (ULICA / 2 + 2)).castShadow = false;
+        blok(5, 0.04, 1.4, 0xf0f0f0, sx + znak * (ULICA / 2 + 2), 0, sz + k).castShadow = false;
+      }
+      // latarnie
+      const lx = sx + znak * (ULICA / 2 + 1.5), lz = sz + znak * (ULICA / 2 + 1.5);
+      blok(0.5, 9, 0.5, 0x8b8b90, lx, 0.45, lz);
+      blok(3.4, 0.4, 0.5, 0x8b8b90, lx - znak * 1.7, 9.2, lz);
+      blok(1.4, 0.4, 1, 0xfff0b8, lx - znak * 3, 8.9, lz).castShadow = false;
+      // sygnalizacja
+      blok(0.4, 6, 0.4, 0x3f4448, sx - znak * (ULICA / 2 + 1.2), 0.45, sz + znak * (ULICA / 2 + 1.2));
+      blok(1, 2.4, 1, 0x24282b, sx - znak * (ULICA / 2 + 1.2), 6.2, sz + znak * (ULICA / 2 + 1.2));
+      blok(0.5, 0.5, 0.3, 0xff4436, sx - znak * (ULICA / 2 + 1.2), 8.0, sz + znak * (ULICA / 2 + 1.4)).castShadow = false;
+      blok(0.5, 0.5, 0.3, 0x3fd45a, sx - znak * (ULICA / 2 + 1.2), 6.6, sz + znak * (ULICA / 2 + 1.4)).castShadow = false;
+    }
+  }
+}
+
+/* ---------- postacie ---------- */
+const { grupa: gracz, konczyny } = zbudujPostac(SKIN_GRACZ);
+scena.add(gracz);
+
+/* Ludzik z nagrania — chodzi środkiem ulicy tam i z powrotem, tak jak na filmiku.
+   Da się do niego podejść, wpaść na niego i odejść; przez niego się nie przenika. */
+const { grupa: npc, konczyny: npcKonczyny } = zbudujPostac(SKIN_NAGRANIE);
+npc.position.set(0, 0, 4);
+scena.add(npc);
+
+const TRASA = [
+  new THREE.Vector3(0, 0, 4), new THREE.Vector3(0, 0, -52),
+  new THREE.Vector3(-52, 0, -52), new THREE.Vector3(-52, 0, 4),
+];
+let cel = 1, npcFaza = 0;
+
+function ruszNpc(dt) {
+  const doCelu = TRASA[cel].clone().sub(npc.position);
+  doCelu.y = 0;
+  if (doCelu.length() < 1.2) { cel = (cel + 1) % TRASA.length; return; }
+  doCelu.normalize();
+  const tempoNpc = 7;
+  npc.position.addScaledVector(doCelu, tempoNpc * dt);
+  npc.rotation.y = Math.atan2(doCelu.x, doCelu.z);
+  npcFaza += dt * tempoNpc * 0.42;
+  animujChod(npcKonczyny, npcFaza, true, true);
+}
+
+/* Zderzenie z ludzikiem: wypchnij gracza dokładnie na styk, nigdy do środka. */
+function odepchnijOdNpc(poz) {
+  const dx = poz.x - npc.position.x, dz = poz.z - npc.position.z;
+  const odl = Math.hypot(dx, dz);
+  const min = PROMIEN * 2;
+  const dotyka = odl < min + 0.9;
+  if (odl > 0.0001 && odl < min) {
+    poz.x = npc.position.x + (dx / odl) * min;
+    poz.z = npc.position.z + (dz / odl) * min;
+  }
+  return dotyka;
+}
+/* ---------- sterowanie ---------- */
+const klaw = new Set();
+let zamrozone = false, faza = 0;
+const predkosc = new THREE.Vector3();
+let vy = 0, naZiemi = true;
+let obrot = Math.PI, pochyl = 0.28, dystans = 14;
+gracz.position.set(0, 0, 26);
+
+// nasłuch w fazie przechwytywania, żeby żaden element nie zjadł klawisza po drodze
+addEventListener('keydown', e => {
+  if (e.code === 'KeyP' || e.key === 'p' || e.key === 'P') { e.preventDefault(); przelacz(); return; }
+  if (e.code === 'Space') { e.preventDefault(); if (!zamrozone && naZiemi) { vy = 13; naZiemi = false; } return; }
+  klaw.add(e.key.toLowerCase());
+}, true);
+addEventListener('keyup', e => klaw.delete(e.key.toLowerCase()), true);
+addEventListener('blur', () => klaw.clear());
+
+// pauza również myszką: guzik u góry i kliknięcie w zamrożony ekran
+document.getElementById('pauza').addEventListener('click', () => { przelacz(); rend.domElement.focus(); });
+document.getElementById('mroz').addEventListener('click', () => przelacz());
+
+function przelacz() {
+  zamrozone = !zamrozone;
+  document.getElementById('mroz').classList.toggle('on', zamrozone);
+  document.getElementById('pauza').textContent = zamrozone ? '▶ ODMROŹ  (P)' : '⏸ ZASTYGNIJ  (P)';
+  const v = document.querySelector('#obok video');
+  if (zamrozone) { v.pause(); klaw.clear(); } else { v.play(); }
+}
+
+let ciagnie = false, lastX = 0, lastY = 0;
+rend.domElement.addEventListener('pointerdown', e => { ciagnie = true; lastX = e.clientX; lastY = e.clientY; });
+addEventListener('pointerup', () => ciagnie = false);
+addEventListener('pointermove', e => {
+  if (!ciagnie) return;
+  obrot -= (e.clientX - lastX) * 0.005;
+  pochyl = Math.max(-0.15, Math.min(1.1, pochyl + (e.clientY - lastY) * 0.004));
+  lastX = e.clientX; lastY = e.clientY;
+});
+addEventListener('wheel', e => {
+  dystans = Math.max(6, Math.min(40, dystans + Math.sign(e.deltaY) * 1.6));
+}, { passive: true });
+
+addEventListener('resize', () => {
+  kamera.aspect = innerWidth / innerHeight;
+  kamera.updateProjectionMatrix();
+  rend.setSize(innerWidth, innerHeight);
+});
+
+/* ---------- pętla ---------- */
+const wcisniete = (...k) => k.some(n => klaw.has(n));
+const zegar = new THREE.Clock();
+const pudlo = new THREE.Box3();
+const ROZMIAR = new THREE.Vector3(1.6, 3.9, 1.2);
+
+function kolizje(poz) {
+  pudlo.setFromCenterAndSize(new THREE.Vector3(poz.x, poz.y + 2, poz.z), ROZMIAR);
+  for (const p of przeszkody) {
+    if (!p.intersectsBox(pudlo)) continue;
+    // wypchnij po osi mniejszego zanurzenia
+    const dx = Math.min(p.max.x - pudlo.min.x, pudlo.max.x - p.min.x);
+    const dz = Math.min(p.max.z - pudlo.min.z, pudlo.max.z - p.min.z);
+    if (dx < dz) poz.x += (poz.x > (p.min.x + p.max.x) / 2 ? dx : -dx);
+    else         poz.z += (poz.z > (p.min.z + p.max.z) / 2 ? dz : -dz);
+  }
+}
+
+function aktualizuj(dt) {
+  if (zamrozone) return;
+  {
+    let dx = 0, dz = 0;
+    if (wcisniete('w', 'arrowup')) dz -= 1;
+    if (wcisniete('s', 'arrowdown')) dz += 1;
+    if (wcisniete('a', 'arrowleft')) dx -= 1;
+    if (wcisniete('d', 'arrowright')) dx += 1;
+
+    const idzie = dx || dz;
+    const tempo = wcisniete('shift') ? 26 : 11;
+
+    if (idzie) {
+      // kierunek względem kamery, nie względem świata
+      const dl = Math.hypot(dx, dz);
+      const kat = Math.atan2(dx / dl, dz / dl) + obrot;
+      predkosc.set(Math.sin(kat), 0, Math.cos(kat)).multiplyScalar(tempo);
+      gracz.rotation.y = kat + Math.PI;
+    } else {
+      predkosc.multiplyScalar(0.72);
+    }
+
+    ruszNpc(dt);
+
+    gracz.position.x += predkosc.x * dt;
+    gracz.position.z += predkosc.z * dt;
+    kolizje(gracz.position);
+    const dotyka = odepchnijOdNpc(gracz.position);
+    document.getElementById('blisko').classList.toggle('on', dotyka);
+    const g = KRANIEC - 2;
+    gracz.position.x = Math.max(-g, Math.min(g, gracz.position.x));
+    gracz.position.z = Math.max(-g, Math.min(g, gracz.position.z));
+
+    // grawitacja
+    vy -= 34 * dt;
+    gracz.position.y += vy * dt;
+    if (gracz.position.y <= 0) { gracz.position.y = 0; vy = 0; naZiemi = true; }
+
+    faza += dt * (idzie ? tempo * 0.42 : 0);
+    animujChod(konczyny, faza, !!idzie, naZiemi);
+  }
+}
+
+function animuj() {
+  requestAnimationFrame(animuj);
+  const dt = Math.min(zegar.getDelta(), 0.05);
+  aktualizuj(dt);
+
+  // kamera trzecioosobowa, płynnie doganiająca
+  const cel = new THREE.Vector3(
+    gracz.position.x + Math.sin(obrot) * dystans * Math.cos(pochyl),
+    gracz.position.y + 4 + dystans * Math.sin(pochyl),
+    gracz.position.z + Math.cos(obrot) * dystans * Math.cos(pochyl)
+  );
+  kamera.position.lerp(cel, zamrozone ? 1 : 0.12);
+  kamera.lookAt(gracz.position.x, gracz.position.y + 3, gracz.position.z);
+
+  slonce.position.set(gracz.position.x + 60, 90, gracz.position.z + 40);
+  slonce.target.position.copy(gracz.position);
+  slonce.target.updateMatrixWorld();
+
+  rend.render(scena, kamera);
+}
+animuj();
+
+// do testów z zewnątrz
+Object.assign(window, { gracz, npc, kamera, scena, przeszkody, przelacz, aktualizuj,
+  odlegloscOdNpc: () => +Math.hypot(gracz.position.x - npc.position.x, gracz.position.z - npc.position.z).toFixed(2),
+  krok: (n = 1, dt = 1 / 60) => { for (let i = 0; i < n; i++) aktualizuj(dt); },
+  stanGry: () => ({ x: +gracz.position.x.toFixed(2), y: +gracz.position.y.toFixed(2),
+                    z: +gracz.position.z.toFixed(2), obrot: +gracz.rotation.y.toFixed(2), zamrozone }) });
+</script>

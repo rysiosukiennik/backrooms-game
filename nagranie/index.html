@@ -1,0 +1,418 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Ludzik w nagraniu</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #000;
+    font: 14px/1.45 "Segoe UI", system-ui, sans-serif; color: #eef1f5; }
+  canvas { display: block; }
+
+  #hud { position: fixed; left: 14px; bottom: 14px; z-index: 5; pointer-events: none;
+    background: rgba(10,12,18,.74); border: 1px solid rgba(255,255,255,.15);
+    border-radius: 10px; padding: 10px 14px; }
+  #hud kbd { background: #2c2c36; border: 1px solid #4a4a56; border-bottom-width: 2px;
+    border-radius: 4px; padding: 1px 6px; font: inherit; font-size: 12px; }
+  #hud i { color: #9fb6cc; font-style: normal; }
+
+  #kalib { position: fixed; right: 14px; top: 14px; z-index: 5; pointer-events: none;
+    background: rgba(10,12,18,.74); border: 1px solid rgba(255,255,255,.15);
+    border-radius: 10px; padding: 9px 12px; font-size: 12px; line-height: 1.7; }
+  #kalib b { color: #ffd479; font-variant-numeric: tabular-nums; }
+
+  #mroz { position: fixed; inset: 0; z-index: 6; display: none; place-items: center;
+    background: rgba(90,150,220,.16); backdrop-filter: saturate(.4) brightness(.85); }
+  #mroz.on { display: grid; }
+  #mroz b { font-size: 44px; letter-spacing: 6px; text-shadow: 0 4px 24px rgba(0,0,0,.9); }
+  #mroz small { display: block; text-align: center; margin-top: 8px; font-weight: 500;
+    letter-spacing: 1px; opacity: .85; }
+
+  #pauza { position: fixed; left: 50%; top: 14px; transform: translateX(-50%); z-index: 7;
+    background: rgba(16,18,26,.85); color: #fff; border: 1px solid rgba(255,255,255,.28);
+    border-radius: 999px; padding: 9px 20px; font: 600 14px/1 "Segoe UI", system-ui, sans-serif;
+    cursor: pointer; letter-spacing: .5px; }
+  #pauza:hover, #widok:hover { background: rgba(40,46,64,.95); }
+  #widok { position: fixed; left: 50%; top: 58px; transform: translateX(-50%); z-index: 7;
+    background: rgba(16,18,26,.85); color: #fff; border: 1px solid rgba(255,255,255,.28);
+    border-radius: 999px; padding: 8px 18px; font: 600 13px/1 "Segoe UI", system-ui, sans-serif;
+    cursor: pointer; letter-spacing: .5px; }
+
+  /* krzyżyk na środku — punkt, w który patrzysz w pierwszej osobie */
+  #celownik { position: fixed; left: 50%; top: 50%; width: 16px; height: 16px; z-index: 4;
+    transform: translate(-50%, -50%); pointer-events: none; }
+  #celownik::before, #celownik::after { content: ""; position: absolute; background: rgba(255,255,255,.8);
+    box-shadow: 0 0 3px rgba(0,0,0,.9); }
+  #celownik::before { left: 50%; top: 0; width: 2px; height: 100%; margin-left: -1px; }
+  #celownik::after { top: 50%; left: 0; height: 2px; width: 100%; margin-top: -1px; }
+
+  /* sterowanie myszką — działa nawet gdy strona nie ma fokusu klawiatury */
+  #pad { position: fixed; right: 18px; bottom: 18px; z-index: 8;
+    display: grid; grid-template-columns: repeat(3, 58px); grid-template-rows: repeat(3, 58px);
+    gap: 6px; user-select: none; touch-action: none; }
+  #pad button { background: rgba(16,18,26,.8); color: #fff; border: 1px solid rgba(255,255,255,.28);
+    border-radius: 12px; font: 700 20px/1 "Segoe UI", system-ui, sans-serif; cursor: pointer; }
+  #pad button:active, #pad button.wcisniety { background: #c8283a; border-color: #ff8f9c; }
+  #pad .pusty { visibility: hidden; }
+  #pad .maly { font-size: 12px; letter-spacing: .5px; }
+
+  #blisko { position: fixed; left: 50%; bottom: 92px; transform: translateX(-50%); z-index: 5;
+    display: none; background: rgba(200,40,58,.92); border-radius: 999px;
+    padding: 8px 18px; font-weight: 600; }
+  #blisko.on { display: block; }
+</style>
+
+<button id="pauza">⏸ ZASTYGNIJ &nbsp;(P)</button>
+<button id="widok">🧍 WIDOK Z BOKU &nbsp;(F)</button>
+<div id="celownik"></div>
+
+<div id="pad">
+  <button class="pusty"></button>
+  <button data-klaw="w">▲</button>
+  <button class="maly" data-klaw="shift">BIEG</button>
+  <button data-klaw="a">◀</button>
+  <button data-klaw="s">▼</button>
+  <button data-klaw="d">▶</button>
+  <button class="pusty"></button>
+  <button class="maly" id="skok">SKOK</button>
+  <button class="pusty"></button>
+</div>
+<div id="blisko">dotykasz ludzika z nagrania</div>
+
+<div id="hud">
+  <b>strzałki z prawej</b> — chodzenie myszką, działa zawsze &nbsp;·&nbsp;
+  albo <kbd>WSAD</kbd> <kbd>Shift</kbd> <kbd>spacja</kbd> z klawiatury<br>
+  <kbd>F</kbd> widok &nbsp;·&nbsp; <kbd>P</kbd> zastygnij &nbsp;·&nbsp; <b>przeciągnij obraz</b> rozglądanie<br>
+  <i><kbd>[</kbd> <kbd>]</kbd> pochylenie &nbsp;·&nbsp; <kbd>-</kbd> <kbd>=</kbd> wysokość &nbsp;·&nbsp;
+  <kbd>,</kbd> <kbd>.</kbd> skala &nbsp;·&nbsp; <kbd>;</kbd> <kbd>'</kbd> gdzie stoi ludzik z nagrania</i>
+</div>
+
+<div id="kalib">pochylenie <b id="kp">—</b><br>wysokość <b id="kw">—</b><br>skala <b id="ks">—</b><br>ludzik <b id="kl">—</b></div>
+<div id="mroz"><div><b>ZASTYGŁO</b><small>kliknij albo naciśnij P — odmroź</small></div></div>
+
+<script type="importmap">
+{ "imports": { "three": "/three.module.js" } }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { zbudujPostac, animujChod, PROMIEN, SKIN_NAGRANIE } from '/postac.js';
+
+/* ---------- nagranie jako świat ---------- */
+const wideo = document.createElement('video');
+wideo.src = '/video.mp4';
+wideo.loop = wideo.muted = wideo.playsInline = true;
+wideo.play();
+
+const tekstura = new THREE.VideoTexture(wideo);
+tekstura.colorSpace = THREE.SRGBColorSpace;
+
+const tloScena = new THREE.Scene();
+const tloKamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+tloScena.add(new THREE.Mesh(
+  new THREE.PlaneGeometry(2, 2),
+  new THREE.MeshBasicMaterial({ map: tekstura })
+));
+
+/* ---------- scena z ludzikiem ---------- */
+const scena = new THREE.Scene();
+const kamera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 400);
+
+const rend = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+rend.setPixelRatio(Math.min(devicePixelRatio, 2));
+rend.setSize(innerWidth, innerHeight);
+rend.shadowMap.enabled = true;
+rend.shadowMap.type = THREE.PCFSoftShadowMap;
+rend.autoClear = false;
+document.body.appendChild(rend.domElement);
+
+// światło ustawione jak słońce na nagraniu — cień pada w lewo, w stronę kamery
+scena.add(new THREE.HemisphereLight(0xcfe0f2, 0x4a4844, 1.25));
+const slonce = new THREE.DirectionalLight(0xfff4e0, 1.35);
+slonce.position.set(26, 40, 16);
+slonce.castShadow = true;
+slonce.shadow.mapSize.set(2048, 2048);
+const sc = slonce.shadow.camera;
+sc.left = -40; sc.right = 40; sc.top = 40; sc.bottom = -40; sc.far = 140;
+scena.add(slonce, slonce.target);
+
+// niewidzialna ziemia: łapie tylko cień, więc widać pod ludzikiem asfalt z nagrania
+const ziemia = new THREE.Mesh(
+  new THREE.PlaneGeometry(400, 400),
+  new THREE.ShadowMaterial({ opacity: 0.42 })
+);
+ziemia.rotation.x = -Math.PI / 2;
+ziemia.receiveShadow = true;
+scena.add(ziemia);
+
+// chodzisz ludzikiem z Robloxa — czerwona maska, czarne boki, katany na plecach
+const { grupa: gracz, konczyny } = zbudujPostac(SKIN_NAGRANIE);
+scena.add(gracz);
+
+/* Ludzik z nagrania to piksele filmu, nie obiekt 3D. Ale kamera Robloxa trzyma go
+   stale na środku kadru, więc jego miejsce na ziemi wyznaczam promieniem puszczonym
+   przez ten punkt ekranu. Bryła jest niewidzialna — widać ją jako obrys na asfalcie. */
+let ekranY = -0.75;                       // pion punktu, w którym stoją jego stopy
+// kamera odniesienia: ustawiona jak ujęcie z filmu i nieruchoma niezależnie od widoku.
+// Dzięki niej ludzik z nagrania ma STAŁE miejsce w świecie, więc da się do niego dojść.
+const kamRef = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 400);
+const promien = new THREE.Raycaster();
+const plaszczyzna = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const naEkranie = new THREE.Vector2(0, ekranY);
+const miejsceLudzika = new THREE.Vector3(0, 0, -6);
+
+const obrys = new THREE.Mesh(
+  new THREE.RingGeometry(PROMIEN * 0.8, PROMIEN * 1.15, 32),
+  new THREE.MeshBasicMaterial({ color: 0xff4d5e, transparent: true, opacity: 0.55,
+                                side: THREE.DoubleSide, depthWrite: false })
+);
+obrys.rotation.x = -Math.PI / 2;
+obrys.position.y = 0.05;
+scena.add(obrys);
+
+function ustawMiejsceLudzika() {
+  // kamera odniesienia stoi tam, gdzie ujęcie z filmu — nie tam, gdzie akurat patrzysz
+  kamRef.aspect = innerWidth / innerHeight;
+  kamRef.position.set(0, wysokosc, dystans);
+  kamRef.lookAt(0, wysokosc - Math.tan(pochyl) * dystans, 0);
+  kamRef.updateProjectionMatrix();
+  kamRef.updateMatrixWorld();
+
+  naEkranie.set(0, ekranY);
+  promien.setFromCamera(naEkranie, kamRef);
+  const trafienie = promien.ray.intersectPlane(plaszczyzna, new THREE.Vector3());
+  if (trafienie) miejsceLudzika.copy(trafienie);   // brak trafienia = patrzymy w niebo
+  obrys.position.set(miejsceLudzika.x, 0.05, miejsceLudzika.z);
+  obrys.scale.setScalar(skala);
+}
+
+/* Wypchnij gracza na styk z ludzikiem z nagrania — do środka nie wejdzie. */
+function odepchnijOdLudzika(poz) {
+  const dx = poz.x - miejsceLudzika.x, dz = poz.z - miejsceLudzika.z;
+  const odl = Math.hypot(dx, dz);
+  const min = PROMIEN * 2 * skala;      // strefa dotyku rośnie razem z sylwetkami
+  if (odl > 0.0001 && odl < min) {
+    poz.x = miejsceLudzika.x + (dx / odl) * min;
+    poz.z = miejsceLudzika.z + (dz / odl) * min;
+    return true;
+  }
+  return odl < min + 0.9;
+}
+
+/* ---------- sterowanie ---------- */
+const klaw = new Set();
+let zamrozone = false, faza = 0, vy = 0, naZiemi = true;
+// skala 1,55 zrównuje wzrost ludzika z postacią widoczną na filmie
+let pochyl = 0.20, wysokosc = 6.0, skala = 1.55, dystans = 15;
+// start z boku: w pierwszej osobie ciało jest ukryte, a film to płaskie tło,
+// więc chodzenie nie dawałoby żadnej zmiany na ekranie
+let pierwszaOsoba = false, kierunekWzroku = 0, pionWzroku = 0;
+
+/* Kamera podąża za ludzikiem, ale ze strefą swobody: dopóki jest blisko środka,
+   kamera stoi i widać, że postać faktycznie idzie. Dopiero gdy wyjdzie poza
+   promień STREFA, kamera rusza za nim — inaczej stałby wiecznie na środku
+   nieruchomego filmu i chodzenie znów wyglądałoby jak bezruch. */
+const STREFA = 9;
+const kotwicaKamery = new THREE.Vector3(0, 0, 0);
+const celKamery = new THREE.Vector3();
+const patrzNa = new THREE.Vector3();
+
+function prowadzKamere() {
+  const dx = gracz.position.x - kotwicaKamery.x;
+  const dz = gracz.position.z - kotwicaKamery.z;
+  const dl = Math.hypot(dx, dz);
+  if (dl > STREFA) {
+    kotwicaKamery.x += (dx / dl) * (dl - STREFA);
+    kotwicaKamery.z += (dz / dl) * (dl - STREFA);
+  }
+  celKamery.set(kotwicaKamery.x, wysokosc, kotwicaKamery.z + dystans);
+  kamera.position.lerp(celKamery, 0.07);            // opóźnienie, żeby nie szarpało
+  patrzNa.set(kotwicaKamery.x, wysokosc - Math.tan(pochyl) * dystans, kotwicaKamery.z);
+  kamera.lookAt(patrzNa);
+}
+const predkosc = new THREE.Vector3();
+gracz.position.set(-7, 0, 2);    // z boku, poza strefą ludzika z nagrania
+
+const KALIB = { '[': () => pochyl -= 0.02, ']': () => pochyl += 0.02,
+                '-': () => wysokosc -= 0.4, '=': () => wysokosc += 0.4,
+                ',': () => skala = Math.max(0.3, skala - 0.05),
+                '.': () => skala = Math.min(3, skala + 0.05),
+                ';': () => ekranY = Math.max(-0.98, ekranY - 0.03),
+                "'": () => ekranY = Math.min(0.4, ekranY + 0.03) };
+
+// przechwytywanie + kod klawisza: pauza działa też z Shiftem i przy innym układzie
+function skocz() { if (!zamrozone && naZiemi) { vy = 12 * Math.sqrt(skala); naZiemi = false; } }
+
+function naKlawisz(e) {
+  if (e.code === 'KeyP' || e.key === 'p' || e.key === 'P') { e.preventDefault(); przelacz(); return; }
+  if (e.code === 'Space') { e.preventDefault(); skocz(); return; }
+  if (e.code === 'KeyF') { e.preventDefault(); przelaczWidok(); return; }
+  if (KALIB[e.key]) { KALIB[e.key](); pokazKalib(); return; }
+  klaw.add(e.key.toLowerCase());
+}
+const naPuszczenie = e => klaw.delete(e.key.toLowerCase());
+
+// tylko na oknie: zdarzenie i tak przez nie przechodzi, a podwójny nasłuch
+// przełączałby pauzę dwa razy pod rząd, czyli w praktyce wcale
+addEventListener('keydown', naKlawisz, true);
+addEventListener('keyup', naPuszczenie, true);
+addEventListener('blur', () => klaw.clear());
+
+// płótno łapie fokus, żeby klawiatura w ogóle trafiała do strony
+rend.domElement.tabIndex = 0;
+rend.domElement.style.outline = 'none';
+rend.domElement.addEventListener('pointerdown', () => rend.domElement.focus());
+addEventListener('load', () => rend.domElement.focus());
+rend.domElement.focus();
+
+/* Sterowanie myszką: przytrzymanie guzika = przytrzymanie klawisza.
+   Nie wymaga fokusu, więc działa nawet gdy klawiatura idzie gdzie indziej. */
+for (const guzik of document.querySelectorAll('#pad button[data-klaw]')) {
+  const k = guzik.dataset.klaw;
+  const wcisnij = e => { e.preventDefault(); klaw.add(k); guzik.classList.add('wcisniety'); };
+  const pusc = () => { klaw.delete(k); guzik.classList.remove('wcisniety'); };
+  guzik.addEventListener('pointerdown', wcisnij);
+  guzik.addEventListener('pointerup', pusc);
+  guzik.addEventListener('pointerleave', pusc);
+  guzik.addEventListener('pointercancel', pusc);
+}
+document.getElementById('skok').addEventListener('pointerdown', e => { e.preventDefault(); skocz(); });
+
+// pauza myszką — nie zależy od tego, czy strona ma fokus klawiatury
+document.getElementById('pauza').addEventListener('click', przelacz);
+document.getElementById('mroz').addEventListener('click', przelacz);
+document.getElementById('widok').addEventListener('click', przelaczWidok);
+
+function przelaczWidok() {
+  pierwszaOsoba = !pierwszaOsoba;
+  gracz.visible = !pierwszaOsoba;          // w FPP nie zasłaniasz sobie ekranu własną głową
+  document.getElementById('widok').textContent =
+    pierwszaOsoba ? '👁 PIERWSZA OSOBA  (F)' : '🧍 WIDOK Z BOKU  (F)';
+}
+
+// rozglądanie myszką — przeciągnięcie po obrazie
+let ciagnie = false, lastX = 0, lastY = 0;
+rend.domElement.addEventListener('pointerdown', e => { ciagnie = true; lastX = e.clientX; lastY = e.clientY; });
+addEventListener('pointerup', () => ciagnie = false);
+addEventListener('pointermove', e => {
+  if (!ciagnie || zamrozone) return;
+  kierunekWzroku -= (e.clientX - lastX) * 0.005;
+  pionWzroku = Math.max(-1.2, Math.min(1.2, pionWzroku - (e.clientY - lastY) * 0.004));
+  lastX = e.clientX; lastY = e.clientY;
+});
+
+function przelacz() {
+  zamrozone = !zamrozone;
+  document.getElementById('mroz').classList.toggle('on', zamrozone);
+  document.getElementById('pauza').textContent = zamrozone ? '▶ ODMROŹ  (P)' : '⏸ ZASTYGNIJ  (P)';
+  if (zamrozone) { wideo.pause(); klaw.clear(); } else { wideo.play(); }
+}
+
+function pokazKalib() {
+  document.getElementById('kp').textContent = pochyl.toFixed(2);
+  document.getElementById('kw').textContent = wysokosc.toFixed(1);
+  document.getElementById('ks').textContent = skala.toFixed(2);
+  document.getElementById('kl').textContent = ekranY.toFixed(2);
+}
+pokazKalib();
+gracz.visible = !pierwszaOsoba;
+// kamera startuje od razu na miejscu, żeby pierwsza klatka nie przyjeżdżała z zera
+kotwicaKamery.set(gracz.position.x, 0, gracz.position.z);
+kamera.position.set(kotwicaKamery.x, wysokosc, kotwicaKamery.z + dystans);
+
+/* tło rozciągnięte „cover" — nagranie wypełnia okno bez zniekształceń */
+function dopasujTlo() {
+  const vw = wideo.videoWidth || 1856, vh = wideo.videoHeight || 1072;
+  const pv = vw / vh, po = innerWidth / innerHeight;
+  if (po > pv) { tekstura.repeat.set(1, pv / po); tekstura.offset.set(0, (1 - pv / po) / 2); }
+  else         { tekstura.repeat.set(po / pv, 1); tekstura.offset.set((1 - po / pv) / 2, 0); }
+}
+wideo.addEventListener('loadedmetadata', dopasujTlo);
+addEventListener('resize', () => {
+  kamera.aspect = innerWidth / innerHeight;
+  kamera.updateProjectionMatrix();
+  rend.setSize(innerWidth, innerHeight);
+  dopasujTlo();
+});
+dopasujTlo();
+
+/* ---------- symulacja ---------- */
+const wcisniete = (...k) => k.some(n => klaw.has(n));
+
+function aktualizuj(dt) {
+  if (zamrozone) return;
+
+  let dx = 0, dz = 0;
+  if (wcisniete('w', 'arrowup')) dz -= 1;
+  if (wcisniete('s', 'arrowdown')) dz += 1;
+  if (wcisniete('a', 'arrowleft')) dx -= 1;
+  if (wcisniete('d', 'arrowright')) dx += 1;
+
+  const idzie = dx || dz;
+  const tempo = (wcisniete('shift') ? 20 : 8.5) * skala;   // krok proporcjonalny do sylwetki
+
+  if (idzie) {
+    const dl = Math.hypot(dx, dz);
+    // w pierwszej osobie klawisze prowadzą względem wzroku, nie względem osi świata
+    const kat = Math.atan2(dx / dl, dz / dl) + (pierwszaOsoba ? kierunekWzroku + Math.PI : 0);
+    predkosc.set(Math.sin(kat), 0, Math.cos(kat)).multiplyScalar(tempo);
+    gracz.rotation.y = kat;
+  } else {
+    predkosc.multiplyScalar(0.7);
+  }
+
+  gracz.position.x = Math.max(-34, Math.min(34, gracz.position.x + predkosc.x * dt));
+  gracz.position.z = Math.max(-60, Math.min(16, gracz.position.z + predkosc.z * dt));
+
+  const dotyka = odepchnijOdLudzika(gracz.position);
+  document.getElementById('blisko').classList.toggle('on', dotyka);
+
+  vy -= 30 * dt;
+  gracz.position.y += vy * dt;
+  if (gracz.position.y <= 0) { gracz.position.y = 0; vy = 0; naZiemi = true; }
+
+  faza += dt * (idzie ? tempo * 0.55 : 0);
+  animujChod(konczyny, faza, !!idzie, naZiemi);
+}
+
+const zegar = new THREE.Clock();
+
+function rysuj() {
+  requestAnimationFrame(rysuj);
+  aktualizuj(Math.min(zegar.getDelta(), 0.05));
+
+  gracz.scale.setScalar(skala);
+
+  if (pierwszaOsoba) {
+    const oczy = 3.4 * skala;
+    kamera.position.set(gracz.position.x, gracz.position.y + oczy, gracz.position.z);
+    kamera.lookAt(
+      gracz.position.x + Math.sin(kierunekWzroku) * Math.cos(pionWzroku),
+      gracz.position.y + oczy + Math.sin(pionWzroku),
+      gracz.position.z + Math.cos(kierunekWzroku) * Math.cos(pionWzroku)
+    );
+  } else {
+    prowadzKamere();
+  }
+  kamera.updateMatrixWorld();
+  ustawMiejsceLudzika();               // liczone z kamery odniesienia, nie z bieżącej
+  slonce.target.position.copy(gracz.position);
+
+  rend.clear();
+  rend.render(tloScena, tloKamera);   // najpierw klatka nagrania
+  rend.clearDepth();
+  rend.render(scena, kamera);         // na wierzchu ludzik i jego cień
+}
+rysuj();
+
+Object.assign(window, { gracz, kamera, scena, wideo, przelacz, aktualizuj, ustawMiejsceLudzika,
+  przelaczWidok, rysuj, kotwicaKamery, STREFA,
+  stanWidoku: () => ({ pierwszaOsoba, kierunekWzroku: +kierunekWzroku.toFixed(2),
+    widocznyGracz: gracz.visible, kamera: [+kamera.position.x.toFixed(2), +kamera.position.y.toFixed(2), +kamera.position.z.toFixed(2)] }),
+  ustawWzrok: v => { kierunekWzroku = v; },
+  miejsceLudzika, ustawEkranY: v => { ekranY = v; },
+  odlegloscOdLudzika: () => +Math.hypot(gracz.position.x - miejsceLudzika.x,
+                                        gracz.position.z - miejsceLudzika.z).toFixed(2),
+  krok: (n = 1, dt = 1 / 60) => { for (let i = 0; i < n; i++) aktualizuj(dt); },
+  stanGry: () => ({ x: +gracz.position.x.toFixed(2), y: +gracz.position.y.toFixed(2),
+                    z: +gracz.position.z.toFixed(2), obrot: +gracz.rotation.y.toFixed(2),
+                    zamrozone, wideoStoi: wideo.paused }) });
+</script>
