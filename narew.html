@@ -1336,6 +1336,10 @@ const NAREBLOX = {
       this.mod3d = m;
       this.s = null;
       m.start();
+      // host zaprasza resztę pokoju do tej samej lecznicy
+      if (Net.mode === 'host' && Net.conns.length && m === SzpTV) {
+        Net.broadcast({ t: 'g3go', gra: i });
+      }
     } else { this.stop3d(); this.s = g.start(); }
     TV.mode = 'granie'; TV.brudny = true; TV.rysuj();
     AudioSys.ui();
@@ -1344,6 +1348,9 @@ const NAREBLOX = {
   },
 
   wyjdz() {
+    if (Net.mode === 'host' && Net.conns.length && this.mod3d === SzpTV) {
+      Net.broadcast({ t: 'g3stop' });
+    }
     this.stop3d();
     this.s = null;
     TV.mode = 'gry'; TV.brudny = true; TV.rysuj();
@@ -5790,6 +5797,8 @@ const SzpTV = {
   wet: null, pady: [], miejsca: [], adopcja: null,
   roleta: null, recepcja: null, okienko: null,
   przy: null, rolataT: 0, kolejka: 3,
+  idLicznik: 0, gracze: null,             // numery pacjentów i figurki współgraczy
+  migawkaHosta: null, idHosta: null,
   odprawieni: 0, wpuszczeni: 0,
   zwierzaki: [], niesie: null, postep: 0,
   wyleczeni: 0, stracone: 0, spawn: 2, czas: 0, faza: 0, blysk: 0,
@@ -5849,6 +5858,8 @@ const SzpTV = {
   stop() {
     if (!this.dziala) return;
     this.dziala = false;
+    this.sprzatnijGraczy(null);            // figurki współgraczy znikają razem z grą
+    this.migawkaHosta = null;
     przywrocEkranTV(this.staryMap);
     this.staryMap = null;
     TV.brudny = true;
@@ -5870,6 +5881,146 @@ const SzpTV = {
 
   /* Nowy pacjent podchodzi do okienka recepcji. Część to anomalie — udają
      zwykłe zwierzaki, ale coś z nimi jest widocznie nie tak.              */
+  /* ---------- kooperacja ----------
+     Host prowadzi całą symulację: pacjentów, anomalie i liczniki. Goście
+     ruszają tylko swoim weterynarzem i wysyłają prośby o akcję, a w zamian
+     dostają dziesięć razy na sekundę migawkę stanu i odtwarzają ją u siebie.
+     Dzięki temu obaj chodzą po tej samej lecznicy i widzą tych samych
+     pacjentów, a nikt nie może wyleczyć zwierzaka dwa razy.              */
+  rola() {
+    if (!this.dziala || Net.mode === 'solo' || !Net.conns.length) return 'solo';
+    return Net.mode === 'host' ? 'host' : 'gosc';
+  },
+
+  /* figurka drugiego gracza w scence — prosta, bez własnego miksera animacji */
+  figuraGracza(id) {
+    if (!this.gracze) this.gracze = {};
+    let g = this.gracze[id];
+    if (!g) {
+      let h = 0;
+      for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+      const col = new THREE.Color().setHSL((h % 360) / 360, 0.6, 0.5);
+      g = this.gracze[id] = { obj: buildPersonProsty(col.getHex(), { mj: false }), faza: 0 };
+      this.scena.add(g.obj);
+    }
+    return g;
+  },
+
+  sprzatnijGraczy(zywi) {
+    if (!this.gracze) return;
+    for (const id in this.gracze) {
+      if (zywi && zywi[id]) continue;
+      this.scena.remove(this.gracze[id].obj);
+      delete this.gracze[id];
+    }
+  },
+
+  migawka() {
+    const zw = this.zwierzaki.map(z => [
+      z.id, z.typ, z.anomalia ? z.anomalia.id : 0, z.potrzeba,
+      z.zdrowy ? 1 : 0, z.przyOkienku ? 1 : 0,
+      Math.round(z.obj.position.x * 100) / 100,
+      Math.round(z.obj.position.y * 100) / 100,
+      Math.round(z.obj.position.z * 100) / 100,
+      Math.round(z.obj.rotation.y * 100) / 100,
+      Math.round(z.cierpliwosc * 10) / 10, z.max,
+      z.niosacy || 0,
+    ]);
+    const gr = {};
+    for (const id in (this.gracze || {})) {
+      const g = this.gracze[id];
+      gr[id] = [g.x || 0, g.z || 0, g.kier || 0];
+    }
+    return { zw, gr, wx: this.wx, wz: this.wz, kier: this.kier,
+      w: this.wyleczeni, s: this.stracone, o: this.odprawieni,
+      cz: Math.round(this.czas * 10) / 10, k: this.koniec, i: this.info,
+      rol: this.rolataT > 0 ? 1 : 0 };
+  },
+
+  /* gość odtwarza u siebie to, co przysłał host */
+  zastosujMigawke(m, idHosta) {
+    if (!this.scena) return;
+    this.wyleczeni = m.w; this.stracone = m.s; this.odprawieni = m.o;
+    this.czas = m.cz; this.koniec = m.k; this.info = m.i;
+    this.rolataT = m.rol ? 1 : 0;
+
+    const widziane = {};
+    for (const d of m.zw) {
+      const [id, typ, anom, potrzeba, zdrowy, przy, x, y, z, kier, cier, max, niosacy] = d;
+      widziane[id] = true;
+      let p = this.zwierzaki.find(q => q.id === id);
+      if (!p) {
+        const obj = buildZwierzaka(typ);
+        this.scena.add(obj);
+        const ikona = ikonaSprite();
+        obj.add(ikona);
+        p = { id, obj, ikona, typ, potrzeba, zdrowy: !!zdrowy, cierpliwosc: cier, max,
+          miejsce: null, faza: Math.random() * 7, odchodzi: 0, ikonaT: 0,
+          przyOkienku: !!przy, wchodzi: null,
+          anomalia: anom ? ANOMALIE.find(a => a.id === anom) || null : null };
+        if (p.anomalia) this.zrobAnomalie(p);
+        this.zwierzaki.push(p);
+      }
+      p.potrzeba = potrzeba;
+      p.zdrowy = !!zdrowy;
+      p.cierpliwosc = cier; p.max = max;
+      p.przyOkienku = !!przy;
+      p.niosacy = niosacy;
+      if (niosacy) {                       // niesiony jedzie na rękach właściciela
+        const g = niosacy === idHosta ? null : this.gracze && this.gracze[niosacy];
+        const rx = niosacy === idHosta ? m.wx : (g ? g.x : x);
+        const rz = niosacy === idHosta ? m.wz : (g ? g.z : z);
+        const rk = niosacy === idHosta ? m.kier : (g ? g.kier : kier);
+        p.obj.position.set(rx + Math.sin(rk) * 0.42, 0.95, rz + Math.cos(rk) * 0.42);
+        p.obj.rotation.y = rk;
+        p.ikona.visible = false;
+      } else {
+        p.obj.position.set(x, y, z);
+        p.obj.rotation.y = kier;
+        p.ikona.visible = true;
+      }
+      p.ikonaT -= 1 / 60;
+      if (p.ikonaT <= 0) { p.ikonaT = 0.25; this.rysujIkone(p); }
+    }
+    this.zwierzaki = this.zwierzaki.filter(z => {
+      if (widziane[z.id]) return true;
+      this.scena.remove(z.obj);
+      return false;
+    });
+
+    // weterynarz hosta i pozostali gracze
+    const zywi = {};
+    for (const id in m.gr) {
+      if (Net.peer && id === Net.peer.id) continue;
+      zywi[id] = true;
+      const g = this.figuraGracza(id);
+      g.x = m.gr[id][0]; g.z = m.gr[id][1]; g.kier = m.gr[id][2];
+    }
+    zywi[idHosta] = true;
+    const h = this.figuraGracza(idHosta);
+    h.x = m.wx; h.z = m.wz; h.kier = m.kier;
+    this.sprzatnijGraczy(zywi);
+  },
+
+  /* host dostał prośbę od gościa: ustawiamy się w jego miejscu i robimy akcję */
+  akcjaGoscia(id, dane) {
+    const g = this.figuraGracza(id);
+    g.x = dane.x; g.z = dane.z; g.kier = dane.kier;
+    if (!dane.a && !dane.q) return;
+    const zapisz = { wx: this.wx, wz: this.wz, kier: this.kier, niesie: this.niesie };
+    this.wx = dane.x; this.wz = dane.z; this.kier = dane.kier;
+    this.niesie = this.zwierzaki.find(z => z.niosacy === id) || null;
+    if (dane.a) this.akcja();
+    if (dane.q && this.przy) {
+      const r = this.recepcja;
+      if (Math.hypot(this.wx - r.x, this.wz - r.z) < r.r) this.odpraw();
+    }
+    // czyj jest niesiony pacjent, zapamiętujemy na nim samym
+    if (this.niesie) this.niesie.niosacy = id;
+    this.wx = zapisz.wx; this.wz = zapisz.wz; this.kier = zapisz.kier;
+    this.niesie = zapisz.niesie;
+  },
+
   nowyPrzyOkienku() {
     if (this.przy || this.koniec) return;
     const typy = ['pies', 'kot', 'krolik', 'papuga'];
@@ -5881,7 +6032,8 @@ const SzpTV = {
     this.scena.add(obj);
     const ikona = ikonaSprite();
     obj.add(ikona);
-    const z = { obj, ikona, typ, potrzeba: potrz[(Math.random() * potrz.length) | 0],
+    const z = { obj, ikona, typ, id: ++this.idLicznik, niosacy: 0,
+      potrzeba: potrz[(Math.random() * potrz.length) | 0],
       zdrowy: false, cierpliwosc: SZP.przyOkienku, max: SZP.przyOkienku,
       miejsce: null, faza: Math.random() * 7, odchodzi: 0, ikonaT: 0,
       przyOkienku: true, wchodzi: null, anomalia: null };
@@ -5978,6 +6130,7 @@ const SzpTV = {
     z.obj.rotation.set(0.1, Math.PI * 0.85, 0);
     z.obj.scale.setScalar(0.7);
     z.ikona.visible = false;
+    z.niosacy = (Net.peer && Net.peer.id) || 'ja';   // w kooperacji wiadomo, czyj to pacjent
     this.niesie = z; this.postep = 0;
     AudioSys.ui();
   },
@@ -5992,6 +6145,7 @@ const SzpTV = {
     z.obj.position.set(this.wx + Math.sin(this.kier) * 1.2, 0.23,
                        this.wz + Math.cos(this.kier) * 1.2);
     z.ikona.visible = true;
+    z.niosacy = 0;
     this.niesie = null; this.postep = 0;
     return z;
   },
@@ -6083,10 +6237,55 @@ const SzpTV = {
     this.kam.position.set(this.wx, 1.62 + Math.sin(this.faza) * (idzie ? 0.03 : 0), this.wz);
     this.kam.rotation.set(this.pitch || 0, this.kier + Math.PI, 0);
 
-    if (NAREBLOX.zjedz('Space') && !this.koniec) this.akcja();
-    if (NAREBLOX.zjedz('KeyQ') && !this.koniec) {
+    const rola = this.rola();
+    const chceAkcji = NAREBLOX.zjedz('Space') && !this.koniec;
+    const chceRolety = NAREBLOX.zjedz('KeyQ') && !this.koniec;
+
+    if (rola === 'gosc') {
+      // Gość niczego nie symuluje: wysyła, gdzie stoi i co chce zrobić,
+      // a lecznicę odtwarza z migawki hosta.
+      this.wyslijT = (this.wyslijT || 0) - dt;
+      if (chceAkcji || chceRolety || this.wyslijT <= 0) {
+        this.wyslijT = 0.08;
+        Net.conns[0].send({ t: 'g3in', x: this.wx, z: this.wz, kier: this.kier,
+          a: chceAkcji ? 1 : 0, q: chceRolety ? 1 : 0 });
+      }
+      if (this.migawkaHosta) this.zastosujMigawke(this.migawkaHosta, this.idHosta);
+      if (this.rolataT > 0) this.rolataT -= dt;
+      if (this.roleta) {
+        const cel = this.rolataT > 0 ? 2.35 : 4.55;
+        this.roleta.position.y += (cel - this.roleta.position.y) * Math.min(1, dt * 7);
+      }
+      for (const g of Object.values(this.gracze || {})) {
+        g.faza = (g.faza || 0) + dt * 6;
+        g.obj.position.set(g.x || 0, 0, g.z || 0);
+        g.obj.rotation.y = g.kier || 0;
+        animPerson(g.obj, g.faza, true, false, false, 1);
+      }
+      this.rysujHud();
+      rysujScene3DdoTV(this);
+      return;
+    }
+
+    if (chceAkcji) this.akcja();
+    if (chceRolety) {
       const r = this.recepcja;
       if (this.przy && Math.hypot(this.wx - r.x, this.wz - r.z) < r.r) this.odpraw();
+    }
+
+    // figurki współgraczy chodzą po tej samej sali
+    for (const g of Object.values(this.gracze || {})) {
+      g.faza = (g.faza || 0) + dt * 6;
+      g.obj.position.set(g.x || 0, 0, g.z || 0);
+      g.obj.rotation.y = g.kier || 0;
+      animPerson(g.obj, g.faza, true, false, false, 1);
+    }
+    if (rola === 'host') {
+      this.migawkaT = (this.migawkaT || 0) - dt;
+      if (this.migawkaT <= 0) {
+        this.migawkaT = 0.1;
+        Net.broadcast({ t: 'g3', m: this.migawka() });
+      }
     }
 
     // kolejka do okienka: kolejny pacjent podchodzi dopiero po decyzji o poprzednim
@@ -7853,6 +8052,19 @@ const Net = {
     } else if (d.t === 'p') {           // pozycja gościa (odbiera host)
       const r = this.remotes[conn.peer] = this.remotes[conn.peer] || {};
       r.x = d.x; r.z = d.z; r.y = d.y; r.yaw = d.yaw; r.sw = d.sw;
+    } else if (d.t === 'g3go') {        // host odpalił grę 3D — wchodzimy do tej samej
+      if (this.mode === 'guest' && state === 'playing') {
+        SzpTV.idHosta = conn.peer;
+        SzpTV.migawkaHosta = null;
+        NAREBLOX.wlacz(d.gra);
+      }
+    } else if (d.t === 'g3stop') {
+      if (this.mode === 'guest' && NAREBLOX.mod3d) NAREBLOX.wyjdz();
+    } else if (d.t === 'g3') {          // migawka lecznicy od hosta
+      SzpTV.idHosta = conn.peer;
+      SzpTV.migawkaHosta = d.m;
+    } else if (d.t === 'g3in') {        // gość prosi o akcję w lecznicy hosta
+      if (this.mode === 'host' && SzpTV.dziala) SzpTV.akcjaGoscia(conn.peer, d);
     } else if (d.t === 's') {           // stan świata od hosta
       gameTime = d.gt;
       for (const id in d.pl) {
