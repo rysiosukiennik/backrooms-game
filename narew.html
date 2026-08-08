@@ -349,6 +349,8 @@
     <b>J</b> otwiera <b>NAREWIFY</b> — muzyka z tej samej półki, gra bez obrazu (<b>1–7</b> wybór utworu)<br>
     W klocu na podłodze leży butelka: <b>E</b> podnosi, <b>Q</b> nabiera wody z Narwi, <b>G</b> pije<br>
     Na brzegu Narwi leżą trzy <b>kajaki</b>: <b>E</b> wsiada, <b>W/S</b> wiosłuje, <b>A/D</b> skręca<br>
+    Przy wiacie stoi <b>koparka</b>: <b>E</b> wsiada, <b>W/S</b> jazda, <b>A/D</b> skręt gąsienicami,
+    <b>↑↓</b> wysięgnik, <b>←→</b> obrót kabiny, <b>SPACJA</b> nabiera łyżką<br>
     Łóżko w klocu: wejdź i śpij klawiszem <b>F</b> • w Narwi stoi Jan Sukiennik — <b>R</b> wystrzeliwuje w górę<br>
     Świecąca płyta w klocu: <b>T</b> teleportuje nad Narew i z powrotem<br>
     Filmy wybiera się klawiszami <b>1–8</b> albo celując w ekran i klikając <b>LPM</b><br>
@@ -5240,6 +5242,209 @@ function buildWiate() {
 }
 
 /* ================================================================
+   KOPARKA — stoi przy wiacie, wsiada się [E].
+   Gąsienice jadą W/S, całą maszyną skręca A/D, strzałki obracają
+   nadwozie i podnoszą wysięgnik, SPACJA podbiera łyżką.
+   Ziemi nie ubywa: teren jest jedną gotową siatką, a jej przerabianie
+   w locie to inna robota — łyżka nabiera urobku, ale dołu nie zostawia.
+================================================================ */
+const KOPARKA = {
+  x: -48, z: 22,        // na placu pod wiatą, z dala od ściany kloca
+  zasieg: 5, maxV: 4.2, wstecz: 2.4,
+  przysp: 3.6, opor: 1.5, skret: 1.0,
+};
+
+let koparka = null;
+let wKoparce = false;
+
+function buildKoparke() {
+  const g = new THREE.Group();
+  const zolty = new THREE.MeshPhongMaterial({ color: 0xe8a72c, shininess: 40, specular: 0x3a2c10 });
+  const ciemny = new THREE.MeshPhongMaterial({ color: 0x2b2f36, shininess: 25 });
+  const stal = new THREE.MeshPhongMaterial({ color: 0x8d939c, shininess: 60, specular: 0x444a52 });
+  const szyba = new THREE.MeshPhongMaterial({ color: 0x9fd8e8, transparent: true, opacity: 0.45,
+    shininess: 140, specular: 0xffffff });
+
+  // podwozie: dwie gąsienice i rama między nimi
+  for (const sx of [-1, 1]) {
+    const gasienica = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.78, 3.9), ciemny);
+    gasienica.position.set(sx * 1.12, 0.42, 0);
+    gasienica.castShadow = true; gasienica.receiveShadow = true;
+    g.add(gasienica);
+    for (let i = -2; i <= 2; i++) {       // koła napinające, widać je z boku
+      const kolo = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.78, 12), stal);
+      kolo.rotation.z = Math.PI / 2;
+      kolo.position.set(sx * 1.12, 0.42, i * 0.82);
+      g.add(kolo);
+    }
+  }
+  const rama = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.34, 3.1), stal);
+  rama.position.y = 0.86;
+  rama.castShadow = true;
+  g.add(rama);
+
+  // nadwozie obraca się niezależnie od gąsienic
+  const nadwozie = new THREE.Group();
+  nadwozie.position.y = 1.03;
+  g.add(nadwozie);
+
+  const korpus = new THREE.Mesh(new THREE.BoxGeometry(2.3, 1.05, 3.2), zolty);
+  korpus.position.set(0, 0.52, -0.35);
+  korpus.castShadow = true; korpus.receiveShadow = true;
+  const przeciwwaga = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.9, 0.7), ciemny);
+  przeciwwaga.position.set(0, 0.5, -1.9);
+  const kabina = new THREE.Mesh(new THREE.BoxGeometry(1.15, 1.5, 1.4), zolty);
+  kabina.position.set(-0.5, 1.75, 0.55);
+  kabina.castShadow = true;
+  const okno = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.05, 0.06), szyba);
+  okno.position.set(-0.5, 1.9, 1.27);
+  const dach = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.1, 1.5), ciemny);
+  dach.position.set(-0.5, 2.52, 0.55);
+  const komin = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.5, 8), ciemny);
+  komin.position.set(0.75, 1.3, -0.2);
+  nadwozie.add(korpus, przeciwwaga, kabina, okno, dach, komin);
+
+  // wysięgnik → ramię → łyżka, każdy obraca się we własnym stawie
+  const wysiegnik = new THREE.Group();
+  wysiegnik.position.set(0.55, 0.75, 1.1);
+  const belkaW = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.46, 3.4), zolty);
+  belkaW.position.z = 1.6;
+  belkaW.castShadow = true;
+  const silownikW = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 1.6, 8), stal);
+  silownikW.rotation.x = Math.PI / 2;
+  silownikW.position.set(0, -0.35, 1.1);
+  wysiegnik.add(belkaW, silownikW);
+  nadwozie.add(wysiegnik);
+
+  const ramie = new THREE.Group();
+  ramie.position.z = 3.2;
+  const belkaR = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.38, 2.6), zolty);
+  belkaR.position.z = 1.25;
+  belkaR.castShadow = true;
+  ramie.add(belkaR);
+  wysiegnik.add(ramie);
+
+  const lyzka = new THREE.Group();
+  lyzka.position.z = 2.5;
+  const czerpak = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.75, 0.9), stal);
+  czerpak.position.set(0, -0.3, 0.45);
+  czerpak.castShadow = true;
+  const zeby = [];
+  for (let i = -2; i <= 2; i++) {
+    const zab = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.28, 5), stal);
+    zab.rotation.x = Math.PI / 2;
+    zab.position.set(i * 0.21, -0.55, 0.92);
+    zeby.push(zab);
+  }
+  const urobek = new THREE.Mesh(new THREE.SphereGeometry(0.42, 10, 8),
+    new THREE.MeshLambertMaterial({ color: 0x6b5334 }));
+  urobek.scale.set(1, 0.55, 1);
+  urobek.position.set(0, -0.12, 0.45);
+  urobek.visible = false;
+  lyzka.add(czerpak, urobek, ...zeby);
+  ramie.add(lyzka);
+
+  g.position.set(KOPARKA.x, wysokoscPodlogi(KOPARKA.x, KOPARKA.z), KOPARKA.z);
+  worldGroup.add(g);
+
+  koparka = { obj: g, nadwozie, wysiegnik, ramie, lyzka, urobek,
+    x: KOPARKA.x, z: KOPARKA.z, kat: 0.7, v: 0,
+    obrotKabiny: 0, katW: -0.5, katR: 0.7, katL: 0.2, pelna: false };
+  wKoparce = false;
+}
+
+function wsiadzDoKoparki() {
+  wKoparce = true;
+  player.flying = false;
+  player.swimming = false;
+  player.velY = 0;
+  player.yaw = koparka.kat + koparka.obrotKabiny;
+  AudioSys.burst(90, 0.6, 0.7, 0.25, 'lowpass', 400);
+  announce('🚜 Koparka — W/S jazda, A/D skręt, ↑↓ wysięgnik, ←→ obrót kabiny, SPACJA łyżka, [E] wysiadka',
+    '#ffd9a3', 5);
+}
+
+function wysiadzZKoparki() {
+  wKoparce = false;
+  const k = koparka;
+  k.v = 0;
+  const bx = k.x - Math.cos(k.kat) * 2.6, bz = k.z + Math.sin(k.kat) * 2.6;
+  player.pos.set(bx, 0, bz);
+  player.y = wysokoscPodlogi(bx, bz);
+  player.velY = 0;
+  announce('🚜 Wysiadka', '#ffd9a3', 1.8);
+}
+
+function uzyjKoparki() {
+  if (!koparka) return false;
+  if (wKoparce) { wysiadzZKoparki(); return true; }
+  if (Math.hypot(player.pos.x - koparka.x, player.pos.z - koparka.z) > KOPARKA.zasieg) return false;
+  wsiadzDoKoparki();
+  return true;
+}
+
+/* jazda i praca ramieniem; wywoływane zamiast chodzenia, gdy siedzimy w kabinie */
+function jedzKoparka(dt, fwd, str) {
+  const k = koparka;
+  if (fwd > 0) k.v += KOPARKA.przysp * dt;
+  else if (fwd < 0) k.v -= KOPARKA.przysp * 0.7 * dt;
+  k.v -= k.v * KOPARKA.opor * dt;
+  k.v = Math.max(-KOPARKA.wstecz, Math.min(KOPARKA.maxV, k.v));
+
+  const obrot = -str * KOPARKA.skret * dt * (0.5 + Math.min(1, Math.abs(k.v) / 2.5));
+  k.kat += obrot;
+  player.yaw += obrot;
+
+  const nx = k.x - Math.sin(k.kat) * k.v * dt;
+  const nz = k.z - Math.cos(k.kat) * k.v * dt;
+  if (!blockedStatic(nx, nz, 1.6, 0) && waterDepth(nx, nz) < 0.6) { k.x = nx; k.z = nz; }
+  else k.v *= -0.2;
+
+  // ramię: strzałki obracają kabinę i podnoszą wysięgnik, SPACJA zwija łyżkę
+  if (keys.ArrowLeft) k.obrotKabiny += 0.9 * dt;
+  if (keys.ArrowRight) k.obrotKabiny -= 0.9 * dt;
+  if (keys.ArrowUp) k.katW = Math.max(-1.0, k.katW - 0.8 * dt);
+  if (keys.ArrowDown) k.katW = Math.min(0.25, k.katW + 0.8 * dt);
+  if (keys.Space) { k.katR = Math.min(1.5, k.katR + 1.1 * dt); k.katL = Math.min(1.5, k.katL + 1.4 * dt); }
+  else { k.katR = Math.max(0.35, k.katR - 0.9 * dt); k.katL = Math.max(0.1, k.katL - 1.0 * dt); }
+
+  // gdy zęby wchodzą w ziemię, łyżka nabiera urobku
+  const gl = koncowkaLyzki();
+  const podlozeY = wysokoscPodlogi(gl.x, gl.z);
+  if (!k.pelna && gl.y < podlozeY + 0.25) {
+    k.pelna = true;
+    AudioSys.burst(160, 0.5, 0.45, 0.2, 'lowpass', 600);
+    announce('🪣 Pełna łyżka', '#ffd9a3', 1.6);
+  }
+  if (k.pelna && k.katL < 0.3 && gl.y > podlozeY + 1.2) {
+    k.pelna = false;                       // wysypanie przy opuszczonej łyżce wysoko
+    AudioSys.burst(120, 0.4, 0.5, 0.18, 'lowpass', 500);
+  }
+  k.urobek.visible = k.pelna;
+
+  const gy = wysokoscPodlogi(k.x, k.z);
+  k.obj.position.set(k.x, gy, k.z);
+  k.obj.rotation.y = k.kat;
+  k.nadwozie.rotation.y = k.obrotKabiny;
+  k.wysiegnik.rotation.x = k.katW;
+  k.ramie.rotation.x = k.katR;
+  k.lyzka.rotation.x = k.katL;
+
+  // gracz siedzi w kabinie
+  player.pos.set(k.x, 0, k.z);
+  player.y = gy + 1.35;
+  player.velY = 0;
+}
+
+/* gdzie w świecie są zęby łyżki — po tym poznajemy, że kopiemy */
+function koncowkaLyzki() {
+  if (!koparka) return { x: 0, y: 0, z: 0 };
+  const p = new THREE.Vector3(0, -0.55, 0.95);
+  koparka.lyzka.updateWorldMatrix(true, false);
+  return koparka.lyzka.localToWorld(p);
+}
+
+/* ================================================================
    KAJAKI — leżą na brzegu Narwi, wsiada się [E].
    Kajak trzyma się wody: na mieliźnie dziób staje i odbija, więc
    nie da się wypłynąć na łąkę. Skręt obraca też widok, żeby
@@ -5247,9 +5452,9 @@ function buildWiate() {
 ================================================================ */
 const KAJAK = {
   zasieg: 3.4,          // z jakiej odległości się wsiada
-  maxV: 6.4, wstecz: 2.4,
-  przysp: 5.6, opor: 1.15,
-  skret: 1.45,
+  maxV: 11.5, wstecz: 4,
+  przysp: 9.5, opor: 1.05,
+  skret: 1.7,
   glebokosc: 0.3,       // płycej kajak już nie płynie
 };
 
@@ -8157,6 +8362,7 @@ function disposeWorld() {
   treeCols.length = 0; treeList.length = 0;
   birds = []; squirrels = []; tvScreen = null;
   kajaki = []; wKajaku = null;
+  koparka = null; wKoparce = false;
   NAREBLOX.stop3d();                       // scenka 3D znika razem z telewizorem
   mixery.length = 0;
   materialyWiatru.length = 0;
@@ -8214,6 +8420,7 @@ function buildWorld(seed) {
   buildFence();
   buildTrees();
   buildWiate();
+  buildKoparke();
   buildKajaki();
   buildSquirrels();
   buildGrass();
@@ -9280,7 +9487,7 @@ document.addEventListener('keydown', e => {
     if (e.code === 'KeyC') player.thirdPerson = !player.thirdPerson;
     if (e.code === 'KeyX') petSquirrel();
     // E: najpierw ekran telewizora, a jeśli nie celujemy — butelka z podłogi
-    if (e.code === 'KeyE' && !klikniecieWTV() && !uzyjKajaka()) podniesButelke();
+    if (e.code === 'KeyE' && !klikniecieWTV() && !uzyjKoparki() && !uzyjKajaka()) podniesButelke();
     if (e.code === 'KeyQ') nalejWode();
     if (e.code === 'KeyG') wypijWode();
     if (e.code === 'KeyF') idzSpac();
@@ -9550,7 +9757,7 @@ function updatePlayer(dt) {
   // strzałki — rozglądanie z klawiatury; w menu telewizora i w grach na nim
   // mają inne zadania, a kamera i tak stoi wtedy przyklejona do ekranu
   const rotSpeed = 1.7;
-  if (!NAREBLOX.wGrze() && !TV.menuOtwarte()) {
+  if (!NAREBLOX.wGrze() && !TV.menuOtwarte() && !wKoparce) {
     if (keys.ArrowLeft) player.yaw += rotSpeed * dt;
     if (keys.ArrowRight) player.yaw -= rotSpeed * dt;
     if (keys.ArrowUp) player.pitch = Math.min(1.45, player.pitch + rotSpeed * dt);
@@ -9602,6 +9809,10 @@ function updatePlayer(dt) {
   const naKajaku = !!wKajaku;
   if (naKajaku) {
     plynKajakiem(dt, fwd, str);
+    moving = false;
+    player.swimming = false;
+  } else if (wKoparce) {
+    jedzKoparka(dt, fwd, str);
     moving = false;
     player.swimming = false;
   }
@@ -9746,7 +9957,13 @@ function updatePlayer(dt) {
     (celTV && document.pointerLockElement === canvas) ? 'block' : 'none';
 
   // podpowiedź kontekstowa: film w tle, telewizor, wiewiórka, okna
-  if (wKajaku) {
+  if (wKoparce) {
+    ui.interact.textContent = '[E] wysiądź z koparki';
+    ui.interact.style.display = 'block';
+  } else if (koparka && Math.hypot(player.pos.x - koparka.x, player.pos.z - koparka.z) < KOPARKA.zasieg) {
+    ui.interact.textContent = '[E] wsiądź do koparki';
+    ui.interact.style.display = 'block';
+  } else if (wKajaku) {
     ui.interact.textContent = '[E] wysiądź z kajaka';
     ui.interact.style.display = 'block';
   } else if (najblizszyKajak(KAJAK.zasieg)) {
