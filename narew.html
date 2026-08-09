@@ -350,7 +350,9 @@
     W klocu na podłodze leży butelka: <b>E</b> podnosi, <b>Q</b> nabiera wody z Narwi, <b>G</b> pije<br>
     Na brzegu Narwi leżą trzy <b>kajaki</b>: <b>E</b> wsiada, <b>W/S</b> wiosłuje, <b>A/D</b> skręca<br>
     Przy wiacie stoi <b>koparka</b>: <b>E</b> wsiada, <b>W/S</b> jazda, <b>A/D</b> skręt gąsienicami,
-    <b>↑↓</b> wysięgnik, <b>←→</b> obrót kabiny, <b>SPACJA</b> nabiera łyżką<br>
+    <b>↑↓</b> wysięgnik, <b>←→</b> obrót kabiny, <b>SPACJA</b> nabiera łyżką — ziemi naprawdę ubywa,
+    a z urobku rosną kopczyki<br>
+    Obok stoi <b>ognisko</b> — <b>E</b> rozpala i gasi<br>
     Łóżko w klocu: wejdź i śpij klawiszem <b>F</b> • w Narwi stoi Jan Sukiennik — <b>R</b> wystrzeliwuje w górę<br>
     Świecąca płyta w klocu: <b>T</b> teleportuje nad Narew i z powrotem<br>
     Filmy wybiera się klawiszami <b>1–8</b> albo celując w ekran i klikając <b>LPM</b><br>
@@ -3856,7 +3858,8 @@ function terenBaza(x, z) {
 }
 
 function groundHeight(x, z) {
-  let y = terenBaza(x, z) + hillHeight(x, z);          // prawdziwy teren + kopiec z ogrodem
+  // wykopy z koparki liczą się wszędzie tak samo: i pod nogami, i przy wodzie
+  let y = terenBaza(x, z) + hillHeight(x, z) + Kopanie.ubytek(x, z);
   let c = 0;
   const dR = distToPolyline(x, z, NAREW_PTS);
   if (dR < CFG.riverHalf + CFG.riverBank)
@@ -4273,6 +4276,81 @@ function buildSky() {
 }
 
 /* ---------- ziemia, brzeg i dno jeziora ---------- */
+/* ================================================================
+   KOPANIE — prawdziwe doły w terenie.
+   Główna siatka ma oczko co 6 m, więc dołu wielkości łyżki nie da się
+   w niej pokazać. Na posesji leży druga, drobna warstwa z oczkiem co
+   metr; to w niej powstają wykopy i to ona jest widoczna. Wysokość
+   terenu liczy się wszędzie tak samo, więc kolizje, woda i trawa
+   same wiedzą o dołach.
+================================================================ */
+const KOPANIE = { zasieg: 120, oczko: 1, maxGleb: 4.5, maxKopiec: 2.5 };
+
+const Kopanie = {
+  doly: [],            // { x, z, r, d } — d ujemne to wykop, dodatnie kopiec
+  siatka: null,
+
+  reset() { this.doly = []; this.siatka = null; },
+
+  wZasiegu(x, z) {
+    return Math.abs(x) < KOPANIE.zasieg && Math.abs(z) < KOPANIE.zasieg;
+  },
+
+  /* ile ziemi ubyło (albo przybyło) w danym punkcie */
+  ubytek(x, z) {
+    let s = 0;
+    for (const d of this.doly) {
+      const dx = x - d.x, dz = z - d.z;
+      const q = (dx * dx + dz * dz) / (d.r * d.r);
+      if (q >= 1) continue;
+      const t = 1 - q;
+      s += d.d * t * t;                    // gładka misa, na krawędzi zero
+    }
+    return s;
+  },
+
+  /* wybranie łyżki albo wysypanie urobku w punkcie */
+  zmien(x, z, r, d) {
+    if (!this.wZasiegu(x, z)) return false;
+    let nowy = false;
+    const bliski = this.doly.find(o => Math.hypot(o.x - x, o.z - z) < r * 0.6 && (o.d < 0) === (d < 0));
+    if (bliski) {
+      bliski.d = d < 0 ? Math.max(-KOPANIE.maxGleb, bliski.d + d)
+                       : Math.min(KOPANIE.maxKopiec, bliski.d + d);
+      bliski.r = Math.min(bliski.r + Math.abs(d) * 0.35, r * 2.6);
+    } else {
+      this.doly.push({ x, z, r, d });
+      nowy = true;
+    }
+    this.odswiezSiatke(x, z, r * 3);
+    // trawę przesiewamy tylko przy nowym wykopie — przy każdym nabraniu łyżki
+    // całe pole przeskakiwałoby w oczach
+    if (nowy && typeof refreshGrass === 'function') refreshGrass(player.pos);
+    return true;
+  },
+
+  /* przeliczamy tylko wierzchołki wokół zmiany — reszta siatki zostaje */
+  odswiezSiatke(cx, cz, promien) {
+    const s = this.siatka;
+    if (!s) return;
+    const pos = s.geometry.attributes.position;
+    const kol = s.geometry.attributes.color;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i), z = pos.getZ(i);
+      if (Math.abs(x - cx) > promien || Math.abs(z - cz) > promien) continue;
+      const y = groundHeight(x, z);
+      pos.setY(i, y);
+      if (kol) {                            // świeży wykop ma barwę gołej ziemi
+        const goła = Math.max(0, Math.min(1, -this.ubytek(x, z) / 1.2));
+        kol.setXYZ(i, 1 - goła * 0.45, 1 - goła * 0.52, 1 - goła * 0.66);
+      }
+    }
+    pos.needsUpdate = true;
+    if (kol) kol.needsUpdate = true;
+    s.geometry.computeVertexNormals();
+  },
+};
+
 function buildGround() {
   const S = CFG.terrainSize, seg = CFG.terrainSeg;
 
@@ -4305,6 +4383,35 @@ function buildGround() {
   terrain.receiveShadow = true;
   terrain.castShadow = true;
   worldGroup.add(terrain);
+
+  // Drobna warstwa na posesji: to w niej powstają wykopy. Grubą siatkę pod nią
+  // wciskamy odrobinę w dół, żeby jej wierzchołki nie przebijały ścian dołu;
+  // przy krawędzi obniżenie schodzi do zera, więc szwu nie widać.
+  const Z = KOPANIE.zasieg;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i);
+    const t = Math.max(Math.abs(x), Math.abs(z)) / Z;
+    if (t >= 1) continue;
+    pos.setY(i, pos.getY(i) - 0.55 * (1 - t) * (1 - t));
+  }
+  pos.needsUpdate = true;
+  geo.computeVertexNormals();
+
+  const n = Math.round((Z * 2) / KOPANIE.oczko);
+  const geoD = new THREE.PlaneGeometry(Z * 2, Z * 2, n, n);
+  geoD.rotateX(-Math.PI / 2);
+  const posD = geoD.attributes.position;
+  const kolD = new Float32Array(posD.count * 3).fill(1);
+  for (let i = 0; i < posD.count; i++) posD.setY(i, groundHeight(posD.getX(i), posD.getZ(i)));
+  geoD.setAttribute('color', new THREE.BufferAttribute(kolD, 3));
+  geoD.computeVertexNormals();
+  const drobna = new THREE.Mesh(geoD, new THREE.MeshLambertMaterial({
+    map: klonFoto(textures.grass, Z * 2 / 10, Z * 2 / 10), vertexColors: true,
+    polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+  }));
+  drobna.receiveShadow = true; drobna.castShadow = true;
+  worldGroup.add(drobna);
+  Kopanie.siatka = drobna;
 
   // płaskie łąki dookoła siatki, aż po mgłę — obramowanie z czterech pasów
   const farMat = new THREE.MeshLambertMaterial({ map: textures.grass });
@@ -5242,6 +5349,123 @@ function buildWiate() {
 }
 
 /* ================================================================
+   OGNISKO — palenisko przy wiacie, rozpala się [E].
+   Płomienie to kilka stożków, które drgają i obracają się w innym
+   rytmie, więc ogień nigdy nie wygląda dwa razy tak samo. Światło
+   miga razem z nimi i po zmroku oświetla plac.
+================================================================ */
+const OGNISKO = { x: -34, z: 32, zasieg: 4 };
+
+let ognisko = null;
+
+function buildOgnisko() {
+  const g = new THREE.Group();
+  const gy = wysokoscPodlogi(OGNISKO.x, OGNISKO.z);
+  g.position.set(OGNISKO.x, gy, OGNISKO.z);
+
+  const kamien = new THREE.MeshLambertMaterial({ color: 0x8d8b86, map: textures.stone });
+  const drewno = new THREE.MeshLambertMaterial({ color: 0x6b4a2f, map: textures.bark });
+  const wegiel = new THREE.MeshLambertMaterial({ color: 0x2a2320 });
+
+  // krąg kamieni
+  for (let i = 0; i < 11; i++) {
+    const a = (i / 11) * Math.PI * 2 + 0.2;
+    const k = new THREE.Mesh(new THREE.DodecahedronGeometry(0.26 + (i % 3) * 0.05, 0), kamien);
+    k.position.set(Math.cos(a) * 1.15, 0.14, Math.sin(a) * 1.15);
+    k.rotation.set(i, i * 2, i * 3);
+    k.castShadow = true; k.receiveShadow = true;
+    g.add(k);
+  }
+  const popiol = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.1, 0.12, 16), wegiel);
+  popiol.position.y = 0.06;
+  popiol.receiveShadow = true;
+  g.add(popiol);
+
+  // polana oparte w stożek
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2;
+    const p = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 1.5, 7), drewno);
+    p.position.set(Math.cos(a) * 0.34, 0.62, Math.sin(a) * 0.34);
+    p.rotation.set(Math.cos(a) * 0.42, 0, -Math.sin(a) * 0.42);
+    p.castShadow = true;
+    g.add(p);
+  }
+
+  // płomienie — kilka stożków, każdy w swoim rytmie
+  const plomienie = [];
+  const barwy = [0xffcf3a, 0xff8a2c, 0xff5a1e];
+  for (let i = 0; i < 4; i++) {
+    // Wyższe niż polana, żeby ogień nie chował się w stosie, ale wąskie
+    // i świecące przez dodawanie — sześć krytych stożków zlewało się
+    // w jeden jasny namiot zamiast wyglądać jak płomień.
+    const pl = new THREE.Mesh(new THREE.ConeGeometry(0.16 + (i % 3) * 0.05, 1.1 + (i % 2) * 0.45, 5),
+      new THREE.MeshBasicMaterial({ color: barwy[i % 3], transparent: true, opacity: 0.5,
+        depthWrite: false, blending: THREE.AdditiveBlending }));
+    pl.position.set((Math.random() - 0.5) * 0.34, 0.95, (Math.random() - 0.5) * 0.34);
+    pl.userData.faza = Math.random() * 7;
+    g.add(pl);
+    plomienie.push(pl);
+  }
+  const zar = new THREE.Mesh(new THREE.SphereGeometry(0.45, 10, 8),
+    new THREE.MeshBasicMaterial({ color: 0xff7a2c, transparent: true, opacity: 0.5, depthWrite: false }));
+  zar.position.y = 0.22;
+  zar.scale.y = 0.4;
+  g.add(zar);
+
+  const swiatlo = new THREE.PointLight(0xffa64a, 0, 26, 2);
+  swiatlo.position.y = 1.1;
+  g.add(swiatlo);
+
+  worldGroup.add(g);
+  ognisko = { obj: g, plomienie, zar, swiatlo, pali: false, trzask: 0, y: gy };
+  ustawOgnisko(false);
+}
+
+function ustawOgnisko(pali) {
+  if (!ognisko) return;
+  ognisko.pali = pali;
+  for (const p of ognisko.plomienie) p.visible = pali;
+  ognisko.zar.visible = pali;
+  ognisko.swiatlo.intensity = pali ? 2.4 : 0;
+}
+
+function uzyjOgniska() {
+  if (!ognisko) return false;
+  if (Math.hypot(player.pos.x - OGNISKO.x, player.pos.z - OGNISKO.z) > OGNISKO.zasieg) return false;
+  ustawOgnisko(!ognisko.pali);
+  if (ognisko.pali) {
+    AudioSys.burst(240, 1.4, 0.7, 0.22, 'lowpass', 900);
+    announce('🔥 Ognisko rozpalone', '#ffb877', 2.6);
+  } else {
+    AudioSys.burst(120, 0.5, 0.5, 0.14, 'lowpass', 400);
+    announce('💨 Ognisko zgaszone', '#cfe9f5', 2);
+  }
+  return true;
+}
+
+function updateOgnisko(dt, t) {
+  if (!ognisko || !ognisko.pali) return;
+  for (const p of ognisko.plomienie) {
+    const f = p.userData.faza;
+    const s = 0.75 + Math.abs(Math.sin(t * (3.2 + f % 2) + f)) * 0.5;
+    p.scale.set(0.85 + Math.sin(t * 5 + f) * 0.15, s, 0.85 + Math.cos(t * 4.3 + f) * 0.15);
+    p.rotation.y = t * (0.6 + (f % 3) * 0.3);
+    p.position.y = 0.82 + s * 0.24;
+    p.material.opacity = 0.34 + Math.abs(Math.sin(t * 6 + f)) * 0.3;
+  }
+  ognisko.zar.material.opacity = 0.4 + Math.abs(Math.sin(t * 2.2)) * 0.25;
+  ognisko.swiatlo.intensity = 2.1 + Math.sin(t * 9) * 0.25 + Math.sin(t * 23) * 0.15;
+
+  ognisko.trzask -= dt;
+  if (ognisko.trzask <= 0) {                 // strzelanie iskier co jakiś czas
+    ognisko.trzask = 0.6 + Math.random() * 1.8;
+    if (Math.hypot(player.pos.x - OGNISKO.x, player.pos.z - OGNISKO.z) < 26) {
+      AudioSys.burst(900 + Math.random() * 800, 0.6, 0.06, 0.05, 'bandpass', 1400);
+    }
+  }
+}
+
+/* ================================================================
    KOPARKA — stoi przy wiacie, wsiada się [E].
    Gąsienice jadą W/S, całą maszyną skręca A/D, strzałki obracają
    nadwozie i podnoszą wysięgnik, SPACJA podbiera łyżką.
@@ -5408,16 +5632,24 @@ function jedzKoparka(dt, fwd, str) {
   if (keys.Space) { k.katR = Math.min(1.5, k.katR + 1.1 * dt); k.katL = Math.min(1.5, k.katL + 1.4 * dt); }
   else { k.katR = Math.max(0.35, k.katR - 0.9 * dt); k.katL = Math.max(0.1, k.katL - 1.0 * dt); }
 
-  // gdy zęby wchodzą w ziemię, łyżka nabiera urobku
+  // Zęby w ziemi i zwinięta łyżka = wybieranie urobku. Ziemi naprawdę ubywa:
+  // wykop wchodzi do wysokości terenu, więc zaraz potem czuć go pod nogami.
   const gl = koncowkaLyzki();
-  const podlozeY = wysokoscPodlogi(gl.x, gl.z);
-  if (!k.pelna && gl.y < podlozeY + 0.25) {
-    k.pelna = true;
-    AudioSys.burst(160, 0.5, 0.45, 0.2, 'lowpass', 600);
-    announce('🪣 Pełna łyżka', '#ffd9a3', 1.6);
+  const podlozeY = groundHeight(gl.x, gl.z);
+  k.chlod = Math.max(0, (k.chlod || 0) - dt);
+  if (keys.Space && !k.pelna && gl.y < podlozeY + 0.15 && k.chlod <= 0) {
+    k.chlod = 0.45;
+    if (Kopanie.zmien(gl.x, gl.z, 1.7, -0.42)) {
+      k.pelna = true;
+      AudioSys.burst(160, 0.5, 0.45, 0.2, 'lowpass', 600);
+    } else if (!k.ostrzezone) {
+      k.ostrzezone = true;
+      announce('🚧 Kopać można tylko na posesji', '#ffb877', 3);
+    }
   }
   if (k.pelna && k.katL < 0.3 && gl.y > podlozeY + 1.2) {
     k.pelna = false;                       // wysypanie przy opuszczonej łyżce wysoko
+    Kopanie.zmien(gl.x, gl.z, 2.2, 0.3);   // z urobku rośnie kopczyk
     AudioSys.burst(120, 0.4, 0.5, 0.18, 'lowpass', 500);
   }
   k.urobek.visible = k.pelna;
@@ -7648,7 +7880,8 @@ function refreshGrass(center) {
     const gy = groundHeight(x, z);
     // pod wodą i na kamieniach trawa nie rośnie
     // zimą kępek trawy nie ma — spod śniegu nic nie wystaje
-    const hide = !PAL.trawaWidoczna || waterDepth(x, z) > 0.05 ||
+    // w świeżym wykopie trawy nie ma — inaczej kępki zarastają dół i go zasłaniają
+    const hide = !PAL.trawaWidoczna || waterDepth(x, z) > 0.05 || Kopanie.ubytek(x, z) < -0.25 ||
       (Math.abs(x) < CFG.blockW / 2 && Math.abs(z) < CFG.blockD / 2) ||
       // pod wiatą jest posadzka, więc kępki trawy nie mają przez co przerosnąć
       (Math.abs(x - WIATA.x) < WIATA.w / 2 + 0.4 && Math.abs(z - WIATA.z) < WIATA.d / 2 + 0.4);
@@ -8363,6 +8596,8 @@ function disposeWorld() {
   birds = []; squirrels = []; tvScreen = null;
   kajaki = []; wKajaku = null;
   koparka = null; wKoparce = false;
+  ognisko = null;
+  Kopanie.reset();                         // wykopy giną razem ze światem
   NAREBLOX.stop3d();                       // scenka 3D znika razem z telewizorem
   mixery.length = 0;
   materialyWiatru.length = 0;
@@ -8420,6 +8655,7 @@ function buildWorld(seed) {
   buildFence();
   buildTrees();
   buildWiate();
+  buildOgnisko();
   buildKoparke();
   buildKajaki();
   buildSquirrels();
@@ -9487,7 +9723,8 @@ document.addEventListener('keydown', e => {
     if (e.code === 'KeyC') player.thirdPerson = !player.thirdPerson;
     if (e.code === 'KeyX') petSquirrel();
     // E: najpierw ekran telewizora, a jeśli nie celujemy — butelka z podłogi
-    if (e.code === 'KeyE' && !klikniecieWTV() && !uzyjKoparki() && !uzyjKajaka()) podniesButelke();
+    if (e.code === 'KeyE' && !klikniecieWTV() && !uzyjOgniska() && !uzyjKoparki() && !uzyjKajaka())
+      podniesButelke();
     if (e.code === 'KeyQ') nalejWode();
     if (e.code === 'KeyG') wypijWode();
     if (e.code === 'KeyF') idzSpac();
@@ -9960,6 +10197,9 @@ function updatePlayer(dt) {
   if (wKoparce) {
     ui.interact.textContent = '[E] wysiądź z koparki';
     ui.interact.style.display = 'block';
+  } else if (ognisko && Math.hypot(player.pos.x - OGNISKO.x, player.pos.z - OGNISKO.z) < OGNISKO.zasieg) {
+    ui.interact.textContent = ognisko.pali ? '[E] zgaś ognisko' : '[E] rozpal ognisko';
+    ui.interact.style.display = 'block';
   } else if (koparka && Math.hypot(player.pos.x - koparka.x, player.pos.z - koparka.z) < KOPARKA.zasieg) {
     ui.interact.textContent = '[E] wsiądź do koparki';
     ui.interact.style.display = 'block';
@@ -10060,6 +10300,7 @@ function animate() {
     }
     updateSquirrels(dt, t);
     updateKajaki(dt, t);
+    updateOgnisko(dt, t);
 
     // cień słońca chodzi za graczem — mapa cieni jest mała, ale ostra
     const c = camera.position;
