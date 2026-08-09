@@ -5333,6 +5333,235 @@ function buildWiate() {
 }
 
 /* ================================================================
+   KOD NA ŚCIANIE — dwucyfrowa klawiatura przy wejściu do kloca.
+   Wpisanie 00 sprowadza Waldka na koniu. Postać jest ulepiona z brył
+   na tym samym modelu co gracze — żadnego skina z sieci, bo gotowe
+   skiny są czyjeś, a gra stoi na publicznej stronie.
+================================================================ */
+// z liczone tak, żeby skrzynka wystawała przed listwę ściany (ta kończy się na +0.09)
+const KOD = { x: 20, z: CFG.blockD / 2 + 0.17, zasieg: 3.2, haslo: '00' };
+
+const Kod = {
+  panel: null, plotno: null, tekstura: null,
+  aktywny: false, wpis: '', blad: 0, ok: false,
+
+  rysuj() {
+    const c = this.plotno;
+    if (!c) return;
+    const x = c.getContext('2d');
+    x.fillStyle = '#12161c'; x.fillRect(0, 0, 256, 320);
+    x.strokeStyle = '#38424e'; x.lineWidth = 6; x.strokeRect(4, 4, 248, 312);
+    x.textAlign = 'center';
+    x.fillStyle = this.ok ? '#7ce08a' : this.aktywny ? '#ffd24a' : 'rgba(255,255,255,.5)';
+    x.font = 'bold 19px Arial, sans-serif';
+    x.fillText(this.ok ? 'OTWARTE' : this.aktywny ? 'WPISZ KOD' : 'KOD', 128, 44);
+
+    for (let i = 0; i < 2; i++) {          // dwa okienka na cyfry
+      const px = 44 + i * 92;
+      x.fillStyle = '#080b10'; x.fillRect(px, 70, 76, 92);
+      x.strokeStyle = this.aktywny ? '#ffd24a' : '#2a323c'; x.lineWidth = 3;
+      x.strokeRect(px, 70, 76, 92);
+      x.fillStyle = '#fff'; x.font = 'bold 62px Arial, sans-serif';
+      x.fillText(this.wpis[i] || '', px + 38, 138);
+    }
+    x.fillStyle = this.blad > 0 ? '#ff8f8f' : 'rgba(255,255,255,.45)';
+    x.font = 'bold 14px Arial, sans-serif';
+    x.fillText(this.blad > 0 ? 'ZŁY KOD' : (this.aktywny ? 'cyfry · ENTER · ESC' : '[E] otwiera'),
+      128, 196);
+    x.fillStyle = 'rgba(255,255,255,.3)'; x.font = '12px Arial, sans-serif';
+    x.fillText('dzwonek do', 128, 240);
+    x.fillText('gospodarza', 128, 258);
+    x.textAlign = 'left';
+    if (this.tekstura) this.tekstura.needsUpdate = true;
+  },
+
+  wlacz() {
+    if (this.ok) { announce('🐴 Waldek już przyjechał', '#ffd9a3', 2); return true; }
+    this.aktywny = true; this.wpis = ''; this.blad = 0;
+    this.rysuj();
+    puscKursor();
+    announce('🔢 Wpisz dwucyfrowy kod', '#ffd24a', 2.4);
+    return true;
+  },
+
+  klawisz(code) {
+    if (code === 'Escape') { this.aktywny = false; this.wpis = ''; this.rysuj(); return; }
+    if (code === 'Backspace') { this.wpis = this.wpis.slice(0, -1); this.rysuj(); return; }
+    if (code === 'Enter' || code === 'NumpadEnter') {
+      if (this.wpis === KOD.haslo) {
+        this.aktywny = false; this.ok = true;
+        AudioSys.bird();
+        przyjedzWaldek();
+      } else {
+        this.blad = 2.5; this.wpis = '';
+        AudioSys.burst(200, 0.6, 0.25, 0.12);
+      }
+      this.rysuj();
+      return;
+    }
+    const c = /^(Digit|Numpad)([0-9])$/.exec(code);
+    if (c && this.wpis.length < 2) {
+      this.wpis += c[2];
+      AudioSys.ui();
+      this.rysuj();
+      if (this.wpis.length === 2) this.klawisz('Enter');   // dwie cyfry sprawdzają się same
+    }
+  },
+
+  tick(dt) {
+    if (this.blad > 0) { this.blad -= dt; if (this.blad <= 0) this.rysuj(); }
+  },
+};
+
+function buildKlawiature() {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 320;
+  Kod.plotno = c;
+  Kod.tekstura = new THREE.CanvasTexture(c);
+  Kod.tekstura.encoding = THREE.sRGBEncoding;
+
+  const g = new THREE.Group();
+  const obudowa = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.9, 0.1),
+    new THREE.MeshPhongMaterial({ color: 0x2b3138, shininess: 40 }));
+  const ekran = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.78),
+    new THREE.MeshBasicMaterial({ map: Kod.tekstura }));
+  ekran.position.z = 0.056;
+  g.add(obudowa, ekran);
+  g.position.set(KOD.x, 1.5, KOD.z);
+  worldGroup.add(g);
+  Kod.panel = g;
+  Kod.aktywny = false; Kod.ok = false; Kod.wpis = '';
+  Kod.rysuj();
+}
+
+/* ---------- Waldek i koń ---------- */
+let waldek = null;
+
+function buildKonia() {
+  const g = new THREE.Group();
+  const siersc = new THREE.MeshLambertMaterial({ color: 0x6b4a2f, map: textures.bark });
+  const ciemny = new THREE.MeshLambertMaterial({ color: 0x2b2118 });
+  const jasny = new THREE.MeshLambertMaterial({ color: 0xd8c9b4 });
+
+  const tulow = new THREE.Mesh(new THREE.SphereGeometry(0.62, 12, 10), siersc);
+  tulow.scale.set(0.78, 0.82, 1.55);
+  tulow.position.y = 1.32;
+  const szyja = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.34, 0.85, 10), siersc);
+  szyja.position.set(0, 1.78, 0.82);
+  szyja.rotation.x = 0.55;
+  const glowa = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.34, 0.66), siersc);
+  glowa.position.set(0, 2.06, 1.18);
+  glowa.rotation.x = 0.32;
+  const pysk = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.22, 0.2), jasny);
+  pysk.position.set(0, 1.94, 1.46);
+  for (const sx of [-1, 1]) {
+    const ucho = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.2, 5), siersc);
+    ucho.position.set(sx * 0.11, 2.28, 1.0);
+    g.add(ucho);
+    const oko = new THREE.Mesh(new THREE.SphereGeometry(0.045, 6, 5),
+      new THREE.MeshBasicMaterial({ color: 0x0b0805 }));
+    oko.position.set(sx * 0.15, 2.1, 1.28);
+    g.add(oko);
+  }
+  const grzywa = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, 0.9), ciemny);
+  grzywa.position.set(0, 1.98, 0.78);
+  grzywa.rotation.x = 0.55;
+  const ogon = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.9, 6), ciemny);
+  ogon.position.set(0, 1.35, -1.0);
+  ogon.rotation.x = -0.7;
+
+  const nogi = [];
+  for (const [sx, sz] of [[-1, 0.82], [1, 0.82], [-1, -0.78], [1, -0.78]]) {
+    const noga = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.09, 1.05, 7), siersc);
+    noga.position.set(sx * 0.32, 0.52, sz);
+    const kopyto = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.12, 0.14, 7), ciemny);
+    kopyto.position.y = -0.58;
+    noga.add(kopyto);
+    g.add(noga);
+    nogi.push(noga);
+  }
+  // siodło, żeby Waldek nie siedział na gołym grzbiecie
+  const siodlo = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.14, 0.7),
+    new THREE.MeshLambertMaterial({ color: 0x4a3120 }));
+  siodlo.position.set(0, 1.82, 0.1);
+
+  g.add(tulow, szyja, glowa, pysk, grzywa, ogon, siodlo);
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  g.userData = { nogi, glowa };
+  return g;
+}
+
+function buildWaldka() {
+  const g = buildPerson(0x4f7a3a, { mj: false });      // zielona kurtka, bez stroju scenicznego
+  const czapka = new THREE.Group();
+  const daszek = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.03, 0.12),
+    new THREE.MeshLambertMaterial({ color: 0x2f3a2a }));
+  daszek.position.set(0, 0, -0.12);
+  const czubek = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 6),
+    new THREE.MeshLambertMaterial({ color: 0x3d4a34 }));
+  czubek.scale.y = 0.55;
+  czapka.add(daszek, czubek);
+  czapka.position.set(0, 1.86, 0);
+  g.add(czapka);
+
+  const wasy = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.03, 0.03),
+    new THREE.MeshLambertMaterial({ color: 0x4a3a28 }));
+  wasy.position.set(0, 1.71, -0.11);
+  g.add(wasy);
+
+  // papieros w kąciku ust — cienki wałek z żarzącym się końcem
+  const pap = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.11, 6),
+    new THREE.MeshLambertMaterial({ color: 0xefe9dc }));
+  pap.rotation.set(1.35, 0, 0.25);
+  pap.position.set(0.045, 1.68, -0.15);
+  const zar = new THREE.Mesh(new THREE.SphereGeometry(0.014, 6, 5),
+    new THREE.MeshBasicMaterial({ color: 0xff6a2c }));
+  zar.position.set(0.055, 1.665, -0.2);
+  g.add(pap, zar);
+  g.userData.zar = zar;
+  return g;
+}
+
+function przyjedzWaldek() {
+  if (waldek) return;
+  const kon = buildKonia();
+  const jezdziec = buildWaldka();
+  jezdziec.position.set(0, 1.62, 0.05);          // w siodle
+  jezdziec.rotation.x = -0.12;
+  const g = new THREE.Group();
+  g.add(kon, jezdziec);
+  const x = KOD.x + 4, z = CFG.blockD / 2 + 26;
+  g.position.set(x, wysokoscPodlogi(x, z), z);
+  g.rotation.y = Math.PI;
+  worldGroup.add(g);
+  waldek = { obj: g, kon, jezdziec, faza: 0, cel: { x: KOD.x + 3, z: CFG.blockD / 2 + 6 } };
+  announce('🐴 Waldek przyjechał — jest przed klocem', '#ffd9a3', 4.5);
+}
+
+function updateWaldek(dt, t) {
+  if (!waldek) return;
+  const w = waldek;
+  const dx = w.cel.x - w.obj.position.x, dz = w.cel.z - w.obj.position.z;
+  const d = Math.hypot(dx, dz);
+  const idzie = d > 0.6;
+  if (idzie) {
+    w.obj.position.x += dx / d * 2.6 * dt;
+    w.obj.position.z += dz / d * 2.6 * dt;
+    w.obj.position.y = wysokoscPodlogi(w.obj.position.x, w.obj.position.z);
+    w.obj.rotation.y = Math.atan2(dx, dz) + Math.PI;
+  }
+  w.faza += dt * (idzie ? 7 : 1.6);
+  w.kon.userData.nogi.forEach((n, i) => {
+    n.rotation.x = idzie ? Math.sin(w.faza + i * 1.7) * 0.55 : Math.sin(w.faza * 0.4 + i) * 0.04;
+  });
+  w.kon.userData.glowa.rotation.x = 0.32 + Math.sin(w.faza * 0.5) * 0.06;
+  if (w.jezdziec.userData.zar) {                 // żar papierosa raz jaśniej, raz ciemniej
+    const j = 0.5 + Math.abs(Math.sin(t * 0.7)) * 0.5;
+    w.jezdziec.userData.zar.material.color.setRGB(1, 0.35 * j, 0.12 * j);
+  }
+}
+
+/* ================================================================
    ŁOPATA — stoi oparta o słup wiaty, bierze się ją [E].
    Kopie płycej i węziej niż koparka, ale wszędzie tam, gdzie stoisz,
    i bez wsiadania do maszyny. Klawisz [K] to jedno machnięcie.
@@ -5381,6 +5610,12 @@ function postawLopate() {
   camera.add(r);
 
   lopata = { wSwiecie: w, wRece: r, ma: false, chlod: 0, zamach: 0 };
+}
+
+function uzyjKodu() {
+  if (!Kod.panel || Kod.aktywny) return false;
+  if (Math.hypot(player.pos.x - KOD.x, player.pos.z - KOD.z) > KOD.zasieg) return false;
+  return Kod.wlacz();
 }
 
 function uzyjLopaty() {
@@ -5458,6 +5693,7 @@ const TABLICA_TRESC = [
     ['↑ ↓ / Q Z', 'wysięgnik i ramię koparki'],
     ['SPACJA', 'nabiera łyżką i wysypuje — ziemi ubywa'],
     ['ŁOPATA', 'E bierze przy wiacie, K kopie dół'],
+    ['KLAWIATURA', 'przy drzwiach kloca — dwie cyfry'],
     ['OGNISKO', 'E rozpala i gasi'],
   ]],
   ['TELEWIZOR', [
@@ -8783,7 +9019,8 @@ function disposeWorld() {
   birds = []; squirrels = []; tvScreen = null;
   kajaki = []; wKajaku = null;
   koparka = null; wKoparce = false;
-  ognisko = null; lopata = null;
+  ognisko = null; lopata = null; waldek = null;
+  Kod.panel = null; Kod.aktywny = false; Kod.ok = false; Kod.wpis = '';
   Kopanie.reset();                         // wykopy giną razem ze światem
   NAREBLOX.stop3d();                       // scenka 3D znika razem z telewizorem
   mixery.length = 0;
@@ -8843,6 +9080,7 @@ function buildWorld(seed) {
   buildTrees();
   buildWiate();
   buildTablice();
+  buildKlawiature();
   postawLopate();
   buildOgnisko();
   buildKoparke();
@@ -9894,6 +10132,12 @@ document.addEventListener('keydown', e => {
   keys[e.code] = true;
   // Gra na telewizorze zabiera klawiaturę na wyłączność: inaczej WSAD chodziłby
   // postacią w świecie, a R czy T odpalały akcje za plecami grającego.
+  // klawiatura przy drzwiach przejmuje cyfry, dopóki wpisujesz kod
+  if (state === 'playing' && Kod.aktywny) {
+    e.preventDefault();
+    Kod.klawisz(e.code);
+    return;
+  }
   // ekran hasła zabiera klawiaturę: inaczej cyfry wybierałyby filmy, a WSAD chodził
   if (state === 'playing' && TV.mode === 'haslo') {
     e.preventDefault();
@@ -9912,8 +10156,8 @@ document.addEventListener('keydown', e => {
     if (e.code === 'KeyC') player.thirdPerson = !player.thirdPerson;
     if (e.code === 'KeyX') petSquirrel();
     // E: najpierw ekran telewizora, a jeśli nie celujemy — butelka z podłogi
-    if (e.code === 'KeyE' && !klikniecieWTV() && !uzyjOgniska() && !uzyjKoparki() &&
-        !uzyjKajaka() && !uzyjLopaty()) podniesButelke();
+    if (e.code === 'KeyE' && !klikniecieWTV() && !uzyjKodu() && !uzyjOgniska() &&
+        !uzyjKoparki() && !uzyjKajaka() && !uzyjLopaty()) podniesButelke();
     if (e.code === 'KeyK') kopLopata();
     if (e.code === 'KeyQ' && !wKoparce) nalejWode();   // w koparce Q steruje ramieniem
     if (e.code === 'KeyG') wypijWode();
@@ -10390,6 +10634,10 @@ function updatePlayer(dt) {
   } else if (ognisko && Math.hypot(player.pos.x - OGNISKO.x, player.pos.z - OGNISKO.z) < OGNISKO.zasieg) {
     ui.interact.textContent = ognisko.pali ? '[E] zgaś ognisko' : '[E] rozpal ognisko';
     ui.interact.style.display = 'block';
+  } else if (Kod.panel && !Kod.aktywny &&
+             Math.hypot(player.pos.x - KOD.x, player.pos.z - KOD.z) < KOD.zasieg) {
+    ui.interact.textContent = Kod.ok ? 'kod przyjęty' : '[E] klawiatura przy drzwiach';
+    ui.interact.style.display = 'block';
   } else if (lopata && lopata.ma) {
     ui.interact.textContent = '[K] kop łopatą   ·   [E] odłóż';
     ui.interact.style.display = 'block';
@@ -10500,6 +10748,8 @@ function animate() {
     updateKajaki(dt, t);
     updateOgnisko(dt, t);
     updateLopate(dt);
+    updateWaldek(dt, t);
+    Kod.tick(dt);
 
     // cień słońca chodzi za graczem — mapa cieni jest mała, ale ostra
     const c = camera.position;
