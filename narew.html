@@ -4283,8 +4283,12 @@ const Kopanie = {
       const dx = x - d.x, dz = z - d.z;
       const q = (dx * dx + dz * dz) / (d.r * d.r);
       if (q >= 1) continue;
-      const t = 1 - q;
-      s += d.d * t * t;                    // gładka misa, na krawędzi zero
+      // Płaskie dno i ściany dopiero przy krawędzi — w lejku nie dało się
+      // stanąć, bo pełną głębokość miał tylko jeden punkt pośrodku.
+      const t = Math.sqrt(q);
+      if (t <= 0.55) { s += d.d; continue; }
+      const u = (1 - t) / 0.45;
+      s += d.d * u * u * (3 - 2 * u);
     }
     return s;
   },
@@ -5329,6 +5333,108 @@ function buildWiate() {
 }
 
 /* ================================================================
+   ŁOPATA — stoi oparta o słup wiaty, bierze się ją [E].
+   Kopie płycej i węziej niż koparka, ale wszędzie tam, gdzie stoisz,
+   i bez wsiadania do maszyny. Klawisz [K] to jedno machnięcie.
+================================================================ */
+// na trawie obok wiaty, nie na jej betonowej posadzce
+const LOPATA = { x: -58, z: 20, zasieg: 2.6, promien: 1.0, glebokosc: 0.24, przerwa: 0.55 };
+
+let lopata = null;
+
+function buildLopate() {
+  const g = new THREE.Group();
+  const drewno = new THREE.MeshPhongMaterial({ color: 0xb08d63, map: textures.deski, shininess: 16 });
+  const stal = new THREE.MeshPhongMaterial({ color: 0x9aa0aa, shininess: 90, specular: 0x555b63 });
+
+  const trzonek = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 1.25, 8), drewno);
+  trzonek.position.y = 0.72;
+  const raczka = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.028, 6, 12), drewno);
+  raczka.rotation.x = Math.PI / 2;
+  raczka.position.y = 1.36;
+  const tuleja = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.16, 8), stal);
+  tuleja.position.y = 0.14;
+  const piorо = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.32, 0.03), stal);
+  piorо.position.set(0, -0.04, 0);
+  const ostrze = new THREE.Mesh(new THREE.ConeGeometry(0.145, 0.16, 4), stal);
+  ostrze.rotation.x = Math.PI;
+  ostrze.rotation.y = Math.PI / 4;
+  ostrze.position.set(0, -0.26, 0);
+  ostrze.scale.z = 0.2;
+
+  g.add(trzonek, raczka, tuleja, piorо, ostrze);
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  return g;
+}
+
+function postawLopate() {
+  const w = buildLopate();
+  w.position.set(LOPATA.x, wysokoscPodlogi(LOPATA.x, LOPATA.z) + 0.28, LOPATA.z);
+  w.rotation.set(0.32, 0.6, 0.18);          // oparta o słup wiaty
+  worldGroup.add(w);
+
+  const r = buildLopate();
+  r.scale.setScalar(1.05);
+  r.position.set(0.36, -0.5, -0.72);
+  r.rotation.set(0.5, -0.5, 0.35);
+  r.visible = false;
+  camera.add(r);
+
+  lopata = { wSwiecie: w, wRece: r, ma: false, chlod: 0, zamach: 0 };
+}
+
+function uzyjLopaty() {
+  if (!lopata) return false;
+  if (lopata.ma) {                          // odkładamy tam, gdzie stoimy
+    lopata.ma = false;
+    lopata.wRece.visible = false;
+    const s = Math.sin(player.yaw), c = Math.cos(player.yaw);
+    const x = player.pos.x - s * 1.1, z = player.pos.z - c * 1.1;
+    lopata.wSwiecie.position.set(x, wysokoscPodlogi(x, z) + 0.28, z);
+    lopata.wSwiecie.rotation.set(1.45, player.yaw, 0.1);   // leży na ziemi
+    lopata.wSwiecie.visible = true;
+    AudioSys.ui();
+    announce('🪏 Łopata odłożona', '#ffd9a3', 1.8);
+    return true;
+  }
+  if (!lopata.wSwiecie.visible) return false;
+  const p = lopata.wSwiecie.position;
+  if (Math.hypot(player.pos.x - p.x, player.pos.z - p.z) > LOPATA.zasieg) return false;
+  lopata.ma = true;
+  lopata.wSwiecie.visible = false;
+  lopata.wRece.visible = true;
+  AudioSys.ui();
+  announce('🪏 Masz łopatę — [K] kopie dół przed tobą', '#ffd9a3', 3.4);
+  return true;
+}
+
+/* [K] — jedno machnięcie łopatą w ziemię przed sobą */
+function kopLopata() {
+  if (!lopata || !lopata.ma || lopata.chlod > 0) return;
+  const s = Math.sin(player.yaw), c = Math.cos(player.yaw);
+  const x = player.pos.x - s * 1.5, z = player.pos.z - c * 1.5;
+  lopata.chlod = LOPATA.przerwa;
+  lopata.zamach = 0.35;
+  if (waterDepth(x, z) > 0.1) { announce('💧 Tu jest woda, nie ziemia', '#bff3ff', 2); return; }
+  if (Kopanie.zmien(x, z, LOPATA.promien, -LOPATA.glebokosc)) {
+    AudioSys.burst(190, 0.5, 0.3, 0.16, 'lowpass', 700);
+  } else {
+    announce('🚧 Kopać można tylko na posesji', '#ffb877', 2.6);
+  }
+}
+
+function updateLopate(dt) {
+  if (!lopata) return;
+  lopata.chlod = Math.max(0, lopata.chlod - dt);
+  if (lopata.zamach > 0) lopata.zamach -= dt;
+  const r = lopata.wRece;
+  if (!r.visible) return;
+  const t = Math.max(0, lopata.zamach) / 0.35;
+  r.rotation.x = 0.5 + Math.sin(t * Math.PI) * 1.15;      // zamach i powrót
+  r.position.y = -0.5 - Math.sin(t * Math.PI) * 0.22;
+}
+
+/* ================================================================
    TABLICA W KLOCU — całe sterowanie wisi na ścianie obok telewizora,
    zamiast zasypywać nim menu startowe. Rysowana na płótnie, więc
    napisy są ostre i łatwo je poprawić razem z resztą gry.
@@ -5351,6 +5457,7 @@ const TABLICA_TRESC = [
     ['KOPARKA', 'W/S jazda, A/D skręt, ←→ kabina'],
     ['↑ ↓ / Q Z', 'wysięgnik i ramię koparki'],
     ['SPACJA', 'nabiera łyżką i wysypuje — ziemi ubywa'],
+    ['ŁOPATA', 'E bierze przy wiacie, K kopie dół'],
     ['OGNISKO', 'E rozpala i gasi'],
   ]],
   ['TELEWIZOR', [
@@ -8676,7 +8783,7 @@ function disposeWorld() {
   birds = []; squirrels = []; tvScreen = null;
   kajaki = []; wKajaku = null;
   koparka = null; wKoparce = false;
-  ognisko = null;
+  ognisko = null; lopata = null;
   Kopanie.reset();                         // wykopy giną razem ze światem
   NAREBLOX.stop3d();                       // scenka 3D znika razem z telewizorem
   mixery.length = 0;
@@ -8736,6 +8843,7 @@ function buildWorld(seed) {
   buildTrees();
   buildWiate();
   buildTablice();
+  postawLopate();
   buildOgnisko();
   buildKoparke();
   buildKajaki();
@@ -9804,8 +9912,9 @@ document.addEventListener('keydown', e => {
     if (e.code === 'KeyC') player.thirdPerson = !player.thirdPerson;
     if (e.code === 'KeyX') petSquirrel();
     // E: najpierw ekran telewizora, a jeśli nie celujemy — butelka z podłogi
-    if (e.code === 'KeyE' && !klikniecieWTV() && !uzyjOgniska() && !uzyjKoparki() && !uzyjKajaka())
-      podniesButelke();
+    if (e.code === 'KeyE' && !klikniecieWTV() && !uzyjOgniska() && !uzyjKoparki() &&
+        !uzyjKajaka() && !uzyjLopaty()) podniesButelke();
+    if (e.code === 'KeyK') kopLopata();
     if (e.code === 'KeyQ' && !wKoparce) nalejWode();   // w koparce Q steruje ramieniem
     if (e.code === 'KeyG') wypijWode();
     if (e.code === 'KeyF') idzSpac();
@@ -10281,6 +10390,14 @@ function updatePlayer(dt) {
   } else if (ognisko && Math.hypot(player.pos.x - OGNISKO.x, player.pos.z - OGNISKO.z) < OGNISKO.zasieg) {
     ui.interact.textContent = ognisko.pali ? '[E] zgaś ognisko' : '[E] rozpal ognisko';
     ui.interact.style.display = 'block';
+  } else if (lopata && lopata.ma) {
+    ui.interact.textContent = '[K] kop łopatą   ·   [E] odłóż';
+    ui.interact.style.display = 'block';
+  } else if (lopata && lopata.wSwiecie.visible &&
+             Math.hypot(player.pos.x - lopata.wSwiecie.position.x,
+                        player.pos.z - lopata.wSwiecie.position.z) < LOPATA.zasieg) {
+    ui.interact.textContent = '[E] weź łopatę';
+    ui.interact.style.display = 'block';
   } else if (koparka && Math.hypot(player.pos.x - koparka.x, player.pos.z - koparka.z) < KOPARKA.zasieg) {
     ui.interact.textContent = '[E] wsiądź do koparki';
     ui.interact.style.display = 'block';
@@ -10382,6 +10499,7 @@ function animate() {
     updateSquirrels(dt, t);
     updateKajaki(dt, t);
     updateOgnisko(dt, t);
+    updateLopate(dt);
 
     // cień słońca chodzi za graczem — mapa cieni jest mała, ale ostra
     const c = camera.position;
