@@ -5685,6 +5685,9 @@ const TABLICA_TRESC = [
     ['Q / G', 'nabiera wody z Narwi / pije'], ['F', 'sen w łóżku'],
     ['T', 'teleport ze świecącej płyty'], ['X', 'głaskanie wiewiórki'],
     ['R', 'Jan w Narwi wystrzeliwuje w górę'],
+    ['EDWARD WARCHOCKI', 'chodzi po posesji — stań przy nim'],
+    ['DZIKI', 'wataha na łące na północny zachód, płoszy się'],
+    ['SZOPY', 'tańczą przy ognisku, przy ogniu szybciej'],
   ]],
   ['MASZYNY', [
     ['E', 'wsiadka i wysiadka'],
@@ -6419,6 +6422,373 @@ function petSquirrel() {
     announce(`🐿 Pogłaskana wiewiórka ${player.petted}/${squirrels.length}`, '#ffd9a3', 2.4);
   } else {
     announce('🐿 Wiewiórka macha ogonem', '#ffd9a3', 1.6);
+  }
+}
+
+/* ================================================================
+   EDWARD WARCHOCKI — chodzi w kółko po posesji własną trasą, staje,
+   kiedy podejdziesz, i macha ręką. Tabliczka nad głową jak u Jana.
+================================================================ */
+const EDWARD = {
+  // pętla dookoła kloca: wszystkie punkty poza jego obrysem (±28) i z dala
+  // od wiaty, koparki i kręgu szopów przy ognisku
+  trasa: [[40, 0], [34, 34], [0, 42], [-40, 38], [-38, 4], [-34, -34], [0, -40], [34, -34]],
+  tempo: 1.5, zasieg: 4.6, przerwa: 11,
+  teksty: [
+    'Edward Warchocki: dziki znowu zryły łąkę za płotem',
+    'Edward Warchocki: szopy tańczą przy ognisku, sam zobacz',
+    'Edward Warchocki: Waldek jeździ tu konno, odkąd pamiętam',
+    'Edward Warchocki: woda w Narwi dziś czysta, można nalać',
+  ],
+};
+
+let edward = null;
+
+function buildEdwarda() {
+  const g = buildPerson(0x8c2f2f, { mj: false });        // czerwona flanela
+
+  const kapelusz = new THREE.Group();
+  const filc = new THREE.MeshLambertMaterial({ color: 0x4a3d2c });
+  const rondo = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.02, 12), filc);
+  const glowka = new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.13, 0.14, 12), filc);
+  glowka.position.y = 0.08;
+  kapelusz.add(rondo, glowka);
+  kapelusz.position.set(0, 1.85, 0);
+  g.add(kapelusz);
+
+  const broda = new THREE.Mesh(new THREE.SphereGeometry(0.085, 8, 6),
+    new THREE.MeshLambertMaterial({ color: 0xc9c3b6 }));
+  broda.scale.set(0.85, 1.15, 0.6);
+  broda.position.set(0, 1.63, -0.1);
+  g.add(broda);
+
+  // laska w prawej ręce — trzymana pod kątem, jak przy spacerze
+  const laska = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.028, 1.15, 7),
+    new THREE.MeshLambertMaterial({ color: 0x7d5a34, map: textures.bark }));
+  laska.position.set(0.32, 0.6, -0.06);
+  laska.rotation.z = -0.12;
+  g.add(laska);
+
+  const tab = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 0.72),
+    new THREE.MeshBasicMaterial({ map: texImie('EDWARD WARCHOCKI'), transparent: true }));
+  tab.position.y = 2.45;
+  g.add(tab);
+
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  g.userData.tabliczka = tab;
+  g.userData.laska = laska;
+  return g;
+}
+
+function buildEdwarda_postaw() {
+  const g = buildEdwarda();
+  const [x, z] = EDWARD.trasa[0];
+  g.position.set(x, wysokoscPodlogi(x, z), z);
+  worldGroup.add(g);
+  edward = { obj: g, cel: 1, faza: 0, gada: 0, mowa: 0, staje: 0 };
+}
+
+function updateEdward(dt, t) {
+  if (!edward) return;
+  const e = edward, p = e.obj.position;
+  const blisko = Math.hypot(player.pos.x - p.x, player.pos.z - p.z) < EDWARD.zasieg;
+
+  if (blisko) {
+    // staje i obraca się do gracza; ręka idzie w górę na powitanie
+    e.obj.rotation.y = Math.atan2(player.pos.x - p.x, player.pos.z - p.z);
+    animPerson(e.obj, 0, false, false);
+    const l = e.obj.userData.limbs;
+    if (l) {
+      l.armL.rotation.x = -2.3;
+      l.armL.rotation.z = 0.3 + Math.sin(t * 7) * 0.3;   // machanie
+    } else {
+      // model ze szkieletem ma własny klip stania — machnięcie robimy
+      // kołysaniem całej sylwetki, bo kości nie ruszamy ręcznie
+      e.obj.rotation.z = Math.sin(t * 5) * 0.05;
+      e.obj.userData.laska.rotation.x = Math.sin(t * 5) * 0.25;
+    }
+    e.gada -= dt;
+    if (e.gada <= 0) {
+      e.gada = EDWARD.przerwa;
+      announce(EDWARD.teksty[e.mowa % EDWARD.teksty.length], '#ffd9a3', 3.4);
+      e.mowa++;
+      AudioSys.ui();
+    }
+  } else {
+    const [cx, cz] = EDWARD.trasa[e.cel];
+    const dx = cx - p.x, dz = cz - p.z;
+    const d = Math.hypot(dx, dz);
+    if (d < 1.1) {
+      e.cel = (e.cel + 1) % EDWARD.trasa.length;
+    } else {
+      p.x += dx / d * EDWARD.tempo * dt;
+      p.z += dz / d * EDWARD.tempo * dt;
+      p.y = wysokoscPodlogi(p.x, p.z);
+      e.obj.rotation.y = Math.atan2(dx, dz);
+    }
+    e.faza += dt * 4.6;
+    e.obj.rotation.z = 0;
+    animPerson(e.obj, e.faza, true, false);
+    e.gada = Math.min(e.gada, 1.2);          // po odejściu odzywa się szybciej
+  }
+
+  const tab = e.obj.userData.tabliczka;
+  tab.rotation.y = -e.obj.rotation.y + Math.atan2(camera.position.x - p.x, camera.position.z - p.z);
+}
+
+/* ================================================================
+   DZIKI — wataha dziesięciu sztuk na łące za posesją. Chodzą swoimi
+   drogami i ryją ryjem w ziemi, a kiedy podejdziesz za blisko, cała
+   wataha zrywa się i ucieka w przeciwną stronę.
+================================================================ */
+const DZIKI = { ile: 10, x: -118, z: -86, promien: 30, tempo: 1.25, ucieczka: 4.6, plosz: 11 };
+
+let dziki = [];
+
+function buildDzika(maly) {
+  const g = new THREE.Group();
+  const s = maly ? 0.55 : 1;
+  // Ciemniej, niż wygląda w kodzie: pełne słońce plus mapowanie tonów
+  // rozjaśnia sierść o dobre dwa tony i przy 0x3b332c dzik wychodził siwy.
+  const szczec = new THREE.MeshLambertMaterial({ color: maly ? 0x4a3722 : 0x191512 });
+  const ciemny = new THREE.MeshLambertMaterial({ color: 0x0d0b09 });
+  const kiel = new THREE.MeshLambertMaterial({ color: 0xe8e2d2 });
+
+  const tulow = new THREE.Mesh(new THREE.SphereGeometry(0.42, 10, 8), szczec);
+  tulow.scale.set(0.78, 0.86, 1.35);
+  tulow.position.y = 0.62;
+  // garb na karku — od niego dzik wygląda jak dzik, a nie jak świnia
+  const kark = new THREE.Mesh(new THREE.SphereGeometry(0.3, 9, 7), szczec);
+  kark.scale.set(0.72, 0.92, 0.62);
+  kark.position.set(0, 0.82, 0.3);
+  const glowa = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.62, 7), szczec);
+  glowa.rotation.x = Math.PI / 2 + 0.25;
+  glowa.position.set(0, 0.6, 0.72);
+  const ryj = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.1, 8), ciemny);
+  ryj.rotation.x = Math.PI / 2;
+  ryj.position.set(0, 0.46, 0.98);
+  for (const sx of [-1, 1]) {
+    const ucho = new THREE.Mesh(new THREE.ConeGeometry(0.075, 0.16, 5), ciemny);
+    ucho.position.set(sx * 0.13, 0.83, 0.52);
+    ucho.rotation.x = -0.3;
+    g.add(ucho);
+    const oko = new THREE.Mesh(new THREE.SphereGeometry(0.028, 5, 4),
+      new THREE.MeshBasicMaterial({ color: 0x0b0805 }));
+    oko.position.set(sx * 0.14, 0.68, 0.74);
+    g.add(oko);
+    if (!maly) {                                   // kły tylko u dorosłych
+      const k = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.16, 5), kiel);
+      k.position.set(sx * 0.08, 0.5, 0.92);
+      k.rotation.set(-0.5, 0, sx * 0.25);
+      g.add(k);
+    }
+  }
+  const ogon = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.024, 0.26, 5), ciemny);
+  ogon.position.set(0, 0.76, -0.56);
+  ogon.rotation.x = 0.5;
+
+  const nogi = [];
+  for (const [sx, sz] of [[-1, 0.42], [1, 0.42], [-1, -0.4], [1, -0.4]]) {
+    const noga = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.045, 0.5, 6), szczec);
+    noga.position.set(sx * 0.2, 0.26, sz);
+    const racica = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.055, 0.07, 6), ciemny);
+    racica.position.y = -0.28;
+    noga.add(racica);
+    g.add(noga);
+    nogi.push(noga);
+  }
+  g.add(tulow, kark, glowa, ryj, ogon);
+  if (maly) {                                      // warchlaki mają pasiaste grzbiety
+    for (let i = 0; i < 3; i++) {
+      const pas = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 0.9),
+        new THREE.MeshLambertMaterial({ color: 0xe0cfa8 }));
+      pas.position.set((i - 1) * 0.13, 0.94, 0.05);
+      g.add(pas);
+    }
+  }
+  g.scale.setScalar(s);
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  g.userData = { nogi, glowa, ryj };
+  return g;
+}
+
+function celDzika() {
+  for (let i = 0; i < 24; i++) {
+    const a = rng() * Math.PI * 2, r = Math.sqrt(rng()) * DZIKI.promien;
+    const x = DZIKI.x + Math.cos(a) * r, z = DZIKI.z + Math.sin(a) * r;
+    if (waterDepth(x, z) < -0.4) return { x, z };     // tylko sucha ziemia
+  }
+  return { x: DZIKI.x, z: DZIKI.z };
+}
+
+function buildDziki() {
+  dziki = [];
+  for (let i = 0; i < DZIKI.ile; i++) {
+    const maly = i >= 6;                             // sześć dorosłych, cztery warchlaki
+    const g = buildDzika(maly);
+    const p = celDzika();
+    g.position.set(p.x, wysokoscPodlogi(p.x, p.z), p.z);
+    g.rotation.y = rng() * Math.PI * 2;
+    worldGroup.add(g);
+    dziki.push({ obj: g, cel: celDzika(), faza: rng() * 7, postoj: rng() * 4, ucieka: 0, maly });
+  }
+}
+
+function updateDziki(dt, t) {
+  if (!dziki.length) return;
+  for (const d of dziki) {
+    const p = d.obj.position;
+    const odGracza = Math.hypot(player.pos.x - p.x, player.pos.z - p.z);
+    if (odGracza < DZIKI.plosz) d.ucieka = Math.max(d.ucieka, 2.6);
+
+    let idzie = false, tempo = DZIKI.tempo;
+    if (d.ucieka > 0) {
+      d.ucieka -= dt;
+      tempo = DZIKI.ucieczka;
+      const dx = p.x - player.pos.x, dz = p.z - player.pos.z;
+      const dl = Math.hypot(dx, dz) || 1;
+      d.cel = { x: p.x + dx / dl * 14, z: p.z + dz / dl * 14 };
+      idzie = true;
+    } else if (d.postoj > 0) {
+      d.postoj -= dt;                                // stoi i ryje ryjem w ziemi
+    } else {
+      idzie = true;
+    }
+
+    if (idzie) {
+      const dx = d.cel.x - p.x, dz = d.cel.z - p.z;
+      const dl = Math.hypot(dx, dz);
+      if (dl < 0.8) {
+        d.cel = celDzika();
+        d.postoj = 2 + rng() * 5;
+      } else {
+        p.x += dx / dl * tempo * dt;
+        p.z += dz / dl * tempo * dt;
+        p.y = wysokoscPodlogi(p.x, p.z);
+        const cel = Math.atan2(dx, dz);
+        let roz = cel - d.obj.rotation.y;
+        while (roz > Math.PI) roz -= Math.PI * 2;
+        while (roz < -Math.PI) roz += Math.PI * 2;
+        d.obj.rotation.y += roz * Math.min(1, dt * 4);
+      }
+    }
+
+    d.faza += dt * (idzie ? tempo * 4.4 : 1.2);
+    const u = d.obj.userData;
+    u.nogi.forEach((n, i) => {
+      n.rotation.x = idzie ? Math.sin(d.faza + i * 1.7) * 0.5 : 0;
+    });
+    // przy postoju łeb idzie w dół i szura po ziemi
+    u.glowa.rotation.x = Math.PI / 2 + 0.25 + (idzie ? Math.sin(d.faza * 0.5) * 0.06
+      : 0.32 + Math.sin(t * 3 + d.faza) * 0.1);
+  }
+}
+
+/* ================================================================
+   SZOPY PRACZE — pięć sztuk tańczy w kręgu wokół ogniska. Kiedy ogień
+   się pali, tańczą szybciej i podskakują wyżej.
+================================================================ */
+const SZOPY = { ile: 5, promien: 2.5 };
+
+let szopy = [];
+
+function buildSzopa() {
+  const g = new THREE.Group();
+  const futro = new THREE.MeshLambertMaterial({ color: 0x8b8d92 });
+  const ciemny = new THREE.MeshLambertMaterial({ color: 0x2a2724 });
+  const jasny = new THREE.MeshLambertMaterial({ color: 0xd9d5cc });
+
+  const cialo = new THREE.Mesh(new THREE.SphereGeometry(0.19, 9, 7), futro);
+  cialo.scale.set(1, 1.15, 0.85);
+  cialo.position.y = 0.34;
+  const glowa = new THREE.Mesh(new THREE.SphereGeometry(0.145, 9, 7), futro);
+  glowa.position.y = 0.62;
+  const pyszczek = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.13, 6), jasny);
+  pyszczek.rotation.x = Math.PI / 2;
+  pyszczek.position.set(0, 0.6, 0.15);
+  // maska na oczach — po niej poznać szopa
+  const maska = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.06, 0.06), ciemny);
+  maska.position.set(0, 0.65, 0.11);
+  for (const sx of [-1, 1]) {
+    const ucho = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.09, 5), futro);
+    ucho.position.set(sx * 0.09, 0.75, 0);
+    g.add(ucho);
+    const oko = new THREE.Mesh(new THREE.SphereGeometry(0.019, 5, 4),
+      new THREE.MeshBasicMaterial({ color: 0x0b0805 }));
+    oko.position.set(sx * 0.055, 0.66, 0.135);
+    g.add(oko);
+  }
+
+  // ogon w pierścienie: sześć naprzemiennych krążków
+  const ogon = new THREE.Group();
+  ogon.position.set(0, 0.34, -0.16);
+  for (let i = 0; i < 6; i++) {
+    const p = new THREE.Mesh(new THREE.CylinderGeometry(0.055 - i * 0.004, 0.06 - i * 0.004, 0.07, 7),
+      i % 2 ? ciemny : futro);
+    p.rotation.x = Math.PI / 2;
+    p.position.set(0, i * 0.045, -i * 0.055);
+    ogon.add(p);
+  }
+
+  const rece = [], nogi = [];
+  for (const sx of [-1, 1]) {
+    const reka = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.028, 0.24, 6), futro);
+    reka.geometry.translate(0, -0.12, 0);            // obrót od barku, nie od środka
+    reka.position.set(sx * 0.18, 0.5, 0);
+    g.add(reka); rece.push(reka);
+    const noga = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.035, 0.2, 6), ciemny);
+    noga.geometry.translate(0, -0.1, 0);
+    noga.position.set(sx * 0.1, 0.22, 0);
+    g.add(noga); nogi.push(noga);
+  }
+
+  g.add(cialo, glowa, pyszczek, maska, ogon);
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  g.userData = { rece, nogi, ogon, glowa, cialo };
+  return g;
+}
+
+function buildSzopy() {
+  szopy = [];
+  for (let i = 0; i < SZOPY.ile; i++) {
+    const a = (i / SZOPY.ile) * Math.PI * 2;
+    const x = OGNISKO.x + Math.cos(a) * SZOPY.promien;
+    const z = OGNISKO.z + Math.sin(a) * SZOPY.promien;
+    const g = buildSzopa();
+    g.position.set(x, wysokoscPodlogi(x, z), z);
+    worldGroup.add(g);
+    szopy.push({ obj: g, kat: a, faza: i * 1.25, bazaY: g.position.y });
+  }
+}
+
+function updateSzopy(dt, t) {
+  if (!szopy.length) return;
+  const pali = ognisko && ognisko.pali;
+  const tempo = pali ? 7.5 : 3.6;                    // przy ogniu taniec się rozkręca
+  const skok = pali ? 0.17 : 0.07;
+  for (const s of szopy) {
+    const u = s.obj.userData;
+    const f = t * tempo + s.faza;
+    // krąży wokół ogniska i cały czas patrzy w ogień
+    s.kat += dt * (pali ? 0.55 : 0.22);
+    const x = OGNISKO.x + Math.cos(s.kat) * SZOPY.promien;
+    const z = OGNISKO.z + Math.sin(s.kat) * SZOPY.promien;
+    s.obj.position.x = x;
+    s.obj.position.z = z;
+    s.bazaY = wysokoscPodlogi(x, z);
+    s.obj.position.y = s.bazaY + Math.abs(Math.sin(f)) * skok;
+    s.obj.rotation.y = Math.atan2(OGNISKO.x - x, OGNISKO.z - z) + Math.sin(f * 0.5) * 0.5;
+
+    // ręce w górę na przemian, kolana uginają się w rytm, ogon zamiata
+    u.rece[0].rotation.x = -2.2 + Math.sin(f) * 0.9;
+    u.rece[1].rotation.x = -2.2 - Math.sin(f) * 0.9;
+    u.rece[0].rotation.z = 0.35 + Math.sin(f * 2) * 0.25;
+    u.rece[1].rotation.z = -0.35 - Math.sin(f * 2) * 0.25;
+    u.nogi[0].rotation.x = Math.sin(f) * 0.55;
+    u.nogi[1].rotation.x = -Math.sin(f) * 0.55;
+    u.ogon.rotation.z = Math.sin(f * 0.8) * 0.5;
+    u.glowa.rotation.z = Math.sin(f * 0.5) * 0.3;
+    u.cialo.rotation.z = Math.sin(f) * 0.12;
   }
 }
 
@@ -9020,6 +9390,7 @@ function disposeWorld() {
   kajaki = []; wKajaku = null;
   koparka = null; wKoparce = false;
   ognisko = null; lopata = null; waldek = null;
+  edward = null; dziki = []; szopy = [];
   Kod.panel = null; Kod.aktywny = false; Kod.ok = false; Kod.wpis = '';
   Kopanie.reset();                         // wykopy giną razem ze światem
   NAREBLOX.stop3d();                       // scenka 3D znika razem z telewizorem
@@ -9086,6 +9457,9 @@ function buildWorld(seed) {
   buildKoparke();
   buildKajaki();
   buildSquirrels();
+  buildEdwarda_postaw();
+  buildDziki();
+  buildSzopy();
   buildGrass();
 
   buildLozko();
@@ -10749,6 +11123,9 @@ function animate() {
     updateOgnisko(dt, t);
     updateLopate(dt);
     updateWaldek(dt, t);
+    updateEdward(dt, t);
+    updateDziki(dt, t);
+    updateSzopy(dt, t);
     Kod.tick(dt);
 
     // cień słońca chodzi za graczem — mapa cieni jest mała, ale ostra
