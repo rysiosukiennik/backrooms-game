@@ -335,30 +335,10 @@
     Zamknij tę kartę i uruchom grę plikiem <b>GRAJ.bat</b> z folderu Clajude.<br>
     <span style="font-size:14px;opacity:.85">On sam włącza serwer i otwiera właściwy adres.</span></div>
   <div class="controls">
-    <b>MYSZ</b> rozglądanie (lub przytrzymaj <b>LPM</b>) • <b>STRZAŁKI</b> też obracają<br>
-    <b>WASD</b> ruch • <b>SHIFT</b> sprint • <b>SPACJA</b> skok • <b>M</b> mapa<br>
-    <b>2× SPACJA</b> włącza lot (<b>SPACJA</b> w górę, <b>CTRL</b> w dół) • <b>O</b> kamera zza pleców, <b>I</b> z oczu<br>
-    <b>P</b> rozsuwa szklaną ścianę kloca — można wejść do środka • <b>X</b> głaszcze wiewiórkę na drzewie<br>
-    <b>N</b> otwiera NAREWFLIX, <b>Y</b> — NAREWKĘ z filmami z YouTube (<b>L</b> wkleja własny link)<br>
-    <b>B</b> otwiera NAREBLOX — jedenaście gier (<b>1–9</b>, <b>0</b> i <b>−</b> wybór, <b>R</b> od nowa, <b>ESC</b> wyjście)<br>
-    W pokoju wieloosobowym <b>0</b> i <b>−</b> to jedna wspólna rozgrywka, a w pozostałych
-    widać duchy współgraczy i ich wyniki<br>
-    Dwie ostatnie są w 3D: <b>0</b> — <b>SZPITAL ZWIERZĄT</b> (przy recepcji <b>SPACJA</b> wpuszcza,
-    <b>Q</b> opuszcza roletę przed anomalią), <b>−</b> — <b>MINI WAR</b> (<b>SPACJA</b> buduje i zdobywa teren)<br>
-    W NAREWCE w prawym dolnym rogu jest <b>PRYWATNE</b> — półka na własne linki, otwierana hasłem<br>
-    <b>J</b> otwiera <b>NAREWIFY</b> — muzyka z tej samej półki, gra bez obrazu (<b>1–7</b> wybór utworu)<br>
-    W klocu na podłodze leży butelka: <b>E</b> podnosi, <b>Q</b> nabiera wody z Narwi, <b>G</b> pije<br>
-    Na brzegu Narwi leżą trzy <b>kajaki</b>: <b>E</b> wsiada, <b>W/S</b> wiosłuje, <b>A/D</b> skręca<br>
-    Przy wiacie stoi <b>koparka</b>: <b>E</b> wsiada, <b>W/S</b> jazda, <b>A/D</b> skręt gąsienicami,
-    <b>↑↓</b> wysięgnik, <b>←→</b> obrót kabiny, <b>SPACJA</b> nabiera łyżką — ziemi naprawdę ubywa,
-    a z urobku rosną kopczyki<br>
-    Obok stoi <b>ognisko</b> — <b>E</b> rozpala i gasi<br>
-    Łóżko w klocu: wejdź i śpij klawiszem <b>F</b> • w Narwi stoi Jan Sukiennik — <b>R</b> wystrzeliwuje w górę<br>
-    Świecąca płyta w klocu: <b>T</b> teleportuje nad Narew i z powrotem<br>
-    Filmy wybiera się klawiszami <b>1–8</b> albo celując w ekran i klikając <b>LPM</b><br>
-    Za klocem wzgórze z ogródkiem. Bramą na wschód wychodzisz nad Narew — koryto rzeki,
-    starorzecze i rowy odwzorowane z map OpenStreetMap dla Gzowa. W rzece można pływać.<br>
+    <b>WASD</b> ruch • <b>MYSZ</b> rozglądanie • <b>P</b> otwiera szklaną ścianę kloca<br>
+    Pełne sterowanie wisi na tablicy w środku kloca, obok telewizora.<br>
     <span style="font-size:14px;opacity:.75">Dane terenu: © współtwórcy OpenStreetMap, licencja ODbL</span>
+  </div>
   </div>
 </div>
 
@@ -5349,6 +5329,90 @@ function buildWiate() {
 }
 
 /* ================================================================
+   TABLICA W KLOCU — całe sterowanie wisi na ścianie obok telewizora,
+   zamiast zasypywać nim menu startowe. Rysowana na płótnie, więc
+   napisy są ostre i łatwo je poprawić razem z resztą gry.
+================================================================ */
+const TABLICA_TRESC = [
+  ['CHODZENIE', [
+    ['WASD', 'ruch'], ['MYSZ / STRZAŁKI', 'rozglądanie'], ['SHIFT', 'sprint'],
+    ['SPACJA', 'skok'], ['2× SPACJA', 'lot — SPACJA w górę, CTRL w dół'],
+    ['O / I', 'kamera zza pleców albo z oczu'], ['M', 'mapa'],
+  ]],
+  ['NA POSESJI', [
+    ['P', 'rozsuwa szklaną ścianę kloca'], ['E', 'butelka z podłogi'],
+    ['Q / G', 'nabiera wody z Narwi / pije'], ['F', 'sen w łóżku'],
+    ['T', 'teleport ze świecącej płyty'], ['X', 'głaskanie wiewiórki'],
+    ['R', 'Jan w Narwi wystrzeliwuje w górę'],
+  ]],
+  ['MASZYNY', [
+    ['E', 'wsiadka i wysiadka'],
+    ['KAJAK', 'W/S wiosłuje, A/D skręca'],
+    ['KOPARKA', 'W/S jazda, A/D skręt, ←→ kabina'],
+    ['↑ ↓ / Q Z', 'wysięgnik i ramię koparki'],
+    ['SPACJA', 'nabiera łyżką i wysypuje — ziemi ubywa'],
+    ['OGNISKO', 'E rozpala i gasi'],
+  ]],
+  ['TELEWIZOR', [
+    ['N / Y', 'NAREWFLIX / NAREWKA'], ['J', 'NAREWIFY — muzyka'],
+    ['B', 'NAREBLOX — jedenaście gier'],
+    ['1–9, 0, −', 'wybór gry, R od nowa, ESC wyjście'],
+    ['0 i −', 'w pokoju: wspólna rozgrywka'],
+    ['PRYWATNE', 'półka na własne linki, na hasło'],
+  ]],
+];
+
+function texTablica() {
+  const c = document.createElement('canvas');
+  c.width = 1024; c.height = 640;
+  const x = c.getContext('2d');
+  x.fillStyle = '#151a20'; x.fillRect(0, 0, 1024, 640);
+  x.strokeStyle = '#3a4653'; x.lineWidth = 8; x.strokeRect(8, 8, 1008, 624);
+  x.fillStyle = '#fff';
+  x.font = 'bold 40px Arial Black, Arial, sans-serif';
+  x.fillText('STEROWANIE', 40, 74);
+  x.fillStyle = '#8fd8ff'; x.font = 'bold 17px Arial, sans-serif';
+  x.fillText('NAREW · posesja nad Narwią', 330, 72);
+
+  const kol = [40, 530];
+  let ky = [104, 104];
+  TABLICA_TRESC.forEach((sekcja, i) => {
+    const k = i % 2;
+    let y = ky[k];
+    x.fillStyle = '#ffd24a'; x.font = 'bold 21px Arial, sans-serif';
+    x.fillText(sekcja[0], kol[k], y);
+    y += 12;
+    x.font = 'bold 16px Arial, sans-serif';
+    for (const [klawisz, opis] of sekcja[1]) {
+      y += 25;
+      x.fillStyle = '#2a333d'; x.fillRect(kol[k], y - 16, 150, 22);
+      x.fillStyle = '#fff'; x.font = 'bold 15px Arial, sans-serif';
+      x.fillText(klawisz.slice(0, 16), kol[k] + 8, y);
+      x.fillStyle = 'rgba(255,255,255,.82)'; x.font = '15px Arial, sans-serif';
+      x.fillText(opis, kol[k] + 162, y);
+    }
+    ky[k] = y + 44;
+  });
+  const t = new THREE.CanvasTexture(c);
+  t.encoding = THREE.sRGBEncoding;
+  return t;
+}
+
+function buildTablice() {
+  const hd = CFG.blockD / 2, wt = CFG.wallThick;
+  const g = new THREE.Group();
+  // kloc ma 6,2 m wysokości, więc tablica musi zmieścić się pod stropem
+  const rama = new THREE.Mesh(new THREE.BoxGeometry(8.8, 5.5, 0.16),
+    new THREE.MeshLambertMaterial({ color: 0x2b3138 }));
+  const plansza = new THREE.Mesh(new THREE.PlaneGeometry(8.4, 5.15),
+    new THREE.MeshBasicMaterial({ map: texTablica() }));
+  plansza.position.z = 0.1;
+  g.add(rama, plansza);
+  g.position.set(-15.5, 3.05, -hd + wt + 0.05);  // tylna ściana, po lewej od telewizora
+  worldGroup.add(g);
+}
+
+/* ================================================================
    OGNISKO — palenisko przy wiacie, rozpala się [E].
    Płomienie to kilka stożków, które drgają i obracają się w innym
    rytmie, więc ogień nigdy nie wygląda dwa razy tak samo. Światło
@@ -5629,28 +5693,44 @@ function jedzKoparka(dt, fwd, str) {
   if (keys.ArrowRight) k.obrotKabiny -= 0.9 * dt;
   if (keys.ArrowUp) k.katW = Math.max(-1.0, k.katW - 0.8 * dt);
   if (keys.ArrowDown) k.katW = Math.min(0.25, k.katW + 0.8 * dt);
-  if (keys.Space) { k.katR = Math.min(1.5, k.katR + 1.1 * dt); k.katL = Math.min(1.5, k.katL + 1.4 * dt); }
-  else { k.katR = Math.max(0.35, k.katR - 0.9 * dt); k.katL = Math.max(0.1, k.katL - 1.0 * dt); }
+  // Ramię ustawia się osobno: W/S wysięgnikiem, a łyżka sama zwija się
+  // podczas nabierania. Wcześniej SPACJA robiła jedno i drugie naraz, więc
+  // zęby wyskakiwały z ziemi dokładnie wtedy, kiedy miały kopać.
+  if (keys.KeyQ) k.katR = Math.min(1.6, k.katR + 1.0 * dt);
+  if (keys.KeyZ) k.katR = Math.max(0.2, k.katR - 1.0 * dt);
+  if (k.zgarnia > 0) {                       // krótki ruch łyżki przy nabieraniu
+    k.zgarnia -= dt;
+    k.katL = Math.min(1.5, k.katL + 3.2 * dt);
+  } else {
+    k.katL = Math.max(k.pelna ? 1.1 : 0.1, k.katL - 1.2 * dt);
+  }
 
   // Zęby w ziemi i zwinięta łyżka = wybieranie urobku. Ziemi naprawdę ubywa:
   // wykop wchodzi do wysokości terenu, więc zaraz potem czuć go pod nogami.
   const gl = koncowkaLyzki();
   const podlozeY = groundHeight(gl.x, gl.z);
   k.chlod = Math.max(0, (k.chlod || 0) - dt);
-  if (keys.Space && !k.pelna && gl.y < podlozeY + 0.15 && k.chlod <= 0) {
-    k.chlod = 0.45;
-    if (Kopanie.zmien(gl.x, gl.z, 1.7, -0.42)) {
-      k.pelna = true;
-      AudioSys.burst(160, 0.5, 0.45, 0.2, 'lowpass', 600);
-    } else if (!k.ostrzezone) {
-      k.ostrzezone = true;
-      announce('🚧 Kopać można tylko na posesji', '#ffb877', 3);
+  k.przySpacji = k.przySpacji || false;
+  const stuk = keys.Space && !k.przySpacji;   // liczy się naciśnięcie, nie trzymanie
+  k.przySpacji = !!keys.Space;
+
+  if (stuk && k.chlod <= 0) {
+    k.chlod = 0.35;
+    if (!k.pelna && gl.y < podlozeY + 0.45) {
+      if (Kopanie.zmien(gl.x, gl.z, 1.7, -0.42)) {
+        k.pelna = true;
+        k.zgarnia = 0.45;
+        AudioSys.burst(160, 0.5, 0.45, 0.2, 'lowpass', 600);
+      } else {
+        announce('🚧 Kopać można tylko na posesji', '#ffb877', 3);
+      }
+    } else if (k.pelna) {
+      k.pelna = false;                       // wysyp tam, gdzie akurat wisi łyżka
+      Kopanie.zmien(gl.x, gl.z, 2.2, 0.3);
+      AudioSys.burst(120, 0.4, 0.5, 0.18, 'lowpass', 500);
+    } else {
+      announce('🪣 Opuść łyżkę do ziemi — [↓] wysięgnik, [Z] ramię do siebie', '#ffd9a3', 2.8);
     }
-  }
-  if (k.pelna && k.katL < 0.3 && gl.y > podlozeY + 1.2) {
-    k.pelna = false;                       // wysypanie przy opuszczonej łyżce wysoko
-    Kopanie.zmien(gl.x, gl.z, 2.2, 0.3);   // z urobku rośnie kopczyk
-    AudioSys.burst(120, 0.4, 0.5, 0.18, 'lowpass', 500);
   }
   k.urobek.visible = k.pelna;
 
@@ -8655,6 +8735,7 @@ function buildWorld(seed) {
   buildFence();
   buildTrees();
   buildWiate();
+  buildTablice();
   buildOgnisko();
   buildKoparke();
   buildKajaki();
@@ -9725,7 +9806,7 @@ document.addEventListener('keydown', e => {
     // E: najpierw ekran telewizora, a jeśli nie celujemy — butelka z podłogi
     if (e.code === 'KeyE' && !klikniecieWTV() && !uzyjOgniska() && !uzyjKoparki() && !uzyjKajaka())
       podniesButelke();
-    if (e.code === 'KeyQ') nalejWode();
+    if (e.code === 'KeyQ' && !wKoparce) nalejWode();   // w koparce Q steruje ramieniem
     if (e.code === 'KeyG') wypijWode();
     if (e.code === 'KeyF') idzSpac();
     if (e.code === 'KeyR') zacznijOdliczanie();
