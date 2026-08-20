@@ -5548,10 +5548,10 @@ function buildKonia() {
   return g;
 }
 
-/* Samodziałowe płótno na ubrania Waldka i Edwarda. Rysowane, nie ściągane:
-   gotowe skiny wieśniaków z sieci to czyjeś prace, a gra stoi na publicznej
-   stronie. Splot, przetarcia i naszyte łaty robimy tu z szumu i prostokątów. */
-function texLen(baza, laty) {
+/* Zapasowe płótno na ubrania Waldka i Edwarda — rysowane splotem, łatami
+   i przetarciami. Wchodzi tylko wtedy, gdy zabraknie zdjęć z folderu
+   tekstury/ (len, sukno i skóra z ambientCG, licencja CC0). */
+function plotnoLen(baza, laty) {
   const c = document.createElement('canvas');
   c.width = 128; c.height = 128;
   const x = c.getContext('2d');
@@ -5575,18 +5575,20 @@ function texLen(baza, laty) {
     x.strokeRect(px + 1.5, py + 1.5, w - 3, h - 3);
     x.setLineDash([]);
   }
-  const t = new THREE.CanvasTexture(c);
-  t.encoding = THREE.sRGBEncoding;
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  return t;
+  return c;
 }
 
 /* wiejski przyodziewek nakładany na model postaci: kamizela, łaty na
    nogawkach i buty z cholewami */
 function ubierzPoWiejsku(g, kolorKamizeli, kolorSpodni) {
-  const plotno = new THREE.MeshLambertMaterial({ color: kolorKamizeli, map: texLen('#b9a880', 3) });
-  const spodnie = new THREE.MeshLambertMaterial({ color: kolorSpodni, map: texLen('#8d7c5c', 2) });
-  const skora = new THREE.MeshLambertMaterial({ color: 0x4a3524, map: textures.bark });
+  // zdjęcia tkanin z ambientCG (CC0): zgrzebny len na kamizelę, gładsze
+  // sukno na portki i wyprawiona skóra na pas i buty
+  const plotno = new THREE.MeshLambertMaterial({ color: kolorKamizeli,
+    map: klonFoto(textures.len, 2, 2) });
+  const spodnie = new THREE.MeshLambertMaterial({ color: kolorSpodni,
+    map: klonFoto(textures.sukno, 2, 2) });
+  const skora = new THREE.MeshLambertMaterial({ color: 0x8a6a4c,
+    map: klonFoto(textures.skora, 1, 1) });
 
   const kamizela = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.6, 0.34), plotno);
   kamizela.position.set(0, 1.22, 0);
@@ -5608,13 +5610,14 @@ function ubierzPoWiejsku(g, kolorKamizeli, kolorSpodni) {
 
 function buildWaldka() {
   const g = buildPerson(0x4f7a3a, { mj: false });      // zielona kurtka, bez stroju scenicznego
-  ubierzPoWiejsku(g, 0x6d7a4a, 0x5b4a34);              // wiejska kamizela i łatane portki
+  ubierzPoWiejsku(g, 0x4d5c2e, 0x3d3226);              // wiejska kamizela i łatane portki
   const czapka = new THREE.Group();
+  const sukno = klonFoto(textures.sukno, 1, 1);
   const daszek = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.03, 0.12),
-    new THREE.MeshLambertMaterial({ color: 0x2f3a2a }));
+    new THREE.MeshLambertMaterial({ color: 0x55603f, map: sukno }));
   daszek.position.set(0, 0, 0.12);       // model postaci patrzy w +z
   const czubek = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 6),
-    new THREE.MeshLambertMaterial({ color: 0x3d4a34 }));
+    new THREE.MeshLambertMaterial({ color: 0x66714a, map: klonFoto(textures.sukno, 1, 1) }));
   czubek.scale.y = 0.55;
   czapka.add(daszek, czubek);
   czapka.position.set(0, 1.86, 0);
@@ -6826,10 +6829,10 @@ let edward = null;
 
 function buildEdwarda() {
   const g = buildPerson(0x8c2f2f, { mj: false });        // czerwona flanela
-  ubierzPoWiejsku(g, 0x7d5a3a, 0x4a4335);                // ta sama wiejska odzież co u Waldka
+  ubierzPoWiejsku(g, 0x5a4029, 0x36302a);                // ta sama wiejska odzież co u Waldka
 
   const kapelusz = new THREE.Group();
-  const filc = new THREE.MeshLambertMaterial({ color: 0x4a3d2c });
+  const filc = new THREE.MeshLambertMaterial({ color: 0x6a5a42, map: klonFoto(textures.sukno, 1, 1) });
   const rondo = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.02, 12), filc);
   const glowka = new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.13, 0.14, 12), filc);
   glowka.position.y = 0.08;
@@ -10306,6 +10309,10 @@ function buildWorld(seed) {
   textures.dirt = tex(texDirt(), 1, 1);
   textures.dzins = tex(texDzins(), 2, 3);
   textures.tkanina = foto('tkanina.jpg', 2, 2, texTkanina);
+  // ubrania Waldka i Edwarda: len, sukno i skóra (ambientCG, CC0)
+  textures.len = foto('len.jpg', 2, 2, () => plotnoLen('#b9a880', 3));
+  textures.sukno = foto('sukno.jpg', 2, 2, () => plotnoLen('#8d7c5c', 2));
+  textures.skora = foto('skora.jpg', 1, 1, () => plotnoLen('#6b4a30', 0));
 
   const aniso = renderer.capabilities.getMaxAnisotropy();
   for (const k in textures) if (textures[k].anisotropy !== undefined) textures[k].anisotropy = aniso;
