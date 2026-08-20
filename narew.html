@@ -4845,7 +4845,11 @@ function wystrzel() {
 /* ================================================================
    TELEPORT — płyta w klocu przenosi nad Narew do Jana i z powrotem [T]
 ================================================================ */
-const teleport = { pad: null, pierscien: null, x: 12, z: -14, r: 1.9, powrot: null };
+const teleport = {
+  pad: null, pierscien: null, x: 12, z: -14, r: 1.9, powrot: null,
+  // druga płyta, nad Narwią przy Janie — żeby powrót miał swoje miejsce
+  padNarew: null, pierscienNarew: null, nx: 0, nz: 0,
+};
 
 function buildTeleport() {
   const g = new THREE.Group();
@@ -4870,9 +4874,57 @@ function buildTeleport() {
   teleport.pierscien = pierscien;
 }
 
+/* bliźniacza płyta nad Narwią, na brzegu przy Janie */
+function buildTeleportNarew() {
+  let [x, z] = brzegPrzyJanie();
+  // brzeg wypada dokładnie na linii wody — cofamy płytę kilka metrów w górę
+  // skarpy, żeby stała na suchym, a nie po kostki w Narwi
+  const dx = -jan.x, dz = -jan.z;
+  const d = Math.hypot(dx, dz) || 1;
+  for (let k = 0; k < 30; k += 0.5) {
+    const px = x + dx / d * k, pz = z + dz / d * k;
+    if (waterDepth(px, pz) < -0.8) { x = px; z = pz; break; }
+  }
+  teleport.nx = x; teleport.nz = z;
+
+  const g = new THREE.Group();
+  g.position.set(x, wysokoscPodlogi(x, z) + 0.07, z);
+
+  const plyta = new THREE.Mesh(new THREE.CylinderGeometry(teleport.r, teleport.r, 0.06, 32),
+    new THREE.MeshPhongMaterial({ color: 0x0d2b38, emissive: 0x0b3a4a, shininess: 90 }));
+  const swiatlo = new THREE.Mesh(new THREE.CylinderGeometry(teleport.r * 0.82, teleport.r * 0.82, 0.075, 32),
+    new THREE.MeshBasicMaterial({ color: 0x39d4ff, transparent: true, opacity: 0.55 }));
+  const pierscien = new THREE.Mesh(new THREE.TorusGeometry(teleport.r * 0.9, 0.055, 8, 40),
+    new THREE.MeshBasicMaterial({ color: 0x8ff0ff }));
+  pierscien.rotation.x = Math.PI / 2;
+  pierscien.position.y = 0.14;
+  const slup = new THREE.Mesh(new THREE.CylinderGeometry(teleport.r * 0.55, teleport.r * 0.75, 2.6, 20, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0x39d4ff, transparent: true, opacity: 0.13,
+      side: THREE.DoubleSide, depthWrite: false }));
+  slup.position.y = 1.35;
+  // słupek z tabliczką, żeby płytę było widać z wody
+  const maszt = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 2.4, 8),
+    new THREE.MeshPhongMaterial({ color: 0x2a3138, shininess: 40 }));
+  maszt.position.set(teleport.r * 0.85, 1.2, 0);
+  const tab = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 0.55),
+    new THREE.MeshBasicMaterial({ map: texImie('TELEPORT'), transparent: true,
+      side: THREE.DoubleSide }));
+  tab.position.set(teleport.r * 0.85, 2.5, 0);
+
+  g.add(plyta, swiatlo, pierscien, slup, maszt, tab);
+  worldGroup.add(g);
+  teleport.padNarew = g;
+  teleport.pierscienNarew = pierscien;
+}
+
 function naTeleporcie() {
   return teleport.pad &&
     Math.hypot(player.pos.x - teleport.x, player.pos.z - teleport.z) < teleport.r;
+}
+
+function naTeleporcieNarew() {
+  return teleport.padNarew &&
+    Math.hypot(player.pos.x - teleport.nx, player.pos.z - teleport.nz) < teleport.r;
 }
 
 /* brzeg przy Janie: schodzimy od niego w stronę posesji, aż będzie płytko */
@@ -4902,9 +4954,12 @@ function przenies(x, z, opis) {
 
 function uzyjTeleportu() {
   if (naTeleporcie()) {
-    const [x, z] = brzegPrzyJanie();
     teleport.powrot = { x: teleport.x, z: teleport.z };
-    przenies(x, z, '⚡ Teleport nad Narew — do Jana');
+    przenies(teleport.nx, teleport.nz, '⚡ Teleport nad Narew — do Jana');
+    return;
+  }
+  if (naTeleporcieNarew()) {
+    przenies(teleport.x, teleport.z + 3, '⚡ Powrót do kloca');
     return;
   }
   if (przyJanie() || (teleport.powrot &&
@@ -4916,9 +4971,11 @@ function uzyjTeleportu() {
 }
 
 function updateTeleport(dt, t) {
-  if (!teleport.pierscien) return;
-  teleport.pierscien.rotation.z = t * 1.2;
-  teleport.pierscien.position.y = 0.14 + Math.sin(t * 2.2) * 0.06;
+  for (const p of [teleport.pierscien, teleport.pierscienNarew]) {
+    if (!p) continue;
+    p.rotation.z = t * 1.2;
+    p.position.y = 0.14 + Math.sin(t * 2.2) * 0.06;
+  }
 }
 
 /* ================================================================
@@ -5491,12 +5548,71 @@ function buildKonia() {
   return g;
 }
 
+/* Samodziałowe płótno na ubrania Waldka i Edwarda. Rysowane, nie ściągane:
+   gotowe skiny wieśniaków z sieci to czyjeś prace, a gra stoi na publicznej
+   stronie. Splot, przetarcia i naszyte łaty robimy tu z szumu i prostokątów. */
+function texLen(baza, laty) {
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 128;
+  const x = c.getContext('2d');
+  x.fillStyle = baza; x.fillRect(0, 0, 128, 128);
+  // splot: naprzemienne nitki wątku i osnowy
+  for (let i = 0; i < 128; i += 2) {
+    x.fillStyle = 'rgba(0,0,0,.07)'; x.fillRect(i, 0, 1, 128);
+    x.fillStyle = 'rgba(255,255,255,.05)'; x.fillRect(0, i, 128, 1);
+  }
+  for (let i = 0; i < 900; i++) {                    // przetarcia i zabrudzenia
+    const a = Math.random();
+    x.fillStyle = a > 0.5 ? 'rgba(0,0,0,.10)' : 'rgba(255,255,255,.07)';
+    x.fillRect(Math.random() * 128 | 0, Math.random() * 128 | 0, 2, 2);
+  }
+  for (let i = 0; i < (laty || 0); i++) {            // naszyte łaty ze ściegiem
+    const px = 12 + Math.random() * 84, py = 12 + Math.random() * 84;
+    const w = 22 + Math.random() * 18, h = 18 + Math.random() * 16;
+    x.fillStyle = 'rgba(0,0,0,.22)'; x.fillRect(px, py, w, h);
+    x.strokeStyle = 'rgba(240,232,210,.6)';
+    x.lineWidth = 1.5; x.setLineDash([3, 4]);
+    x.strokeRect(px + 1.5, py + 1.5, w - 3, h - 3);
+    x.setLineDash([]);
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.encoding = THREE.sRGBEncoding;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+/* wiejski przyodziewek nakładany na model postaci: kamizela, łaty na
+   nogawkach i buty z cholewami */
+function ubierzPoWiejsku(g, kolorKamizeli, kolorSpodni) {
+  const plotno = new THREE.MeshLambertMaterial({ color: kolorKamizeli, map: texLen('#b9a880', 3) });
+  const spodnie = new THREE.MeshLambertMaterial({ color: kolorSpodni, map: texLen('#8d7c5c', 2) });
+  const skora = new THREE.MeshLambertMaterial({ color: 0x4a3524, map: textures.bark });
+
+  const kamizela = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.6, 0.34), plotno);
+  kamizela.position.set(0, 1.22, 0);
+  const kolnierz = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.09, 0.3), plotno);
+  kolnierz.position.set(0, 1.53, 0);
+  const pas = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.09, 0.37), skora);
+  pas.position.set(0, 0.94, 0);
+  g.add(kamizela, kolnierz, pas);
+
+  for (const sx of [-1, 1]) {
+    const nogawka = new THREE.Mesh(new THREE.BoxGeometry(0.21, 0.5, 0.24), spodnie);
+    nogawka.position.set(sx * 0.12, 0.65, 0);
+    const but = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.32, 0.3), skora);
+    but.position.set(sx * 0.12, 0.24, 0.03);
+    g.add(nogawka, but);
+  }
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+}
+
 function buildWaldka() {
   const g = buildPerson(0x4f7a3a, { mj: false });      // zielona kurtka, bez stroju scenicznego
+  ubierzPoWiejsku(g, 0x6d7a4a, 0x5b4a34);              // wiejska kamizela i łatane portki
   const czapka = new THREE.Group();
   const daszek = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.03, 0.12),
     new THREE.MeshLambertMaterial({ color: 0x2f3a2a }));
-  daszek.position.set(0, 0, -0.12);
+  daszek.position.set(0, 0, 0.12);       // model postaci patrzy w +z
   const czubek = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 6),
     new THREE.MeshLambertMaterial({ color: 0x3d4a34 }));
   czubek.scale.y = 0.55;
@@ -5506,17 +5622,17 @@ function buildWaldka() {
 
   const wasy = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.03, 0.03),
     new THREE.MeshLambertMaterial({ color: 0x4a3a28 }));
-  wasy.position.set(0, 1.71, -0.11);
+  wasy.position.set(0, 1.71, 0.11);
   g.add(wasy);
 
   // papieros w kąciku ust — cienki wałek z żarzącym się końcem
   const pap = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.11, 6),
     new THREE.MeshLambertMaterial({ color: 0xefe9dc }));
   pap.rotation.set(1.35, 0, 0.25);
-  pap.position.set(0.045, 1.68, -0.15);
+  pap.position.set(0.045, 1.68, 0.15);
   const zar = new THREE.Mesh(new THREE.SphereGeometry(0.014, 6, 5),
     new THREE.MeshBasicMaterial({ color: 0xff6a2c }));
-  zar.position.set(0.055, 1.665, -0.2);
+  zar.position.set(0.055, 1.665, 0.2);
   g.add(pap, zar);
   g.userData.zar = zar;
   return g;
@@ -5548,7 +5664,9 @@ function updateWaldek(dt, t) {
     w.obj.position.x += dx / d * 2.6 * dt;
     w.obj.position.z += dz / d * 2.6 * dt;
     w.obj.position.y = wysokoscPodlogi(w.obj.position.x, w.obj.position.z);
-    w.obj.rotation.y = Math.atan2(dx, dz) + Math.PI;
+    // koń i jeździec patrzą w +z, więc jedziemy dokładnie w stronę celu —
+    // z dodatkowym π koń szedł tyłem, zadem naprzód
+    w.obj.rotation.y = Math.atan2(dx, dz);
   }
   w.faza += dt * (idzie ? 7 : 1.6);
   w.kon.userData.nogi.forEach((n, i) => {
@@ -5685,6 +5803,8 @@ const TABLICA_TRESC = [
     ['Q / G', 'nabiera wody z Narwi / pije'], ['F', 'sen w łóżku'],
     ['T', 'teleport ze świecącej płyty'], ['X', 'głaskanie wiewiórki'],
     ['R', 'Jan w Narwi wystrzeliwuje w górę'],
+    ['KANAPA', 'E sadza obok mokrego Jana — rolki Edwarda na telefonie'],
+    ['SKUTER', 'E na wodzie — fale unoszą kajaki'],
     ['EDWARD WARCHOCKI', 'chodzi po posesji — stań przy nim'],
     ['DZIKI', 'wataha na łące na północny zachód, płoszy się'],
     ['SZOPY', 'tańczą przy ognisku, przy ogniu szybciej'],
@@ -6286,16 +6406,19 @@ function plynKajakiem(dt, fwd, str) {
   }
 
   player.pos.set(k.x, 0, k.z);
-  player.y = CFG.waterY - 0.14;
+  player.y = CFG.waterY - 0.14 + Fale.wysokosc(k.x, k.z);   // fala podnosi też wioślarza
   player.velY = 0;
 }
 
 function updateKajaki(dt, t) {
   for (const k of kajaki) {
+    // fala od skutera: podnosi kadłub i przechyla go zgodnie z nachyleniem grzbietu
+    const fh = Fale.wysokosc(k.x, k.z);
+    const [gx, gz] = fh !== 0 ? Fale.nachylenie(k.x, k.z) : [0, 0];
     if (k === wKajaku) {
-      k.obj.position.set(k.x, CFG.waterY - 0.06 + Math.sin(t * 1.8) * 0.03, k.z);
-      k.obj.rotation.set(Math.sin(t * 1.3) * 0.02 - k.v * 0.008,
-        k.kat + Math.PI, Math.sin(t * 1.7) * 0.025);
+      k.obj.position.set(k.x, CFG.waterY - 0.06 + fh + Math.sin(t * 1.8) * 0.03, k.z);
+      k.obj.rotation.set(Math.sin(t * 1.3) * 0.02 - k.v * 0.008 - gz * 1.7,
+        k.kat + Math.PI, Math.sin(t * 1.7) * 0.025 + gx * 1.7);
       const w = k.obj.userData.wioslo;
       const macha = Math.abs(k.v) > 0.35 || keys.KeyW || keys.KeyS;
       w.rotation.z = macha ? Math.sin(k.faza) * 0.95 : -0.15;
@@ -6303,10 +6426,267 @@ function updateKajaki(dt, t) {
       w.position.y = 0.78 + (macha ? Math.abs(Math.cos(k.faza)) * 0.1 : 0);
     } else {
       k.faza += dt * 0.6;
-      k.obj.position.y = CFG.waterY - 0.06 + Math.sin(t * 1.4 + k.faza) * 0.035;
-      k.obj.rotation.z = Math.sin(t * 1.1 + k.faza) * 0.03;
+      k.obj.position.y = CFG.waterY - 0.06 + fh + Math.sin(t * 1.4 + k.faza) * 0.035;
+      k.obj.rotation.x = -gz * 1.7;
+      k.obj.rotation.z = Math.sin(t * 1.1 + k.faza) * 0.03 + gx * 1.7;
+      // pusty kajak dryfuje z falą — grzbiet spycha go na zewnątrz kręgu
+      if (fh > 0.01) {
+        k.x += gx * -2.4 * dt;
+        k.z += gz * -2.4 * dt;
+        if (waterDepth(k.x, k.z) < 0.3) { k.x -= gx * -2.4 * dt; k.z -= gz * -2.4 * dt; }
+        k.obj.position.x = k.x; k.obj.position.z = k.z;
+      }
     }
   }
+}
+
+/* ================================================================
+   FALE — prawdziwe kręgi na wodzie zostawiane przez skuter. Każdy krąg
+   to pierścień, który rośnie i słabnie, a jego wysokość liczy się tym
+   samym wzorem po stronie JavaScriptu — dzięki temu kajak nie udaje, że
+   się kołysze: podnosi go dokładnie ten grzbiet, który widać.
+================================================================ */
+const FALE = { maks: 34, szer: 2.2, tempo: 7.5, zycie: 3.4 };
+
+const Fale = {
+  lista: [], wolne: [],
+
+  /* jeden pierścień: geometria jednostkowa, skalowana promieniem */
+  mesh() {
+    if (this.wolne.length) return this.wolne.pop();
+    const g = new THREE.RingGeometry(0.93, 1.07, 44);
+    g.rotateX(-Math.PI / 2);
+    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({
+      color: 0xdff2ff, transparent: true, opacity: 0.3, depthWrite: false,
+      blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+    }));
+    worldGroup.add(m);
+    return m;
+  },
+
+  dodaj(x, z, amp) {
+    if (this.lista.length >= FALE.maks) {
+      const stara = this.lista.shift();
+      stara.mesh.visible = false;
+      this.wolne.push(stara.mesh);
+    }
+    const mesh = this.mesh();
+    mesh.visible = true;
+    mesh.position.set(x, CFG.waterY + 0.05, z);
+    this.lista.push({ x, z, r: 0.6, amp, wiek: 0, mesh });
+  },
+
+  /* wysokość lustra w punkcie: suma grzbietów wszystkich kręgów */
+  wysokosc(x, z) {
+    let h = 0;
+    for (const f of this.lista) {
+      const d = Math.hypot(x - f.x, z - f.z);
+      const u = (d - f.r) / FALE.szer;
+      if (u < -1 || u > 1) continue;
+      const k = Math.cos(u * Math.PI * 0.5);
+      h += f.amp * k * k;
+    }
+    // przy zawracaniu w kółko kręgi nakładają się kilkanaście razy i kajak
+    // szedł w górę o metr — grzbiet ma zostać grzbietem, nie windą
+    return Math.min(h, 0.62);
+  },
+
+  /* nachylenie lustra — od niego kajak dostaje przechył */
+  nachylenie(x, z) {
+    const d = 1.2;
+    return [(this.wysokosc(x + d, z) - this.wysokosc(x - d, z)) / (2 * d),
+            (this.wysokosc(x, z + d) - this.wysokosc(x, z - d)) / (2 * d)];
+  },
+
+  update(dt) {
+    for (let i = this.lista.length - 1; i >= 0; i--) {
+      const f = this.lista[i];
+      f.wiek += dt;
+      f.r += FALE.tempo * dt;
+      // grzbiet słabnie z wiekiem i dodatkowo rozchodzi się na coraz
+      // większy obwód, więc gaśnie szybciej, im dalej od skutera
+      const zanik = Math.max(0, 1 - f.wiek / FALE.zycie);
+      f.amp *= Math.pow(0.55, dt);
+      f.mesh.scale.set(f.r, 1, f.r);
+      f.mesh.material.opacity = 0.3 * zanik * zanik;
+      if (zanik <= 0 || f.amp < 0.004) {
+        f.mesh.visible = false;
+        this.wolne.push(f.mesh);
+        this.lista.splice(i, 1);
+      }
+    }
+  },
+
+  reset() {
+    for (const f of this.lista) if (f.mesh.parent) f.mesh.parent.remove(f.mesh);
+    for (const m of this.wolne) if (m.parent) m.parent.remove(m);
+    this.lista = []; this.wolne = [];
+  },
+};
+
+/* ================================================================
+   SKUTER WODNY — stoi przy brzegu obok kajaków, wsiada się [E].
+   Szybszy od kajaka trzy razy i przy każdym metrze zostawia za sobą
+   krąg fali. Fale są prawdziwe: unoszą kajaki i przechylają je.
+================================================================ */
+const SKUTER = {
+  zasieg: 3.6, maxV: 26, wstecz: 6,
+  przysp: 15, opor: 0.75, skret: 1.75,
+  glebokosc: 0.5,        // płycej kadłub ryje dnem
+  odstepFali: 0.16,      // co ile sekund nowy krąg
+};
+
+let skuter = null, naSkuterze = false;
+
+function buildSkuter() {
+  const g = new THREE.Group();
+  const lakier = new THREE.MeshPhongMaterial({ color: 0xe8402c, shininess: 95, specular: 0x554444 });
+  const czarny = new THREE.MeshPhongMaterial({ color: 0x1b1e24, shininess: 60 });
+  const chrom = new THREE.MeshPhongMaterial({ color: 0xb8c0c8, shininess: 120, specular: 0x888888 });
+
+  const kadlub = new THREE.Mesh(new THREE.SphereGeometry(0.55, 14, 10), lakier);
+  kadlub.scale.set(0.82, 0.58, 2.1);
+  kadlub.position.y = 0.42;
+  const dziob = new THREE.Mesh(new THREE.ConeGeometry(0.42, 1.3, 12), lakier);
+  dziob.rotation.x = Math.PI / 2;
+  dziob.position.set(0, 0.46, 1.5);
+  dziob.scale.set(0.9, 1, 0.55);
+  const pokrywa = new THREE.Mesh(new THREE.SphereGeometry(0.4, 12, 8), lakier);
+  pokrywa.scale.set(0.9, 0.7, 1.5);
+  pokrywa.position.set(0, 0.72, 0.5);
+  const siodlo = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 1.15), czarny);
+  siodlo.position.set(0, 0.86, -0.35);
+  const stopnie = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.08, 1.2), czarny);
+  stopnie.position.set(0, 0.5, -0.5);
+
+  const kolumna = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.5, 8), czarny);
+  kolumna.position.set(0, 1.0, 0.95);
+  kolumna.rotation.x = -0.35;
+  const kierownica = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.78, 8), chrom);
+  kierownica.rotation.z = Math.PI / 2;
+  kierownica.position.set(0, 1.2, 1.06);
+  for (const sx of [-1, 1]) {
+    const chwyt = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.16, 8), czarny);
+    chwyt.rotation.z = Math.PI / 2;
+    chwyt.position.set(sx * 0.33, 1.2, 1.06);
+    g.add(chwyt);
+  }
+  const pas = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.06, 2.6),
+    new THREE.MeshLambertMaterial({ color: 0xf2f0ea }));
+  pas.position.set(0, 0.66, 0.1);
+
+  g.add(kadlub, dziob, pokrywa, siodlo, stopnie, kolumna, kierownica, pas);
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  return g;
+}
+
+function buildSkuterNaWodzie() {
+  skuter = null;
+  naSkuterze = false;
+  const p = NAREW_PTS[6];
+  if (!p) return;
+  // Skuter stoi na osi koryta, nie przy brzegu: zsunięty w stronę posesji
+  // wypływał prosto na mieliznę i po trzydziestu metrach stawał.
+  let x = p[0], z = p[1];
+  if (waterDepth(x, z) < 1.2) {
+    const dx = -p[0], dz = -p[1];
+    const d = Math.hypot(dx, dz) || 1;
+    for (let k = -40; k < 40; k += 0.5) {
+      const px = p[0] + dx / d * k, pz = p[1] + dz / d * k;
+      if (waterDepth(px, pz) > 1.6) { x = px; z = pz; break; }
+    }
+  }
+  const obj = buildSkuter();
+  // dziobem wzdłuż koryta, nie w brzeg — inaczej pierwszy gaz kończył się mielizną
+  const nast = NAREW_PTS[7] || NAREW_PTS[5];
+  const kat = nast ? Math.atan2(nast[0] - p[0], nast[1] - p[1]) : Math.atan2(-x, -z);
+  obj.position.set(x, CFG.waterY - 0.22, z);
+  obj.rotation.y = kat;
+  worldGroup.add(obj);
+  skuter = { obj, x, z, kat, v: 0, fala: 0, plusk: 0 };
+}
+
+function uzyjSkutera() {
+  if (!skuter) return false;
+  if (naSkuterze) {
+    // zsiadka: szukamy płycizny z boku, jak przy kajaku
+    const cx = -Math.cos(skuter.kat), cz = Math.sin(skuter.kat);
+    let x = skuter.x, z = skuter.z, naBrzegu = false;
+    for (const bok of [1, -1]) {
+      for (let d = 1.6; d <= 12 && !naBrzegu; d += 0.6) {
+        const px = skuter.x + cx * d * bok, pz = skuter.z + cz * d * bok;
+        if (waterDepth(px, pz) < 0.7 && !blockedStatic(px, pz, CFG.playerRadius, 0)) {
+          x = px; z = pz; naBrzegu = true;
+        }
+      }
+      if (naBrzegu) break;
+    }
+    naSkuterze = false;
+    skuter.v = 0;
+    player.pos.set(x, 0, z);
+    player.y = wysokoscPodlogi(x, z);
+    player.velY = 0;
+    AudioSys.splash();
+    announce(naBrzegu ? '🌊 Zsiadka na brzeg' : '🌊 Prosto do wody!', '#bff3ff', 2.2);
+    return true;
+  }
+  if (Math.hypot(player.pos.x - skuter.x, player.pos.z - skuter.z) > SKUTER.zasieg) return false;
+  naSkuterze = true;
+  skuter.v = 0;
+  player.flying = false;
+  player.swimming = false;
+  player.velY = 0;
+  player.yaw = skuter.kat + Math.PI;
+  AudioSys.burst(90, 0.8, 0.5, 0.35, 'lowpass', 500);
+  announce('🌊 Skuter — W/S gaz, A/D skręt, [E] zsiadka. Fale unoszą kajaki!', '#bff3ff', 4.6);
+  return true;
+}
+
+function jedzSkuterem(dt, fwd, str) {
+  const s = skuter;
+  if (fwd > 0) s.v += SKUTER.przysp * dt;
+  else if (fwd < 0) s.v -= SKUTER.przysp * 0.5 * dt;
+  s.v -= s.v * SKUTER.opor * dt;
+  s.v = Math.max(-SKUTER.wstecz, Math.min(SKUTER.maxV, s.v));
+
+  const obrot = -str * SKUTER.skret * dt * (0.35 + Math.min(1, Math.abs(s.v) / 8));
+  s.kat += obrot;
+  player.yaw += obrot;
+
+  const nx = s.x + Math.sin(s.kat) * s.v * dt;
+  const nz = s.z + Math.cos(s.kat) * s.v * dt;
+  if (waterDepth(nx, nz) > SKUTER.glebokosc && !blockedStatic(nx, nz, 0.8, 0)) {
+    s.x = nx; s.z = nz;
+  } else if (Math.abs(s.v) > 0.4) {
+    if (Math.abs(s.v) > 3) AudioSys.splash();
+    s.v *= -0.2;                                    // dziób na mieliźnie
+  } else s.v = 0;
+
+  // fala rodzi się tylko przy jeździe i jest tym wyższa, im szybciej
+  s.fala -= dt;
+  if (Math.abs(s.v) > 3 && s.fala <= 0) {
+    s.fala = SKUTER.odstepFali;
+    const amp = 0.09 + Math.min(0.4, Math.abs(s.v) / SKUTER.maxV * 0.42);
+    Fale.dodaj(s.x - Math.sin(s.kat) * 1.6, s.z - Math.cos(s.kat) * 1.6, amp);
+    Net.wyslijFale(s.x, s.z, amp);
+  }
+  s.plusk -= dt;
+  if (Math.abs(s.v) > 6 && s.plusk <= 0) {
+    s.plusk = 0.5;
+    AudioSys.burst(140, 0.5, 0.22, 0.16, 'lowpass', 700);
+  }
+
+  player.pos.set(s.x, 0, s.z);
+  player.y = CFG.waterY + Fale.wysokosc(s.x, s.z) - 0.02;
+  player.velY = 0;
+}
+
+function updateSkuter(dt, t) {
+  if (!skuter) return;
+  const s = skuter;
+  const [gx, gz] = Fale.nachylenie(s.x, s.z);
+  s.obj.position.set(s.x, CFG.waterY - 0.22 + Fale.wysokosc(s.x, s.z) + Math.sin(t * 2.1) * 0.03, s.z);
+  s.obj.rotation.set(-gz * 0.9 - Math.min(0.22, s.v * 0.012), s.kat, gx * 0.9);
 }
 
 /* ================================================================
@@ -6446,6 +6826,7 @@ let edward = null;
 
 function buildEdwarda() {
   const g = buildPerson(0x8c2f2f, { mj: false });        // czerwona flanela
+  ubierzPoWiejsku(g, 0x7d5a3a, 0x4a4335);                // ta sama wiejska odzież co u Waldka
 
   const kapelusz = new THREE.Group();
   const filc = new THREE.MeshLambertMaterial({ color: 0x4a3d2c });
@@ -6459,7 +6840,7 @@ function buildEdwarda() {
   const broda = new THREE.Mesh(new THREE.SphereGeometry(0.085, 8, 6),
     new THREE.MeshLambertMaterial({ color: 0xc9c3b6 }));
   broda.scale.set(0.85, 1.15, 0.6);
-  broda.position.set(0, 1.63, -0.1);
+  broda.position.set(0, 1.63, 0.1);      // twarz jest po stronie +z
   g.add(broda);
 
   // laska w prawej ręce — trzymana pod kątem, jak przy spacerze
@@ -6541,7 +6922,10 @@ function updateEdward(dt, t) {
    drogami i ryją ryjem w ziemi, a kiedy podejdziesz za blisko, cała
    wataha zrywa się i ucieka w przeciwną stronę.
 ================================================================ */
-const DZIKI = { ile: 10, x: -118, z: -86, promien: 30, tempo: 1.25, ucieczka: 4.6, plosz: 11 };
+// Bliżej kloca i ciaśniej niż na początku: z 118 metrów cała wataha ginęła
+// w trawie i widać było dwa dziki zamiast dziesięciu. Płoszą się z siedmiu
+// metrów, więc dalej trzymają dystans, ale całą dziesiątkę widać z posesji.
+const DZIKI = { ile: 10, x: -74, z: -62, promien: 17, tempo: 1.25, ucieczka: 4.6, plosz: 7 };
 
 let dziki = [];
 
@@ -6791,6 +7175,487 @@ function updateSzopy(dt, t) {
     u.cialo.rotation.z = Math.sin(f) * 0.12;
   }
 }
+
+/* ================================================================
+   KANAPA W KLOCU — siedzi na niej Jan Sukiennik prosto z Narwi:
+   w kąpielówkach, ociekający wodą, z telefonem w ręce. Jak siądziesz
+   obok [E], ekran zjeżdża z telewizora do telefonu i lecą na nim rolki
+   Edwarda Warchockiego — przewijasz W/S albo kółkiem myszy.
+================================================================ */
+const KANAPA = { x: 5.5, z: -20, szer: 3.4, glab: 1.5, zasieg: 3.0 };
+
+let kanapa = null, naKanapie = false, powrotKanapa = null;
+
+function buildKanape() {
+  const g = new THREE.Group();
+  const tapicerka = new THREE.MeshLambertMaterial({ color: 0x4a5a68, map: textures.tkanina });
+  const nogi = new THREE.MeshPhongMaterial({ color: 0x3a2b1c, shininess: 30 });
+
+  const siedzisko = new THREE.Mesh(new THREE.BoxGeometry(KANAPA.szer, 0.34, KANAPA.glab), tapicerka);
+  siedzisko.position.y = 0.46;
+  const oparcie = new THREE.Mesh(new THREE.BoxGeometry(KANAPA.szer, 0.72, 0.26), tapicerka);
+  oparcie.position.set(0, 0.86, -KANAPA.glab / 2 + 0.13);
+  for (const sx of [-1, 1]) {
+    const bok = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.56, KANAPA.glab), tapicerka);
+    bok.position.set(sx * (KANAPA.szer / 2 - 0.13), 0.62, 0);
+    g.add(bok);
+    for (const sz of [-1, 1]) {
+      const noga = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.04, 0.3, 6), nogi);
+      noga.position.set(sx * (KANAPA.szer / 2 - 0.2), 0.15, sz * (KANAPA.glab / 2 - 0.2));
+      g.add(noga);
+    }
+  }
+  // dwie poduchy, żeby siedzisko nie było jedną deską
+  for (const sx of [-1, 1]) {
+    const pod = new THREE.Mesh(new THREE.BoxGeometry(KANAPA.szer / 2 - 0.34, 0.16, KANAPA.glab - 0.3),
+      tapicerka);
+    pod.position.set(sx * (KANAPA.szer / 4 - 0.03), 0.68, 0.06);
+    g.add(pod);
+  }
+
+  g.add(siedzisko, oparcie);
+  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  // kanapa jest przeszkodą: nie wchodzi się na nią bokiem
+  treeCols.push({ x: KANAPA.x, z: KANAPA.z, r: 1.5 });
+  return g;
+}
+
+/* Jan prosto z wody: kąpielówki, mokra skóra, krople i telefon w garści */
+function buildMokregoJana() {
+  const g = buildPerson(0x2f6db0, { mj: false });
+
+  const kapielowki = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.28, 0.34),
+    new THREE.MeshPhongMaterial({ color: 0xe4432d, shininess: 70 }));
+  kapielowki.position.set(0, 0.92, 0);
+  const mokraSkora = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.52, 0.3),
+    new THREE.MeshPhongMaterial({ color: 0xcfa88f, shininess: 110, specular: 0x99bbcc,
+      transparent: true, opacity: 0.35 }));
+  mokraSkora.position.set(0, 1.28, 0);
+  g.add(kapielowki, mokraSkora);
+
+  // krople ściekające z ramion i kolan — lecą w kółko, każda w swoim rytmie
+  const krople = [];
+  const kroplaMat = new THREE.MeshPhongMaterial({ color: 0x9fd8ee, shininess: 120,
+    transparent: true, opacity: 0.75 });
+  for (let i = 0; i < 9; i++) {
+    const k = new THREE.Mesh(new THREE.SphereGeometry(0.022, 6, 5), kroplaMat);
+    k.userData = {
+      x: (i % 3 - 1) * 0.22 + (Math.random() - 0.5) * 0.1,
+      z: 0.12 + Math.random() * 0.16,
+      od: 1.35 - (i % 3) * 0.3, faza: Math.random() * 2,
+    };
+    g.add(k);
+    krople.push(k);
+  }
+
+  // telefon w prawej dłoni, ekranem do siebie
+  const telefon = new THREE.Group();
+  const korpus = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.17, 0.012),
+    new THREE.MeshPhongMaterial({ color: 0x16181d, shininess: 90 }));
+  const ekran = new THREE.Mesh(new THREE.PlaneGeometry(0.078, 0.15),
+    new THREE.MeshBasicMaterial({ color: 0x1b2430 }));
+  ekran.position.z = 0.008;
+  telefon.add(korpus, ekran);
+  telefon.position.set(0.3, 1.12, 0.3);
+  telefon.rotation.set(-0.5, 0.3, 0.1);
+  g.add(telefon);
+
+  g.userData.krople = krople;
+  g.userData.telefon = telefon;
+  return g;
+}
+
+function buildKanapeZJanem() {
+  const g = buildKanape();
+  g.position.set(KANAPA.x, wysokoscPodlogi(KANAPA.x, KANAPA.z), KANAPA.z);
+  g.rotation.y = Math.PI;                    // oparciem do ściany, twarzą do telewizora
+  worldGroup.add(g);
+
+  const jan2 = buildMokregoJana();
+  // siedzi po lewej stronie kanapy (patrząc od telewizora), nogi na podłodze
+  jan2.position.set(KANAPA.x - 0.8, wysokoscPodlogi(KANAPA.x, KANAPA.z) + 0.18, KANAPA.z - 0.1);
+  jan2.rotation.y = Math.PI;
+  worldGroup.add(jan2);
+
+  const tab = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.65),
+    new THREE.MeshBasicMaterial({ map: texImie('JAN SUKIENNIK'), transparent: true }));
+  tab.position.y = 2.15;
+  jan2.add(tab);
+
+  kanapa = { obj: g, jan: jan2, tab, faza: 0 };
+}
+
+function updateKanapa(dt, t) {
+  if (!kanapa) return;
+  const j = kanapa.jan;
+  animPerson(j, 0, false, false);
+  // siedzenie: model postaci nie ma klipu siadania, więc ugięcie robimy
+  // pochyleniem sylwetki i zanurzeniem jej w poduchę
+  j.rotation.x = -0.06;
+  for (const k of j.userData.krople) {
+    const u = k.userData;
+    u.faza += dt * (0.5 + (u.od - 1) * 0.3);
+    if (u.faza > 1) u.faza -= 1;
+    k.position.set(u.x, u.od - u.faza * (u.od - 0.35), u.z);
+    k.material.opacity = 0.75 * (1 - u.faza * 0.6);
+  }
+  kanapa.tab.rotation.y = -j.rotation.y +
+    Math.atan2(camera.position.x - j.position.x, camera.position.z - j.position.z);
+  const tel = j.userData.telefon;
+  tel.rotation.z = 0.1 + Math.sin(t * 1.3) * 0.05;      // telefon lekko drga w dłoni
+}
+
+function przyKanapie() {
+  return kanapa && !naKanapie &&
+    Math.hypot(player.pos.x - KANAPA.x, player.pos.z - KANAPA.z) < KANAPA.zasieg;
+}
+
+function uzyjKanapy() {
+  if (!kanapa) return false;
+  if (naKanapie) { wstanZKanapy(); return true; }
+  if (!przyKanapie()) return false;
+  powrotKanapa = { x: player.pos.x, z: player.pos.z, yaw: player.yaw, pitch: player.pitch };
+  naKanapie = true;
+  player.flying = false;
+  player.velY = 0;
+  player.pos.set(KANAPA.x + 0.85, 0, KANAPA.z - 0.05);
+  player.y = wysokoscPodlogi(KANAPA.x, KANAPA.z) + 0.5;
+  player.yaw = 0;                            // twarzą do telewizora
+  player.pitch = -0.12;
+  Rolki.wlacz();
+  AudioSys.ui();
+  return true;
+}
+
+function wstanZKanapy() {
+  if (!naKanapie) return;
+  naKanapie = false;
+  Rolki.wylacz();
+  if (powrotKanapa) {
+    player.pos.set(powrotKanapa.x, 0, powrotKanapa.z);
+    player.yaw = powrotKanapa.yaw;
+    player.pitch = powrotKanapa.pitch;
+  }
+  player.y = wysokoscPodlogi(player.pos.x, player.pos.z);
+  announce('🛋 Wstałeś z kanapy', '#cfe9f5', 1.6);
+}
+
+/* ================================================================
+   ROLKI EDWARDA WARCHOCKIEGO — pionowy ekran telefonu, osiem
+   filmików rysowanych klatka po klatce. Nic innego się tu nie da
+   włączyć: to konto Edwarda i tylko jego filmy.
+================================================================ */
+const ROLKI = [
+  { tytul: 'DZIKI ZRYŁY MI ŁĄKĘ', opis: 'trzeci raz w tym tygodniu #dziki', lajki: '12,4 tys.',
+    rys(x, t, W, H) {
+      x.fillStyle = '#3f6b32'; x.fillRect(0, 0, W, H);
+      for (let i = 0; i < 90; i++) {                       // zryta darń
+        const px = (i * 137) % W, py = H * 0.45 + (i * 61) % (H * 0.5);
+        x.fillStyle = i % 3 ? '#4a3524' : '#2f2418';
+        x.fillRect(px, py, 26 + (i % 4) * 10, 12);
+      }
+      for (let i = 0; i < 4; i++) {
+        const px = W * 0.2 + i * 90 + Math.sin(t * 1.2 + i) * 22;
+        const py = H * 0.55 + (i % 2) * 90;
+        x.fillStyle = '#241f1a';
+        x.beginPath(); x.ellipse(px, py, 46, 26, 0, 0, 7); x.fill();
+        x.beginPath(); x.ellipse(px + 44, py - 8, 22, 17, 0.3, 0, 7); x.fill();
+        x.fillStyle = '#0d0b09';
+        x.beginPath(); x.arc(px + 62, py - 2, 8, 0, 7); x.fill();
+      }
+    } },
+  { tytul: 'WALDEK PRZYJECHAŁ KONNO', opis: 'kod na ścianie działa #waldek', lajki: '31,8 tys.',
+    rys(x, t, W, H) {
+      const g = x.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, '#f0b070'); g.addColorStop(1, '#6b8a4a');
+      x.fillStyle = g; x.fillRect(0, 0, W, H);
+      const px = W * 0.2 + ((t * 60) % (W * 0.8));
+      x.fillStyle = '#6b4a2f';
+      x.beginPath(); x.ellipse(px, H * 0.62, 74, 40, 0, 0, 7); x.fill();
+      x.fillRect(px + 50, H * 0.5, 22, 40);                 // szyja
+      x.beginPath(); x.ellipse(px + 74, H * 0.48, 30, 17, 0.4, 0, 7); x.fill();
+      for (let i = 0; i < 4; i++) {
+        const kat = Math.sin(t * 8 + i * 1.7) * 0.5;
+        x.save(); x.translate(px - 40 + i * 30, H * 0.66); x.rotate(kat);
+        x.fillRect(-7, 0, 14, 62); x.restore();
+      }
+      x.fillStyle = '#4f7a3a';                              // Waldek w siodle
+      x.fillRect(px - 12, H * 0.44, 34, 54);
+      x.fillStyle = '#d8b48c';
+      x.beginPath(); x.arc(px + 5, H * 0.42, 18, 0, 7); x.fill();
+      x.fillStyle = '#3d4a34'; x.fillRect(px - 14, H * 0.4, 40, 9);
+      x.fillStyle = '#ff6a2c';                              // żar papierosa
+      x.beginPath(); x.arc(px + 26, H * 0.435, 4 + Math.sin(t * 6) * 1.5, 0, 7); x.fill();
+    } },
+  { tytul: 'SZOPY TAŃCZĄ PRZY OGNISKU', opis: 'nagrane wczoraj o 23 #szopy', lajki: '58,1 tys.',
+    rys(x, t, W, H) {
+      x.fillStyle = '#12161f'; x.fillRect(0, 0, W, H);
+      const cx = W / 2, cy = H * 0.62;
+      for (let i = 0; i < 5; i++) {                         // płomienie
+        const s = 0.7 + Math.abs(Math.sin(t * 5 + i)) * 0.6;
+        x.fillStyle = ['#ffcf3a', '#ff8a2c', '#ff5a1e'][i % 3];
+        x.globalAlpha = 0.55;
+        x.beginPath();
+        x.moveTo(cx - 26 + i * 12, cy);
+        x.quadraticCurveTo(cx - 10 + i * 12, cy - 90 * s, cx + 6 + i * 12, cy);
+        x.fill();
+      }
+      x.globalAlpha = 1;
+      for (let i = 0; i < 5; i++) {
+        const a = t * 0.9 + i * 1.256;
+        const sx = cx + Math.cos(a) * 130, sy = cy + Math.sin(a) * 46;
+        const hop = Math.abs(Math.sin(t * 7 + i)) * 22;
+        x.fillStyle = '#8b8d92';
+        x.beginPath(); x.ellipse(sx, sy - hop, 22, 30, 0, 0, 7); x.fill();
+        x.beginPath(); x.arc(sx, sy - hop - 34, 18, 0, 7); x.fill();
+        x.fillStyle = '#2a2724'; x.fillRect(sx - 17, sy - hop - 38, 34, 9);
+        x.strokeStyle = '#8b8d92'; x.lineWidth = 7;
+        x.beginPath();
+        x.moveTo(sx - 18, sy - hop - 12); x.lineTo(sx - 34, sy - hop - 44 - Math.sin(t * 7 + i) * 14);
+        x.moveTo(sx + 18, sy - hop - 12); x.lineTo(sx + 34, sy - hop - 44 + Math.sin(t * 7 + i) * 14);
+        x.stroke();
+      }
+    } },
+  { tytul: 'SKUTER ROBI FALE NA NARWI', opis: 'kajak podskoczył na metr #narew', lajki: '44,9 tys.',
+    rys(x, t, W, H) {
+      x.fillStyle = '#e9b184'; x.fillRect(0, 0, W, H * 0.42);
+      x.fillStyle = '#26505e'; x.fillRect(0, H * 0.42, W, H * 0.58);
+      for (let i = 0; i < 7; i++) {                        // rozchodzące się kręgi
+        const r = ((t * 90 + i * 60) % 340);
+        x.strokeStyle = `rgba(223,242,255,${0.5 - r / 700})`;
+        x.lineWidth = 3;
+        x.beginPath(); x.ellipse(W * 0.42, H * 0.68, r, r * 0.34, 0, 0, 7); x.stroke();
+      }
+      const sx = W * 0.42 + Math.sin(t * 0.8) * 60;
+      x.fillStyle = '#e8402c';
+      x.beginPath(); x.ellipse(sx, H * 0.64, 66, 22, 0, 0, 7); x.fill();
+      x.fillStyle = '#f2f0ea'; x.fillRect(sx - 60, H * 0.635, 120, 5);
+      x.fillStyle = '#2f6db0'; x.fillRect(sx - 12, H * 0.575, 26, 44);
+      x.fillStyle = '#d8b48c';
+      x.beginPath(); x.arc(sx + 1, H * 0.565, 16, 0, 7); x.fill();
+      const ky = H * 0.78 + Math.sin(t * 3) * 26;          // kajak na fali
+      x.fillStyle = '#f0c33c';
+      x.save(); x.translate(W * 0.72, ky); x.rotate(Math.sin(t * 3) * 0.3);
+      x.beginPath(); x.ellipse(0, 0, 80, 17, 0, 0, 7); x.fill(); x.restore();
+    } },
+  { tytul: 'KOPARKA I DÓŁ NA METR', opis: 'łyżka bierze pół metra naraz #koparka', lajki: '9,7 tys.',
+    rys(x, t, W, H) {
+      x.fillStyle = '#8fb0d8'; x.fillRect(0, 0, W, H * 0.5);
+      x.fillStyle = '#6b8a4a'; x.fillRect(0, H * 0.5, W, H * 0.5);
+      x.fillStyle = '#4a3524';
+      x.beginPath();
+      x.ellipse(W * 0.3, H * 0.72, 120, 44, 0, 0, 7); x.fill();
+      x.fillStyle = '#f0c33c';
+      x.fillRect(W * 0.5, H * 0.5, 150, 80);
+      x.fillRect(W * 0.52, H * 0.42, 80, 70);
+      x.save();
+      x.translate(W * 0.55, H * 0.48);
+      x.rotate(-0.7 + Math.sin(t * 1.4) * 0.35);
+      x.fillRect(0, -12, 150, 22);
+      x.translate(150, 0);
+      x.rotate(1.1 + Math.sin(t * 1.4 + 1) * 0.4);
+      x.fillRect(0, -10, 90, 18);
+      x.fillStyle = '#9aa0aa'; x.fillRect(80, -18, 44, 44);
+      x.restore();
+      x.fillStyle = '#2b2f38';
+      for (let i = 0; i < 5; i++) x.fillRect(W * 0.5 + i * 32, H * 0.61, 26, 26);
+    } },
+  { tytul: 'WIEWIÓRKA DAŁA SIĘ POGŁASKAĆ', opis: 'siedemnasta w tym roku #gzowo', lajki: '77,3 tys.',
+    rys(x, t, W, H) {
+      x.fillStyle = '#4c6a35'; x.fillRect(0, 0, W, H);
+      x.fillStyle = '#4a3521'; x.fillRect(W * 0.36, 0, 110, H);
+      const hop = Math.abs(Math.sin(t * 2.2));
+      const sx = W * 0.5, sy = H * 0.55 - hop * 40;
+      x.fillStyle = '#8a4f28';
+      x.beginPath(); x.ellipse(sx, sy, 44, 58, 0, 0, 7); x.fill();
+      x.beginPath(); x.arc(sx + 6, sy - 62, 32, 0, 7); x.fill();
+      x.beginPath(); x.ellipse(sx - 46, sy - 40 - hop * 14, 22, 62, 0.5, 0, 7); x.fill();
+      x.fillStyle = '#0b0805';
+      x.beginPath(); x.arc(sx + 20, sy - 68, 6, 0, 7); x.fill();
+      x.strokeStyle = '#d8b48c'; x.lineWidth = 16; x.lineCap = 'round';
+      x.beginPath();                                        // dłoń Edwarda
+      x.moveTo(W + 40, sy - 20);
+      x.lineTo(sx + 56 + Math.sin(t * 2.2) * 10, sy - 54);
+      x.stroke(); x.lineCap = 'butt';
+    } },
+  { tytul: 'ŁOPATĄ SZYBCIEJ NIŻ KOPARKĄ', opis: 'zakład z Waldkiem #kopanie', lajki: '5,2 tys.',
+    rys(x, t, W, H) {
+      x.fillStyle = '#7fa2c8'; x.fillRect(0, 0, W, H * 0.44);
+      x.fillStyle = '#5f7f3f'; x.fillRect(0, H * 0.44, W, H * 0.56);
+      x.fillStyle = '#3a2a1c';
+      x.beginPath(); x.ellipse(W * 0.5, H * 0.72, 130, 50, 0, 0, 7); x.fill();
+      const kat = Math.sin(t * 3.4) * 0.8;
+      x.save(); x.translate(W * 0.38, H * 0.5); x.rotate(kat);
+      x.fillStyle = '#b08d63'; x.fillRect(-8, -20, 16, 150);
+      x.fillStyle = '#9aa0aa'; x.fillRect(-26, 130, 52, 60);
+      x.restore();
+      x.fillStyle = '#7d5a3a'; x.fillRect(W * 0.3, H * 0.36, 46, 110);
+      x.fillStyle = '#d8b48c';
+      x.beginPath(); x.arc(W * 0.3 + 23, H * 0.34, 26, 0, 7); x.fill();
+      x.fillStyle = '#4a3d2c';
+      x.fillRect(W * 0.3 - 8, H * 0.32, 62, 12);
+    } },
+  { tytul: 'NAREW O ŚWICIE', opis: 'nic się nie dzieje i o to chodzi', lajki: '102 tys.',
+    rys(x, t, W, H) {
+      const g = x.createLinearGradient(0, 0, 0, H * 0.5);
+      g.addColorStop(0, '#2a3550'); g.addColorStop(1, '#f0a878');
+      x.fillStyle = g; x.fillRect(0, 0, W, H * 0.5);
+      x.fillStyle = '#f6d08a';
+      x.beginPath(); x.arc(W * 0.6, H * 0.44, 46, 0, 7); x.fill();
+      x.fillStyle = '#1d3b46'; x.fillRect(0, H * 0.5, W, H * 0.5);
+      for (let i = 0; i < 26; i++) {
+        const y = H * 0.51 + i * 12;
+        x.fillStyle = `rgba(255,200,140,${0.3 - i * 0.011})`;
+        const w = 90 + Math.sin(t * 1.6 + i * 0.5) * 40;
+        x.fillRect(W * 0.6 - w / 2, y, w, 4);
+      }
+      x.fillStyle = '#12261c'; x.fillRect(0, H * 0.47, W, H * 0.05);
+      x.strokeStyle = '#0e1a22'; x.lineWidth = 3;
+      for (let i = 0; i < 5; i++) {
+        const px = (t * 26 + i * 90) % (W + 80) - 40, py = H * 0.24 + Math.sin(t + i) * 16;
+        x.beginPath(); x.moveTo(px - 10, py); x.quadraticCurveTo(px, py - 8, px + 10, py); x.stroke();
+      }
+    } },
+];
+
+const Rolki = {
+  plotno: null, tex: null, ekran: null, obudowa: null,
+  aktywna: false, i: 0, t: 0, odrys: 0, przesuw: 0, wjazd: 0,
+
+  buduj() {
+    const c = document.createElement('canvas');
+    c.width = 540; c.height = 960;
+    this.plotno = c;
+    this.tex = new THREE.CanvasTexture(c);
+    this.tex.encoding = THREE.sRGBEncoding;
+
+    const g = new THREE.Group();
+    const korpus = new THREE.Mesh(new THREE.BoxGeometry(0.196, 0.4, 0.011),
+      new THREE.MeshPhongMaterial({ color: 0x14161a, shininess: 90 }));
+    const ekran = new THREE.Mesh(new THREE.PlaneGeometry(0.18, 0.375),
+      new THREE.MeshBasicMaterial({ map: this.tex }));
+    ekran.position.z = 0.007;
+    g.add(korpus, ekran);
+    g.position.set(0.02, -0.10, -0.44);
+    g.rotation.set(0.16, -0.05, 0.02);
+    g.visible = false;
+    camera.add(g);
+    this.ekran = g;
+    this.i = 0; this.t = 0; this.przesuw = 0; this.wjazd = 0;
+    this.rysuj();
+  },
+
+  wlacz() {
+    if (!this.ekran) return;
+    this.aktywna = true;
+    this.wjazd = 0;
+    this.ekran.visible = true;
+    announce('📱 Rolki Edwarda Warchockiego — W/S przewija, [E] wstajesz', '#8ee06a', 4.2);
+  },
+
+  wylacz() {
+    this.aktywna = false;
+    if (this.ekran) this.ekran.visible = false;
+  },
+
+  przewin(o) {
+    if (!this.aktywna) return;
+    const n = ROLKI.length;
+    this.i = (this.i + o + n) % n;
+    this.t = 0;
+    this.przesuw = o > 0 ? 1 : -1;
+    AudioSys.ui();
+  },
+
+  update(dt) {
+    if (!this.aktywna) return;
+    this.t += dt;
+    // telefon wjeżdża w kadr, kiedy siadasz — stąd "ekran leci do telefonu"
+    this.wjazd = Math.min(1, this.wjazd + dt * 3.2);
+    const e = 1 - Math.pow(1 - this.wjazd, 3);
+    this.ekran.position.y = -0.10 - (1 - e) * 0.5;
+    this.ekran.rotation.x = 0.16 + (1 - e) * 0.5;
+    if (this.przesuw !== 0) {
+      this.przesuw -= Math.sign(this.przesuw) * dt * 4.5;
+      if (Math.abs(this.przesuw) < 0.02) this.przesuw = 0;
+    }
+    this.odrys -= dt;
+    if (this.odrys <= 0) { this.odrys = 1 / 24; this.rysuj(); }
+  },
+
+  rysuj() {
+    const c = this.plotno;
+    if (!c) return;
+    const x = c.getContext('2d');
+    const W = 540, H = 960;
+    x.save();
+    x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
+
+    // filmik jedzie w pionie razem z przewijaniem, jak w prawdziwych rolkach
+    const off = this.przesuw * H;
+    const rys = (idx, dy) => {
+      const r = ROLKI[(idx + ROLKI.length) % ROLKI.length];
+      x.save();
+      x.beginPath(); x.rect(0, dy, W, H); x.clip();
+      x.translate(0, dy);
+      r.rys(x, this.t, W, H);
+      this.chrom(x, r, W, H);
+      x.restore();
+    };
+    rys(this.i, off);
+    if (off > 1) rys(this.i - 1, off - H);
+    if (off < -1) rys(this.i + 1, off + H);
+    x.restore();
+    this.tex.needsUpdate = true;
+  },
+
+  /* opisy, awatar i liczniki — to, po czym poznać, że to rolka Edwarda */
+  chrom(x, r, W, H) {
+    const g = x.createLinearGradient(0, H * 0.6, 0, H);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.8)');
+    x.fillStyle = g; x.fillRect(0, H * 0.6, W, H * 0.4);
+
+    x.fillStyle = '#fff';
+    x.font = 'bold 30px Arial, sans-serif';
+    x.textAlign = 'left';
+    x.fillText('@edward.warchocki', 96, H - 150);
+    x.font = 'bold 27px Arial, sans-serif';
+    x.fillText(r.tytul, 30, H - 100);
+    x.fillStyle = 'rgba(255,255,255,.75)';
+    x.font = '22px Arial, sans-serif';
+    x.fillText(r.opis, 30, H - 62);
+
+    x.fillStyle = '#7d5a3a';                         // awatar: kapelusz Edwarda
+    x.beginPath(); x.arc(58, H - 160, 28, 0, 7); x.fill();
+    x.fillStyle = '#d8b48c';
+    x.beginPath(); x.arc(58, H - 156, 17, 0, 7); x.fill();
+    x.fillStyle = '#4a3d2c'; x.fillRect(34, H - 176, 48, 9);
+    x.strokeStyle = '#fff'; x.lineWidth = 3;
+    x.beginPath(); x.arc(58, H - 160, 29, 0, 7); x.stroke();
+
+    x.textAlign = 'center';                          // serduszko i licznik
+    x.fillStyle = '#ff4d6a';
+    x.font = '46px Arial, sans-serif';
+    x.fillText('♥', W - 54, H - 230);
+    x.fillStyle = '#fff';
+    x.font = 'bold 22px Arial, sans-serif';
+    x.fillText(r.lajki, W - 54, H - 196);
+    x.fillStyle = 'rgba(255,255,255,.85)';
+    x.font = '40px Arial, sans-serif';
+    x.fillText('💬', W - 54, H - 140);
+
+    // kropki: która to rolka z ośmiu
+    for (let i = 0; i < ROLKI.length; i++) {
+      x.fillStyle = i === this.i ? '#fff' : 'rgba(255,255,255,.35)';
+      x.beginPath(); x.arc(W - 20, 120 + i * 26, i === this.i ? 6 : 4, 0, 7); x.fill();
+    }
+    x.fillStyle = 'rgba(255,255,255,.6)';
+    x.font = '20px Arial, sans-serif';
+    x.textAlign = 'left';
+    x.fillText('W / S — następna rolka', 30, 56);
+    x.textAlign = 'left';
+  },
+};
 
 /* ================================================================
    SZPITAL DLA ZWIERZĄT — gra 3D na telewizorze (NAREBLOX, pozycja 10).
@@ -9389,6 +10254,10 @@ function disposeWorld() {
   birds = []; squirrels = []; tvScreen = null;
   kajaki = []; wKajaku = null;
   koparka = null; wKoparce = false;
+  skuter = null; naSkuterze = false; Fale.reset();
+  kanapa = null; naKanapie = false; powrotKanapa = null;
+  if (Rolki.ekran && Rolki.ekran.parent) Rolki.ekran.parent.remove(Rolki.ekran);
+  Rolki.ekran = null; Rolki.aktywna = false;
   ognisko = null; lopata = null; waldek = null;
   edward = null; dziki = []; szopy = [];
   Kod.panel = null; Kod.aktywny = false; Kod.ok = false; Kod.wpis = '';
@@ -9402,6 +10271,7 @@ function disposeWorld() {
     r.avatar = null;
   }
   teleport.pad = null; teleport.pierscien = null; teleport.powrot = null;
+  teleport.padNarew = null; teleport.pierscienNarew = null;
   mj.model = null; mj.t = 0;
   jan.model = null; jan.odliczanie = 0; jan.krok = 0;
   if (butelka.wRece) camera.remove(butelka.wRece);
@@ -9456,6 +10326,7 @@ function buildWorld(seed) {
   buildOgnisko();
   buildKoparke();
   buildKajaki();
+  buildSkuterNaWodzie();
   buildSquirrels();
   buildEdwarda_postaw();
   buildDziki();
@@ -9464,9 +10335,12 @@ function buildWorld(seed) {
 
   buildLozko();
   buildTeleport();
+  buildKanapeZJanem();
+  Rolki.buduj();
   buildMJ();
   postawButelke();
   buildJana();
+  buildTeleportNarew();          // druga płyta na brzegu, tuż przy Janie
 
   selfModel = buildPerson(0xd8583f);
   selfModel.visible = false;
@@ -9543,6 +10417,12 @@ const Net = {
     for (const c of this.conns) if (c !== except && c.open) c.send(msg);
   },
 
+  /* fale skutera lecą do wszystkich — u każdego podnoszą te same kajaki */
+  wyslijFale(x, z, a) {
+    if (this.mode === 'solo' || !this.conns.length) return;
+    this.broadcast({ t: 'fala', x, z, a });
+  },
+
   onData(conn, d) {
     if (d.t === 'init' && this.mode === 'guest' && state === 'menu') {
       startGame('guest', d.seed);
@@ -9572,6 +10452,9 @@ const Net = {
       WojnaTV.migawkaHosta = d.m;
     } else if (d.t === 'w3in') {        // gość prosi o budowę na działce hosta
       if (this.mode === 'host' && WojnaTV.dziala) WojnaTV.akcjaGoscia(conn.peer, d);
+    } else if (d.t === 'fala') {        // krąg fali od skutera drugiego gracza
+      Fale.dodaj(d.x, d.z, d.a);
+      if (this.mode === 'host') this.broadcast(d, conn);
     } else if (d.t === 's') {           // stan świata od hosta
       gameTime = d.gt;
       for (const id in d.pl) {
@@ -10489,6 +11372,13 @@ function drawMinimap() {
 /* ================================================================
    STEROWANIE
 ================================================================ */
+/* kółko myszy przewija rolki na telefonie — tak samo jak W/S */
+document.addEventListener('wheel', e => {
+  if (state !== 'playing' || !naKanapie) return;
+  e.preventDefault();
+  Rolki.przewin(e.deltaY > 0 ? 1 : -1);
+}, { passive: false });
+
 document.addEventListener('keydown', e => {
   if (e.code === 'F3') { e.preventDefault(); pokazDiagnoze(); return; }   // działa też w menu
   if (ytOtwarty) {                      // okno YouTube przejmuje klawiaturę
@@ -10512,6 +11402,12 @@ document.addEventListener('keydown', e => {
     Kod.klawisz(e.code);
     return;
   }
+  // na kanapie W/S przewijają rolki Edwarda zamiast chodzić
+  if (state === 'playing' && naKanapie && !powtorka) {
+    if (e.code === 'KeyW' || e.code === 'ArrowUp') { e.preventDefault(); Rolki.przewin(-1); return; }
+    if (e.code === 'KeyS' || e.code === 'ArrowDown') { e.preventDefault(); Rolki.przewin(1); return; }
+    if (e.code === 'Escape') { wstanZKanapy(); return; }
+  }
   // ekran hasła zabiera klawiaturę: inaczej cyfry wybierałyby filmy, a WSAD chodził
   if (state === 'playing' && TV.mode === 'haslo') {
     e.preventDefault();
@@ -10531,7 +11427,8 @@ document.addEventListener('keydown', e => {
     if (e.code === 'KeyX') petSquirrel();
     // E: najpierw ekran telewizora, a jeśli nie celujemy — butelka z podłogi
     if (e.code === 'KeyE' && !klikniecieWTV() && !uzyjKodu() && !uzyjOgniska() &&
-        !uzyjKoparki() && !uzyjKajaka() && !uzyjLopaty()) podniesButelke();
+        !uzyjKanapy() && !uzyjKoparki() && !uzyjSkutera() && !uzyjKajaka() &&
+        !uzyjLopaty()) podniesButelke();
     if (e.code === 'KeyK') kopLopata();
     if (e.code === 'KeyQ' && !wKoparce) nalejWode();   // w koparce Q steruje ramieniem
     if (e.code === 'KeyG') wypijWode();
@@ -10802,7 +11699,7 @@ function updatePlayer(dt) {
   // strzałki — rozglądanie z klawiatury; w menu telewizora i w grach na nim
   // mają inne zadania, a kamera i tak stoi wtedy przyklejona do ekranu
   const rotSpeed = 1.7;
-  if (!NAREBLOX.wGrze() && !TV.menuOtwarte() && !wKoparce) {
+  if (!NAREBLOX.wGrze() && !TV.menuOtwarte() && !wKoparce && !naKanapie) {
     if (keys.ArrowLeft) player.yaw += rotSpeed * dt;
     if (keys.ArrowRight) player.yaw -= rotSpeed * dt;
     if (keys.ArrowUp) player.pitch = Math.min(1.45, player.pitch + rotSpeed * dt);
@@ -10839,8 +11736,8 @@ function updatePlayer(dt) {
   const przyEkranie = wMenuTV || (TV.mode === 'gra' && terazGra && !ruszaSie && !!tvScreen &&
     Math.hypot(player.pos.x - tvScreen.position.x, player.pos.z - tvScreen.position.z) < 26);
 
-  const fwd = wMenuTV ? 0 : (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
-  const str = wMenuTV ? 0 : (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
+  const fwd = (wMenuTV || naKanapie) ? 0 : (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
+  const str = (wMenuTV || naKanapie) ? 0 : (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
   let moving = fwd !== 0 || str !== 0;
 
   const depth = waterDepth(player.pos.x, player.pos.z);
@@ -10854,6 +11751,10 @@ function updatePlayer(dt) {
   const naKajaku = !!wKajaku;
   if (naKajaku) {
     plynKajakiem(dt, fwd, str);
+    moving = false;
+    player.swimming = false;
+  } else if (naSkuterze && skuter) {
+    jedzSkuterem(dt, fwd, str);
     moving = false;
     player.swimming = false;
   } else if (wKoparce) {
@@ -11023,6 +11924,19 @@ function updatePlayer(dt) {
   } else if (koparka && Math.hypot(player.pos.x - koparka.x, player.pos.z - koparka.z) < KOPARKA.zasieg) {
     ui.interact.textContent = '[E] wsiądź do koparki';
     ui.interact.style.display = 'block';
+  } else if (naKanapie) {
+    ui.interact.textContent = '[E] wstań z kanapy   ·   W/S przewija rolki';
+    ui.interact.style.display = 'block';
+  } else if (przyKanapie()) {
+    ui.interact.textContent = '[E] usiądź obok Jana';
+    ui.interact.style.display = 'block';
+  } else if (naSkuterze) {
+    ui.interact.textContent = '[E] zsiądź ze skutera';
+    ui.interact.style.display = 'block';
+  } else if (skuter && !naSkuterze &&
+             Math.hypot(player.pos.x - skuter.x, player.pos.z - skuter.z) < SKUTER.zasieg) {
+    ui.interact.textContent = '[E] wsiądź na skuter wodny';
+    ui.interact.style.display = 'block';
   } else if (wKajaku) {
     ui.interact.textContent = '[E] wysiądź z kajaka';
     ui.interact.style.display = 'block';
@@ -11044,6 +11958,9 @@ function updatePlayer(dt) {
     ui.interact.style.display = 'block';
   } else if (naTeleporcie()) {
     ui.interact.textContent = '[T] teleport nad Narew, do Jana';
+    ui.interact.style.display = 'block';
+  } else if (naTeleporcieNarew()) {
+    ui.interact.textContent = '[T] teleport z powrotem do kloca';
     ui.interact.style.display = 'block';
   } else if (naLozku(player.pos.x, player.pos.z)) {
     ui.interact.textContent = '[F] śpij';
@@ -11120,6 +12037,10 @@ function animate() {
     }
     updateSquirrels(dt, t);
     updateKajaki(dt, t);
+    updateSkuter(dt, t);
+    updateKanapa(dt, t);
+    Rolki.update(dt);
+    Fale.update(dt);
     updateOgnisko(dt, t);
     updateLopate(dt);
     updateWaldek(dt, t);

@@ -1,0 +1,1710 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E.V. — asystentka głosowa</title>
+<style>
+  :root{
+    --tlo:#03080f;
+    --neon:#43e8ff;
+    --neon-ciemny:#0d5f74;
+    --zloty:#ffcc66;
+    --tekst:#cfeaf3;
+    --mgla:rgba(67,232,255,.12);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    background:radial-gradient(circle at 50% 40%, #0a1c2b 0%, var(--tlo) 70%);
+    color:var(--tekst);
+    font-family:"Segoe UI",system-ui,sans-serif;
+    display:flex;flex-direction:column;align-items:center;
+    min-height:100%;
+    overflow-x:hidden;
+  }
+  h1{
+    margin:22px 0 2px;font-size:26px;letter-spacing:14px;font-weight:300;
+    color:var(--neon);text-shadow:0 0 18px var(--neon-ciemny);
+  }
+  .podtytul{margin:0;font-size:12px;letter-spacing:3px;color:#5d8ea3;text-transform:uppercase}
+
+  /* ---- reaktor (to koło na środku) ---- */
+  #reaktor{position:relative;width:300px;height:300px;margin:18px 0 6px;cursor:pointer}
+  #reaktor canvas{position:absolute;inset:0}
+  .rdzen{
+    position:absolute;inset:38%;border-radius:50%;
+    background:radial-gradient(circle,#eafcff 0%,var(--neon) 45%,transparent 72%);
+    box-shadow:0 0 40px var(--neon);
+    transition:opacity .3s, transform .3s;
+    opacity:.35;
+  }
+  body.slucha .rdzen{opacity:1;transform:scale(1.15)}
+  body.mowi .rdzen{opacity:1;background:radial-gradient(circle,#fff6e0 0%,var(--zloty) 45%,transparent 72%);box-shadow:0 0 45px var(--zloty)}
+
+  #stan{min-height:24px;font-size:15px;letter-spacing:2px;color:#8fd6e8;text-align:center}
+  #podglad{min-height:22px;font-size:14px;color:#5d8ea3;font-style:italic;text-align:center;padding:0 16px}
+
+  /* ---- przyciski i pola ---- */
+  .rzad{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:10px 0;padding:0 12px}
+  button{
+    background:transparent;border:1px solid var(--neon-ciemny);color:var(--neon);
+    padding:9px 16px;border-radius:22px;font-size:13px;letter-spacing:1px;cursor:pointer;
+    transition:.2s;font-family:inherit;
+  }
+  button:hover{background:var(--mgla);border-color:var(--neon)}
+  button.wlaczony{background:var(--neon);color:#02121a;border-color:var(--neon);font-weight:600}
+  #wpis{
+    background:rgba(255,255,255,.04);border:1px solid var(--neon-ciemny);border-radius:22px;
+    color:var(--tekst);padding:9px 16px;width:min(420px,80vw);font-size:14px;font-family:inherit;
+  }
+  #wpis:focus{outline:none;border-color:var(--neon)}
+  #glosWybor{
+    background:rgba(255,255,255,.04);border:1px solid var(--neon-ciemny);border-radius:22px;
+    color:var(--tekst);padding:8px 12px;font-size:13px;font-family:inherit;max-width:200px;
+  }
+  #glosWybor:focus{outline:none;border-color:var(--neon)}
+
+  /* ---- rozmowa ---- */
+  /* ---- odpowiedź E.V.: jedna linia, bez listy dymków ---- */
+  #ostatnia{
+    width:min(680px,92vw);min-height:26px;margin:6px 0 2px;text-align:center;
+    font-size:17px;line-height:1.4;color:#dff7ff;text-shadow:0 0 16px rgba(67,232,255,.25);
+    animation:wjazd .3s ease-out;
+  }
+  #uwaga{
+    width:min(680px,92vw);margin:2px 0 6px;text-align:center;font-size:12px;line-height:1.5;
+    color:#5d8ea3;font-style:italic;min-height:18px;padding:0 10px;
+  }
+  #uwaga.pilne{color:#ff9a9a;font-style:normal}
+  @keyframes wjazd{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  #pomoc{width:min(680px,92vw);font-size:12.5px;color:#5d8ea3;line-height:1.6;margin-bottom:50px}
+  #pomoc b{color:#8fd6e8;font-weight:600}
+  .blad{color:#ff8f8f;border-color:#7a2c2c!important;background:rgba(255,80,80,.08)!important}
+
+  /* ---- panel w prawym dolnym rogu: projekt stroju ---- */
+  #projekt{
+    position:fixed;right:14px;bottom:14px;width:232px;z-index:20;
+    background:rgba(3,14,23,.86);border:1px solid var(--neon-ciemny);border-radius:12px;
+    padding:7px 9px 9px;box-shadow:0 0 26px rgba(0,0,0,.6);
+  }
+  #projekt .naglowek{
+    display:flex;justify-content:space-between;align-items:center;gap:6px;
+    font-size:10px;letter-spacing:2px;color:#8fd6e8;text-transform:uppercase;cursor:pointer;
+  }
+  #projekt .naglowek span:last-child{color:var(--neon-ciemny);font-size:13px;line-height:1}
+  #projekt .ramka{position:relative;overflow:hidden;margin-top:6px;border-radius:8px;cursor:zoom-in}
+  #projekt.zwiniety .ramka,#projekt.zwiniety .stopka{display:none}
+  #projekt svg{display:block;width:100%;height:auto}
+  /* linia skanująca przesuwa się po rysunku */
+  #projekt .ramka::after{
+    content:'';position:absolute;left:0;right:0;height:34px;pointer-events:none;
+    background:linear-gradient(180deg,transparent,rgba(67,232,255,.16),transparent);
+    animation:skan 4.5s linear infinite;
+  }
+  @keyframes skan{from{top:-34px}to{top:100%}}
+  #projekt .stopka{margin-top:5px;font-size:9px;letter-spacing:1px;color:#4f7d90;text-align:center}
+  /* na wąskich ekranach panel by zasłonił rozmowę */
+  @media (max-width:760px){ #projekt{width:126px;right:8px;bottom:8px} }
+
+  /* ---- powiększenie rysunku na cały ekran ---- */
+  #lupa{
+    position:fixed;inset:0;z-index:60;display:none;cursor:zoom-out;
+    background:radial-gradient(circle at 50% 45%, rgba(10,32,48,.97), rgba(2,6,11,.98));
+    flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  }
+  #lupa.otwarta{display:flex}
+  #lupa svg{height:88vh;width:auto;max-width:96vw;filter:drop-shadow(0 0 40px rgba(67,232,255,.18))}
+  #lupa .podpis{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#5d8ea3}
+</style>
+</head>
+<body>
+
+<h1>E.V.</h1>
+<p class="podtytul">asystentka głosowa</p>
+
+<div id="reaktor" title="kliknij, żeby włączyć lub wyłączyć słuchanie">
+  <canvas id="plotno" width="600" height="600" style="width:300px;height:300px"></canvas>
+  <div class="rdzen"></div>
+</div>
+
+<div id="stan">wyłączona</div>
+<div id="podglad"></div>
+<div id="ostatnia"></div>
+<div id="uwaga"></div>
+
+<div class="rzad">
+  <button id="btnStart">Włącz słuchanie</button>
+  <button id="btnObudz">Obudź ręcznie</button>
+  <button id="btnPomoc" title="co E.V. potrafi">?</button>
+</div>
+
+<div class="rzad" id="jezyki"></div>
+
+<div class="rzad">
+  <select id="glosWybor" title="głos, którym mówi E.V."></select>
+  <button id="btnProba">Posłuchaj głosu</button>
+</div>
+
+<div class="rzad">
+  <input id="wpis" placeholder="…albo napisz tutaj, jeśli mikrofon nie działa" autocomplete="off">
+</div>
+
+<div id="pomoc" hidden>
+  <b>Jak to działa.</b> Kliknij „Włącz słuchanie”, pozwól na mikrofon i powiedz <b>„E.V.”</b>.
+  E.V. odpowie „Słucham, w czym mogę ci pomóc?” i czeka na polecenie.<br>
+  <b>Inny język.</b> Jeśli powiesz coś po angielsku, niemiecku, hiszpańsku, francusku, włosku, ukraińsku lub rosyjsku —
+  sama się przełączy i od tej chwili mówi w tym języku. Możesz też kliknąć język na liście wyżej.<br>
+  <b>Co potrafi.</b> Zapytaj „co umiesz”, a wyliczy sama. Godzina i data, liczenie („ile to 12 razy 8”, „20 procent z 300”),
+  przeliczanie jednostek („10 km na mile”), minutnik i stoper, rzut kostką i monetą, losowanie liczby, żarty, ciekawostki,
+  gra w zgadywanie liczby, notatki („zapamiętaj że…”, „co pamiętasz”), pogoda („pogoda w Krakowie”), tłumaczenie
+  („jak powiedzieć kot po angielsku”), hasła z Wikipedii („co to jest fotosynteza”), szukanie w Google, filmy z YouTube
+  („puść film o kotach”) i otwieranie stron („otwórz roblox”). „Dziękuję” albo „śpij” usypia ją z powrotem.<br>
+  <b>Głos.</b> Lista obok flag pokazuje głosy zainstalowane w systemie — jeśli brzmi jak lektor, wybierz inny
+  (najlepsze mają w nazwie „Natural”; jest ich więcej w przeglądarce Edge).<br>
+  <b>Uwaga.</b> Rozpoznawanie mowy działa w <b>Chrome</b> lub <b>Edge</b> i potrzebuje internetu.
+</div>
+
+<!-- ====== prawy dolny róg: projekt stroju ====== -->
+<div id="projekt">
+  <div class="naglowek" id="projektNaglowek">
+    <span>Projekt stroju</span><span id="projektZnak">–</span>
+  </div>
+  <div class="ramka">
+    <svg viewBox="0 0 200 344" xmlns="http://www.w3.org/2000/svg" id="strojSVG">
+      <defs>
+        <!-- ---- barwy z rozświetleniem od góry z lewej ---- -->
+        <linearGradient id="gCzerw" x1=".15" y1="0" x2=".95" y2="1">
+          <stop offset="0" stop-color="#ef4048"/><stop offset=".45" stop-color="#c2192a"/><stop offset="1" stop-color="#630b13"/>
+        </linearGradient>
+        <linearGradient id="gNiebo" x1=".15" y1="0" x2=".95" y2="1">
+          <stop offset="0" stop-color="#3a5ee0"/><stop offset=".5" stop-color="#1c33a2"/><stop offset="1" stop-color="#08103f"/>
+        </linearGradient>
+        <radialGradient id="gMaska" cx=".36" cy=".26" r=".85">
+          <stop offset="0" stop-color="#f4535a"/><stop offset=".5" stop-color="#c2192a"/><stop offset="1" stop-color="#5c0a12"/>
+        </radialGradient>
+        <linearGradient id="gSoczewka" x1=".15" y1="0" x2=".85" y2="1">
+          <stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#dde8ef"/><stop offset="1" stop-color="#93a8b6"/>
+        </linearGradient>
+        <linearGradient id="gZnak" x1="0" y1="0" x2=".8" y2="1">
+          <stop offset="0" stop-color="#2b0d12"/><stop offset="1" stop-color="#0a0305"/>
+        </linearGradient>
+        <!-- cień na prawej połowie sylwetki i światło na lewej -->
+        <linearGradient id="gCien" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#000" stop-opacity="0"/>
+          <stop offset=".55" stop-color="#000" stop-opacity=".12"/>
+          <stop offset="1" stop-color="#000" stop-opacity=".55"/>
+        </linearGradient>
+        <radialGradient id="gSwiatlo" cx=".3" cy=".18" r=".75">
+          <stop offset="0" stop-color="#fff" stop-opacity=".38"/>
+          <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+        </radialGradient>
+
+        <filter id="rozmyj2"><feGaussianBlur stdDeviation="2"/></filter>
+        <filter id="rozmyj4"><feGaussianBlur stdDeviation="4"/></filter>
+        <!-- ziarno materiału: szum nałożony na całą sylwetkę -->
+        <filter id="tkanina" x="0" y="0" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="4" seed="7"/>
+          <feColorMatrix type="saturate" values="0"/>
+        </filter>
+
+        <!-- ---- kształty ciała; raz narysowane, wielokrotnie użyte ---- -->
+        <g id="czesciNiebieskie">
+          <!-- lewa ręka (od patrzącego) -->
+          <path id="rekaL" d="M70,82 C60,86 55,95 54,106 C52,122 50,136 48,150 C47,158 45,164 44,171
+                              L57,174 C58,164 60,155 62,146 C65,130 68,112 71,99 Z"/>
+          <path id="rekaP" d="M130,82 C140,86 145,95 146,106 C148,122 150,136 152,150 C153,158 155,164 156,171
+                              L143,174 C142,164 140,155 138,146 C135,130 132,112 129,99 Z"/>
+          <!-- nogi -->
+          <path id="nogaL" d="M74,160 C69,182 68,212 74,240 C77,262 78,286 79,304 L91,304
+                              C90,284 88,262 89,240 C93,212 97,186 98,164 Z"/>
+          <path id="nogaP" d="M126,160 C131,182 132,212 126,240 C123,262 122,286 121,304 L109,304
+                              C110,284 112,262 111,240 C107,212 103,186 102,164 Z"/>
+          <!-- tułów: pełny, czerwień zakryje górę -->
+          <path id="tulow" d="M68,84 C74,78 84,74 100,74 C116,74 126,78 132,84
+                              C137,98 138,112 134,126 C131,140 128,150 125,159
+                              C121,169 111,174 100,174 C89,174 79,169 75,159
+                              C72,150 69,140 66,126 C62,112 63,98 68,84 Z"/>
+        </g>
+
+        <g id="czesciCzerwone">
+          <!-- maska: czaszka szeroka, żuchwa zwężona ku brodzie -->
+          <path id="maska" d="M100,12 C107.5,12 113.3,17.2 115.1,26.1 C116.2,33.5 115.7,40.9 113.3,46 C111,52 106.4,55.7 100,55.7 C93.6,55.7 89,52 86.7,46 C84.3,40.9 83.8,33.5 84.9,26.1 C86.7,17.2 92.5,12 100,12 Z"/>
+          <!-- szyja: maska schodzi pod kołnierz -->
+          <path id="szyja" d="M91,42 L109,42 L111,80 L89,80 Z"/>
+          <!-- czerwony przód tułowia; po bokach zostaje niebieski klin -->
+          <path id="piers" d="M72,86 C78,79 86,75 100,75 C114,75 122,79 128,86
+                              C130,98 128,112 125,126 C122,140 120,150 119,160
+                              C112,166 88,166 81,160 C80,150 78,140 75,126
+                              C72,112 70,98 72,86 Z"/>
+          <!-- rękawice: od połowy przedramienia po dłoń -->
+          <path id="rekawL" d="M48,150 C46,158 45,164 44,171 C41,180 40,190 42,197
+                               C45,204 54,206 59,200 C63,194 61,184 59,175
+                               C58,166 60,158 61,150 Z"/>
+          <path id="rekawP" d="M152,150 C154,158 155,164 156,171 C159,180 160,190 158,197
+                               C155,204 146,206 141,200 C137,194 139,184 141,175
+                               C142,166 140,158 139,150 Z"/>
+          <!-- buty: cholewa pod kolano, stopa skręcona na zewnątrz -->
+          <path id="butL" d="M76,258 L90,258 C90,274 90,290 92,304 C93,316 94,326 96,331
+                             C97,334 94,336 88,336 L62,336 C56,336 54,331 59,327
+                             C68,320 74,310 76,300 C77,286 76,272 76,258 Z"/>
+          <path id="butP" d="M124,258 L110,258 C110,274 110,290 108,304 C107,316 106,326 104,331
+                             C103,334 106,336 112,336 L138,336 C144,336 146,331 141,327
+                             C132,320 126,310 124,300 C123,286 124,272 124,258 Z"/>
+        </g>
+
+        <clipPath id="sylwetka">
+          <use href="#czesciNiebieskie"/><use href="#czesciCzerwone"/>
+        </clipPath>
+        <clipPath id="czerwone">
+          <use href="#maska"/><use href="#piers"/><use href="#rekawL"/><use href="#rekawP"/>
+          <use href="#butL"/><use href="#butP"/><use href="#szyja"/>
+        </clipPath>
+      </defs>
+
+      <!-- siatka pomiarowa w tle -->
+      <g stroke="#0d5f74" stroke-opacity=".3" stroke-width=".5">
+        <path d="M100,6 V338 M14,172 H186"/>
+        <circle cx="100" cy="172" r="88" fill="none"/>
+        <path d="M18,71 H182 M18,174 H182 M18,262 H182" stroke-dasharray="2 6"/>
+      </g>
+
+      <!-- cień rzucany na podłoże -->
+      <ellipse cx="100" cy="336" rx="56" ry="7" fill="#000" opacity=".5" filter="url(#rozmyj4)"/>
+
+      <!-- ===== ciało ===== -->
+      <use href="#czesciNiebieskie" fill="url(#gNiebo)"/>
+      <use href="#czesciCzerwone" fill="url(#gCzerw)"/>
+      <use href="#maska" fill="url(#gMaska)"/>
+
+      <!-- ===== bryła: światło z góry z lewej, cień po prawej ===== -->
+      <g clip-path="url(#sylwetka)">
+        <rect x="0" y="0" width="200" height="344" fill="url(#gCien)"/>
+        <rect x="0" y="0" width="200" height="344" fill="url(#gSwiatlo)"/>
+      </g>
+
+      <!-- ===== mięśnie: cienie ===== -->
+      <g clip-path="url(#sylwetka)" fill="none" stroke="#1c0409" stroke-opacity=".42"
+         stroke-linecap="round" filter="url(#rozmyj2)">
+        <!-- barki i pachy -->
+        <path d="M70,84 C64,90 61,97 60,105" stroke-width="3"/>
+        <path d="M130,84 C136,90 139,97 140,105" stroke-width="3"/>
+        <path d="M72,98 C76,104 78,110 79,116" stroke-width="2.5"/>
+        <path d="M128,98 C124,104 122,110 121,116" stroke-width="2.5"/>
+        <!-- klatka: rowek mostka i dolne krawędzie mięśni piersiowych -->
+        <path d="M100,86 V116" stroke-width="2.2"/>
+        <path d="M76,110 C84,118 92,120 99,118" stroke-width="2.6"/>
+        <path d="M124,110 C116,118 108,120 101,118" stroke-width="2.6"/>
+        <!-- brzuch -->
+        <path d="M100,126 V162" stroke-width="1.8"/>
+        <path d="M86,136 H114 M88,148 H112" stroke-width="1.5"/>
+        <path d="M78,130 C82,142 84,152 86,160 M122,130 C118,142 116,152 114,160" stroke-width="2"/>
+        <!-- ręce: bicepsy, zgięcie łokcia, przedramiona -->
+        <path d="M63,104 C61,116 59,128 57,140" stroke-width="2.4"/>
+        <path d="M137,104 C139,116 141,128 143,140" stroke-width="2.4"/>
+        <path d="M50,148 H58 M142,148 H150" stroke-width="2"/>
+        <path d="M52,158 C53,164 54,168 55,172 M148,158 C147,164 146,168 145,172" stroke-width="1.8"/>
+        <!-- nogi: pachwina, kolana, łydki -->
+        <path d="M100,168 C96,176 94,184 93,192 M100,168 C104,176 106,184 107,192" stroke-width="2.4"/>
+        <path d="M76,232 C80,236 86,238 90,237 M124,232 C120,236 114,238 110,237" stroke-width="2.6"/>
+        <path d="M79,262 C83,268 86,272 88,276 M121,262 C117,268 114,272 112,276" stroke-width="2.2"/>
+        <path d="M80,296 H90 M120,296 H110" stroke-width="2"/>
+        <!-- broda i policzki maski -->
+        <path d="M90.7,46 C94.2,52 105.8,52 109.3,46" stroke-width="2.2"/>
+      </g>
+
+      <!-- ===== mięśnie: światła ===== -->
+      <g clip-path="url(#sylwetka)" fill="none" stroke="#fff" stroke-opacity=".3"
+         stroke-linecap="round" filter="url(#rozmyj2)">
+        <path d="M84,88 C80,96 79,104 80,112" stroke-width="4"/>
+        <path d="M112,90 C110,98 110,106 111,112" stroke-width="3"/>
+        <path d="M67,96 C65,110 63,124 62,136" stroke-width="3"/>
+        <path d="M133,98 C135,110 137,122 138,134" stroke-width="2"/>
+        <path d="M50,160 C51,166 52,170 53,174" stroke-width="2.4"/>
+        <path d="M84,180 C80,204 79,222 80,234" stroke-width="4.5"/>
+        <path d="M116,182 C119,204 120,222 119,234" stroke-width="3"/>
+        <path d="M82,254 C80,268 80,282 81,294" stroke-width="3.5"/>
+        <path d="M118,256 C120,270 120,282 119,294" stroke-width="2.5"/>
+        <path d="M93,22.4 C89.6,26.8 87.8,32.7 87.8,38.6" stroke-width="4"/>
+      </g>
+
+      <!-- ===== światło konturowe po lewej krawędzi ===== -->
+      <g clip-path="url(#sylwetka)" fill="none" stroke="#ffd9dc" stroke-opacity=".5" stroke-width="1.6"
+         stroke-linecap="round" filter="url(#rozmyj2)">
+        <path d="M85.5,22.4 C83.8,31.2 84.3,41.6 87.2,47.5"/>
+        <path d="M69,84 C62,94 58,110 55,128"/>
+        <path d="M45,172 C41,180 40,190 42,196"/>
+        <path d="M74,162 C68,186 68,214 74,238"/>
+        <path d="M78,268 C77,284 78,296 78,302"/>
+      </g>
+
+      <!-- ===== pajęczyna (dorysowana skryptem) ===== -->
+      <g id="siec" clip-path="url(#czerwone)" fill="none"/>
+
+      <!-- ===== soczewki ===== -->
+      <g>
+        <!-- duże soczewki jak w klasycznym stroju: szerokie przy skroni, spiczaste przy nosie -->
+        <path d="M98.6,26.5 C98.9,32 96.6,36.4 92.4,38.4 C88.2,40.3 84.6,38.6 84.4,34.6
+                 C84.2,29.4 88,24.4 93.4,22.6 C96.6,21.6 98.4,23.4 98.6,26.5 Z"
+              fill="url(#gSoczewka)" stroke="#140206" stroke-width="2.2" stroke-linejoin="round"/>
+        <path d="M101.4,26.5 C101.1,32 103.4,36.4 107.6,38.4 C111.8,40.3 115.4,38.6 115.6,34.6
+                 C115.8,29.4 112,24.4 106.6,22.6 C103.4,21.6 101.6,23.4 101.4,26.5 Z"
+              fill="url(#gSoczewka)" stroke="#140206" stroke-width="2.2" stroke-linejoin="round"/>
+        <!-- odblask szkła -->
+        <path d="M92.6,25.4 C95.4,24.6 96.6,26.6 95.6,29.6 C94.4,32.8 90.6,34.4 89,32.2
+                 C87.6,30 89.6,26.4 92.6,25.4 Z" fill="#fff" opacity=".85"/>
+        <path d="M107.4,25.4 C104.6,24.6 103.4,26.6 104.4,29.6 C105.6,32.8 109.4,34.4 111,32.2
+                 C112.4,30 110.4,26.4 107.4,25.4 Z" fill="#fff" opacity=".45"/>
+        <!-- odbicie ekranów pracowni -->
+        <path d="M87,35.4 C90,37.4 93.6,36.8 96,34.6" stroke="#43e8ff" stroke-opacity=".55" stroke-width="1.3" fill="none"/>
+        <path d="M113,35.4 C110,37.4 106.4,36.8 104,34.6" stroke="#43e8ff" stroke-opacity=".3" stroke-width="1.3" fill="none"/>
+      </g>
+
+      <!-- ===== pajęczy znak ===== -->
+      <g fill="url(#gZnak)">
+        <ellipse cx="100" cy="101" rx="3.6" ry="7.6"/>
+        <circle cx="100" cy="92.5" r="2.4"/>
+        <g stroke="url(#gZnak)" stroke-width="1.6" fill="none" stroke-linecap="round">
+          <path d="M97,95 C90,91 86,85 84,78 M96,99 C88,97 82,93 77,87
+                   M96,103 C88,104 82,108 77,113 M97,107 C90,111 86,116 84,122"/>
+          <path d="M103,95 C110,91 114,85 116,78 M104,99 C112,97 118,93 123,87
+                   M104,103 C112,104 118,108 123,113 M103,107 C110,111 114,116 116,122"/>
+        </g>
+        <!-- odblask na krawędzi znaku -->
+        <path d="M98,95 C98,99 98,104 98,107" stroke="#fff" stroke-opacity=".25" stroke-width="1" fill="none"/>
+      </g>
+
+      <!-- ===== faktura materiału ===== -->
+      <g clip-path="url(#sylwetka)" style="mix-blend-mode:overlay" opacity=".28">
+        <rect x="0" y="0" width="200" height="344" filter="url(#tkanina)"/>
+      </g>
+
+      <!-- ===== opisy techniczne ===== -->
+      <g stroke="#43e8ff" stroke-opacity=".45" stroke-width=".6" fill="none">
+        <path d="M114,27 L160,20 M134,101 L170,101 M43,190 L18,200 M126,320 L152,332"/>
+        <circle cx="114" cy="27" r="1.4"/><circle cx="134" cy="101" r="1.4"/>
+        <circle cx="43" cy="190" r="1.4"/><circle cx="126" cy="320" r="1.4"/>
+      </g>
+      <g fill="#8fd6e8" font-family="Segoe UI, sans-serif" font-size="7.5" letter-spacing=".5">
+        <text x="150" y="20">soczewki HUD</text>
+        <text x="146" y="98">pajęczy znak</text>
+        <text x="6" y="211">wyrzutnia sieci</text>
+        <text x="118" y="341">podeszwa przyczepna</text>
+      </g>
+
+      <!-- narożniki ramki -->
+      <g stroke="#43e8ff" stroke-opacity=".6" stroke-width="1.4" fill="none">
+        <path d="M6,22 L6,6 L22,6 M178,6 L194,6 L194,22 M194,322 L194,338 L178,338 M22,338 L6,338 L6,322"/>
+      </g>
+    </svg>
+  </div>
+  <div class="stopka">model 1:1 &nbsp;•&nbsp; skan gotowy</div>
+</div>
+
+<script>
+/* =========================================================================
+   E.V. — asystentka głosowa w stylu J.A.R.V.I.S.-a, po polsku.
+   Wszystko siedzi w tym jednym pliku: słuchanie (Web Speech API),
+   mówienie (speechSynthesis), rozpoznawanie języka i garść umiejętności.
+   ========================================================================= */
+
+/* ---------------------------------------------------------------
+   1. JĘZYKI — dla każdego: kod mowy, zdania i nazwy dni
+   --------------------------------------------------------------- */
+const JEZYKI = {
+  pl:{ nazwa:'polski', flaga:'🇵🇱', kod:'pl-PL',
+    powitanie:'Słucham, w czym mogę ci pomóc?',
+    przelacz:'Przechodzę na polski. Słucham.',
+    nieRozumiem:'Nie zrozumiałam. Powtórz proszę.',
+    nieUmiem:'Tego jeszcze nie potrafię, ale słucham dalej.',
+    pa:'Do usłyszenia. Powiedz „I-wi”, gdy będę potrzebna.',
+    godzina:g=>`Jest ${g}.`,
+    data:d=>`Dzisiaj jest ${d}.`,
+    wynik:w=>`To ${w}.`,
+    otwieram:c=>`Otwieram ${c}.`,
+    szukam:c=>`Szukam: ${c}.`,
+    umiem:"Umiem podać godzinę i datę, policzyć działanie, opowiedzieć żart, otworzyć YouTube, Google albo Wikipedię, wyszukać coś w sieci i puścić film. Powiedz na przykład: puść film o kotach.",
+    puszczam:c=>`Puszczam film: ${c}.`,
+    ktoJestes:'Jestem E.V., twoja asystentka głosowa. Mieszkam w tej przeglądarce.',
+    zarty:['Dlaczego komputer poszedł do lekarza? Bo złapał wirusa.',
+           'Programista idzie do sklepu. Żona mówi: kup chleb, a jak będą jajka, weź dziesięć. Wrócił z dziesięcioma chlebami.',
+           'Nie ufam schodom. Zawsze coś knują.'],
+    dni:['niedziela','poniedziałek','wtorek','środa','czwartek','piątek','sobota'] },
+
+  en:{ nazwa:'English', flaga:'🇬🇧', kod:'en-US',
+    powitanie:'Yes? How can I help you?',
+    przelacz:'Switching to English. I am listening.',
+    nieRozumiem:'I did not catch that. Say it again, please.',
+    nieUmiem:'I cannot do that yet, but I am still listening.',
+    pa:'Talk to you later. Say "E.V." when you need me.',
+    godzina:g=>`It is ${g}.`,
+    data:d=>`Today is ${d}.`,
+    wynik:w=>`That is ${w}.`,
+    otwieram:c=>`Opening ${c}.`,
+    szukam:c=>`Searching for ${c}.`,
+    umiem:"I can tell the time and date, do arithmetic, tell a joke, open YouTube, Google or Wikipedia, search the web and play a video. Try saying: play a video about cats.",
+    puszczam:c=>`Playing a video about ${c}.`,
+    ktoJestes:'I am E.V., your voice assistant. I live inside this browser.',
+    zarty:['Why did the computer go to the doctor? It caught a virus.',
+           'I told my computer I needed a break. Now it will not stop sending me vacation ads.',
+           'There are 10 kinds of people: those who know binary and those who do not.'],
+    dni:['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'] },
+
+  de:{ nazwa:'Deutsch', flaga:'🇩🇪', kod:'de-DE',
+    powitanie:'Ja? Wie kann ich dir helfen?',
+    przelacz:'Ich wechsle zu Deutsch. Ich höre zu.',
+    nieRozumiem:'Das habe ich nicht verstanden. Bitte wiederhole es.',
+    nieUmiem:'Das kann ich noch nicht, aber ich höre weiter zu.',
+    pa:'Bis später. Sag „E.V.“, wenn du mich brauchst.',
+    godzina:g=>`Es ist ${g}.`,
+    data:d=>`Heute ist ${d}.`,
+    wynik:w=>`Das ist ${w}.`,
+    otwieram:c=>`Ich öffne ${c}.`,
+    szukam:c=>`Ich suche nach ${c}.`,
+    umiem:"Ich kann Uhrzeit und Datum sagen, rechnen, einen Witz erzählen, YouTube, Google oder Wikipedia öffnen, im Netz suchen und ein Video abspielen. Sag zum Beispiel: spiel ein Video über Katzen.",
+    puszczam:c=>`Ich spiele ein Video über ${c}.`,
+    ktoJestes:'Ich bin E.V., deine Sprachassistentin. Ich wohne in diesem Browser.',
+    zarty:['Warum ging der Computer zum Arzt? Er hatte einen Virus.',
+           'Es gibt 10 Arten von Menschen: die, die binär verstehen, und die anderen.'],
+    dni:['Sonntag','Montag','Dienstag','Mittwoch','Donnerstag','Freitag','Samstag'] },
+
+  es:{ nazwa:'Español', flaga:'🇪🇸', kod:'es-ES',
+    powitanie:'¿Sí? ¿En qué puedo ayudarte?',
+    przelacz:'Cambio al español. Te escucho.',
+    nieRozumiem:'No te he entendido. Repítelo, por favor.',
+    nieUmiem:'Todavía no sé hacer eso, pero sigo escuchando.',
+    pa:'Hasta luego. Di "E.V." cuando me necesites.',
+    godzina:g=>`Son las ${g}.`,
+    data:d=>`Hoy es ${d}.`,
+    wynik:w=>`Es ${w}.`,
+    otwieram:c=>`Abriendo ${c}.`,
+    szukam:c=>`Buscando ${c}.`,
+    umiem:"Sé decir la hora y la fecha, calcular, contar un chiste, abrir YouTube, Google o Wikipedia, buscar en la red y poner un vídeo. Di por ejemplo: pon un vídeo de gatos.",
+    puszczam:c=>`Pongo un vídeo de ${c}.`,
+    ktoJestes:'Soy E.V., tu asistente de voz. Vivo dentro de este navegador.',
+    zarty:['¿Por qué el ordenador fue al médico? Porque tenía un virus.',
+           'Hay 10 tipos de personas: las que entienden binario y las que no.'],
+    dni:['domingo','lunes','martes','miércoles','jueves','viernes','sábado'] },
+
+  fr:{ nazwa:'Français', flaga:'🇫🇷', kod:'fr-FR',
+    powitanie:'Oui ? Comment puis-je t’aider ?',
+    przelacz:'Je passe au français. Je t’écoute.',
+    nieRozumiem:'Je n’ai pas compris. Répète, s’il te plaît.',
+    nieUmiem:'Je ne sais pas encore faire ça, mais je continue à écouter.',
+    pa:'À bientôt. Dis « E.V. » quand tu as besoin de moi.',
+    godzina:g=>`Il est ${g}.`,
+    data:d=>`Aujourd’hui, nous sommes ${d}.`,
+    wynik:w=>`Cela fait ${w}.`,
+    otwieram:c=>`J’ouvre ${c}.`,
+    szukam:c=>`Je cherche ${c}.`,
+    umiem:"Je sais donner l’heure et la date, calculer, raconter une blague, ouvrir YouTube, Google ou Wikipédia, chercher sur le web et lancer une vidéo. Dis par exemple : mets une vidéo de chats.",
+    puszczam:c=>`Je lance une vidéo sur ${c}.`,
+    ktoJestes:'Je suis E.V., ton assistante vocale. J’habite dans ce navigateur.',
+    zarty:['Pourquoi l’ordinateur est-il allé chez le médecin ? Il avait un virus.',
+           'Il y a 10 sortes de gens : ceux qui comprennent le binaire et les autres.'],
+    dni:['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'] },
+
+  it:{ nazwa:'Italiano', flaga:'🇮🇹', kod:'it-IT',
+    powitanie:'Sì? Come posso aiutarti?',
+    przelacz:'Passo all’italiano. Ti ascolto.',
+    nieRozumiem:'Non ho capito. Ripeti, per favore.',
+    nieUmiem:'Non so ancora farlo, ma continuo ad ascoltare.',
+    pa:'A presto. Di’ "E.V." quando hai bisogno di me.',
+    godzina:g=>`Sono le ${g}.`,
+    data:d=>`Oggi è ${d}.`,
+    wynik:w=>`Fa ${w}.`,
+    otwieram:c=>`Apro ${c}.`,
+    szukam:c=>`Cerco ${c}.`,
+    umiem:"So dire l’ora e la data, fare i conti, raccontare una barzelletta, aprire YouTube, Google o Wikipedia, cercare in rete e mettere un video. Prova a dire: metti un video sui gatti.",
+    puszczam:c=>`Metto un video su ${c}.`,
+    ktoJestes:'Sono E.V., la tua assistente vocale. Vivo dentro questo browser.',
+    zarty:['Perché il computer è andato dal dottore? Aveva un virus.',
+           'Ci sono 10 tipi di persone: quelle che capiscono il binario e le altre.'],
+    dni:['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'] },
+
+  uk:{ nazwa:'Українська', flaga:'🇺🇦', kod:'uk-UA',
+    powitanie:'Слухаю. Чим можу допомогти?',
+    przelacz:'Переходжу на українську. Слухаю.',
+    nieRozumiem:'Я не зрозуміла. Повтори, будь ласка.',
+    nieUmiem:'Цього я ще не вмію, але слухаю далі.',
+    pa:'До зустрічі. Скажи «І-ві», коли буду потрібна.',
+    godzina:g=>`Зараз ${g}.`,
+    data:d=>`Сьогодні ${d}.`,
+    wynik:w=>`Це ${w}.`,
+    otwieram:c=>`Відкриваю ${c}.`,
+    szukam:c=>`Шукаю ${c}.`,
+    umiem:"Я вмію сказати час і дату, порахувати, розповісти жарт, відкрити YouTube, Google чи Вікіпедію, пошукати в мережі та увімкнути відео. Скажи, наприклад: увімкни відео про котів.",
+    puszczam:c=>`Вмикаю відео про ${c}.`,
+    ktoJestes:'Я E.V., твоя голосова помічниця. Живу в цьому браузері.',
+    zarty:['Чому комп’ютер пішов до лікаря? Бо підхопив вірус.',
+           'Є 10 типів людей: ті, хто розуміє двійкову систему, і всі інші.'],
+    dni:['неділя','понеділок','вівторок','середа','четвер','п’ятниця','субота'] },
+
+  ru:{ nazwa:'Русский', flaga:'🌐', kod:'ru-RU',
+    powitanie:'Слушаю. Чем могу помочь?',
+    przelacz:'Перехожу на русский. Слушаю.',
+    nieRozumiem:'Я не поняла. Повтори, пожалуйста.',
+    nieUmiem:'Этого я ещё не умею, но слушаю дальше.',
+    pa:'До связи. Скажи «И-ви», когда понадоблюсь.',
+    godzina:g=>`Сейчас ${g}.`,
+    data:d=>`Сегодня ${d}.`,
+    wynik:w=>`Это ${w}.`,
+    otwieram:c=>`Открываю ${c}.`,
+    szukam:c=>`Ищу ${c}.`,
+    umiem:"Я умею сказать время и дату, посчитать, рассказать шутку, открыть YouTube, Google или Википедию, поискать в сети и включить видео. Скажи, например: включи видео про котов.",
+    puszczam:c=>`Включаю видео про ${c}.`,
+    ktoJestes:'Я E.V., твой голосовой помощник. Живу в этом браузере.',
+    zarty:['Почему компьютер пошёл к врачу? Он поймал вирус.',
+           'Есть 10 типов людей: те, кто понимает двоичный код, и все остальные.'],
+    dni:['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'] },
+};
+
+/* Słowa charakterystyczne dla języka — po nich zgadujemy, czym ktoś mówi. */
+const TROPY = {
+  pl:['jest','nie','tak','proszę','dziękuję','co','jak','gdzie','która','godzina','dzisiaj','mnie','czy','jaki','dlaczego','bardzo','ale','żeby','powiedz','otwórz','ile','się','jestem'],
+  en:['the','is','what','you','how','please','thanks','thank','can','me','are','time','today','tell','why','and','open','search','who'],
+  de:['ich','du','wie','was','bitte','danke','ist','uhr','heute','warum','nicht','und','öffne','sag','wer','spät'],
+  es:['qué','que','cómo','por','favor','gracias','hola','hora','hoy','eres','dime','abre','busca','quién'],
+  fr:['quelle','comment','merci','bonjour','heure','aujourd','tu','est','ouvre','cherche','qui','dis','pourquoi'],
+  it:['che','come','grazie','ciao','ora','oggi','sei','dimmi','apri','cerca','chi','perché'],
+  uk:['що','як','будь','ласка','дякую','привіт','котра','година','сьогодні','ти','мені','відкрий','хто','чому'],
+  ru:['что','как','пожалуйста','спасибо','привет','который','час','сегодня','ты','мне','открой','кто','почему'],
+};
+/* Litery, które sporo zdradzają. */
+const LITERY = { pl:'ąćęłńóśźż', de:'äöüß', es:'ñ¿¡', fr:'çéèêà', it:'àèìòù', uk:'їієґ', ru:'ыэъё', en:'' };
+
+/* ---------------------------------------------------------------
+   2. Stan aplikacji
+   --------------------------------------------------------------- */
+let jezyk = 'pl';          // aktualny język rozmowy
+let tryb  = 'stop';        // 'stop' | 'czuwa' (czeka na „E.V.”) | 'polecenie'
+let chceSluchac = false;   // czy użytkownik włączył asystentkę
+let mowiTeraz = false;     // czy właśnie gada (wtedy nie słuchamy siebie)
+let licznikCiszy = null;   // powrót do czuwania, gdy nikt nic nie mówi
+let licznikRestartu = null;// zaplanowane wznowienie słuchania
+let ostatniZart = -1;
+
+const el = id => document.getElementById(id);
+const stan = el('stan'), podglad = el('podglad');
+const ostatnia = el('ostatnia'), uwaga = el('uwaga');
+
+/* ---------------------------------------------------------------
+   3. Mówienie
+   --------------------------------------------------------------- */
+/* ---------------------------------------------------------------
+   3b. Głos AI — model neuronowy (Piper) liczony w przeglądarce.
+   Windows ma tu tylko stare głosy SAPI, a te brzmią jak czytnik ekranu.
+   Model waży ~60 MB, pobiera się raz i zostaje w pamięci przeglądarki.
+   Cena: synteza zdania trwa kilka sekund, dlatego to wybór, nie domyślne.
+   --------------------------------------------------------------- */
+const AI_SCIEZKI = {
+  onnxWasm:  'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.27.0/dist/',
+  piperData: 'https://cdn.jsdelivr.net/npm/@diffusionstudio/piper-wasm@1.0.0/build/piper_phonemize.data',
+  piperWasm: 'https://cdn.jsdelivr.net/npm/@diffusionstudio/piper-wasm@1.0.0/build/piper_phonemize.wasm',
+};
+const GLOSY_AI = [
+  { id:'pl_PL-gosia-medium',   jezyk:'pl', nazwa:'AI: Gosia (neuronowy)' },
+  { id:'pl_PL-darkman-medium', jezyk:'pl', nazwa:'AI: Darkman (neuronowy)' },
+  { id:'en_US-amy-medium',     jezyk:'en', nazwa:'AI: Amy (neural)' },
+  { id:'en_US-ryan-medium',    jezyk:'en', nazwa:'AI: Ryan (neural)' },
+  { id:'de_DE-thorsten-medium',jezyk:'de', nazwa:'AI: Thorsten' },
+  { id:'es_ES-davefx-medium',  jezyk:'es', nazwa:'AI: Davefx' },
+  { id:'fr_FR-siwis-medium',   jezyk:'fr', nazwa:'AI: Siwis' },
+  { id:'it_IT-riccardo-x_low', jezyk:'it', nazwa:'AI: Riccardo' },
+  { id:'uk_UA-ukrainian_tts-medium', jezyk:'uk', nazwa:'AI: Ukrainian' },
+  { id:'ru_RU-irina-medium',   jezyk:'ru', nazwa:'AI: Irina' },
+];
+let silnikAI = null, odtwarzaczAI = null;
+
+function glosyAIdlaJezyka(){ return GLOSY_AI.filter(g => g.jezyk === jezyk); }
+function wybranyGlosAI(){
+  if(!wybranyGlos.startsWith('ai:')) return null;
+  const id = wybranyGlos.slice(3);
+  return glosyAIdlaJezyka().find(g => g.id === id) || glosyAIdlaJezyka()[0] || null;
+}
+
+async function wczytajSilnikAI(){
+  if(!silnikAI) silnikAI = await import('https://cdn.jsdelivr.net/npm/@diffusionstudio/vits-web/+esm');
+  return silnikAI;
+}
+
+/* Zwraca obietnicę spełnioną, gdy zdanie skończy się odtwarzać. */
+async function mowAI(tekst, idGlosu){
+  const silnik = await wczytajSilnikAI();
+  const zapisane = await silnik.stored().catch(() => []);
+  if(!zapisane.includes(idGlosu)){
+    dopisz('info', 'Pobieram głos AI (jednorazowo, około 60 MB)…');
+    await silnik.download(idGlosu, p => {
+      if(p && p.total) dopisz('info', 'Pobieram głos AI… ' + Math.round(p.loaded / p.total * 100) + '%');
+    });
+    dopisz('info', 'Głos AI gotowy. Każde zdanie liczy się kilka sekund.');
+  }
+  const nagranie = await silnik.predict({ text: tekst, voiceId: idGlosu, wasmPaths: AI_SCIEZKI });
+  return new Promise((koniec, blad) => {
+    odtwarzaczAI = new Audio(URL.createObjectURL(nagranie));
+    odtwarzaczAI.onended = koniec;
+    odtwarzaczAI.onerror = blad;
+    odtwarzaczAI.play().catch(blad);
+  });
+}
+function zatrzymajGlosAI(){
+  if(odtwarzaczAI){ try{ odtwarzaczAI.pause(); }catch(e){} odtwarzaczAI = null; }
+}
+
+let glosy = [];
+/* Pamięć przeglądarki bywa zablokowana (np. gdy strona jest otwarta inaczej niż
+   zwykłym adresem) — sięgamy do niej ostrożnie, żeby nie wywalić całego skryptu. */
+function zPamieci(klucz){ try{ return localStorage.getItem(klucz) || ''; }catch(e){ return ''; } }
+function doPamieci(klucz, wartosc){ try{ localStorage.setItem(klucz, wartosc); }catch(e){} }
+let wybranyGlos = zPamieci('evGlos');                     // ręczny wybór z listy
+function odswiezGlosy(){
+  glosy = speechSynthesis.getVoices();
+  if(typeof odswiezListeGlosow === 'function') odswiezListeGlosow();
+}
+odswiezGlosy();
+speechSynthesis.onvoiceschanged = odswiezGlosy;
+// głosy sieciowe (Edge) meldują się z opóźnieniem — dopytujemy przez kilka sekund
+for(const zwloka of [300, 900, 2000, 4000]) setTimeout(odswiezGlosy, zwloka);
+
+/* Głosy „Desktop” z Windows brzmią jak lektor z czytnika ekranu. Neuronowe
+   („Natural”, „Online”, Google) mówią jak człowiek — te bierzemy w pierwszej kolejności. */
+function glosyJezyka(kod){
+  const baza = kod.slice(0,2);
+  return glosy.filter(g => g.lang.replace('_','-').toLowerCase().startsWith(baza));
+}
+function ocenGlos(g){
+  let p = 0;
+  const n = g.name;
+  if(/natural|neural/i.test(n)) p += 200;              // Edge: Zofia, Agnieszka — brzmią jak człowiek
+  if(/google/i.test(n)) p += 120;                      // Chrome: „Google polski” — też dobre
+  if(/online/i.test(n)) p += 60;
+  if(/desktop|espeak|sapi|microsoft server/i.test(n)) p -= 120;   // stare, blaszane
+  if(/(zofia|zosia|paulina|agnieszka|ewa|anna|maria|helena|hedda|female|kobie)/i.test(n)) p += 70;
+  if(/(adam|marek|paweł|pawel|krzysztof|male|mężcz)/i.test(n)) p -= 70;   // narrator z czytnika ekranu
+  if(!g.localService) p += 20;                         // serwerowe zwykle nowsze
+  return p;
+}
+/* Gdy w przeglądarce siedzą same stare głosy, nie ma czym poprawić brzmienia —
+   trzeba o tym powiedzieć wprost, zamiast udawać, że wybór coś da. */
+function czyTylkoStareGlosy(){
+  const dostepne = glosyJezyka(JEZYKI[jezyk].kod);
+  return dostepne.length > 0 && !dostepne.some(g => /natural|neural|google|online/i.test(g.name));
+}
+function wybierzGlos(kod){
+  const pasujace = glosyJezyka(kod);
+  if(!pasujace.length) return null;
+  const recznie = pasujace.find(g => g.voiceURI === wybranyGlos);
+  if(recznie) return recznie;                           // wybór z listy ma pierwszeństwo
+  return pasujace.slice().sort((a, b) => ocenGlos(b) - ocenGlos(a))[0];
+}
+
+function mow(tekst, poSkonczeniu){
+  dopisz('ev', tekst);
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(tekst);
+  const kod = JEZYKI[jezyk].kod;
+  u.lang = kod;
+  const g = wybierzGlos(kod);
+  if(g) u.voice = g;
+  // neuronowe głosy same brzmią naturalnie — podkręcanie tonu psuje je w lektora
+  const neuronowy = g && /natural|neural|google|online/i.test(g.name);
+  u.rate  = neuronowy ? 1 : .92;     // Paulina/Adam brzmią spokojniej wolniej
+  u.pitch = neuronowy ? 1 : 1;
+
+  mowiTeraz = true;
+  document.body.classList.add('mowi');
+  stopSluchania();                       // żeby nie usłyszała samej siebie
+  zatrzymajGlosAI();
+
+  const koniec = () => {
+    if(!mowiTeraz) return;               // zabezpieczenie przed podwójnym wywołaniem
+    mowiTeraz = false;
+    document.body.classList.remove('mowi');
+    if(poSkonczeniu) poSkonczeniu();
+    if(chceSluchac) setTimeout(startSluchania, 220);
+  };
+  u.onend = koniec;
+  u.onerror = koniec;
+  const aiGlos = wybranyGlosAI();
+  if(aiGlos){
+    // model neuronowy: liczenie trwa, więc widać, że E.V. nie zawiesiła się
+    dopisz('info', 'głos AI liczy zdanie…');
+    mowAI(tekst, aiGlos.id).then(() => { uwaga.textContent = ''; koniec(); }).catch(e => {
+      dopisz('info', 'Głos AI nie ruszył (' + String(e).slice(0, 60) + '). Wracam na głos systemowy.');
+      wybranyGlos = '';
+      doPamieci('evGlos', '');
+      odswiezListeGlosow();
+      speechSynthesis.speak(u);
+      setTimeout(koniec, 1500 + tekst.length * 95);
+    });
+    setTimeout(koniec, 90000);           // ostatnia deska ratunku, gdyby model zamilkł
+  }else{
+    speechSynthesis.speak(u);
+    // gdyby przeglądarka zgubiła zdarzenie „onend” (zdarza się w Chrome)
+    setTimeout(koniec, 1500 + tekst.length * 95);
+  }
+}
+
+/* ---------------------------------------------------------------
+   4. Wypisywanie rozmowy
+   --------------------------------------------------------------- */
+/* Nic się nie odkłada na dole strony: usłyszane zdanie idzie do podglądu,
+   odpowiedź E.V. w jedną linię pod reaktorem, a uwagi techniczne w linijkę niżej. */
+function dopisz(kto, tekst){
+  if(kto === 'ja'){
+    podglad.textContent = '„' + tekst + '”';
+    return;
+  }
+  if(kto === 'info'){
+    uwaga.textContent = tekst;
+    uwaga.classList.toggle('pilne', tekst.length > 60);   // dłuższe = to instrukcja awaryjna
+    return;
+  }
+  ostatnia.textContent = tekst;
+  ostatnia.style.animation = 'none';
+  void ostatnia.offsetWidth;                              // wymuszamy powtórkę animacji
+  ostatnia.style.animation = '';
+}
+
+/* ---------------------------------------------------------------
+   5. Rozpoznawanie języka wypowiedzi
+   --------------------------------------------------------------- */
+function rozpoznajJezyk(tekst){
+  const t = ' ' + tekst.toLowerCase() + ' ';
+  const slowa = t.split(/[^a-zа-яёіїєґäöüßñçàèéìòùąćęłńóśźż']+/).filter(Boolean);
+  const punkty = {};
+  for(const kod in TROPY){
+    let p = 0;
+    for(const s of slowa) if(TROPY[kod].includes(s)) p += 3;
+    for(const litera of LITERY[kod]) if(t.includes(litera)) p += 2;
+    punkty[kod] = p;
+  }
+  // cyrylica wyklucza języki łacińskie i odwrotnie
+  const cyrylica = /[а-яёіїєґ]/.test(t);
+  for(const kod in punkty){
+    const kodCyrylicki = (kod === 'uk' || kod === 'ru');
+    if(cyrylica !== kodCyrylicki) punkty[kod] = -1;
+  }
+  punkty[jezyk] += 2;                       // trzymamy się obecnego języka, gdy remis
+  let najlepszy = jezyk, max = 0;
+  for(const kod in punkty) if(punkty[kod] > max){ max = punkty[kod]; najlepszy = kod; }
+  return max >= 3 ? najlepszy : jezyk;      // za mało dowodów → zostajemy przy obecnym
+}
+
+/* ---------------------------------------------------------------
+   6. Umiejętności — czyli co E.V. umie zrobić
+   --------------------------------------------------------------- */
+const KLUCZE = {
+  godzina:['która godzina','godzina','what time','the time','wie spät','uhr','qué hora','hora es','quelle heure','che ore','котра година','который час','сколько времени'],
+  data:['jaki dziś','jaki dzisiaj','która data','jaka data','dzisiaj jest','what day','what date','today','welcher tag','datum','qué día','fecha','quel jour','che giorno','яке сьогодні','яка дата','какое число','какой день'],
+  kim:['kim jesteś','kto ty','jak się nazywasz','who are you','your name','wer bist du','quién eres','qui es-tu','chi sei','хто ти','кто ты'],
+  zart:['żart','kawał','śmieszne','joke','funny','witz','chiste','blague','barzelletta','жарт','анекдот','шутк'],
+  spij:['śpij$','koniec$','dziękuję','dzięki$','na razie','pa pa','stop$','sleep$','thanks$','thank you','goodbye$','bye$','danke$','schlaf$','tschüss$','gracias$','adiós$','duerme$','merci$','au revoir','dors$','grazie$','ciao$','дякую','спи$','до побачення','спасибо','пока$'],
+  umiesz:['co umiesz','co potrafisz','co możesz','pomoc','w czym pomożesz','what can you do','your skills','help','was kannst du','hilfe','qué sabes hacer','qué puedes hacer','ayuda','que sais-tu faire','aide','cosa sai fare','aiuto','що ти вмієш','допомога','что ты умеешь','помощь'],
+  film:['puść film','pusc film','puść filmik','pokaż film','pokaz film','włącz film','wlacz film','odtwórz film','puść wideo','pokaż wideo','włącz wideo','puść muzykę','włącz muzykę','pokaż na youtube','play a video','play video','play a movie','show me a video','play music','put on music','spiel ein video','zeig mir ein video','spiel musik','pon un vídeo','pon un video','pon música','mets une vidéo','mets de la musique','metti un video','metti la musica','увімкни відео','покажи відео','увімкни музику','включи видео','покажи видео','включи музыку'],
+  minutnik:['minutnik','odliczaj','ustaw timer','timer na','set a timer','set timer','wecker','minuteur','таймер'],
+  minutnikStop:['skasuj minutnik','wyłącz minutnik','stop minutnik','cancel timer','stop timer'],
+  stoper:['stoper','stopwatch','chronomètre','секундомір','секундомер'],
+  kostka:['rzuć kostk','rzuc kostk','kostk','roll a die','roll the dice','würfel','dado','dé','кубик'],
+  moneta:['rzuć monet','rzuc monet','orzeł czy reszka','monet','flip a coin','heads or tails','münze','moneda','pièce','монет'],
+  losuj:['wylosuj','losuj','wybierz liczb','random number','pick a number','zufallszahl','número al azar','число навмання','случайное число'],
+  procent:['procent','%','percent'],
+  przelicz:['przelicz','ile to jest w','convert','umrechnen','convertir','конверт'],
+  zapamietaj:['zapamiętaj','zapisz sobie','remember that','merk dir','recuerda que','запамʼятай','запомни'],
+  pamietasz:['co pamiętasz','co zapamiętałaś','moje notatki','what do you remember','my notes','deine notizen','що ти памʼятаєш','что ты помнишь'],
+  zapomnij:['zapomnij wszystko','wyczyść pamięć','skasuj notatki','forget everything','clear your notes'],
+  pogoda:['pogoda','jaka jest pogoda','ile stopni','weather','wetter','tiempo hace','météo','meteo','погода'],
+  tlumacz:['jak powiedzieć','przetłumacz','jak jest po','translate','übersetze','traduce','traduis','traduci','переклади','переведи'],
+  wiki:['co to jest','co to są','kim był','kim jest','kim była','kto to jest','what is a','what is an','what is the','who was','who is','was ist','quién fue','qui était','chi era','хто такий','кто такой'],
+  ciekawostka:['ciekawost','powiedz coś ciekawego','fun fact','tell me something interesting','interessante','curiosidad','цікавинк','интересный факт'],
+  gra:['zagrajmy','zagramy','gra w liczby','zgadnij liczb','zgadywank','let us play','play a game','guess the number','spielen wir','jugamos','грати','поиграем'],
+  jakSieMasz:['jak się masz','co słychać','jak leci','how are you','wie geht es dir','cómo estás','comment vas-tu','come stai','як справи','как дела'],
+  czesc:['cześć','hej','dzień dobry','dobry wieczór','witaj','hello','hi there','guten tag','hallo','hola','bonjour','salut','ciao','привіт','привет'],
+  otworz:['otwórz','włącz','open','öffne','abre','ouvre','apri','відкрий','открой'],
+  szukaj:['wyszukaj','poszukaj','znajdź','search for','search','look up','google','suche','busca','cherche','cerca','знайди','пошукай','найди'],
+};
+/* Klucz musi zaczynać się na granicy słowa, ale końcówkę zostawiamy wolną —
+   dzięki temu „ciekawostkę” trafia w „ciekawost”, a „stoper” nie w „stop”. */
+function maKlucz(tekst, lista){
+  return lista.some(k => {
+    const dokladnie = k.endsWith('$');                    // „stop$” = całe słowo, nie „stopni”
+    const rdzen = (dokladnie ? k.slice(0, -1) : k).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const koniec = dokladnie ? '(?![\\p{L}\\p{N}])' : '';
+    return new RegExp('(^|[^\\p{L}\\p{N}])' + rdzen + koniec, 'iu').test(tekst);
+  });
+}
+
+const STRONY = {
+  'youtube':'https://www.youtube.com', 'youtuba':'https://www.youtube.com', 'jutuba':'https://www.youtube.com',
+  'google':'https://www.google.com', 'gugla':'https://www.google.com',
+  'wikipedia':'https://pl.wikipedia.org', 'wikipedię':'https://pl.wikipedia.org', 'wikipedie':'https://pl.wikipedia.org',
+  'facebook':'https://www.facebook.com', 'minecraft':'https://www.minecraft.net',
+  'gmail':'https://mail.google.com', 'pocztę':'https://mail.google.com', 'poczta':'https://mail.google.com',
+  'mapy':'https://www.google.com/maps', 'mapę':'https://www.google.com/maps', 'maps':'https://www.google.com/maps',
+  'tłumacz':'https://translate.google.com', 'translator':'https://translate.google.com',
+  'discord':'https://discord.com/app', 'roblox':'https://www.roblox.com', 'steam':'https://store.steampowered.com',
+  'spotify':'https://open.spotify.com', 'netflix':'https://www.netflix.com',
+  'allegro':'https://allegro.pl', 'olx':'https://www.olx.pl', 'instagram':'https://www.instagram.com',
+  'tiktok':'https://www.tiktok.com', 'twitch':'https://www.twitch.tv', 'kalendarz':'https://calendar.google.com',
+};
+
+/* Liczenie: „ile to 12 razy 8”, „5 + 7”, „what is 9 divided by 3”. */
+const DZIALANIA = [
+  [/\b(razy|pomnożyć przez|times|multiplied by|mal|por|fois|per|множ|помнож)\b/gi,'*'],
+  [/\b(podzielić przez|podzielone przez|dzielone przez|divided by|geteilt durch|dividido por|divisé par|diviso|поділ|раздел)\b/gi,'/'],
+  [/\b(plus|dodać|add|und|más|mas|più|плюс|додати)\b/gi,'+'],
+  [/\b(minus|odjąć|odjac|take away|weniger|menos|moins|meno|мінус)\b/gi,'-'],
+];
+function policz(tekst){
+  let t = ' ' + tekst.toLowerCase().replace(/,/g,'.') + ' ';
+  for(const [wzor, znak] of DZIALANIA) t = t.replace(wzor, znak);
+  const dzialanie = t.match(/-?\d+(\.\d+)?\s*([+\-*/]\s*-?\d+(\.\d+)?\s*)+/);
+  if(!dzialanie) return null;
+  const czyste = dzialanie[0].replace(/\s+/g,'');
+  if(!/^-?[\d.]+([+\-*/]-?[\d.]+)+$/.test(czyste)) return null;   // wpuszczamy tylko liczby i cztery działania
+  try{
+    const wynik = Function('"use strict";return (' + czyste + ')')();
+    if(typeof wynik !== 'number' || !isFinite(wynik)) return null;
+    return Math.round(wynik * 1e6) / 1e6;
+  }catch(e){ return null; }
+}
+
+/* ---------------------------------------------------------------
+   6b. Duży zestaw umiejętności: minutnik, stoper, losowanie, procenty,
+       przeliczanie jednostek, notatki, pogoda, tłumacz, Wikipedia,
+       ciekawostki i gra w zgadywanie liczby.
+       Zdania trzymamy po polsku i angielsku; inne języki biorą angielski.
+   --------------------------------------------------------------- */
+const DODATKOWE = {
+  pl:{
+    minutnik:o=>`Minutnik na ${o}. Dam znać, gdy minie.`,
+    minutnikKoniec:'Czas minął.',
+    minutnikBrak:'Powiedz, na ile minut mam ustawić minutnik.',
+    minutnikStop:'Minutnik skasowany.',
+    stoperStart:'Stoper ruszył.',
+    stoperStop:c=>`Stoper zatrzymany na ${c}.`,
+    stoperBrak:'Stoper nie jest włączony.',
+    kostka:n=>`Wypadło ${n}.`,
+    moneta:s=>`Rzuciłam monetą: ${s}.`,
+    orzel:'orzeł', reszka:'reszka',
+    losuj:n=>`Wylosowałam ${n}.`,
+    wybor:c=>`Wybieram: ${c}.`,
+    procent:(p,c,w)=>`${p} procent z ${c} to ${w}.`,
+    przelicz:(a,b)=>`${a} to ${b}.`,
+    zapamietane:'Zapamiętane.',
+    pamiec:l=>`Pamiętam: ${l}.`,
+    pamiecPusta:'Nic jeszcze nie zapamiętałam.',
+    zapomniane:'Wyczyściłam pamięć.',
+    pogodaSprawdzam:'Sprawdzam pogodę.',
+    pogoda:(m,t,o)=>`W ${m} jest ${t} stopni, ${o}.`,
+    pogodaGdzie:'W jakim mieście mam sprawdzić pogodę?',
+    pogodaBlad:'Nie udało mi się sprawdzić pogody — sprawdź połączenie z internetem.',
+    tlumacze:(f,j)=>`Tłumaczę „${f}” na ${j}.`,
+    hasloWiki:c=>`Sprawdzam w Wikipedii: ${c}.`,
+    graStart:'Pomyślałam liczbę od 1 do 100. Zgaduj.',
+    graWyzej:'Więcej.',
+    graNizej:'Mniej.',
+    graTrafione:(n,p)=>`Trafione! To było ${n}, zajęło ci to ${p} prób.`,
+    graLiczba:'Powiedz jakąś liczbę.',
+    jakSieMasz:'Wszystkie układy działają. A u ciebie?',
+    czesc:'Cześć! Jestem tu, gdybyś czegoś potrzebował.',
+    ciekawostki:[
+      'Ośmiornica ma trzy serca i niebieską krew.',
+      'Miód nigdy się nie psuje — w egipskich grobowcach znaleziono taki sprzed trzech tysięcy lat i nadal był jadalny.',
+      'Na Wenus doba trwa dłużej niż rok.',
+      'Ludzkie kości są mocniejsze od betonu przy tej samej masie.',
+      'Banany są jagodami, a truskawki nie.',
+      'Wieża Eiffla latem rośnie o kilkanaście centymetrów, bo stal się rozszerza.',
+      'Rekiny istniały wcześniej niż drzewa.',
+      'Kot potrafi wydać ponad sto różnych dźwięków, a pies około dziesięciu.',
+    ],
+  },
+  en:{
+    minutnik:o=>`Timer set for ${o}. I will let you know.`,
+    minutnikKoniec:'Time is up.',
+    minutnikBrak:'Tell me how many minutes to set.',
+    minutnikStop:'Timer cancelled.',
+    stoperStart:'Stopwatch running.',
+    stoperStop:c=>`Stopwatch stopped at ${c}.`,
+    stoperBrak:'The stopwatch is not running.',
+    kostka:n=>`You rolled ${n}.`,
+    moneta:s=>`It is ${s}.`,
+    orzel:'heads', reszka:'tails',
+    losuj:n=>`I picked ${n}.`,
+    wybor:c=>`I choose ${c}.`,
+    procent:(p,c,w)=>`${p} percent of ${c} is ${w}.`,
+    przelicz:(a,b)=>`${a} is ${b}.`,
+    zapamietane:'Noted.',
+    pamiec:l=>`I remember: ${l}.`,
+    pamiecPusta:'I have not saved anything yet.',
+    zapomniane:'Memory cleared.',
+    pogodaSprawdzam:'Checking the weather.',
+    pogoda:(m,t,o)=>`In ${m} it is ${t} degrees, ${o}.`,
+    pogodaGdzie:'Which city should I check?',
+    pogodaBlad:'I could not get the weather — check your internet connection.',
+    tlumacze:(f,j)=>`Translating "${f}" into ${j}.`,
+    hasloWiki:c=>`Looking up ${c} on Wikipedia.`,
+    graStart:'I picked a number from 1 to 100. Start guessing.',
+    graWyzej:'Higher.',
+    graNizej:'Lower.',
+    graTrafione:(n,p)=>`Got it! It was ${n}, and it took you ${p} guesses.`,
+    graLiczba:'Say a number.',
+    jakSieMasz:'All systems fine. And you?',
+    czesc:'Hi! I am here whenever you need me.',
+    ciekawostki:[
+      'An octopus has three hearts and blue blood.',
+      'Honey never spoils — jars found in Egyptian tombs were still edible after three thousand years.',
+      'A day on Venus lasts longer than its year.',
+      'Bananas are berries, but strawberries are not.',
+      'Sharks are older than trees.',
+      'The Eiffel Tower grows several centimetres taller in summer as the steel expands.',
+    ],
+  },
+};
+function tekstD(klucz, ...a){
+  const zbior = DODATKOWE[jezyk] || DODATKOWE.en;
+  const f = zbior[klucz] !== undefined ? zbior[klucz] : DODATKOWE.en[klucz];
+  return typeof f === 'function' ? f(...a) : f;
+}
+
+/* ---- minutnik i stoper ---- */
+let minutnik = null, stoperOd = null;
+const JEDNOSTKI_CZASU = [
+  [/(sekund|second|sekunde)/i, 1,    n=>n + ' s'],
+  [/(minut|minute)/i,          60,   n=>n + ' min'],
+  [/(godzin|hour|stunde)/i,    3600, n=>n + ' h'],
+];
+function ustawMinutnik(t){
+  const liczba = t.match(/(\d+(?:[.,]\d+)?)/);
+  if(!liczba) return { tekst: tekstD('minutnikBrak') };
+  const ile = parseFloat(liczba[1].replace(',', '.'));
+  const jednostka = JEDNOSTKI_CZASU.find(([wzor]) => wzor.test(t)) || JEDNOSTKI_CZASU[1];
+  const sekundy = ile * jednostka[1];
+  clearTimeout(minutnik);
+  minutnik = setTimeout(() => { pisk(); mow(tekstD('minutnikKoniec')); }, sekundy * 1000);
+  return { tekst: tekstD('minutnik', jednostka[2](ile)) };
+}
+function czasZSekund(s){
+  const m = Math.floor(s / 60), r = Math.round(s % 60);
+  return m ? `${m} min ${r} s` : `${r} s`;
+}
+
+/* ---- losowanie ---- */
+function losuj(od, do_){ return Math.floor(Math.random() * (do_ - od + 1)) + od; }
+
+/* ---- procenty i jednostki ---- */
+const PRZELICZNIKI = {
+  km:   { mila:v=>v/1.609344, m:v=>v*1000 },
+  mila: { km:v=>v*1.609344 },
+  kg:   { funt:v=>v*2.2046226, gram:v=>v*1000 },
+  funt: { kg:v=>v/2.2046226 },
+  cm:   { cal:v=>v/2.54 },
+  cal:  { cm:v=>v*2.54 },
+  c:    { f:v=>v*9/5+32 },
+  f:    { c:v=>(v-32)*5/9 },
+};
+const NAZWY_JEDNOSTEK = [
+  [/\b(kilometr\w*|km)\b/i, 'km'], [/\b(mil\w*|miles?)\b/i, 'mila'],
+  [/\b(kilogram\w*|kg)\b/i, 'kg'], [/\b(funt\w*|pounds?|lbs?)\b/i, 'funt'],
+  [/\b(centymetr\w*|cm)\b/i, 'cm'], [/\b(cal\w*|inch\w*)\b/i, 'cal'],
+  [/\b(celsjusz\w*|celsius|stopni c|°c|\bc\b)/i, 'c'], [/\b(fahrenheit\w*|°f|\bf\b)/i, 'f'],
+  [/\b(metr\w*|meters?)\b/i, 'm'], [/\b(gram\w*|grams?)\b/i, 'gram'],
+];
+function rozpoznajJednostki(t){
+  const znalezione = [];
+  for(const [wzor, nazwa] of NAZWY_JEDNOSTEK){
+    const m = t.match(wzor);
+    if(m) znalezione.push({ nazwa, gdzie: m.index });
+  }
+  return znalezione.sort((a, b) => a.gdzie - b.gdzie);
+}
+const OPISY_JEDNOSTEK = { km:'km', mila:'mil', kg:'kg', funt:'funtów', cm:'cm', cal:'cali', c:'°C', f:'°F', m:'m', gram:'g' };
+function przeliczJednostki(t){
+  const liczba = t.match(/(-?\d+(?:[.,]\d+)?)/);
+  if(!liczba) return null;
+  const jednostki = rozpoznajJednostki(t);
+  if(jednostki.length < 2) return null;
+  const [z, na] = jednostki;
+  const tabela = PRZELICZNIKI[z.nazwa];
+  if(!tabela || !tabela[na.nazwa]) return null;
+  const wartosc = parseFloat(liczba[1].replace(',', '.'));
+  const wynik = Math.round(tabela[na.nazwa](wartosc) * 100) / 100;
+  const nazwij = k => OPISY_JEDNOSTEK[k] || k;
+  return { tekst: tekstD('przelicz', `${wartosc} ${nazwij(z.nazwa)}`, `${wynik} ${nazwij(na.nazwa)}`) };
+}
+
+/* ---- notatki ---- */
+function notatki(){ try{ return JSON.parse(zPamieci('evNotatki') || '[]'); }catch(e){ return []; } }
+function zapiszNotatki(lista){ doPamieci('evNotatki', JSON.stringify(lista.slice(-20))); }
+
+/* ---- pogoda (open-meteo, bez klucza i bez rejestracji) ---- */
+const NIEBO = {
+  pl:{0:'bezchmurnie',1:'prawie bezchmurnie',2:'częściowe zachmurzenie',3:'pochmurno',45:'mgła',48:'mgła',
+      51:'mżawka',53:'mżawka',55:'mżawka',61:'deszcz',63:'deszcz',65:'ulewa',71:'śnieg',73:'śnieg',75:'śnieżyca',
+      80:'przelotny deszcz',81:'przelotny deszcz',82:'ulewa',95:'burza',96:'burza z gradem',99:'burza z gradem'},
+  en:{0:'clear',1:'mostly clear',2:'partly cloudy',3:'overcast',45:'fog',48:'fog',51:'drizzle',53:'drizzle',
+      55:'drizzle',61:'rain',63:'rain',65:'heavy rain',71:'snow',73:'snow',75:'heavy snow',80:'showers',
+      81:'showers',82:'downpour',95:'thunderstorm',96:'thunderstorm',99:'thunderstorm'},
+};
+async function pogodaDla(miasto){
+  const geo = await fetch('https://geocoding-api.open-meteo.com/v1/search?count=1&name=' + encodeURIComponent(miasto))
+                    .then(r => r.json());
+  if(!geo.results || !geo.results.length) throw new Error('brak miasta');
+  const { latitude, longitude, name } = geo.results[0];
+  const dane = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code`)
+                     .then(r => r.json());
+  const t = Math.round(dane.current.temperature_2m);
+  const opisy = NIEBO[jezyk] || NIEBO.en;
+  return tekstD('pogoda', name, t, opisy[dane.current.weather_code] || '');
+}
+
+/* ---- gra w zgadywanie liczby ---- */
+let gra = null;
+function graKrok(t){
+  const liczba = t.match(/\d+/);
+  if(!liczba) return { tekst: tekstD('graLiczba') };
+  const n = parseInt(liczba[0], 10);
+  gra.proby++;
+  if(n === gra.liczba){ const p = gra.proby; gra = null; return { tekst: tekstD('graTrafione', n, p) }; }
+  return { tekst: n < gra.liczba ? tekstD('graWyzej') : tekstD('graNizej') };
+}
+
+function odpowiedz(polecenie){
+  const j = JEZYKI[jezyk];
+  const t = polecenie.toLowerCase().trim();
+  if(!t) return { tekst: j.nieRozumiem };
+
+
+  if(maKlucz(t, KLUCZE.godzina)){
+    const g = new Date().toLocaleTimeString(j.kod, {hour:'2-digit', minute:'2-digit'});
+    return { tekst: j.godzina(g) };
+  }
+  if(maKlucz(t, KLUCZE.data)){
+    const d = new Date();
+    const opis = j.dni[d.getDay()] + ', ' + d.toLocaleDateString(j.kod, {day:'numeric', month:'long', year:'numeric'});
+    return { tekst: j.data(opis) };
+  }
+  if(maKlucz(t, KLUCZE.kim)) return { tekst: j.ktoJestes };
+  if(maKlucz(t, KLUCZE.umiesz)) return { tekst: j.umiem };
+
+  // film leci przed wyszukiwaniem, bo „pokaż film o kotach” zawiera też słowo „pokaż”
+  if(maKlucz(t, KLUCZE.film)){
+    const fraza = t.replace(new RegExp('.*?(' + KLUCZE.film.join('|') + ')', 'i'), '')
+                   .trim()
+                   .replace(/^(o|na temat|about|über|von|de|del|sur|su|про|о)\b/i, '')
+                   .trim();
+    return { tekst: j.puszczam(fraza || 'YouTube'), film: fraza };
+  }
+
+  if(maKlucz(t, KLUCZE.zart)){
+    let i;
+    do { i = Math.floor(Math.random() * j.zarty.length); } while(j.zarty.length > 1 && i === ostatniZart);
+    ostatniZart = i;
+    return { tekst: j.zarty[i] };
+  }
+
+  // gra w liczby trwa, dopóki nie trafisz — liczby idą prosto do niej
+  if(gra && /\d/.test(t)) return graKrok(t);
+  if(maKlucz(t, KLUCZE.gra)){ gra = { liczba: losuj(1, 100), proby: 0 }; return { tekst: tekstD('graStart') }; }
+
+  if(maKlucz(t, KLUCZE.minutnikStop)){ clearTimeout(minutnik); minutnik = null; return { tekst: tekstD('minutnikStop') }; }
+  if(maKlucz(t, KLUCZE.minutnik)) return ustawMinutnik(t);
+  if(maKlucz(t, KLUCZE.stoper)){
+    if(stoperOd === null){ stoperOd = Date.now(); return { tekst: tekstD('stoperStart') }; }
+    const sekundy = (Date.now() - stoperOd) / 1000;
+    stoperOd = null;
+    return { tekst: tekstD('stoperStop', czasZSekund(sekundy)) };
+  }
+
+  if(maKlucz(t, KLUCZE.spij)) return { tekst: j.pa, uspij:true };
+
+  if(maKlucz(t, KLUCZE.kostka)) return { tekst: tekstD('kostka', losuj(1, 6)) };
+  if(maKlucz(t, KLUCZE.moneta))
+    return { tekst: tekstD('moneta', Math.random() < .5 ? tekstD('orzel') : tekstD('reszka')) };
+  if(maKlucz(t, KLUCZE.losuj)){
+    const zakres = t.match(/(\d+)\D+(\d+)/);
+    const a = zakres ? parseInt(zakres[1], 10) : 1;
+    const b = zakres ? parseInt(zakres[2], 10) : 100;
+    return { tekst: tekstD('losuj', losuj(Math.min(a, b), Math.max(a, b))) };
+  }
+
+  // procenty: „ile to 20 procent z 300”
+  const proc = t.match(/(-?\d+(?:[.,]\d+)?)\s*(?:%|procent\w*|percent)\s*(?:z|ze|od|of|von|de|del)?\s*(-?\d+(?:[.,]\d+)?)/);
+  if(proc){
+    const p = parseFloat(proc[1].replace(',', '.')), c = parseFloat(proc[2].replace(',', '.'));
+    return { tekst: tekstD('procent', p, c, Math.round(p * c) / 100) };
+  }
+  const jednostki = przeliczJednostki(t);
+  if(jednostki) return jednostki;
+
+  if(maKlucz(t, KLUCZE.zapomnij)){ zapiszNotatki([]); return { tekst: tekstD('zapomniane') }; }
+  if(maKlucz(t, KLUCZE.pamietasz)){
+    const lista = notatki();
+    return { tekst: lista.length ? tekstD('pamiec', lista.join('; ')) : tekstD('pamiecPusta') };
+  }
+  if(maKlucz(t, KLUCZE.zapamietaj)){
+    const co = t.replace(new RegExp('.*?(' + KLUCZE.zapamietaj.join('|') + ')', 'i'), '')
+                .replace(/^(że|ze|that|dass|que)\b/i, '').trim();
+    if(co){ const lista = notatki(); lista.push(co); zapiszNotatki(lista); return { tekst: tekstD('zapamietane') }; }
+  }
+
+  if(maKlucz(t, KLUCZE.pogoda)){
+    const gdzie = t.match(/\b(?:w|we|in|en|à|у|в)\s+([\p{L}][\p{L}\s-]{2,})$/u);
+    const miasto = gdzie ? gdzie[1].trim() : zPamieci('evMiasto');
+    if(!miasto) return { tekst: tekstD('pogodaGdzie') };
+    doPamieci('evMiasto', miasto);
+    return { tekst: tekstD('pogodaSprawdzam'),
+             obietnica: pogodaDla(miasto).catch(() => tekstD('pogodaBlad')) };
+  }
+
+  if(maKlucz(t, KLUCZE.tlumacz)){
+    const cel = /angiels|english/i.test(t) ? 'en' : /niemieck|german/i.test(t) ? 'de'
+              : /hiszpańsk|hiszpans|spanish/i.test(t) ? 'es' : /francus|french/i.test(t) ? 'fr'
+              : /włos|wlos|italian/i.test(t) ? 'it' : /ukraińs|ukrains/i.test(t) ? 'uk'
+              : /polsk|polish/i.test(t) ? 'pl' : 'en';
+    const fraza = t.replace(new RegExp('.*?(' + KLUCZE.tlumacz.join('|') + ')', 'i'), '')
+                   .replace(/\bpo\s+\p{L}+\s*$/u, '').replace(/\bna\s+\p{L}+\s*$/u, '')
+                   .replace(/[„”"']/g, '').trim();
+    if(fraza) return { tekst: tekstD('tlumacze', fraza, JEZYKI[cel].nazwa),
+                       adres: 'https://translate.google.com/?op=translate&sl=' + jezyk + '&tl=' + cel
+                            + '&text=' + encodeURIComponent(fraza) };
+  }
+
+  if(maKlucz(t, KLUCZE.wiki)){
+    const haslo = t.replace(new RegExp('.*?(' + KLUCZE.wiki.join('|') + ')', 'i'), '')
+                   .replace(/\?$/, '').trim();
+    if(haslo) return { tekst: tekstD('hasloWiki', haslo),
+                       adres: 'https://' + jezyk + '.wikipedia.org/w/index.php?search=' + encodeURIComponent(haslo) };
+  }
+
+  if(maKlucz(t, KLUCZE.ciekawostka)){
+    const lista = (DODATKOWE[jezyk] || DODATKOWE.en).ciekawostki || DODATKOWE.en.ciekawostki;
+    return { tekst: lista[Math.floor(Math.random() * lista.length)] };
+  }
+  if(maKlucz(t, KLUCZE.jakSieMasz)) return { tekst: tekstD('jakSieMasz') };
+  if(maKlucz(t, KLUCZE.czesc)) return { tekst: tekstD('czesc') };
+
+  const wynik = policz(t);
+  if(wynik !== null) return { tekst: j.wynik(wynik) };
+
+  if(maKlucz(t, KLUCZE.otworz)){
+    for(const nazwa in STRONY){
+      if(t.includes(nazwa)) return { tekst: j.otwieram(nazwa), adres: STRONY[nazwa] };
+    }
+  }
+  if(maKlucz(t, KLUCZE.szukaj)){
+    const fraza = t.replace(new RegExp('.*\\b(' + KLUCZE.szukaj.join('|') + ')\\b', 'i'), '').trim();
+    if(fraza) return { tekst: j.szukam(fraza),
+                       adres:'https://www.google.com/search?q=' + encodeURIComponent(fraza) };
+  }
+  return { tekst: j.nieUmiem };
+}
+
+/* ---------------------------------------------------------------
+   7. Słuchanie
+   --------------------------------------------------------------- */
+const Rozpoznawanie = window.SpeechRecognition || window.webkitSpeechRecognition;
+let sluch = null, sluchDziala = false;
+
+/* Słowo budzące: „E.V.” — czytane „i-wi”. Rozpoznawanie mowy zapisuje to na
+   mnóstwo sposobów („ewi”, „iwi”, „e v”, „EV”, „Ewa”), więc łapiemy je wszystkie. */
+const BUDZIK = /(^|\s)(hej\s+|hey\s+)?(e\s?\.?\s?v\.?|iwi|ivi|ewi|ewie|ewa|ewo|ewy|eva|eve|evie|ivy|jewi|ива|иви|ева|єва|іві)(\s|$|[,.!?])/i;
+
+function zbudujSluch(){
+  if(!Rozpoznawanie) return null;
+  const s = new Rozpoznawanie();
+  s.lang = JEZYKI[jezyk].kod;
+  s.continuous = true;
+  s.interimResults = true;
+  s.maxAlternatives = 1;
+
+  s.onstart = () => { sluchDziala = true; odswiezStan(); };
+
+  s.onresult = e => {
+    let koncowy = '', tymczasowy = '';
+    for(let i = e.resultIndex; i < e.results.length; i++){
+      const kawalek = e.results[i][0].transcript;
+      if(e.results[i].isFinal) koncowy += kawalek; else tymczasowy += kawalek;
+    }
+    podglad.textContent = tymczasowy;
+    // w trybie polecenia samo mówienie odsuwa moment zaśnięcia
+    if(tymczasowy && tryb === 'polecenie') odlozZasypianie();
+    if(koncowy.trim()) obsluzWypowiedz(koncowy.trim());
+  };
+
+  s.onerror = e => {
+    // 'no-speech' i 'aborted' to normalka: cisza albo nasze własne przerwanie
+    if(e.error === 'no-speech' || e.error === 'aborted') return;
+
+    const opisy = {
+      'not-allowed':         ['brak zgody na mikrofon',
+        'Przeglądarka nie dała dostępu do mikrofonu. Kliknij kłódkę obok adresu strony, ustaw mikrofon na „Zezwalaj” i odśwież stronę.'],
+      'service-not-allowed': ['brak zgody na mikrofon',
+        'Przeglądarka zablokowała rozpoznawanie mowy. Kliknij kłódkę obok adresu strony i zezwól na mikrofon.'],
+      'audio-capture':       ['nie widzę mikrofonu',
+        'Nie znalazłam mikrofonu. Sprawdź, czy jest podłączony i wybrany w ustawieniach dźwięku Windows.'],
+      'network':             ['brak połączenia z rozpoznawaniem mowy',
+        'Rozpoznawanie mowy nie połączyło się z serwerem. Najczęściej to znaczy, że strona jest otwarta prosto z dysku — zamknij ją i uruchom plik EV.bat, który otwiera ją pod adresem http://localhost:8080/ev.html.'],
+    };
+    const [krotko, dlugo] = opisy[e.error] || ['błąd rozpoznawania mowy: ' + e.error, 'Rozpoznawanie mowy zgłosiło błąd: ' + e.error + '. Możesz w tym czasie pisać w polu poniżej.'];
+
+    // najpierw gasimy słuchanie, potem odświeżamy przyciski — inaczej rozjeżdżają się z rzeczywistością
+    chceSluchac = false;
+    tryb = 'stop';
+    zatrzymajSluch();
+    odswiezStan();
+    stan.textContent = krotko;
+    el('btnStart').classList.add('blad');
+    dopisz('info', dlugo);
+  };
+
+  s.onend = () => {
+    sluchDziala = false;
+    odswiezStan();
+    if(chceSluchac && !mowiTeraz){
+      clearTimeout(licznikRestartu);
+      licznikRestartu = setTimeout(startSluchania, 250);
+    }
+  };
+  return s;
+}
+
+function startSluchania(){
+  if(!chceSluchac || mowiTeraz || sluchDziala) return;
+  if(!sluch) sluch = zbudujSluch();
+  if(!sluch) return;
+  sluch.lang = JEZYKI[jezyk].kod;
+  try{ sluch.start(); }
+  catch(e){ /* już wystartowane — nic nie robimy */ }
+}
+/* Pauza na czas mówienia: sesja skończy się sama, onend ją wznowi. */
+function stopSluchania(){
+  if(sluch && sluchDziala){ try{ sluch.stop(); }catch(e){} }
+}
+/* Twarde zatrzymanie: przerywa nawet sesję, która dopiero się uruchamia,
+   i kasuje zaplanowane wznowienie. Bez tego „Wyłącz” bywało bezsilne. */
+function zatrzymajSluch(){
+  clearTimeout(licznikRestartu);
+  licznikRestartu = null;
+  if(sluch){ try{ sluch.abort(); }catch(e){} try{ sluch.stop(); }catch(e){} }
+  sluchDziala = false;
+}
+
+/* ---------------------------------------------------------------
+   8. Mózg rozmowy: budzenie i wykonywanie poleceń
+   --------------------------------------------------------------- */
+function obsluzWypowiedz(tekst){
+  podglad.textContent = '';
+
+  if(tryb === 'czuwa'){
+    const trafienie = tekst.match(BUDZIK);
+    if(!trafienie) return;                       // to nie do nas — ignorujemy
+    dopisz('ja', tekst);
+    // gdyby ktoś powiedział od razu „Ewa, która godzina” — bierzemy resztę zdania
+    const reszta = tekst.slice(trafienie.index + trafienie[0].length).replace(/^[\s,.!?-]+/, '');
+    if(reszta.length > 2) obudzIWykonaj(reszta); else obudz();
+    return;
+  }
+
+  if(tryb === 'polecenie'){
+    dopisz('ja', tekst);
+    wykonaj(tekst);
+  }
+}
+
+function obudz(){
+  tryb = 'polecenie';
+  odswiezStan();
+  pisk();
+  mow(JEZYKI[jezyk].powitanie, odlozZasypianie);
+}
+
+function obudzIWykonaj(polecenie){
+  tryb = 'polecenie';
+  odswiezStan();
+  pisk();
+  wykonaj(polecenie);
+}
+
+function wykonaj(polecenie){
+  // 1) czy rozmówca zmienił język?
+  const wykryty = rozpoznajJezyk(polecenie);
+  const zmiana = wykryty !== jezyk;
+  if(zmiana){
+    jezyk = wykryty;
+    zaznaczJezyk();
+    dopisz('info', 'wykryty język: ' + JEZYKI[jezyk].nazwa);
+  }
+
+  // 2) co ma zrobić
+  const wynik = odpowiedz(polecenie);
+  const tekst = (zmiana ? JEZYKI[jezyk].przelacz + ' ' : '') + wynik.tekst;
+
+  mow(tekst, () => {
+    if(wynik.adres) window.open(wynik.adres, '_blank', 'noopener');
+    if(wynik.film !== undefined) pusc(wynik.film);
+    if(wynik.obietnica) wynik.obietnica.then(t => mow(t));
+    if(wynik.uspij) uspij(false); else odlozZasypianie();
+  });
+}
+
+/* ---- filmy ----
+   YouTube nie pozwala już osadzać wyszukiwania na obcej stronie (dlatego okno
+   filmu bywało puste), więc otwieramy wyniki w nowej karcie przeglądarki. */
+function pusc(fraza){
+  const szukane = (fraza || '').trim();
+  if(!szukane) return;
+  window.open('https://www.youtube.com/results?search_query=' + encodeURIComponent(szukane),
+              '_blank', 'noopener');
+}
+
+/* Po chwili ciszy E.V. wraca do czuwania — żeby nie łapała przypadkowych rozmów. */
+function odlozZasypianie(){
+  clearTimeout(licznikCiszy);
+  licznikCiszy = setTimeout(() => { if(tryb === 'polecenie') uspij(true); }, 12000);
+}
+function uspij(poCichu){
+  clearTimeout(licznikCiszy);
+  tryb = chceSluchac ? 'czuwa' : 'stop';
+  odswiezStan();
+  if(!poCichu) dopisz('info', 'czekam na słowo „E.V.”');
+}
+
+/* Krótki „pik” na powitanie — jak w filmie. */
+let audio = null;
+function pisk(){
+  try{
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(880, audio.currentTime);
+    o.frequency.exponentialRampToValueAtTime(1320, audio.currentTime + .12);
+    g.gain.setValueAtTime(.09, audio.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001, audio.currentTime + .22);
+    o.connect(g).connect(audio.destination);
+    o.start(); o.stop(audio.currentTime + .24);
+  }catch(e){}
+}
+
+/* ---------------------------------------------------------------
+   9. Interfejs
+   --------------------------------------------------------------- */
+function odswiezStan(){
+  const opis = tryb === 'polecenie' ? 'słucham polecenia…'
+             : tryb === 'czuwa'     ? 'czuwam — powiedz „E.V.”'
+             : 'wyłączona';
+  stan.textContent = opis + (tryb !== 'stop' ? '  •  ' + JEZYKI[jezyk].nazwa : '');
+  document.body.classList.toggle('slucha', tryb === 'polecenie');
+  el('btnStart').textContent = chceSluchac ? 'Wyłącz słuchanie' : 'Włącz słuchanie';
+  el('btnStart').classList.toggle('wlaczony', chceSluchac);
+}
+
+/* Otwarcie pliku prosto z dysku (file://) odcina mikrofon — mówimy o tym raz, wyraźnie. */
+let ostrzezono = false;
+function ostrzezOPliku(){
+  if(ostrzezono || location.protocol !== 'file:') return;
+  ostrzezono = true;
+  dopisz('info', 'Strona jest otwarta prosto z dysku, a wtedy przeglądarka nie daje mikrofonu. Zamknij ją i uruchom EV.bat — otworzy to samo pod adresem http://localhost:8080/ev.html.');
+  el('btnStart').classList.add('blad');
+}
+
+/* Chrome bywa oszczędny w pytaniu o mikrofon dla samego rozpoznawania mowy.
+   Prośba o strumień z mikrofonu wymusza normalne okienko ze zgodą i od razu
+   pokazuje prawdziwą przyczynę, gdy coś jest nie tak. */
+async function poprosOMikrofon(){
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    dopisz('info', 'Ta przeglądarka nie udostępnia mikrofonu stronom. Otwórz E.V. w Chrome albo Edge.');
+    return false;
+  }
+  try{
+    const strumien = await navigator.mediaDevices.getUserMedia({audio:true});
+    strumien.getTracks().forEach(t => t.stop());        // sam dostęp nam wystarczy
+    return true;
+  }catch(e){
+    const powod = {
+      NotAllowedError:  'Odmówiłeś dostępu do mikrofonu. Kliknij kłódkę obok adresu strony, ustaw mikrofon na „Zezwalaj” i odśwież stronę.',
+      NotFoundError:    'Windows nie widzi żadnego mikrofonu. Podłącz go i sprawdź w Ustawieniach dźwięku.',
+      NotReadableError: 'Mikrofon jest zajęty przez inny program (Discord, Teams, gra). Zamknij go i spróbuj ponownie.',
+    }[e.name] || ('Mikrofon nie ruszył: ' + e.name + '.');
+    dopisz('info', powod);
+    el('btnStart').classList.add('blad');
+    stan.textContent = 'mikrofon niedostępny';
+    return false;
+  }
+}
+
+async function wlaczSluchanie(){
+  if(chceSluchac) return;
+  if(!Rozpoznawanie){ dopisz('info', 'Ta przeglądarka nie rozpoznaje mowy — pisz w polu poniżej.'); return; }
+  if(location.protocol === 'file:'){ ostrzezOPliku(); return; }   // bez adresu http mikrofon i tak nie ruszy
+  if(!await poprosOMikrofon()) return;
+  chceSluchac = true;
+  el('btnStart').classList.remove('blad');
+  tryb = 'czuwa';
+  startSluchania();
+  odswiezStan();
+}
+
+function wylaczSluchanie(){
+  chceSluchac = false;
+  tryb = 'stop';
+  clearTimeout(licznikCiszy);
+  zatrzymajSluch();
+  speechSynthesis.cancel();
+  zatrzymajGlosAI();
+  mowiTeraz = false;
+  document.body.classList.remove('mowi');
+  podglad.textContent = '';
+  odswiezStan();
+}
+
+function przelacznik(){ chceSluchac ? wylaczSluchanie() : wlaczSluchanie(); }
+
+el('btnPomoc').onclick = () => { const p = el('pomoc'); p.hidden = !p.hidden; };
+el('btnStart').onclick = przelacznik;
+el('reaktor').onclick  = przelacznik;
+
+/* Budzenie ręczne działa nawet bez mikrofonu — wtedy po prostu piszesz. */
+el('btnObudz').onclick = async () => {
+  if(tryb === 'polecenie') return;
+  if(!chceSluchac && Rozpoznawanie) await wlaczSluchanie();
+  obudz();
+  if(!chceSluchac) el('wpis').focus();      // bez mikrofonu odpowiadasz pisząc
+};
+
+/* Przyciski języków — ręczne przełączenie, gdyby wykrywanie się pomyliło. */
+const pasekJezykow = el('jezyki');
+for(const kod in JEZYKI){
+  const b = document.createElement('button');
+  b.textContent = JEZYKI[kod].flaga + ' ' + JEZYKI[kod].nazwa;
+  b.dataset.kod = kod;
+  b.onclick = () => {
+    jezyk = kod;
+    zaznaczJezyk();
+    odswiezStan();
+    stopSluchania();                       // przy nowym języku sesja startuje od nowa
+    mow(JEZYKI[kod].przelacz);
+  };
+  pasekJezykow.appendChild(b);
+}
+/* Lista głosów zainstalowanych w systemie — najlepszy na górze, wybór zapamiętany. */
+function odswiezListeGlosow(){
+  const lista = el('glosWybor');
+  if(!lista) return;
+  const dostepne = glosyJezyka(JEZYKI[jezyk].kod).slice().sort((a, b) => ocenGlos(b) - ocenGlos(a));
+  lista.innerHTML = '';
+  if(!dostepne.length && !glosyAIdlaJezyka().length){
+    lista.innerHTML = '<option>brak głosu dla tego języka</option>';
+    lista.disabled = true;
+    return;
+  }
+  lista.disabled = false;
+  for(const g of glosyAIdlaJezyka()){
+    const o = document.createElement('option');
+    o.value = 'ai:' + g.id;
+    o.textContent = '🤖 ' + g.nazwa;
+    lista.appendChild(o);
+  }
+  for(const g of dostepne){
+    const o = document.createElement('option');
+    o.value = g.voiceURI;
+    o.textContent = g.name.replace(/^Microsoft\s+/, '').replace(/\s*\(.*\)$/, '');
+    lista.appendChild(o);
+  }
+  const ai = wybranyGlosAI();
+  if(ai){
+    lista.value = 'ai:' + ai.id;
+    lista.title = 'mówi głosem AI: ' + ai.nazwa;
+  }else{
+    const teraz = wybierzGlos(JEZYKI[jezyk].kod);
+    if(teraz){
+      lista.value = teraz.voiceURI;
+      lista.title = 'mówi głosem: ' + teraz.name;
+    }
+  }
+  if(czyTylkoStareGlosy() && !wybranyGlosAI())          // przy głosie AI nie ma o czym ostrzegać
+    dopisz('info', 'W systemie są tylko stare głosy (Adam, Paulina) — stąd ten lektor. Wybierz z listy pozycję 🤖 AI: to model neuronowy liczony w przeglądarce, brzmi jak człowiek, ale każde zdanie liczy się kilka sekund.');
+}
+el('glosWybor').onchange = e => {
+  wybranyGlos = e.target.value;
+  doPamieci('evGlos', wybranyGlos);
+  mow(JEZYKI[jezyk].powitanie);
+};
+el('btnProba').onclick = () => mow(JEZYKI[jezyk].powitanie);
+
+function zaznaczJezyk(){
+  [...pasekJezykow.children].forEach(b => b.classList.toggle('wlaczony', b.dataset.kod === jezyk));
+  odswiezListeGlosow();
+}
+zaznaczJezyk();
+
+/* Pisanie zamiast mówienia — działa nawet bez mikrofonu. */
+el('wpis').addEventListener('keydown', e => {
+  if(e.key !== 'Enter') return;
+  const tekst = e.target.value.trim();
+  if(!tekst) return;
+  e.target.value = '';
+  dopisz('ja', tekst);
+  const trafienie = tekst.match(BUDZIK);
+  if(tryb !== 'polecenie' && trafienie){
+    const reszta = tekst.slice(trafienie.index + trafienie[0].length).replace(/^[\s,.!?-]+/, '');
+    if(reszta.length > 2) obudzIWykonaj(reszta); else obudz();
+  }else{
+    tryb = 'polecenie';
+    odswiezStan();
+    wykonaj(tekst);
+  }
+});
+
+/* ---------------------------------------------------------------
+   10. Reaktor — animowane pierścienie
+   --------------------------------------------------------------- */
+const plotno = el('plotno'), ctx = plotno.getContext('2d');
+const S = 600, SR = S / 2;
+function rysuj(czas){
+  ctx.clearRect(0, 0, S, S);
+  const aktywna = tryb !== 'stop';
+  const mowi = document.body.classList.contains('mowi');
+  const kolor = mowi ? '255,204,102' : '67,232,255';
+  const tempo = tryb === 'polecenie' ? 2.2 : aktywna ? .8 : .25;
+  const t = czas / 1000 * tempo;
+
+  // pierścienie
+  for(let i = 0; i < 4; i++){
+    const r = 110 + i * 38;
+    const luk = 1.1 + Math.sin(t * (.6 + i * .17) + i) * .5;
+    const obrot = t * (i % 2 ? -.6 : .8) + i;
+    ctx.strokeStyle = `rgba(${kolor},${aktywna ? .75 - i * .13 : .25 - i * .05})`;
+    ctx.lineWidth = 3 - i * .4;
+    ctx.beginPath();
+    ctx.arc(SR, SR, r, obrot, obrot + luk);
+    ctx.stroke();
+    ctx.beginPath();                       // przeciwny łuk, dla symetrii
+    ctx.arc(SR, SR, r, obrot + Math.PI, obrot + Math.PI + luk);
+    ctx.stroke();
+  }
+
+  // słupki dookoła rdzenia — udają poziom głosu
+  const ile = 64;
+  for(let i = 0; i < ile; i++){
+    const kat = i / ile * Math.PI * 2;
+    const puls = Math.abs(Math.sin(t * 3 + i * .7)) * (tryb === 'polecenie' ? 26 : mowi ? 20 : 6);
+    const r1 = 82, r2 = r1 + 6 + puls;
+    ctx.beginPath();
+    ctx.moveTo(SR + Math.cos(kat) * r1, SR + Math.sin(kat) * r1);
+    ctx.lineTo(SR + Math.cos(kat) * r2, SR + Math.sin(kat) * r2);
+    ctx.strokeStyle = `rgba(${kolor},${aktywna ? .6 : .18})`;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+  }
+
+  // cienka obwódka zewnętrzna
+  ctx.beginPath();
+  ctx.arc(SR, SR, 272, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(${kolor},${aktywna ? .3 : .12})`;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  requestAnimationFrame(rysuj);
+}
+requestAnimationFrame(rysuj);
+
+/* ---------------------------------------------------------------
+   11. Projekt stroju — pajęczyna i zwijanie panelu
+   --------------------------------------------------------------- */
+/* Pajęczyna = promienie od środka + obwisłe nitki między nimi.
+   Rysujemy ją raz, a maska SVG przycina ją do czerwonych części stroju. */
+function utkajSiec(cx, cy, rMin, rMax, ileNici, ilePierscieni, splaszczenie){
+  const sx = splaszczenie || 1;                 // 1 = koło, mniej = wąska (np. na masce)
+  const pkt = (kat, r) => [cx + Math.cos(kat) * r * sx, cy + Math.sin(kat) * r];
+  const sciezki = [];
+  for(let i = 0; i < ileNici; i++){
+    const kat = i / ileNici * Math.PI * 2;
+    const a = pkt(kat, rMin), b = pkt(kat, rMax);
+    sciezki.push(`M${a[0].toFixed(1)},${a[1].toFixed(1)}L${b[0].toFixed(1)},${b[1].toFixed(1)}`);
+  }
+  for(let p = 1; p <= ilePierscieni; p++){
+    const r = rMin + (rMax - rMin) * p / ilePierscieni;
+    let d = '';
+    for(let i = 0; i <= ileNici; i++){
+      const kat = i / ileNici * Math.PI * 2;
+      const [x, y] = pkt(kat, r);
+      if(i === 0){ d = `M${x.toFixed(1)},${y.toFixed(1)}`; continue; }
+      // punkt sterujący ściągnięty do środka — stąd charakterystyczne obwiśnięcie
+      const [sx2, sy2] = pkt((i - .5) / ileNici * Math.PI * 2, r * .88);
+      d += `Q${sx2.toFixed(1)},${sy2.toFixed(1)} ${x.toFixed(1)},${y.toFixed(1)}`;
+    }
+    sciezki.push(d);
+  }
+  return sciezki;
+}
+
+(function narysujSiec(){
+  const siec = document.getElementById('siec');
+  if(!siec) return;
+  const SVG = 'http://www.w3.org/2000/svg';
+  const nici = [
+    ...utkajSiec(100, 18, 2, 46, 16, 7, .5),   // maska — środek nad czołem, siatka wąska jak czaszka
+    ...utkajSiec(100, 74, 5, 92, 18, 8),       // przód tułowia — środek u szyi
+    ...utkajSiec(52,  152, 2, 56, 12, 6, .6),  // lewa rękawica
+    ...utkajSiec(148, 152, 2, 56, 12, 6, .6),  // prawa rękawica
+    ...utkajSiec(83,  262, 2, 78, 12, 7, .5),  // lewy but
+    ...utkajSiec(117, 262, 2, 78, 12, 7, .5),  // prawy but
+  ];
+  // nitki są wytłoczone w materiale: ciemny rowek plus światło na krawędzi
+  const warstwy = [
+    { przesun:'translate(.45,.45)', kolor:'#160308', krycie:'.6',  grubosc:'1.1' },
+    { przesun:'translate(-.4,-.4)', kolor:'#ffffff', krycie:'.22', grubosc:'.7'  },
+  ];
+  for(const w of warstwy){
+    const g = document.createElementNS(SVG, 'g');
+    g.setAttribute('transform', w.przesun);
+    g.setAttribute('stroke', w.kolor);
+    g.setAttribute('stroke-opacity', w.krycie);
+    g.setAttribute('stroke-width', w.grubosc);
+    g.setAttribute('fill', 'none');
+    for(const d of nici){
+      const p = document.createElementNS(SVG, 'path');
+      p.setAttribute('d', d);
+      g.appendChild(p);
+    }
+    siec.appendChild(g);
+  }
+})();
+
+/* Kliknięcie w rysunek pokazuje go na cały ekran — wtedy widać szczegóły. */
+(function lupaStroju(){
+  const lupa = document.createElement('div');
+  lupa.id = 'lupa';
+  lupa.innerHTML = '<div class="podpis">projekt stroju &nbsp;•&nbsp; kliknij, żeby zamknąć</div>';
+  lupa.prepend(el('strojSVG').cloneNode(true));
+  document.body.appendChild(lupa);
+
+  el('projekt').querySelector('.ramka').onclick = () => lupa.classList.add('otwarta');
+  lupa.onclick = () => lupa.classList.remove('otwarta');
+  addEventListener('keydown', e => { if(e.key === 'Escape') lupa.classList.remove('otwarta'); });
+})();
+
+el('projektNaglowek').onclick = () => {
+  const panel = el('projekt');
+  panel.classList.toggle('zwiniety');
+  el('projektZnak').textContent = panel.classList.contains('zwiniety') ? '+' : '–';
+};
+
+/* ---------------------------------------------------------------
+   12. Start
+   --------------------------------------------------------------- */
+if(!Rozpoznawanie){
+  dopisz('info', 'Ta przeglądarka nie rozpoznaje mowy. Otwórz stronę w Chrome albo Edge — albo pisz w polu poniżej.');
+  el('btnStart').disabled = true;
+  el('btnStart').classList.add('blad');
+}else{
+  dopisz('info', 'Kliknij „Włącz słuchanie” i powiedz „E.V.”.');
+  ostrzezOPliku();
+}
+odswiezStan();
+</script>
+</body>
+</html>

@@ -7,6 +7,12 @@
       "port": 8080
     },
     {
+      "name": "ev",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", "serwer.ps1"],
+      "port": 8080
+    },
+    {
       "name": "nagranie",
       "runtimeExecutable": "node",
       "runtimeArgs": ["nagranie/serwer.js"],
