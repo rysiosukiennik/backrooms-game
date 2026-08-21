@@ -4293,8 +4293,9 @@ const Kopanie = {
     return s;
   },
 
-  /* wybranie łyżki albo wysypanie urobku w punkcie */
-  zmien(x, z, r, d) {
+  /* wybranie łyżki albo wysypanie urobku w punkcie.
+     zdalne = zmiana przyszła z sieci, więc nie odsyłamy jej z powrotem */
+  zmien(x, z, r, d, zdalne) {
     if (!this.wZasiegu(x, z)) return false;
     let nowy = false;
     const bliski = this.doly.find(o => Math.hypot(o.x - x, o.z - z) < r * 0.6 && (o.d < 0) === (d < 0));
@@ -4310,7 +4311,56 @@ const Kopanie = {
     // trawę przesiewamy tylko przy nowym wykopie — przy każdym nabraniu łyżki
     // całe pole przeskakiwałoby w oczach
     if (nowy && typeof refreshGrass === 'function') refreshGrass(player.pos);
+    if (!zdalne) {
+      Net.wyslijKopanie(x, z, r, d);
+      this.zapisz();
+    }
     return true;
+  },
+
+  /* Wykopy przeżywają zamknięcie karty: lista dołów siedzi w localStorage
+     i wraca przy budowie świata. Zapisujemy po każdej łyżce — dołów jest
+     kilkadziesiąt, nie kilkadziesiąt tysięcy, więc to ułamek milisekundy. */
+  klucz: 'narew-doly-v1',
+
+  zapisz() {
+    try {
+      const lekkie = this.doly.map(o => [
+        +o.x.toFixed(2), +o.z.toFixed(2), +o.r.toFixed(2), +o.d.toFixed(3)]);
+      localStorage.setItem(this.klucz, JSON.stringify(lekkie));
+    } catch (e) { /* prywatne okno albo pełny dysk — kopanie ma działać dalej */ }
+  },
+
+  odczytaj() {
+    try {
+      const s = localStorage.getItem(this.klucz);
+      if (!s) return [];
+      return JSON.parse(s).map(a => ({ x: a[0], z: a[1], r: a[2], d: a[3] }));
+    } catch (e) { return []; }
+  },
+
+  wyczysc() {
+    this.doly = [];
+    try { localStorage.removeItem(this.klucz); } catch (e) { /* nieważne */ }
+    this.przelicz();
+    if (typeof refreshGrass === 'function') refreshGrass(player.pos);
+  },
+
+  /* wstawia gotową listę dołów (z dysku albo od hosta) i przelicza teren raz */
+  wczytajListe(lista) {
+    if (!lista || !lista.length) return 0;
+    for (const o of lista) {
+      if (!o || !this.wZasiegu(o.x, o.z)) continue;
+      this.doly.push({ x: o.x, z: o.z, r: o.r, d: o.d });
+    }
+    this.przelicz();
+    if (typeof refreshGrass === 'function') refreshGrass(player.pos);
+    return this.doly.length;
+  },
+
+  /* przeliczenie całej drobnej siatki — po wczytaniu, nie po każdej łyżce */
+  przelicz() {
+    if (this.siatka) this.odswiezSiatke(0, 0, KOPANIE.zasieg * 2);
   },
 
   /* przeliczamy tylko wierzchołki wokół zmiany — reszta siatki zostaje */
@@ -5752,6 +5802,24 @@ function postawLopate() {
   lopata = { wSwiecie: w, wRece: r, ma: false, chlod: 0, zamach: 0 };
 }
 
+/* zasypanie całej posesji — dwa naciśnięcia SHIFT+K w ciągu trzech sekund */
+let zasypPotwierdz = 0;
+
+function zasypWszystko() {
+  if (!Kopanie.doly.length) { announce('Nie ma czego zasypywać', '#cfe9f5', 1.8); return; }
+  const teraz = performance.now() / 1000;
+  if (teraz - zasypPotwierdz > 3) {
+    zasypPotwierdz = teraz;
+    announce('⛏ SHIFT+K jeszcze raz — zasypie ' + Kopanie.doly.length + ' dołów', '#ffb877', 3);
+    return;
+  }
+  zasypPotwierdz = 0;
+  const ile = Kopanie.doly.length;
+  Kopanie.wyczysc();
+  AudioSys.burst(160, 0.7, 0.5, 0.2, 'lowpass', 600);
+  announce('🟢 Teren wyrównany — zasypane doły: ' + ile, '#8ee06a', 3);
+}
+
 function uzyjKodu() {
   if (!Kod.panel || Kod.aktywny) return false;
   if (Math.hypot(player.pos.x - KOD.x, player.pos.z - KOD.z) > KOD.zasieg) return false;
@@ -5838,6 +5906,7 @@ const TABLICA_TRESC = [
     ['↑ ↓ / Q Z', 'wysięgnik i ramię koparki'],
     ['SPACJA', 'nabiera łyżką i wysypuje — ziemi ubywa'],
     ['ŁOPATA', 'E bierze przy wiacie, K kopie dół'],
+    ['SHIFT+K', 'zasypuje wszystkie doły — dwa razy pod rząd'],
     ['KLAWIATURA', 'przy drzwiach kloca — dwie cyfry'],
     ['OGNISKO', 'E rozpala i gasi'],
   ]],
@@ -10405,6 +10474,13 @@ function buildWorld(seed) {
   buildSzopy();
   buildGrass();
 
+  // Teren wraca taki, jaki został: u gościa doły przysłane przez hosta,
+  // u reszty te zapisane w przeglądarce po poprzedniej sesji.
+  const doly = Net.mode === 'guest' ? (Net.dolyHosta || []) : Kopanie.odczytaj();
+  Net.dolyHosta = null;
+  const ile = Kopanie.wczytajListe(doly);
+  if (ile) announce('⛏ Wykopy z poprzedniej gry: ' + ile, '#d9c39a', 3);
+
   buildLozko();
   buildTeleport();
   buildKanapeZJanem();
@@ -10438,7 +10514,7 @@ function resetPlayer() {
    MULTIPLAYER — PeerJS (P2P), host rozsyła pozycje
 ================================================================ */
 const Net = {
-  mode: 'solo', peer: null, conns: [], remotes: {}, sendT: 0,
+  mode: 'solo', peer: null, conns: [], remotes: {}, sendT: 0, dolyHosta: null,
 
   available() { return typeof Peer !== 'undefined'; },
 
@@ -10457,7 +10533,10 @@ const Net = {
     this.peer.on('connection', conn => {
       conn.on('open', () => {
         this.conns.push(conn);
-        conn.send({ t: 'init', seed: worldSeed });
+        // razem z ziarnem świata leci teren: bez tego gość dostawał równą łąkę
+        // tam, gdzie u hosta były już wykopy
+        conn.send({ t: 'init', seed: worldSeed,
+          doly: Kopanie.doly.map(o => [o.x, o.z, o.r, o.d]) });
         setMpStatus(`KOD POKOJU: ${code} • graczy: ${this.conns.length + 1}`);
         announce('👤 Ktoś dołączył do świata', '#bff3ff', 3);
       });
@@ -10495,8 +10574,18 @@ const Net = {
     this.broadcast({ t: 'fala', x, z, a });
   },
 
+  /* każda łyżka ziemi leci do pozostałych: teren musi być wspólny, bo inaczej
+     jeden gracz stoi w dole, którego drugi u siebie nie ma */
+  wyslijKopanie(x, z, r, d) {
+    if (this.mode === 'solo' || !this.conns.length) return;
+    this.broadcast({ t: 'kop', x: +x.toFixed(2), z: +z.toFixed(2),
+      r: +r.toFixed(2), d: +d.toFixed(3) });
+  },
+
   onData(conn, d) {
     if (d.t === 'init' && this.mode === 'guest' && state === 'menu') {
+      // doły hosta odkładamy na bok: świat dopiero się buduje, siatki nie ma
+      this.dolyHosta = (d.doly || []).map(a => ({ x: a[0], z: a[1], r: a[2], d: a[3] }));
       startGame('guest', d.seed);
     } else if (d.t === 'p') {           // pozycja gościa (odbiera host)
       const r = this.remotes[conn.peer] = this.remotes[conn.peer] || {};
@@ -10527,6 +10616,9 @@ const Net = {
     } else if (d.t === 'fala') {        // krąg fali od skutera drugiego gracza
       Fale.dodaj(d.x, d.z, d.a);
       if (this.mode === 'host') this.broadcast(d, conn);
+    } else if (d.t === 'kop') {         // ktoś kopnął łopatą albo łyżką koparki
+      Kopanie.zmien(d.x, d.z, d.r, d.d, true);
+      if (this.mode === 'host') { this.broadcast(d, conn); Kopanie.zapisz(); }
     } else if (d.t === 's') {           // stan świata od hosta
       gameTime = d.gt;
       for (const id in d.pl) {
@@ -11501,6 +11593,9 @@ document.addEventListener('keydown', e => {
     if (e.code === 'KeyE' && !klikniecieWTV() && !uzyjKodu() && !uzyjOgniska() &&
         !uzyjKanapy() && !uzyjKoparki() && !uzyjSkutera() && !uzyjKajaka() &&
         !uzyjLopaty()) podniesButelke();
+    // SHIFT+K zasypuje wszystko, ale dopiero za drugim razem — jedno
+    // przypadkowe naciśnięcie nie kasuje godziny kopania
+    if (e.code === 'KeyK' && e.shiftKey) { zasypWszystko(); return; }
     if (e.code === 'KeyK') kopLopata();
     if (e.code === 'KeyQ' && !wKoparce) nalejWode();   // w koparce Q steruje ramieniem
     if (e.code === 'KeyG') wypijWode();
