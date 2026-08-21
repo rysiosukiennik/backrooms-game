@@ -5590,13 +5590,32 @@ function ubierzPoWiejsku(g, kolorKamizeli, kolorSpodni) {
   const skora = new THREE.MeshLambertMaterial({ color: 0x8a6a4c,
     map: klonFoto(textures.skora, 1, 1) });
 
-  const kamizela = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.6, 0.34), plotno);
+  // Tors z ośmiobocznej bryły, nie z płaskiego pudła: prostopadłościan
+  // oglądany z bliska czytał się jak przypięta do postaci deska.
+  const kamizela = new THREE.Mesh(new THREE.CylinderGeometry(0.29, 0.26, 0.6, 8), plotno);
+  kamizela.rotation.y = Math.PI / 8;
+  kamizela.scale.z = 0.62;                 // spłaszczona: człowiek, nie beczka
   kamizela.position.set(0, 1.22, 0);
-  const kolnierz = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.09, 0.3), plotno);
+  const kolnierz = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.24, 0.1, 8), plotno);
+  kolnierz.rotation.y = Math.PI / 8;
+  kolnierz.scale.z = 0.62;
   kolnierz.position.set(0, 1.53, 0);
-  const pas = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.09, 0.37), skora);
+  const pas = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.09, 8), skora);
+  pas.rotation.y = Math.PI / 8;
+  pas.scale.z = 0.66;
   pas.position.set(0, 0.94, 0);
-  g.add(kamizela, kolnierz, pas);
+  const klamra = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.07, 0.03),
+    new THREE.MeshPhongMaterial({ color: 0xb9a25c, shininess: 70 }));
+  klamra.position.set(0, 0.94, 0.19);
+  g.add(kamizela, kolnierz, pas, klamra);
+
+  // naramienniki: kamizela zachodzi na ramiona, przez co postać ma barki
+  for (const sx of [-1, 1]) {
+    const bark = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), plotno);
+    bark.scale.set(1, 0.75, 0.85);
+    bark.position.set(sx * 0.21, 1.44, 0);
+    g.add(bark);
+  }
 
   for (const sx of [-1, 1]) {
     const nogawka = new THREE.Mesh(new THREE.BoxGeometry(0.21, 0.5, 0.24), spodnie);
@@ -5651,7 +5670,7 @@ function przyjedzWaldek() {
   g.add(kon, jezdziec);
   const x = KOD.x + 4, z = CFG.blockD / 2 + 26;
   g.position.set(x, wysokoscPodlogi(x, z), z);
-  g.rotation.y = Math.PI;
+  g.rotation.y = Math.atan2(KOD.x + 3 - x, CFG.blockD / 2 + 6 - z);   // od razu przodem do celu
   worldGroup.add(g);
   waldek = { obj: g, kon, jezdziec, faza: 0, cel: { x: KOD.x + 3, z: CFG.blockD / 2 + 6 } };
   announce('🐴 Waldek przyjechał — jest przed klocem', '#ffd9a3', 4.5);
@@ -7191,29 +7210,46 @@ let kanapa = null, naKanapie = false, powrotKanapa = null;
 
 function buildKanape() {
   const g = new THREE.Group();
-  const tapicerka = new THREE.MeshLambertMaterial({ color: 0x4a5a68, map: textures.tkanina });
-  const nogi = new THREE.MeshPhongMaterial({ color: 0x3a2b1c, shininess: 30 });
+  // Jaśniejsza tapicerka niż pierwotny granat: w klocu, gdzie światło wpada
+  // tylko przez szybę, ciemny mebel czytał się jak czarna plama.
+  // Len, nie tkanina obiciowa: zdjęcie tkaniny jest ciemnoszare i po wymnożeniu
+  // przez barwę mebel wychodził czarny w środku kloca. Len jest jasny.
+  const tapicerka = new THREE.MeshLambertMaterial({ color: 0xbcae96,
+    map: klonFoto(textures.len, 3, 2) });
+  const jasiekMat = new THREE.MeshLambertMaterial({ color: 0x8d9aa6,
+    map: klonFoto(textures.tkanina, 1, 1) });
+  const nogi = new THREE.MeshPhongMaterial({ color: 0x6b4a2f, shininess: 30, map: textures.deski });
 
-  const siedzisko = new THREE.Mesh(new THREE.BoxGeometry(KANAPA.szer, 0.34, KANAPA.glab), tapicerka);
-  siedzisko.position.y = 0.46;
-  const oparcie = new THREE.Mesh(new THREE.BoxGeometry(KANAPA.szer, 0.72, 0.26), tapicerka);
-  oparcie.position.set(0, 0.86, -KANAPA.glab / 2 + 0.13);
+  // Wysokości jak w prawdziwej kanapie: poducha na 48 cm, nie na 76 —
+  // przy poprzednich Jan siedział z nogami w powietrzu.
+  const siedzisko = new THREE.Mesh(new THREE.BoxGeometry(KANAPA.szer, 0.24, KANAPA.glab), tapicerka);
+  siedzisko.position.y = 0.30;
+  const oparcie = new THREE.Mesh(new THREE.BoxGeometry(KANAPA.szer, 0.62, 0.22), tapicerka);
+  oparcie.position.set(0, 0.75, -KANAPA.glab / 2 + 0.11);
+  oparcie.rotation.x = -0.12;                 // oparcie odchylone, nie na sztorc
   for (const sx of [-1, 1]) {
-    const bok = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.56, KANAPA.glab), tapicerka);
-    bok.position.set(sx * (KANAPA.szer / 2 - 0.13), 0.62, 0);
+    const bok = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.44, KANAPA.glab), tapicerka);
+    bok.position.set(sx * (KANAPA.szer / 2 - 0.11), 0.44, 0);
     g.add(bok);
     for (const sz of [-1, 1]) {
-      const noga = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.04, 0.3, 6), nogi);
-      noga.position.set(sx * (KANAPA.szer / 2 - 0.2), 0.15, sz * (KANAPA.glab / 2 - 0.2));
+      const noga = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.04, 0.2, 6), nogi);
+      noga.position.set(sx * (KANAPA.szer / 2 - 0.2), 0.1, sz * (KANAPA.glab / 2 - 0.2));
       g.add(noga);
     }
   }
   // dwie poduchy, żeby siedzisko nie było jedną deską
   for (const sx of [-1, 1]) {
-    const pod = new THREE.Mesh(new THREE.BoxGeometry(KANAPA.szer / 2 - 0.34, 0.16, KANAPA.glab - 0.3),
+    const pod = new THREE.Mesh(new THREE.BoxGeometry(KANAPA.szer / 2 - 0.3, 0.14, KANAPA.glab - 0.26),
       tapicerka);
-    pod.position.set(sx * (KANAPA.szer / 4 - 0.03), 0.68, 0.06);
+    pod.position.set(sx * (KANAPA.szer / 4 - 0.03), 0.49, 0.04);
     g.add(pod);
+  }
+  // dwie poduszki oparte o boki
+  for (const sx of [-1, 1]) {
+    const jasiek = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.34, 0.12), jasiekMat);
+    jasiek.position.set(sx * (KANAPA.szer / 2 - 0.42), 0.72, -KANAPA.glab / 2 + 0.3);
+    jasiek.rotation.set(0.35, sx * 0.2, sx * 0.1);
+    g.add(jasiek);
   }
 
   g.add(siedzisko, oparcie);
@@ -7225,7 +7261,9 @@ function buildKanape() {
 
 /* Jan prosto z wody: kąpielówki, mokra skóra, krople i telefon w garści */
 function buildMokregoJana() {
-  const g = buildPerson(0x2f6db0, { mj: false });
+  // Świadomie model z brył, nie ten ze szkieletem: GLTF nie ma klipu siadania,
+  // a tego Jana trzeba złożyć w biodrach i kolanach, żeby naprawdę siedział.
+  const g = buildPersonProsty(0x2f6db0, { mj: false });
 
   const kapielowki = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.28, 0.34),
     new THREE.MeshPhongMaterial({ color: 0xe4432d, shininess: 70 }));
@@ -7259,9 +7297,18 @@ function buildMokregoJana() {
     new THREE.MeshBasicMaterial({ color: 0x1b2430 }));
   ekran.position.z = 0.008;
   telefon.add(korpus, ekran);
-  telefon.position.set(0.3, 1.12, 0.3);
-  telefon.rotation.set(-0.5, 0.3, 0.1);
-  g.add(telefon);
+  // Telefon wisi na przedramieniu, nie w powietrzu obok postaci — dzięki temu
+  // jedzie razem z ręką, kiedy Jan siada i podnosi ekran do twarzy.
+  const dlon = g.userData.limbs && g.userData.limbs.armR.userData.lokiec;
+  if (dlon) {
+    telefon.position.set(0.02, -0.3, 0.1);
+    telefon.rotation.set(-0.35, 0.15, 0.05);
+    dlon.add(telefon);
+  } else {
+    telefon.position.set(0.3, 1.12, 0.3);
+    telefon.rotation.set(-0.5, 0.3, 0.1);
+    g.add(telefon);
+  }
 
   g.userData.krople = krople;
   g.userData.telefon = telefon;
@@ -7275,8 +7322,10 @@ function buildKanapeZJanem() {
   worldGroup.add(g);
 
   const jan2 = buildMokregoJana();
-  // siedzi po lewej stronie kanapy (patrząc od telewizora), nogi na podłodze
-  jan2.position.set(KANAPA.x - 0.8, wysokoscPodlogi(KANAPA.x, KANAPA.z) + 0.18, KANAPA.z - 0.1);
+  // Siedzi po lewej stronie kanapy, patrząc w telewizor. Model stoi na
+  // stopach, więc opuszczamy go tak, żeby biodra wypadły na poduszce —
+  // zgięte uda i tak nie wchodzą w podłogę.
+  jan2.position.set(KANAPA.x - 0.8, wysokoscPodlogi(KANAPA.x, KANAPA.z) - 0.34, KANAPA.z + 0.3);
   jan2.rotation.y = Math.PI;
   worldGroup.add(jan2);
 
@@ -7292,8 +7341,24 @@ function updateKanapa(dt, t) {
   if (!kanapa) return;
   const j = kanapa.jan;
   animPerson(j, 0, false, false);
-  // siedzenie: model postaci nie ma klipu siadania, więc ugięcie robimy
-  // pochyleniem sylwetki i zanurzeniem jej w poduchę
+  // Prawdziwa poza siedząca: uda w poziom, golenie w dół, tors lekko odchylony
+  // do oparcia. animPerson zeruje kończyny co klatkę, więc pozę kładziemy po nim.
+  const l = j.userData.limbs;
+  if (l) {
+    l.legL.rotation.x = -1.42;
+    l.legR.rotation.x = -1.42;
+    l.legL.rotation.z = 0.06;
+    l.legR.rotation.z = -0.06;
+    l.legL.userData.kolano.rotation.x = 1.35;
+    l.legR.userData.kolano.rotation.x = 1.35;
+    // lewa ręka wsparta na oparciu, prawa trzyma telefon przed twarzą
+    l.armL.rotation.x = -0.35;
+    l.armL.rotation.z = 0.42;
+    l.armR.rotation.x = -1.15;
+    l.armR.rotation.z = -0.22;
+    l.armR.userData.lokiec.rotation.x = -0.85;
+    l.tors.rotation.x = 0.12;
+  }
   j.rotation.x = -0.06;
   for (const k of j.userData.krople) {
     const u = k.userData;
@@ -7322,7 +7387,7 @@ function uzyjKanapy() {
   player.flying = false;
   player.velY = 0;
   player.pos.set(KANAPA.x + 0.85, 0, KANAPA.z - 0.05);
-  player.y = wysokoscPodlogi(KANAPA.x, KANAPA.z) + 0.5;
+  player.y = wysokoscPodlogi(KANAPA.x, KANAPA.z) - 0.34;   // oczy na wysokości siedzącego
   player.yaw = 0;                            // twarzą do telewizora
   player.pitch = -0.12;
   Rolki.wlacz();
