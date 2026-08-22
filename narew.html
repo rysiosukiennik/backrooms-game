@@ -4877,6 +4877,29 @@ function zacznijOdliczanie() {
   announce('Jan bierze zamach…', '#bff3ff', 1.6);
 }
 
+/* ================================================================
+   PRZEJŚCIE DO BACKROOMS — trzeci wystrzał od Jana kończy się nie
+   lądowaniem, tylko wypadnięciem z tego świata. Liczy się dopiero
+   moment dotknięcia ziemi: w wodzie się nie liczy, bo Narew łapie.
+================================================================ */
+const BACKROOMS = { plik: 'backrooms.html', poWystrzalach: 3, zwloka: 2.6 };
+
+let doBackrooms = false;
+
+function sprawdzBackrooms() {
+  if (doBackrooms || jan.wystrzelen < BACKROOMS.poWystrzalach) return;
+  if (waterDepth(player.pos.x, player.pos.z) > 0.4) return;     // wodowanie się nie liczy
+  doBackrooms = true;
+  ui.senNapis.textContent = 'ŚCIANY SIĘ ZMIENIAJĄ…';
+  ui.senFade.style.transition = 'opacity ' + BACKROOMS.zwloka + 's';
+  ui.senFade.style.opacity = 1;
+  ui.senNapis.style.opacity = 1;
+  AudioSys.burst(70, 0.4, 0.6, 2.2, 'lowpass', 300);
+  announce('🚪 Trzeci raz w powietrzu — grunt się nie trzyma', '#c9b6ff', 3);
+  if (document.pointerLockElement) document.exitPointerLock();
+  setTimeout(() => { window.location.href = BACKROOMS.plik; }, BACKROOMS.zwloka * 1000);
+}
+
 function wystrzel() {
   ui.odliczanie.textContent = 'START!';
   ui.odliczanie.style.opacity = 1;
@@ -5752,6 +5775,190 @@ function updateWaldek(dt, t) {
 }
 
 /* ================================================================
+   TESLA — elektryczny sedan na podjeździe od strony bramy. Jeździ
+   się nią jak samochodem, a nie jak maszyną: skręt zależy od
+   prędkości (na postoju kierownica nic nie daje), przednie koła
+   naprawdę się wykręcają, wszystkie się kręcą proporcjonalnie do
+   drogi, a po zmroku zapalają się światła. Do wody nie wjedzie.
+================================================================ */
+const TESLA = {
+  x: 46, z: 6,               // na podjeździe, między klocem a bramą
+  zasieg: 3.6,
+  maxV: 30, wstecz: 7,       // 30 m/s to jakieś 108 km/h — i tyle wystarczy
+  przysp: 13, opor: 0.7, skret: 1.5,
+  promienKola: 0.35,
+};
+
+let tesla = null, wTesli = false;
+
+function buildAuto(kolor) {
+  const g = new THREE.Group();
+  const lakier = new THREE.MeshPhongMaterial({ color: kolor, shininess: 120, specular: 0x9099a6 });
+  const szyba = new THREE.MeshPhongMaterial({ color: 0x1b2430, shininess: 160, specular: 0xccddee,
+    transparent: true, opacity: 0.72 });
+  const guma = new THREE.MeshLambertMaterial({ color: 0x14161a });
+  const felga = new THREE.MeshPhongMaterial({ color: 0xb9c0c8, shininess: 90 });
+  const chrom = new THREE.MeshPhongMaterial({ color: 0x8e969e, shininess: 140, specular: 0xffffff });
+
+  // nadwozie: dolna bryła, pochylona maska, pochylona klapa
+  const dol = new THREE.Mesh(new THREE.BoxGeometry(1.95, 0.5, 4.7), lakier);
+  dol.position.y = 0.62;
+  const prog = new THREE.Mesh(new THREE.BoxGeometry(2.02, 0.16, 3.4), lakier);
+  prog.position.y = 0.42;
+  const maska = new THREE.Mesh(new THREE.BoxGeometry(1.86, 0.22, 1.35), lakier);
+  maska.position.set(0, 0.92, 1.62);
+  maska.rotation.x = -0.13;
+  const klapa = new THREE.Mesh(new THREE.BoxGeometry(1.86, 0.2, 1.15), lakier);
+  klapa.position.set(0, 0.94, -1.72);
+  klapa.rotation.x = 0.1;
+
+  // kabina: szklana bańka od maski po klapę, jak w elektrykach
+  const kabina = new THREE.Mesh(new THREE.BoxGeometry(1.62, 0.46, 2.3), szyba);
+  kabina.position.y = 1.06;
+  const dach = new THREE.Mesh(new THREE.BoxGeometry(1.44, 0.07, 1.7), lakier);
+  dach.position.set(0, 1.3, -0.15);
+  const slupek = new THREE.Mesh(new THREE.BoxGeometry(1.64, 0.42, 0.09), lakier);
+  slupek.position.set(0, 1.06, -1.2);
+  slupek.rotation.x = 0.22;
+
+  // światła: przednie pasy i tylna listwa — to one świecą po zmroku
+  const przodMat = new THREE.MeshBasicMaterial({ color: 0x24303c });
+  const tylMat = new THREE.MeshBasicMaterial({ color: 0x3a1416 });
+  const lampy = [];
+  for (const sx of [-1, 1]) {
+    const l = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.09, 0.06), przodMat.clone());
+    l.position.set(sx * 0.6, 0.86, 2.3);
+    g.add(l); lampy.push(l);
+  }
+  const listwa = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.08, 0.05), tylMat);
+  listwa.position.set(0, 0.92, -2.32);
+  const lusterka = [];
+  for (const sx of [-1, 1]) {
+    const lu = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 0.07), chrom);
+    lu.position.set(sx * 1.06, 1.16, 0.85);
+    g.add(lu); lusterka.push(lu);
+  }
+
+  // koła: opona jako walec położony na boku, felga jako jaśniejszy krążek
+  const kola = [], przednie = [];
+  for (const [sx, sz] of [[-1, 1.45], [1, 1.45], [-1, -1.45], [1, -1.45]]) {
+    const os = new THREE.Group();                 // grupa skrętu (tylko przód)
+    os.position.set(sx * 0.92, TESLA.promienKola, sz);
+    const opona = new THREE.Mesh(
+      new THREE.CylinderGeometry(TESLA.promienKola, TESLA.promienKola, 0.26, 16), guma);
+    opona.rotation.z = Math.PI / 2;
+    const tarcza = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, 0.28, 12), felga);
+    tarcza.rotation.z = Math.PI / 2;
+    opona.add(tarcza);
+    os.add(opona);
+    g.add(os);
+    kola.push(opona);
+    if (sz > 0) przednie.push(os);
+  }
+
+  g.add(dol, prog, maska, klapa, kabina, dach, slupek, listwa);
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  g.userData = { kola, przednie, lampy, listwa };
+  return g;
+}
+
+function buildTesle() {
+  const g = buildAuto(0xdfe3e8);                  // perłowa biel
+  const gy = wysokoscPodlogi(TESLA.x, TESLA.z);
+  g.position.set(TESLA.x, gy, TESLA.z);
+  g.rotation.y = Math.PI / 2;                     // przodem do bramy
+  worldGroup.add(g);
+  tesla = { obj: g, x: TESLA.x, z: TESLA.z, kat: Math.PI / 2, v: 0, skret: 0, przebieg: 0, pisk: 0 };
+  wTesli = false;
+  treeCols.push({ x: TESLA.x, z: TESLA.z, r: 1.6, auto: true });
+}
+
+function uzyjTesli() {
+  if (!tesla) return false;
+  if (wTesli) { wysiadzZTesli(); return true; }
+  if (Math.hypot(player.pos.x - tesla.x, player.pos.z - tesla.z) > TESLA.zasieg) return false;
+  wTesli = true;
+  player.flying = false;
+  player.swimming = false;
+  player.velY = 0;
+  player.yaw = tesla.kat;
+  AudioSys.burst(320, 1.4, 0.35, 0.35, 'lowpass', 1800);   // ciche pyknięcie elektryka
+  announce('🚗 TESLA — W/S gaz i hamulec, A/D kierownica, [E] wysiadka', '#cfe9f5', 4.5);
+  return true;
+}
+
+function wysiadzZTesli() {
+  if (!tesla) return;
+  wTesli = false;
+  tesla.v = 0;
+  // wysiadka drzwiami kierowcy, czyli w lewo od osi jazdy
+  const bx = tesla.x - Math.cos(tesla.kat) * 1.9;
+  const bz = tesla.z + Math.sin(tesla.kat) * 1.9;
+  const dobre = !blockedStatic(bx, bz, CFG.playerRadius, 0) && waterDepth(bx, bz) < 0.6;
+  const x = dobre ? bx : tesla.x, z = dobre ? bz : tesla.z + 2.4;
+  player.pos.set(x, 0, z);
+  player.y = wysokoscPodlogi(x, z);
+  player.velY = 0;
+  announce('🚗 Wysiadka', '#cfe9f5', 1.6);
+}
+
+function jedzTesla(dt, fwd, str) {
+  const s = tesla;
+  if (fwd > 0) s.v += TESLA.przysp * dt;
+  else if (fwd < 0) s.v -= TESLA.przysp * 1.2 * dt;        // hamulec mocniejszy niż gaz
+  s.v -= s.v * TESLA.opor * dt;
+  s.v = Math.max(-TESLA.wstecz, Math.min(TESLA.maxV, s.v));
+  if (Math.abs(s.v) < 0.05) s.v = 0;
+
+  // kierownica wraca do środka, a skręt liczy się od prędkości — stojąc
+  // w miejscu autem się nie obraca, bo koła nie mają się o co oprzeć
+  s.skret += (str * -0.55 - s.skret) * Math.min(1, dt * 6);
+  const obrot = s.skret * TESLA.skret * dt * Math.min(1, Math.abs(s.v) / 6) * Math.sign(s.v || 1);
+  s.kat += obrot;
+  player.yaw += obrot;
+
+  const nx = s.x - Math.sin(s.kat) * s.v * dt;
+  const nz = s.z - Math.cos(s.kat) * s.v * dt;
+  if (!blockedStatic(nx, nz, 1.5, 0) && waterDepth(nx, nz) < 0.35) {
+    s.x = nx; s.z = nz;
+  } else {
+    if (Math.abs(s.v) > 6) AudioSys.burst(90, 0.4, 0.6, 0.22, 'lowpass', 400);
+    s.v *= -0.15;                                           // odbicie od przeszkody
+  }
+
+  s.przebieg += Math.abs(s.v) * dt;
+  const gy = wysokoscPodlogi(s.x, s.z);
+  s.obj.position.set(s.x, gy, s.z);
+  s.obj.rotation.y = s.kat;
+  // nadwozie kiwa się przy gazie i hamowaniu
+  s.obj.rotation.x = Math.max(-0.05, Math.min(0.05, -fwd * 0.03 - s.v * 0.0004));
+
+  player.pos.set(s.x, 0, s.z);
+  player.y = gy + 0.62;                                     // oczy na wysokości fotela
+  player.velY = 0;
+
+  if (Math.abs(s.v) > 24 && (s.pisk -= dt) <= 0) {          // szum przy pełnej prędkości
+    s.pisk = 0.7;
+    AudioSys.burst(220, 1.2, 0.12, 0.25, 'lowpass', 1200);
+  }
+}
+
+function updateTesle(dt) {
+  if (!tesla) return;
+  const u = tesla.obj.userData;
+  // koła kręcą się od przejechanej drogi, przednie dodatkowo się wykręcają
+  const obrot = tesla.przebieg / TESLA.promienKola;
+  for (const k of u.kola) k.rotation.x = -obrot;
+  for (const os of u.przednie) os.rotation.y = tesla.skret * 0.55;
+
+  // światła same zapalają się o zmroku, tylne czerwienieją przy hamowaniu
+  const ciemno = Slonce.dzien < 0.45;
+  const hamuje = wTesli && (keys.KeyS || (tesla.v < -0.2));
+  for (const l of u.lampy) l.material.color.setHex(ciemno || wTesli ? 0xf2f6ff : 0x24303c);
+  u.listwa.material.color.setHex(hamuje ? 0xff2a20 : (ciemno || wTesli ? 0x8a1a14 : 0x3a1416));
+}
+
+/* ================================================================
    ŁOPATA — stoi oparta o słup wiaty, bierze się ją [E].
    Kopie płycej i węziej niż koparka, ale wszędzie tam, gdzie stoisz,
    i bez wsiadania do maszyny. Klawisz [K] to jedno machnięcie.
@@ -5893,6 +6100,8 @@ const TABLICA_TRESC = [
     ['Q / G', 'nabiera wody z Narwi / pije'], ['F', 'sen w łóżku'],
     ['T', 'teleport ze świecącej płyty'], ['X', 'głaskanie wiewiórki'],
     ['R', 'Jan w Narwi wystrzeliwuje w górę'],
+    ['R trzy razy', 'trzeci lot kończy się w BACKROOMS'],
+    ['CISZEWSCY', 'wjeżdżają bramą po czterech minutach gry'],
     ['KANAPA', 'E sadza obok mokrego Jana — rolki Edwarda na telefonie'],
     ['SKUTER', 'E na wodzie — fale unoszą kajaki'],
     ['EDWARD WARCHOCKI', 'chodzi po posesji — stań przy nim'],
@@ -5908,6 +6117,7 @@ const TABLICA_TRESC = [
     ['ŁOPATA', 'E bierze przy wiacie, K kopie dół'],
     ['SHIFT+K', 'zasypuje wszystkie doły — dwa razy pod rząd'],
     ['KLAWIATURA', 'przy drzwiach kloca — dwie cyfry'],
+    ['TESLA', 'E wsiadka, W/S gaz i hamulec, A/D kierownica'],
     ['OGNISKO', 'E rozpala i gasi'],
   ]],
   ['TELEWIZOR', [
@@ -7006,6 +7216,118 @@ function updateEdward(dt, t) {
 
   const tab = e.obj.userData.tabliczka;
   tab.rotation.y = -e.obj.rotation.y + Math.atan2(camera.position.x - p.x, camera.position.z - p.z);
+}
+
+/* ================================================================
+   CISZEWSCY — po czterech minutach gry od bramy nadjeżdża ich auto,
+   parkuje przed klocem, wysiada czworo i idzie na plac. Nie znikają:
+   od tej pory chodzą po posesji tak jak Edward.
+================================================================ */
+const CISZEWSCY = {
+  poCzasie: 240,             // sekundy gry — cztery minuty
+  ile: 4,
+  startX: 190, startZ: 3,    // wjazd od strony bramy
+  parkX: 44, parkZ: 14,
+  tempoAuta: 13, tempoPieszo: 1.4,
+  kolory: [0x8c3f3f, 0x3f5a8c, 0x6f5a3f, 0x4a6f4a],
+  imiona: 'CISZEWSCY',
+};
+
+let ciszewscy = null;
+
+function przyjadaCiszewscy() {
+  if (ciszewscy) return;
+  const auto = buildAuto(0x2b2f36);              // ciemne kombi, nie nasza tesla
+  auto.position.set(CISZEWSCY.startX, wysokoscPodlogi(CISZEWSCY.startX, CISZEWSCY.startZ),
+    CISZEWSCY.startZ);
+  auto.rotation.y = -Math.PI / 2;                // jedzie w stronę kloca, czyli w −x
+  worldGroup.add(auto);
+
+  const ludzie = [];
+  for (let i = 0; i < CISZEWSCY.ile; i++) {
+    const g = buildPerson(CISZEWSCY.kolory[i % CISZEWSCY.kolory.length], { mj: false });
+    g.visible = false;                           // siedzą w aucie, póki nie zaparkuje
+    worldGroup.add(g);
+    ludzie.push({
+      obj: g, faza: i * 1.3,
+      cel: { x: 16 + (i % 2) * 4.5, z: 34 + Math.floor(i / 2) * 3.2 },
+      przyszedl: false,
+    });
+  }
+
+  const tab = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 0.72),
+    new THREE.MeshBasicMaterial({ map: texImie(CISZEWSCY.imiona), transparent: true }));
+  tab.position.y = 2.45;
+  ludzie[0].obj.add(tab);
+
+  ciszewscy = { auto, ludzie, tab, stan: 'jedzie', przebieg: 0, postoj: 0 };
+  announce('🚗 Ktoś wjechał bramą — to Ciszewscy', '#cfe9f5', 4);
+  AudioSys.burst(200, 1.1, 0.3, 0.5, 'lowpass', 900);
+}
+
+function updateCiszewskich(dt, t) {
+  if (!ciszewscy) {
+    if (state === 'playing' && gameTime > CISZEWSCY.poCzasie) przyjadaCiszewscy();
+    return;
+  }
+  const c = ciszewscy;
+  const p = c.auto.position;
+
+  if (c.stan === 'jedzie') {
+    const dx = CISZEWSCY.parkX - p.x, dz = CISZEWSCY.parkZ - p.z;
+    const d = Math.hypot(dx, dz);
+    if (d < 1.2) {
+      c.stan = 'wysiadaja';
+      c.postoj = 0.8;
+      announce('👋 Ciszewscy zaparkowali przed klocem', '#cfe9f5', 3.5);
+    } else {
+      const krok = Math.min(d, CISZEWSCY.tempoAuta * dt);
+      p.x += dx / d * krok;
+      p.z += dz / d * krok;
+      p.y = wysokoscPodlogi(p.x, p.z);
+      c.auto.rotation.y = Math.atan2(dx, dz) + Math.PI;
+      c.przebieg += krok;
+      const u = c.auto.userData;
+      for (const k of u.kola) k.rotation.x = -c.przebieg / TESLA.promienKola;
+    }
+  } else if (c.stan === 'wysiadaja') {
+    c.postoj -= dt;
+    if (c.postoj <= 0) {
+      c.stan = 'ida';
+      c.ludzie.forEach((o, i) => {
+        o.obj.visible = true;
+        const bok = i % 2 ? 1.6 : -1.6;
+        o.obj.position.set(p.x + bok, wysokoscPodlogi(p.x + bok, p.z), p.z + (i < 2 ? 0.9 : -0.9));
+      });
+      AudioSys.ui();
+    }
+  } else {
+    for (const o of c.ludzie) {
+      const q = o.obj.position;
+      const dx = o.cel.x - q.x, dz = o.cel.z - q.z;
+      const d = Math.hypot(dx, dz);
+      const idzie = d > 0.7;
+      if (idzie) {
+        q.x += dx / d * CISZEWSCY.tempoPieszo * dt;
+        q.z += dz / d * CISZEWSCY.tempoPieszo * dt;
+        q.y = wysokoscPodlogi(q.x, q.z);
+        o.obj.rotation.y = Math.atan2(dx, dz);
+        o.faza += dt * 4.4;
+      } else if (!o.przyszedl) {
+        o.przyszedl = true;
+        // na miejscu odwracają się do kloca i tam już zostają
+        o.obj.rotation.y = Math.atan2(-q.x, -q.z);
+      } else {
+        o.faza += dt * 0.8;
+      }
+      animPerson(o.obj, o.faza, idzie, false);
+    }
+    if (c.stan === 'ida' && c.ludzie.every(o => o.przyszedl)) c.stan = 'stoja';
+  }
+
+  const g0 = c.ludzie[0].obj;
+  c.tab.rotation.y = -g0.rotation.y +
+    Math.atan2(camera.position.x - g0.position.x, camera.position.z - g0.position.z);
 }
 
 /* ================================================================
@@ -10391,6 +10713,7 @@ function disposeWorld() {
   birds = []; squirrels = []; tvScreen = null;
   kajaki = []; wKajaku = null;
   koparka = null; wKoparce = false;
+  tesla = null; wTesli = false; ciszewscy = null; doBackrooms = false;
   skuter = null; naSkuterze = false; Fale.reset();
   kanapa = null; naKanapie = false; powrotKanapa = null;
   if (Rolki.ekran && Rolki.ekran.parent) Rolki.ekran.parent.remove(Rolki.ekran);
@@ -10466,6 +10789,7 @@ function buildWorld(seed) {
   postawLopate();
   buildOgnisko();
   buildKoparke();
+  buildTesle();
   buildKajaki();
   buildSkuterNaWodzie();
   buildSquirrels();
@@ -11591,7 +11915,7 @@ document.addEventListener('keydown', e => {
     if (e.code === 'KeyX') petSquirrel();
     // E: najpierw ekran telewizora, a jeśli nie celujemy — butelka z podłogi
     if (e.code === 'KeyE' && !klikniecieWTV() && !uzyjKodu() && !uzyjOgniska() &&
-        !uzyjKanapy() && !uzyjKoparki() && !uzyjSkutera() && !uzyjKajaka() &&
+        !uzyjKanapy() && !uzyjTesli() && !uzyjKoparki() && !uzyjSkutera() && !uzyjKajaka() &&
         !uzyjLopaty()) podniesButelke();
     // SHIFT+K zasypuje wszystko, ale dopiero za drugim razem — jedno
     // przypadkowe naciśnięcie nie kasuje godziny kopania
@@ -11928,6 +12252,10 @@ function updatePlayer(dt) {
     jedzKoparka(dt, fwd, str);
     moving = false;
     player.swimming = false;
+  } else if (wTesli && tesla) {
+    jedzTesla(dt, fwd, str);
+    moving = false;
+    player.swimming = false;
   }
 
   const wantSprint = (keys.ShiftLeft || keys.ShiftRight) && moving &&
@@ -12001,6 +12329,7 @@ function updatePlayer(dt) {
       if (player.lot > 0) {                 // wylądował po wystrzeleniu
         player.lot = 0;
         if (waterDepth(player.pos.x, player.pos.z) > 0.4) AudioSys.splash();
+        sprawdzBackrooms();                 // trzeci lot kończy się gdzie indziej
       }
       player.y = gh; player.velY = 0;
     } else {
@@ -12072,6 +12401,13 @@ function updatePlayer(dt) {
   // podpowiedź kontekstowa: film w tle, telewizor, wiewiórka, okna
   if (wKoparce) {
     ui.interact.textContent = '[E] wysiądź z koparki';
+    ui.interact.style.display = 'block';
+  } else if (wTesli) {
+    ui.interact.textContent = '[E] wysiądź z tesli';
+    ui.interact.style.display = 'block';
+  } else if (tesla && !wTesli &&
+             Math.hypot(player.pos.x - tesla.x, player.pos.z - tesla.z) < TESLA.zasieg) {
+    ui.interact.textContent = '[E] wsiądź do tesli';
     ui.interact.style.display = 'block';
   } else if (ognisko && Math.hypot(player.pos.x - OGNISKO.x, player.pos.z - OGNISKO.z) < OGNISKO.zasieg) {
     ui.interact.textContent = ognisko.pali ? '[E] zgaś ognisko' : '[E] rozpal ognisko';
@@ -12214,6 +12550,8 @@ function animate() {
     updateEdward(dt, t);
     updateDziki(dt, t);
     updateSzopy(dt, t);
+    updateTesle(dt);
+    updateCiszewskich(dt, t);
     Kod.tick(dt);
 
     // cień słońca chodzi za graczem — mapa cieni jest mała, ale ostra
