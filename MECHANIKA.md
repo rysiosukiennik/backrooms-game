@@ -298,9 +298,10 @@ koparka (24 cm na raz, promień metr), ale wszędzie tam, gdzie stoisz.
 Elektryczny sedan na podjeździe między klocem a bramą. E wsiadka, W/S gaz i hamulec,
 A/D kierownica.
 
-- rozpędza się do **64 km/h w pięć sekund**, maksymalnie ~108 km/h,
+- rozpędza się do stu **w półtorej sekundy**, maksymalnie 186 km/h, hamuje do zera w 1,2 s,
 - **skręt zależy od prędkości** — stojąc w miejscu kierownica nic nie daje, bo koła nie
-  mają się o co oprzeć,
+  mają się o co oprzeć, a im szybciej jedziesz, tym łagodniej auto się kładzie w zakręt
+  (przy dwustu na godzinę pełny wychył obracał je w miejscu jak bączkiem),
 - przednie koła naprawdę się wykręcają, wszystkie kręcą się proporcjonalnie do
   przejechanej drogi,
 - nadwozie kiwa się przy gazie i hamowaniu,

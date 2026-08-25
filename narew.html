@@ -5784,8 +5784,8 @@ function updateWaldek(dt, t) {
 const TESLA = {
   x: 46, z: 6,               // na podjeździe, między klocem a bramą
   zasieg: 3.6,
-  maxV: 30, wstecz: 7,       // 30 m/s to jakieś 108 km/h — i tyle wystarczy
-  przysp: 13, opor: 0.7, skret: 1.5,
+  maxV: 55, wstecz: 10,      // 55 m/s to blisko 200 km/h
+  przysp: 26, opor: 0.5, skret: 1.5,
   promienKola: 0.35,
 };
 
@@ -5913,7 +5913,11 @@ function jedzTesla(dt, fwd, str) {
   // kierownica wraca do środka, a skręt liczy się od prędkości — stojąc
   // w miejscu autem się nie obraca, bo koła nie mają się o co oprzeć
   s.skret += (str * -0.55 - s.skret) * Math.min(1, dt * 6);
-  const obrot = s.skret * TESLA.skret * dt * Math.min(1, Math.abs(s.v) / 6) * Math.sign(s.v || 1);
+  // Im szybciej, tym mniej kierownica skręca — przy dwustu na godzinę pełny
+  // wychył na sekundę obracał auto w miejscu jak bączkiem.
+  const stabilnosc = 1 - 0.6 * Math.min(1, Math.abs(s.v) / TESLA.maxV);
+  const obrot = s.skret * TESLA.skret * dt * stabilnosc *
+    Math.min(1, Math.abs(s.v) / 6) * Math.sign(s.v || 1);
   s.kat += obrot;
   player.yaw += obrot;
 
@@ -5937,7 +5941,7 @@ function jedzTesla(dt, fwd, str) {
   player.y = gy + 0.62;                                     // oczy na wysokości fotela
   player.velY = 0;
 
-  if (Math.abs(s.v) > 24 && (s.pisk -= dt) <= 0) {          // szum przy pełnej prędkości
+  if (Math.abs(s.v) > TESLA.maxV * 0.7 && (s.pisk -= dt) <= 0) {  // szum przy pełnej prędkości
     s.pisk = 0.7;
     AudioSys.burst(220, 1.2, 0.12, 0.25, 'lowpass', 1200);
   }
@@ -6117,7 +6121,7 @@ const TABLICA_TRESC = [
     ['ŁOPATA', 'E bierze przy wiacie, K kopie dół'],
     ['SHIFT+K', 'zasypuje wszystkie doły — dwa razy pod rząd'],
     ['KLAWIATURA', 'przy drzwiach kloca — dwie cyfry'],
-    ['TESLA', 'E wsiadka, W/S gaz i hamulec, A/D kierownica'],
+    ['TESLA', 'E wsiadka, W/S gaz i hamulec, A/D kierownica — do 200 km/h'],
     ['OGNISKO', 'E rozpala i gasi'],
   ]],
   ['TELEWIZOR', [
