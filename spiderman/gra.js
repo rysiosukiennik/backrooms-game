@@ -155,7 +155,8 @@
     missIdx: 0,
     boss: null,
     race: null,
-    chase: null
+    chase: null,
+    cine: null
     // aktywne misje (do HUD)
   };
   var P = {
@@ -300,18 +301,18 @@
   }
   var KEYS = ["y", "rx", "rz", "cx", "cz", "n", "fb", "bb", "pec"];
   var norm = (r) => {
-    var _a3;
+    var _a4;
     const o = {};
-    for (const k of KEYS) o[k] = (_a3 = r[k]) != null ? _a3 : k === "n" ? 2 : 0;
+    for (const k of KEYS) o[k] = (_a4 = r[k]) != null ? _a4 : k === "n" ? 2 : 0;
     return o;
   };
-  function smooth(ctrl, sub) {
+  function smooth(ctrl, sub2) {
     ctrl = ctrl.map(norm);
     const out = [];
     for (let i = 0; i < ctrl.length - 1; i++) {
       const p0 = ctrl[Math.max(i - 1, 0)], p1 = ctrl[i], p2 = ctrl[i + 1], p3 = ctrl[Math.min(i + 2, ctrl.length - 1)];
-      for (let s = 0; s < sub; s++) {
-        const t = s / sub, r = {};
+      for (let s = 0; s < sub2; s++) {
+        const t = s / sub2, r = {};
         for (const k of KEYS) r[k] = cr(p0[k], p1[k], p2[k], p3[k], t);
         out.push(r);
       }
@@ -396,8 +397,8 @@
     const idx = [];
     for (let i = 0; i < d.idx.length; i += 3) idx.push(d.idx[i], d.idx[i + 2], d.idx[i + 1]);
     return { pos, uv: d.uv.slice(), idx, sk: d.sk.map((b) => {
-      var _a3;
-      return (_a3 = MIRB[b]) != null ? _a3 : b;
+      var _a4;
+      return (_a4 = MIRB[b]) != null ? _a4 : b;
     }), sw: d.sw.slice(), seams: d.seams };
   }
   function merge(list) {
@@ -2116,9 +2117,9 @@
       scene.environment = null;
     }
     scene.traverse((o) => {
-      var _a3;
+      var _a4;
       const m = o.material;
-      if (m && m.isMeshStandardMaterial) m.envMapIntensity = ((_a3 = m.userData.env) != null ? _a3 : 1) * T.env;
+      if (m && m.isMeshStandardMaterial) m.envMapIntensity = ((_a4 = m.userData.env) != null ? _a4 : 1) * T.env;
     });
   }
   var facMats = [];
@@ -4490,6 +4491,150 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     if (!on) renderMenu();
   }
 
+  // js/scenki.js
+  var bars = null;
+  var sub = null;
+  var subT = null;
+  var subS = null;
+  var cine = null;
+  var ease = (t) => t * t * (3 - 2 * t);
+  var _a = new V3();
+  var _b = new V3();
+  function ui() {
+    if (bars) return;
+    const st = document.createElement("style");
+    st.textContent = `.cbar{position:fixed;left:0;right:0;height:0;background:#000;z-index:8;transition:height .7s ease}
+  #cSub{position:fixed;left:0;right:0;bottom:15vh;text-align:center;z-index:9;opacity:0;transition:opacity .6s;pointer-events:none;color:#fff;text-shadow:0 2px 12px #000}
+  #cSub b{display:block;font-family:'Bebas Neue',Impact,sans-serif;font-size:clamp(34px,6.5vh,64px);letter-spacing:4px;font-weight:400}
+  #cSub span{font-family:'Rajdhani',Arial,sans-serif;font-size:clamp(17px,3vh,26px);font-weight:600;letter-spacing:1px}
+  #cSkip{position:fixed;right:24px;bottom:calc(11vh - 14px);z-index:9;color:#cfe;font:600 15px Rajdhani,Arial;opacity:0;transition:opacity .6s}`;
+    document.head.appendChild(st);
+    bars = [document.createElement("div"), document.createElement("div")];
+    bars[0].className = "cbar";
+    bars[0].style.top = 0;
+    bars[1].className = "cbar";
+    bars[1].style.bottom = 0;
+    sub = document.createElement("div");
+    sub.id = "cSub";
+    sub.innerHTML = "<b></b><span></span>";
+    subT = sub.querySelector("b");
+    subS = sub.querySelector("span");
+    const skip = document.createElement("div");
+    skip.id = "cSkip";
+    skip.textContent = "SPACJA / A \u2014 pomi\u0144";
+    skip.className = "cskip";
+    document.body.append(bars[0], bars[1], sub, skip);
+  }
+  var SCENES = {
+    intro: (ctx) => {
+      const f = new V3(Math.sin(START_H), 0, Math.cos(START_H)), r = new V3(f.z, 0, -f.x), p = ctx.p;
+      return [
+        { dur: 4.2, text: "NOWY JORK", sub: "Miasto, kt\xF3re nigdy nie \u015Bpi.", at: (t) => {
+          const a = lerp(0.5, -0.7, ease(t));
+          camera.position.copy(p).addScaledVector(f, -Math.cos(a) * 4.4).addScaledVector(r, Math.sin(a) * 4.4);
+          camera.position.y = p.y + 1.1 + t * 0.6;
+          camera.lookAt(p.x, p.y + 0.9, p.z);
+          camera.fov = 50;
+        } },
+        { dur: 4.2, text: "", sub: "", at: (t) => {
+          camera.position.copy(p).addScaledVector(f, lerp(3, 16, ease(t)));
+          camera.position.y = p.y + lerp(0.4, 9, ease(t));
+          camera.lookAt(_a.copy(p).addScaledVector(f, 320).add(_b.set(0, -75, 0)));
+          camera.fov = 62;
+        } },
+        { dur: 3.4, text: "Kto\u015B musi go pilnowa\u0107.", sub: "", at: (t) => {
+          camera.position.copy(p).addScaledVector(f, lerp(-3.8, -2.6, t)).addScaledVector(r, 0.9);
+          camera.position.y = p.y + 1.7;
+          camera.lookAt(_a.copy(p).addScaledVector(f, 40).add(_b.set(0, -6, 0)));
+          camera.fov = 58;
+        } }
+      ];
+    },
+    boss: (ctx) => {
+      const b = ctx.b, p = ctx.p, d = _a.subVectors(p, b).setY(0).normalize().clone(), r = new V3(d.z, 0, -d.x);
+      return [
+        { dur: 3.8, text: "NOSORO\u017BEC", sub: "Cz\u0142owiek w pancerzu, kt\xF3rego nic nie zatrzyma.", at: (t) => {
+          camera.position.copy(b).addScaledVector(d, lerp(11, 6.5, ease(t))).addScaledVector(r, lerp(-3, 1, t));
+          camera.position.y = b.y + lerp(0.5, 1.2, t);
+          camera.lookAt(b.x, b.y + 2.6, b.z);
+          camera.fov = lerp(52, 44, t);
+        } },
+        { dur: 2, text: "", sub: "", at: (t) => {
+          camera.position.copy(p).addScaledVector(d, -3.2).addScaledVector(r, 1.2);
+          camera.position.y = p.y + 1.6;
+          camera.lookAt(p.x, p.y + 1.5, p.z);
+          camera.position.y += t * 0.15;
+          camera.fov = 55;
+        } }
+      ];
+    },
+    bossEnd: (ctx) => {
+      const b = ctx.b;
+      return [
+        { dur: 4.2, text: "NOSORO\u017BEC POKONANY", sub: "Central Park zn\xF3w jest bezpieczny.", at: (t) => {
+          const a = lerp(0.3, 2.2, ease(t));
+          camera.position.set(b.x + Math.cos(a) * 9, b.y + lerp(1.4, 4.2, t), b.z + Math.sin(a) * 9);
+          camera.lookAt(b.x, b.y + 0.8, b.z);
+          camera.fov = 48;
+        } }
+      ];
+    }
+  };
+  function playCine(name, ctx = {}) {
+    ui();
+    ctx.p = P.pos.clone();
+    if (ctx.b) ctx.b = ctx.b.clone();
+    cine = { name, shots: SCENES[name](ctx), i: 0, t: 0, onEnd: ctx.onEnd, sk: 0 };
+    G.cine = name;
+    const h = document.getElementById("hud");
+    if (h) h.style.visibility = "hidden";
+    bars[0].style.height = bars[1].style.height = "11vh";
+    document.getElementById("cSkip").style.opacity = 0.9;
+    setShotText();
+  }
+  function setShotText() {
+    const s = cine.shots[cine.i];
+    if (s.text) {
+      subT.textContent = s.text;
+      subS.textContent = s.sub || "";
+      sub.style.opacity = 1;
+    } else sub.style.opacity = 0;
+  }
+  function endCine() {
+    if (!cine) return;
+    const cb = cine.onEnd;
+    cine = null;
+    G.cine = null;
+    bars[0].style.height = bars[1].style.height = "0";
+    sub.style.opacity = 0;
+    document.getElementById("cSkip").style.opacity = 0;
+    const h = document.getElementById("hud");
+    if (h) h.style.visibility = "";
+    if (cb) cb();
+  }
+  function updateCine(dt) {
+    if (!cine) return false;
+    cine.sk += dt;
+    if (cine.sk > 0.6 && (KP.Space || KP.Enter || KP.Escape || MP[0] || pp(0) || pp(9))) {
+      endCine();
+      return false;
+    }
+    const s = cine.shots[cine.i];
+    cine.t += dt;
+    const t = clamp(cine.t / s.dur, 0, 1);
+    s.at(t);
+    camera.updateProjectionMatrix();
+    if (cine.t >= s.dur) {
+      if (++cine.i >= cine.shots.length) {
+        endCine();
+        return false;
+      }
+      cine.t = 0;
+      setShotText();
+    }
+    return true;
+  }
+
   // js/misje.js
   var _t = new V3();
   var fmtTime = (s) => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, "0")}`;
@@ -4576,10 +4721,17 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     showMsg("NOSORO\u017BEC POKONANY!", "+1500 PD \xB7 Wr\xF3ci za 2 minuty na rewan\u017C", 5);
     G.slowT = 1.2;
     G.shake = 0.6;
+    setTimeout(() => {
+      if (G.state === "play" && !G.cine) playCine("bossEnd", { b: b.pos });
+    }, 900);
   }
   function startBoss() {
     boss = makeBoss();
     enemies.push(boss);
+    boss.H.root.position.copy(boss.pos);
+    boss.yaw = Math.atan2(P.pos.x - boss.pos.x, P.pos.z - boss.pos.z);
+    boss.H.root.rotation.y = boss.yaw;
+    playCine("boss", { b: boss.pos });
     showMsg("NOSORO\u017BEC", "Unikaj szar\u017Cy, a gdy si\u0119 zm\u0119czy \u2014 bij! Sie\u0107 te\u017C go og\u0142usza.", 4.5);
     sfx("alarm");
   }
@@ -5109,7 +5261,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
   var _t2 = new V3();
   var _h = new V3();
   var _cf = new V3();
-  var _a = new V3();
+  var _a2 = new V3();
   var need = (l) => 600 + l * 400;
   var saveT = 0;
   function addXP(n) {
@@ -5213,7 +5365,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       splats.push(s);
     }
     s.position.copy(p).addScaledVector(n, 0.03);
-    s.lookAt(_a.copy(p).add(n));
+    s.lookAt(_a2.copy(p).add(n));
     s.rotation.z = Math.random() * 6;
   }
   function updateFX(dt) {
@@ -5301,8 +5453,8 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       } else s.pos.addScaledVector(_t2, st / d);
       s.m.position.copy(s.pos);
       if (d > 0.01) {
-        _a.copy(s.pos).addScaledVector(_t2, -Math.min(3, d) / d);
-        setLine(s.tr, _a, s.pos);
+        _a2.copy(s.pos).addScaledVector(_t2, -Math.min(3, d) / d);
+        setLine(s.tr, _a2, s.pos);
       }
       if (done || s.life <= 0) {
         scene.remove(s.m);
@@ -5820,7 +5972,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     H.root.rotation.set(-Math.PI / 2 * e.down, e.yaw, 0, "YXZ");
     if (e.state === "aim" && !e.dead && !e.air) {
       H.root.updateMatrixWorld(true);
-      aimArm(H, "R", _a.set(P.pos.x, P.pos.y + 1.2, P.pos.z), 1);
+      aimArm(H, "R", _a2.set(P.pos.x, P.pos.y + 1.2, P.pos.z), 1);
     }
     e.cocoon.visible = e.webbed;
     e.blob.visible = !e.webbed && e.webs > 0;
@@ -6810,7 +6962,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     cam.tgt.copy(P.pos);
   }
   function buildPose(t, dt, hs) {
-    if (P.perch && G.state !== "play") {
+    if (P.perch && (G.state !== "play" || G.cine)) {
       crouchPose(t);
       return;
     }
@@ -7136,8 +7288,8 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     zglosBlad(e);
     throw e;
   }
-  var _a2;
-  (_a2 = document.getElementById("ladowanie")) == null ? void 0 : _a2.remove();
+  var _a3;
+  (_a3 = document.getElementById("ladowanie")) == null ? void 0 : _a3.remove();
   setMusic(save.music);
   var composer = null;
   var bloom = null;
@@ -7182,9 +7334,14 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       cam.pitch = -0.3;
       cam.dist = 6;
       cam.tgt.copy(P.pos).add(new V3(0, 1.4, 0));
-      setTimeout(() => showMsg("NOWY JORK", `Zeskocz z wie\u017Cowca i przytrzymaj ${key("swing")} w powietrzu, \u017Ceby si\u0119 buja\u0107`, 6), 300);
+      P.perch = true;
+      playCine("intro", { onEnd: () => {
+        P.perch = false;
+        cam.tgt.copy(P.pos).add(new V3(0, 1.4, 0));
+        showMsg("NOWY JORK", `Zeskocz z wie\u017Cowca i przytrzymaj ${key("swing")} w powietrzu, \u017Ceby si\u0119 buja\u0107`, 6);
+      } });
     }
-    P.perch = false;
+    if (!G.cine) P.perch = false;
     if (mode2 === "kb") lockMouse();
     else if (!pad.connected) showMsg("NIE WYKRYTO PADA", "Pod\u0142\u0105cz pada i naci\u015Bnij na nim dowolny przycisk", 4);
   };
@@ -7226,7 +7383,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     if (composer) composer.setSize(innerWidth, innerHeight);
   });
   var _f3 = new V3();
-  var _b = new V3();
+  var _b2 = new V3();
   var _v2 = new V3();
   function camLook(dt, I) {
     const lx = I.plx * 2.7 * dt + I.mdx * 24e-4, ly = I.ply * 1.9 * dt + I.mdy * 24e-4;
@@ -7248,11 +7405,11 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     cam.dist = lerp(cam.dist, want, damp(3, dt));
     const cp = Math.cos(cam.pitch);
     _f3.set(-Math.sin(cam.yaw) * cp, Math.sin(cam.pitch), -Math.cos(cam.yaw) * cp);
-    _b.copy(_f3).negate();
+    _b2.copy(_f3).negate();
     let d = cam.dist;
-    const t = raycastCity(cam.tgt, _b, d + 0.3);
+    const t = raycastCity(cam.tgt, _b2, d + 0.3);
     if (t < d + 0.3) d = Math.max(0.8, t - 0.4);
-    camera.position.copy(cam.tgt).addScaledVector(_b, d);
+    camera.position.copy(cam.tgt).addScaledVector(_b2, d);
     if (camera.position.y < 0.4) camera.position.y = 0.4;
     camera.lookAt(cam.tgt);
     if (G.shake > 0) {
@@ -7319,7 +7476,9 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       dt = rdt * 0.35;
     }
     G.time += dt;
-    if (G.state === "play") {
+    if (G.state === "play" && G.cine) {
+      updateCine(rdt);
+    } else if (G.state === "play") {
       const I = gameInput();
       if (I.pauseP) openPause("game", false);
       else if (I.mapP) openPause("map", false);

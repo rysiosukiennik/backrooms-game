@@ -490,7 +490,7 @@ export function respawn() {
 
 // ---------------------------------------------------------------- wyglad i animacja
 function buildPose(t, dt, hs) {
-  if (P.perch && G.state !== 'play') { crouchPose(t); return; }
+  if (P.perch && (G.state !== 'play' || G.cine)) { crouchPose(t); return; }
   if (P.dead) { t.sLz = 1.3; t.sRz = -1.3; t.hLz = 0.2; t.hRz = -0.2; t.bp = -0.4; return; }
   if (P.fin) { tuckPose(t); t.sRx = -2.6; t.sLx = -2.6; t.eL = -0.2; t.eR = -0.2; return; }
   switch (P.state) {

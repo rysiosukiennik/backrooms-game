@@ -8,6 +8,7 @@ import { addXP, burst, spawnStreetThugs, removeEnemy } from './wrogowie.js';
 import { sfx, setMusicMode } from './dzwiek.js';
 import { rumble } from './wejscie.js';
 import { showMsg, popText, hint } from './ui.js';
+import { playCine } from './scenki.js';
 
 const _t = new V3();
 export const fmtTime = s => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
@@ -50,9 +51,12 @@ function bossDefeated(b) {
   save.bossWins++; addXP(1500); doSave();
   sfx('level'); showMsg('NOSOROŻEC POKONANY!', '+1500 PD · Wróci za 2 minuty na rewanż', 5);
   G.slowT = 1.2; G.shake = 0.6;
+  setTimeout(() => { if (G.state === 'play' && !G.cine) playCine('bossEnd', { b: b.pos }); }, 900);
 }
 function startBoss() {
   boss = makeBoss(); enemies.push(boss);
+  boss.H.root.position.copy(boss.pos); boss.yaw = Math.atan2(P.pos.x - boss.pos.x, P.pos.z - boss.pos.z); boss.H.root.rotation.y = boss.yaw;
+  playCine('boss', { b: boss.pos });
   showMsg('NOSOROŻEC', 'Unikaj szarży, a gdy się zmęczy — bij! Sieć też go ogłusza.', 4.5);
   sfx('alarm');
 }

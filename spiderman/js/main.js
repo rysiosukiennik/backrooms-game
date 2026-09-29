@@ -5,6 +5,7 @@ import { buildCity, updateTraffic, updateEnv, raycastCity, setTOD } from './mias
 import { initPlayer, updatePlayer, updatePlayerVisual } from './gracz.js';
 import { initFX, updateFX, spawnCrime, updateEnemies, updateCrimes, updateShots, initBags, updateBags } from './wrogowie.js';
 import { initMissions, updateMissions } from './misje.js';
+import { playCine, updateCine } from './scenki.js';
 import { initUI, updateHUD, updateMenu, updatePause, openPause, showHUD, showMsg, key } from './ui.js';
 import { pollPads, gameInput, endFrame, lockMouse, pad } from './wejscie.js';
 import { initAudio, setWind, setMusic, cityAmbience } from './dzwiek.js';
@@ -56,9 +57,10 @@ hooks.start = mode => {
   if (!G.started) {
     G.started = true; P.perch = false;
     cam.yaw = P.heading + Math.PI - 0.6; cam.pitch = -0.3; cam.dist = 6; cam.tgt.copy(P.pos).add(new V3(0, 1.4, 0));
-    setTimeout(() => showMsg('NOWY JORK', `Zeskocz z wieżowca i przytrzymaj ${key('swing')} w powietrzu, żeby się bujać`, 6), 300);
+    P.perch = true; // wstep filmowy: Spider-Man przycupniety na szczycie wiezowca
+    playCine('intro', { onEnd: () => { P.perch = false; cam.tgt.copy(P.pos).add(new V3(0, 1.4, 0)); showMsg('NOWY JORK', `Zeskocz z wieżowca i przytrzymaj ${key('swing')} w powietrzu, żeby się bujać`, 6); } });
   }
-  P.perch = false;
+  if (!G.cine) P.perch = false;
   if (mode === 'kb') lockMouse();
   else if (!pad.connected) showMsg('NIE WYKRYTO PADA', 'Podłącz pada i naciśnij na nim dowolny przycisk', 4);
 };
@@ -160,7 +162,9 @@ function step(now) {
   if (G.slowT > 0) { G.slowT -= rdt; dt = rdt * 0.35; }
   G.time += dt;
 
-  if (G.state === 'play') {
+  if (G.state === 'play' && G.cine) {
+    updateCine(rdt);
+  } else if (G.state === 'play') {
     const I = gameInput();
     if (I.pauseP) openPause('game', false);
     else if (I.mapP) openPause('map', false);
