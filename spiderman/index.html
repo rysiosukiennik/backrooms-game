@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPIDER-MAN — Nowy Jork</title>
+<!-- czcionki z internetu nie blokuja startu: bez sieci gra uzyje zwyklych -->
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<style>
+  html, body { margin: 0; background: #05090f; color: #fff; font-family: Arial, sans-serif; }
+  #ladowanie { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50; background: #05090f; text-align: center; padding: 20px; }
+  #ladowanie b { font-size: 48px; letter-spacing: 4px; }
+  #ladowanie b span { color: #e3242b; }
+  #ladowanie p { font-size: 20px; color: #9fd8ea; }
+  #ladowanie .blad { color: #ff7b7b; font-size: 18px; max-width: 760px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<div id="ladowanie"><b>SPIDER<span>-</span>MAN</b><p>Ładowanie gry…</p></div>
+<script>
+  // Jesli cos pojdzie nie tak, pokaz to na ekranie zamiast bialej/czarnej strony.
+  window.pokazBlad = function (tekst) {
+    if (window.bladPokazany) return; // zostaw pierwszy, najdokladniejszy komunikat
+    window.bladPokazany = true;
+    var el = document.getElementById('ladowanie');
+    if (!el) { el = document.createElement('div'); el.id = 'ladowanie'; document.body.appendChild(el); }
+    el.style.display = 'flex';
+    el.innerHTML = '<b>SPIDER<span>-</span>MAN</b><p>Gra nie mogła się uruchomić.</p><div class="blad"></div>';
+    el.querySelector('.blad').textContent = tekst;
+  };
+  window.addEventListener('error', function (e) {
+    var m = (e && e.message) || 'nieznany błąd';
+    if (/WebGL/i.test(m)) m += '\n\nTwoja przeglądarka nie może rysować grafiki 3D. W Edge wejdź w Ustawienia → System i włącz „Użyj przyspieszenia sprzętowego”, potem uruchom przeglądarkę ponownie.';
+    window.pokazBlad(m + (e.filename ? '\n(' + e.filename.split('/').pop() + ':' + e.lineno + ')' : ''));
+  });
+</script>
+<!-- Biblioteka 3D jest w folderze lib/, wiec gra nie potrzebuje internetu.
+     gra.js to spakowane pliki z js/ (zbuduj.bat). Dziala po zwyklym otwarciu tego pliku, bez serwera. -->
+<script src="lib/three-r128.js" onerror="pokazBlad('Brak pliku lib/three-r128.js — skopiuj cały folder spiderman.')"></script>
+<script src="gra.js" onerror="pokazBlad('Brak pliku gra.js — skopiuj cały folder spiderman.')"></script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>Podgląd modeli</title>
+<script src="lib/three-r128.js"></script>
+</head>
+<body style="margin:0;background:#222">
+<!-- Strona deweloperska: studio z postaciami do ogladania modeli (wymaga serwera). -->
+<script type="module">
+import { buildSpider, buildThug, buildBoss, SUITS, newPose, applyPose, runPose, idlePose, crouchPose } from './js/postac.js';
+const W = 1400, H = 800;
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(W, H); r.shadowMap.enabled = true;
+document.body.appendChild(r.domElement);
+const sc = new THREE.Scene(); sc.background = new THREE.Color(0x3a4450);
+sc.add(new THREE.HemisphereLight(0xdfe9ff, 0x404048, 0.8));
+const d = new THREE.DirectionalLight(0xffffff, 1.2); d.position.set(3, 6, 5); d.castShadow = true;
+d.shadow.camera.left = -8; d.shadow.camera.right = 8; d.shadow.camera.top = 8; d.shadow.camera.bottom = -8; sc.add(d);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshStandardMaterial({ color: 0x55606a })); floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; sc.add(floor);
+const cam = new THREE.PerspectiveCamera(30, W / H, 0.1, 100);
+const chars = [];
+function put(Hh, x, pose, yaw = 0, s = 1) { Hh.root.position.x = x; Hh.root.rotation.y = yaw; Hh.root.scale.setScalar(s); const p = newPose(); pose(p); applyPose(Hh, p); sc.add(Hh.root); chars.push(Hh); return Hh; }
+window.scene = (name) => {
+  for (const c of chars) sc.remove(c.root); chars.length = 0;
+  if (name === 'spider') {
+    put(buildSpider(SUITS[0]), -1.6, p => idlePose(p, 0), 0.25);
+    const s2 = put(buildSpider(SUITS[0]), 0, p => { runPose(p, 0.9, 1, false); }, -0.5); s2.setHands('fist', 'fist');
+    const s3 = put(buildSpider(SUITS[1]), 1.6, p => { p.sRx = -2.6; p.sLz = 0.9; p.hLx = -0.8; p.kL = 1.2; p.hRx = -0.3; p.kR = 0.6; }, 0.4); s3.setHands('open', 'thwip');
+    cam.position.set(0, 1.3, 7.2); cam.lookAt(0, 1.0, 0);
+  } else if (name === 'face') {
+    put(buildSpider(SUITS[0]), -0.45, p => idlePose(p, 0), 0.3);
+    put(buildThug('thug'), 0.45, p => idlePose(p, 0), -0.3);
+    cam.position.set(0, 1.62, 1.9); cam.lookAt(0, 1.5, 0);
+  } else if (name === 'enemies') {
+    for (let i = 0; i < 4; i++) put(buildThug('thug'), -2.4 + i * 1.2, p => idlePose(p, i), (i - 1.5) * 0.2);
+    put(buildThug('brute'), 2.6, p => { idlePose(p, 0); p.sLz = 0.45; p.sRz = -0.45; }, -0.3, 1.12);
+    cam.position.set(0.2, 1.4, 9); cam.lookAt(0.2, 1.0, 0);
+  } else if (name === 'boss') {
+    const b = put(buildBoss(), 0.8, p => idlePose(p, 0), -0.3, 1.75); b.setHands('fist', 'fist');
+    put(buildSpider(SUITS[0]), -1.2, p => crouchPose(p), 0.6);
+    cam.position.set(0, 1.8, 8.5); cam.lookAt(0, 1.4, 0);
+  } else if (name === 'hands') {
+    const s = put(buildSpider(SUITS[0]), 0, p => { p.sRx = -1.5; p.sLx = -1.5; p.eL = -0.2; p.eR = -0.2; }, 0);
+    s.setHands('fist', 'thwip');
+    cam.position.set(0, 1.45, 1.6); cam.lookAt(0, 1.4, 0.4);
+  } else if (name === 'suits') {
+    [0, 3, 5, 6, 9, 13].forEach((k, i) => put(buildSpider(SUITS[k]), -3 + i * 1.2, p => idlePose(p, 0), 0));
+    cam.position.set(0, 1.3, 9.5); cam.lookAt(0, 1.0, 0);
+  }
+  r.render(sc, cam);
+  return fetch('/shot?n=' + name, { method: 'POST', body: r.domElement.toDataURL('image/png') }).then(x => x.text());
+};
+window.ready = true;
+</script>
+</body>
+</html>
