@@ -39,12 +39,13 @@ export function districtAt(x, z) {
 export function blk(i, j) { const x0 = X0 + i * CX + ST / 2, z0 = Z0 + j * CZ + ST / 2; return { x0, x1: x0 + BW, z0, z1: z0 + BD }; }
 
 // ---------------------------------------------------------------- kolizje
+export const doors = [];
 export const boxes = [], roofs = [], footprints = [], spots = [], perches = [];
 export const START = new V3();
 export const START_H = -Math.PI / 2;
 const HC = 48, hash = new Map(); let stamp = 0;
 const hk = (ix, iz) => (ix + 500) * 2000 + (iz + 500);
-function addBox(b) {
+export function addBox(b) {
   b.q = 0; boxes.push(b);
   for (let ix = Math.floor(b.x0 / HC); ix <= Math.floor(b.x1 / HC); ix++)
     for (let iz = Math.floor(b.z0 / HC); iz <= Math.floor(b.z1 / HC); iz++) {
@@ -432,6 +433,16 @@ export function setTOD(name) {
   renderer.toneMappingExposure = T.exp;
   updateEnvMap(T);
 }
+// swiatlo we wnetrzach: slonce wylaczone, cieple swiatlo otoczenia (bez przeliczania mapy nieba)
+let savedL = null;
+export function setInteriorLight(on) {
+  if (on) {
+    if (!savedL) savedL = { sun: sun.intensity, hemi: hemi.intensity, amb: amb.intensity, exp: renderer.toneMappingExposure, hc: hemi.color.clone() };
+    sun.intensity = 0; hemi.intensity = 1.1; linHex(hemi.color, 0xffeedd); amb.intensity = 0.35; renderer.toneMappingExposure = 1.0;
+  } else if (savedL) {
+    sun.intensity = savedL.sun; hemi.intensity = savedL.hemi; hemi.color.copy(savedL.hc); amb.intensity = savedL.amb; renderer.toneMappingExposure = savedL.exp; savedL = null;
+  }
+}
 export function updateEnv() {
   sky.position.copy(camera.position);
   clouds.position.set(camera.position.x, 700, camera.position.z);
@@ -444,7 +455,7 @@ export function updateEnv() {
 
 // ---------------------------------------------------------------- budowanie miasta
 let facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo;
-const SW = 0.15; // wysokosc chodnika
+export const SW = 0.15; // wysokosc chodnika
 const tanks = [], awnings = [], masts = [], boards = [];
 function solid(x0, x1, y0, y1, z0, z1, st) {
   walls(facGeo[st], x0, x1, y0, y1, z0, z1, 16, 14);
@@ -455,6 +466,16 @@ function solid(x0, x1, y0, y1, z0, z1, st) {
     fullBox(trimGeo, x0 - o, x1 + o, y1 - h, y1 - 0.05, z1 - 0.02, z1 + o, 4, true);
     fullBox(trimGeo, x0 - o, x0 + 0.02, y1 - h, y1 - 0.05, z0, z1, 4, true);
     fullBox(trimGeo, x1 - 0.02, x1 + o, y1 - h, y1 - 0.05, z0, z1, 4, true);
+  }
+  if (x1 - x0 > 8 && z1 - z0 > 8 && y1 - y0 > 10) {
+    const pw = 0.7, po = 0.18;
+    for (const [px, pz] of [[x0, z0], [x1 - pw, z0], [x0, z1 - pw], [x1 - pw, z1 - pw]]) // pilastry w narozach
+      fullBox(trimGeo, px - (px === x0 ? po : 0), px + pw + (px === x0 ? 0 : po), y0, y1 - 0.7, pz - (pz === z0 ? po : 0), pz + pw + (pz === z0 ? 0 : po), 4);
+    for (let y = y0 + 13.5; y < y1 - 4; y += 13.5) { // pasy miedzy kondygnacjami
+      const o = 0.22, h = 0.4;
+      fullBox(trimGeo, x0 - o, x1 + o, y, y + h, z0 - o, z0 + 0.02, 4, true); fullBox(trimGeo, x0 - o, x1 + o, y, y + h, z1 - 0.02, z1 + o, 4, true);
+      fullBox(trimGeo, x0 - o, x0 + 0.02, y, y + h, z0, z1, 4, true); fullBox(trimGeo, x1 - 0.02, x1 + o, y, y + h, z0, z1, 4, true);
+    }
   }
   return addBox({ x0, x1, y0, y1, z0, z1 });
 }
@@ -500,10 +521,24 @@ function roofProps(b) {
   if (b.y1 > 80) for (let i = 0; i < 1 + Math.floor(srand() * 2); i++) masts.push({ x: sr(b.x0 + 2, b.x1 - 2), y: b.y1, z: sr(b.z0 + 2, b.z1 - 2), h: sr(6, 18) });
   if (b.y1 > 18 && b.y1 < 80 && w > 18 && srand() < 0.14) boards.push(b);
 }
+const DOOR_TYPES = [['shop', 'SKLEP'], ['shop', 'SKLEP'], ['apt', 'MIESZKANIE'], ['office', 'BIURO'], ['apt', 'MIESZKANIE']];
+// drzwi wejsciowe: kawalek sciany od strony ulicy z framuga, daszkiem i schodkiem
+function addDoor(x0, x1, z0, z1, bk, type, name, forceFace) {
+  const faces = [];
+  if (z0 - bk.z0 < 4.5) faces.push('n'); if (bk.z1 - z1 < 4.5) faces.push('s'); if (x0 - bk.x0 < 4.5) faces.push('w'); if (bk.x1 - x1 < 4.5) faces.push('e');
+  const face = forceFace || faces[Math.floor(srand() * faces.length)]; if (!face) return null;
+  const ns = face === 'n' || face === 's', len = ns ? x1 - x0 : z1 - z0; if (len < 9) return null;
+  const c = (ns ? x0 : z0) + len / 2 + (srand() - 0.5) * (len - 8);
+  const nx = face === 'w' ? -1 : face === 'e' ? 1 : 0, nz = face === 'n' ? -1 : face === 's' ? 1 : 0;
+  const wx = face === 'w' ? x0 : face === 'e' ? x1 : c, wz = face === 'n' ? z0 : face === 's' ? z1 : c;
+  const d = { x: wx, z: wz, nx, nz, type, name, big: type === 'fisk' };
+  doors.push(d); return d;
+}
 function building(x0, x1, z0, z1, h, st, dk, bk) {
   let b = solid(x0, x1, 0, h, z0, z1, st);
   footprints.push({ x0, x1, z0, z1, h, dk });
   if (bk) storefront(x0, x1, z0, z1, bk);
+  if (bk && doors.length < 90 && srand() < 0.3) { const [t, n] = DOOR_TYPES[Math.floor(srand() * DOOR_TYPES.length)]; addDoor(x0, x1, z0, z1, bk, t, n); }
   if (h > 55 && srand() < 0.55) {
     const ix = Math.min(sr(3, 7), (x1 - x0) * 0.2), iz = Math.min(sr(3, 7), (z1 - z0) * 0.2), h2 = h + sr(12, h * 0.45);
     b = solid(x0 + ix, x1 - ix, h, h2, z0 + iz, z1 - iz, st);
@@ -530,6 +565,7 @@ function spire(x, z, y0, y1, r) {
   addBox({ x0: x - r, x1: x + r, y0, y1, z0: z - r, z1: z + r });
   masts.push({ x, y: y1, z, h: 0.01 });
 }
+export let FISK_DOOR = null;
 const LANDMARKS = {
   '4,10': (b, cx, cz) => { // wiezowiec w stylu Empire State — tu zaczyna sie gra
     const t = tiers(cx, cz, [[29, 19, 0, 28], [23, 15, 28, 90], [16, 11, 90, 172], [10, 7.5, 172, 196], [5, 4, 196, 206]], 5, 'mid');
@@ -538,6 +574,7 @@ const LANDMARKS = {
   },
   '6,9': (b, cx, cz) => { // szklana wieza
     tiers(cx, cz, [[13, 13, 0, 285, 3], [9, 9, 285, 300, 4], [2, 10, 300, 330, 4]], 3, 'mid');
+    FISK_DOOR = { x: cx, z: cz + 13, nx: 0, nz: 1, type: 'fisk', name: 'FISK TOWER', big: true }; doors.push(FISK_DOOR);
     building(b.x0 + 3, b.x0 + 16, b.z0 + 3, b.z1 - 3, 30, 2, 'mid', b);
   },
   '2,16': (b, cx, cz) => { // wieza w dzielnicy finansowej
@@ -642,6 +679,33 @@ function buildTrafficLights(list) {
   glowPoints(list.flatMap(t => [t[0] - 4.4, SW + (t[2] ? 4.92 : 5.58), t[1]]), 0xffd0a0, 1.6);
 }
 
+// geometria drzwi: framuga, skrzydlo, daszek; szyld z nazwa swieci nocy
+function buildDoors() {
+  const leafG = newGeo(), frameG = trimGeo, gl = [];
+  for (const d of doors) {
+    const w = d.big ? 3.4 : 1.7, h = d.big ? 3.6 : 2.7, tx = -d.nz, tz = d.nx; // tx,tz: kierunek wzdluz sciany
+    const box = (g, a0, a1, y0, y1, o0, o1) => { // a: wzdluz sciany (od srodka), o: od sciany na zewnatrz
+      const ax0 = d.x + tx * a0 + d.nx * o0, ax1 = d.x + tx * a1 + d.nx * o1, az0 = d.z + tz * a0 + d.nz * o0, az1 = d.z + tz * a1 + d.nz * o1;
+      fullBox(g, Math.min(ax0, ax1), Math.max(ax0, ax1), y0, y1, Math.min(az0, az1), Math.max(az0, az1), 4, true);
+    };
+    box(leafG, -w / 2, w / 2, SW, h, 0.02, 0.14);                                   // skrzydlo drzwi
+    box(frameG, -w / 2 - 0.3, -w / 2, SW, h + 0.3, 0, 0.32); box(frameG, w / 2, w / 2 + 0.3, SW, h + 0.3, 0, 0.32);
+    box(frameG, -w / 2 - 0.3, w / 2 + 0.3, h, h + 0.35, 0, 0.32);                  // nadproze
+    box(frameG, -w / 2 - 0.5, w / 2 + 0.5, 0, SW + 0.12, 0.1, 0.9);                 // schodek
+    if (d.big) box(frameG, -w / 2 - 0.9, w / 2 + 0.9, h + 0.35, h + 0.55, 0, 1.6);  // wielki daszek
+    else awnings.push([d.x + d.nx * 0.9, d.z + d.nz * 0.9, Math.atan2(-d.nx, -d.nz) + Math.PI, w + 0.8]);
+    d.gx = d.x + d.nx * 1.6; d.gz = d.z + d.nz * 1.6; // punkt przed drzwiami (tu stoi gracz)
+    gl.push(d.x + d.nx * 0.5, h + 0.9, d.z + d.nz * 0.5);
+  }
+  glowPoints(gl, 0xffd9a0, 4);
+  meshFrom(leafG, new THREE.MeshStandardMaterial({ color: 0x4a3122, roughness: 0.6, emissive: 0xffb060, emissiveIntensity: 0.15 }), false);
+}
+export function nearestDoor(x, y, z, r = 2.6) {
+  if (y > 6) return null;
+  let best = null, bd = r;
+  for (const d of doors) { const dd = Math.hypot(x - d.gx, z - d.gz); if (dd < bd) { bd = dd; best = d; } }
+  return best;
+}
 export function buildCity() {
   buildSky();
   facGeo = STY.map(() => newGeo()); roofGeo = newGeo(); farGeo = newGeo(); shopGeo = newGeo(); trimGeo = newGeo(); curbGeo = newGeo();
@@ -671,6 +735,7 @@ export function buildCity() {
   buildGround();
   buildPark(trees);
   buildTrees(trees);
+  buildDoors(); // przed sklejeniem geometrii (framugi trafiaja do trimGeo, daszki do markiz)
 
   facMats = STY.map(s => {
     const t = facadeTex(s);

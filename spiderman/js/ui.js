@@ -6,6 +6,7 @@ import { SUITS, suitThumb, buildSpider, newPose, applyPose } from './postac.js';
 import { setSuit } from './gracz.js';
 import { need, bags, BAGS_N, webTarget } from './wrogowie.js';
 import { missionList, fmtTime } from './misje.js';
+import { ROOMS } from './wnetrza.js';
 import { SKILLS, COLS, has, canBuy, buy, skillPoints, maxHp } from './umiejetnosci.js';
 import { pad, navInput, lockMouse, KP, K, mouse, stick, pp } from './wejscie.js';
 import { sfx, audioOK } from './dzwiek.js';
@@ -161,7 +162,7 @@ const HTML = `
 <div id="pause" class="hidden">
   <div id="tabs"></div>
   <div class="page" id="pg-map"><canvas id="mapc"></canvas><div id="mapDist"></div><div id="mapProg"></div>
-    <div id="mapLeg"><div><i style="background:#fff"></i>Spider-Man</div><div><i style="background:#e3242b"></i>Przestępstwo</div><div><i style="background:#8a1be0"></i>Nosorożec</div><div><i style="background:#ffc93c"></i>Wyzwanie</div><div><i style="background:#ff8a1e"></i>Pościg</div><div><i style="background:#f5d76e;border-radius:50%"></i>Plecak</div><div><i style="background:#3fe3ff"></i>Twój znacznik</div></div></div>
+    <div id="mapLeg"><div><i style="background:#fff"></i>Spider-Man</div><div><i style="background:#e3242b"></i>Przestępstwo</div><div><i style="background:#8a1be0"></i>Nosorożec</div><div><i style="background:#fff"></i>Kingpin</div><div><i style="background:#ffc93c"></i>Wyzwanie</div><div><i style="background:#ff8a1e"></i>Pościg</div><div><i style="background:#f5d76e;border-radius:50%"></i>Plecak</div><div><i style="background:#3fe3ff"></i>Twój znacznik</div></div></div>
   <div class="page" id="pg-skills"><div id="skPanel"></div><div id="skBottom"><div id="skName"></div><div id="skInfo"></div></div></div>
   <div class="page" id="pg-miss"><div id="miList"></div><div id="miRight"><div id="miName"></div><div id="miInfo"></div></div></div>
   <div class="page" id="pg-suits"><div id="suitPanel"><div class="sh"><span>STRÓJ</span><span id="suitPct"></span></div><div id="suitGrid"></div></div>
@@ -228,6 +229,7 @@ function missionIcons(x, S, s) {
     const [a, b] = S(m.x, m.z);
     if (m.icon === 'boss') icoDiamond(x, a, b, s * 1.2, '#8a1be0', '☠');
     else if (m.icon === 'race') icoDiamond(x, a, b, s, '#ffc93c', '⚑');
+    else if (m.icon === 'fisk') icoDiamond(x, a, b, s * 1.15, '#ffffff', '♛');
     else icoDiamond(x, a, b, s, '#ff8a1e', '▶');
   }
 }
@@ -241,6 +243,7 @@ function buildMiniBase() {
 function drawMini() {
   const c = $('mini'), x = c.getContext('2d'), R = c.width / 2, Z = 0.75;
   x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, c.width, c.height);
+  if (G.interior) { x.fillStyle = 'rgba(8,16,24,.92)'; x.beginPath(); x.arc(R, R, R, 0, 7); x.fill(); x.fillStyle = '#3fe3ff'; x.font = 'bold 22px Rajdhani'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('WNĘTRZE', R, R - 8); icoPlayer(x, R, R + 22, cam.yaw + Math.PI - P.heading, 9); return; }
   x.save(); x.beginPath(); x.arc(R, R, R, 0, 7); x.clip();
   x.translate(R, R); x.rotate(cam.yaw); x.scale(Z, Z); x.translate(-P.pos.x, -P.pos.z);
   x.drawImage(miniBase, MM.x0, MM.z0);
@@ -317,7 +320,7 @@ export function updateHUD(dt) {
   // boss / wyscig
   const bb = $('bossBar');
   if (G.boss) {
-    bb.classList.remove('hidden'); bb.querySelector('i').style.width = (G.boss.hp / G.boss.max * 100) + '%';
+    bb.classList.remove('hidden'); bb.querySelector('b').textContent = G.boss.name || 'NOSOROŻEC'; bb.querySelector('i').style.width = (G.boss.hp / G.boss.max * 100) + '%';
     bb.querySelector('small').textContent = G.boss.st === 'tired' || G.boss.st === 'stun' ? 'BEZBRONNY — BIJ!' : G.boss.st === 'chargeW' ? 'SZARŻA — UNIK!' : '';
   } else bb.classList.add('hidden');
   const rp = $('racePan');
@@ -326,7 +329,7 @@ export function updateHUD(dt) {
 
   distChk -= dt;
   if (distChk <= 0) {
-    distChk = 0.4; const d = districtAt(P.pos.x, P.pos.z);
+    distChk = 0.4; const d = G.interior ? lastDist : districtAt(P.pos.x, P.pos.z);
     if (d !== lastDist) { lastDist = d; $('distName').textContent = DIST[d].name; $('district').style.opacity = 1; distT = 3; }
   }
   if (distT > 0) { distT -= dt; if (distT <= 0) $('district').style.opacity = 0; }
@@ -336,6 +339,8 @@ export function updateHUD(dt) {
     promptT = 0.2;
     const arr = [];
     const near = enemies.some(e => !e.dead && e.pos.distanceTo(P.pos) < 14);
+    if (P.doorNear) arr.push(['special', `<b style="color:#ffc93c">Wejdź: ${P.doorNear.name}</b>`]);
+    else if (P.exitNear) arr.push(['special', '<b style="color:#39ff6a">Wyjdź</b>']);
     if (P.finReady) arr.push(['special', '<b style="color:#3fe3ff">WYKOŃCZENIE</b>']);
     if (P.state === 'car') arr.push(['punch', 'Bij w dach'], ['jump', 'Zeskocz']);
     else if (P.state === 'ground') { if (P.perchT > 0) arr.push(['jump', '<b style="color:#3fe3ff">WYBICIE</b>']); arr.push(['swing', 'Parkour (przytrzymaj)'], ['jump', 'Skok']); }
@@ -352,10 +357,10 @@ export function updateHUD(dt) {
   // znaczniki: przestepstwo, poscig, boss, wlasny
   let best = null, bd = 1e9;
   for (const cr of crimes) if (cr.active) { const d = Math.hypot(cr.x - P.pos.x, cr.z - P.pos.z); if (d < bd) { bd = d; best = cr; } }
-  if (best && bd > 25 && !G.race) placeMarker($('crimeMk'), best.x, best.y + 4, best.z, 'PRZESTĘPSTWO ' + Math.round(bd) + ' m'); else $('crimeMk').style.display = 'none';
+  if (best && bd > 25 && !G.race && !G.interior) placeMarker($('crimeMk'), best.x, best.y + 4, best.z, 'PRZESTĘPSTWO ' + Math.round(bd) + ' m'); else $('crimeMk').style.display = 'none';
   if (G.chase && P.state !== 'car') placeMarker($('chaseMk'), G.chase.pos.x, 3, G.chase.pos.z, `POŚCIG ${Math.round(Math.hypot(G.chase.pos.x - P.pos.x, G.chase.pos.z - P.pos.z))} m · ${Math.max(0, 80 - G.chase.t | 0)} s`);
   else $('chaseMk').style.display = 'none';
-  if (G.boss) { const d = Math.hypot(G.boss.pos.x - P.pos.x, G.boss.pos.z - P.pos.z); if (d > 20) placeMarker($('bossMk'), G.boss.pos.x, 6, G.boss.pos.z, 'NOSOROŻEC ' + Math.round(d) + ' m'); else $('bossMk').style.display = 'none'; }
+  if (G.boss) { const d = Math.hypot(G.boss.pos.x - P.pos.x, G.boss.pos.z - P.pos.z); if (d > 20) placeMarker($('bossMk'), G.boss.pos.x, 6, G.boss.pos.z, (G.boss.name || 'NOSOROŻEC') + ' ' + Math.round(d) + ' m'); else $('bossMk').style.display = 'none'; }
   else $('bossMk').style.display = 'none';
   if (G.wp) {
     const d = Math.hypot(G.wp.x - P.pos.x, G.wp.z - P.pos.z);

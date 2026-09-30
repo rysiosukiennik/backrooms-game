@@ -9,6 +9,7 @@ import { playCine, updateCine } from './scenki.js';
 import { initUI, updateHUD, updateMenu, updatePause, openPause, showHUD, showMsg, key } from './ui.js';
 import { pollPads, gameInput, endFrame, lockMouse, pad } from './wejscie.js';
 import { initAudio, setWind, setMusic, cityAmbience } from './dzwiek.js';
+import { updateInterior } from './wnetrza.js';
 
 try {
   buildCity();
@@ -181,6 +182,7 @@ function step(now) {
   } else if (G.state === 'menu') { updateMenu(rdt); menuCam(rdt); setWind(0); }
   else if (G.state === 'pause') { updatePause(rdt); setWind(0); }
 
+  if (G.interior && G.state === 'play') updateInterior(dt);
   if (G.state !== 'pause') { updateTraffic(dt); updateFX(dt); updatePlayerVisual(dt); }
   if (G.wp) { beacon.visible = true; beacon.position.set(G.wp.x, 300, G.wp.z); } else beacon.visible = false;
   updateEnv();

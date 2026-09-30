@@ -9,6 +9,8 @@ import { sfx, setMusicMode } from './dzwiek.js';
 import { rumble } from './wejscie.js';
 import { showMsg, popText, hint } from './ui.js';
 import { playCine } from './scenki.js';
+import { updateFisk } from './fisk.js';
+import { FISK_DOOR } from './miasto.js';
 
 const _t = new V3();
 export const fmtTime = s => `${Math.floor(s / 60)}:${(s % 60).toFixed(1).padStart(4, '0')}`;
@@ -304,7 +306,7 @@ function endChase() {
 // ================================================================ wspolne
 export function initMissions() { buildRaces(); }
 export function updateMissions(dt) {
-  updateBoss(dt); updateRaces(dt); updateChase(dt);
+  updateBoss(dt); updateRaces(dt); updateChase(dt); updateFisk(dt);
   // muzyka dopasowana do akcji
   let m = 'calm';
   if (G.boss) m = 'boss';
@@ -322,6 +324,9 @@ export function missionList() {
       desc: `Przeleć przez ${R.pts.length - 1} pierścieni jak najszybciej. Złoto poniżej ${fmtTime(R.par)}.`,
       status: b ? `Rekord ${fmtTime(b)} · ${b <= R.par ? 'ZŁOTO' : b <= R.par * 1.3 ? 'SREBRO' : 'BRĄZ'}` : 'Jeszcze nieukończone' });
   }
+  if (FISK_DOOR) L.push({ id: 'fisk', icon: 'fisk', name: 'KINGPIN', x: FISK_DOOR.x + FISK_DOOR.nx * 2, z: FISK_DOOR.z + FISK_DOOR.nz * 2,
+    desc: 'Wilson Fisk rządzi półświatkiem z wieżowca Fisk Tower w Midtown. Wejdź drzwiami od południa, pokonaj jego straż, a potem samego Kingpina — blokuje ciosy z przodu, więc zachodź go od tyłu.',
+    status: save.fisk ? `Pokonany ${save.fisk}× · możesz wrócić na rewanż` : 'Dostępna — wejdź do Fisk Tower (drzwi od południa)' });
   L.push({ id: 'chase', icon: 'chase', name: 'POŚCIGI', x: chase ? chase.mesh.position.x : null, z: chase ? chase.mesh.position.z : null,
     desc: 'Co jakiś czas złodzieje uciekają autem. Wskocz na dach i zatrzymaj ich.',
     status: chase && !chase.done ? 'POŚCIG TRWA!' : `Zatrzymane auta: ${save.chases}` });

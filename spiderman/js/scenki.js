@@ -61,6 +61,30 @@ const SCENES = {
       } },
     ];
   },
+  fisk: ctx => {
+    const b = ctx.b, p = ctx.p;
+    return [
+      { dur: 4, text: 'WILSON FISK', sub: 'Kingpin. Prawie całe miasto jest jego.', at: t => {
+        camera.position.set(p.x + lerp(3.4, 1.2, ease(t)), p.y + 1.55, p.z + lerp(3.2, 1.8, ease(t)));
+        camera.lookAt(b.x, b.y + 1.5, b.z); camera.fov = 48;
+      } },
+      { dur: 3.4, text: 'Nie powinieneś tu wchodzić, pająku.', sub: '', at: t => {
+        camera.position.set(b.x + 0.9, b.y + 1.6, b.z + lerp(5.2, 3.6, ease(t))); camera.lookAt(b.x, b.y + 1.55, b.z); camera.fov = 42;
+      } },
+    ];
+  },
+  fisk2: ctx => {
+    const b = ctx.b;
+    return [{ dur: 3.4, text: 'Skoro nalegasz…', sub: 'Bądź gotów.', at: t => {
+      camera.position.set(b.x - 2.6, b.y + lerp(0.6, 1.3, t), b.z + lerp(6, 4.4, ease(t))); camera.lookAt(b.x, b.y + 1.9, b.z); camera.fov = 46;
+    } }];
+  },
+  fiskEnd: ctx => {
+    const b = ctx.b;
+    return [{ dur: 4.2, text: 'KINGPIN POKONANY', sub: 'Nowy Jork odetchnął z ulgą.', at: t => {
+      const a = lerp(0.2, 2.4, ease(t)); camera.position.set(b.x + Math.cos(a) * 7, b.y + lerp(1.3, 3.2, t), b.z + Math.sin(a) * 7); camera.lookAt(b.x, b.y + 0.8, b.z); camera.fov = 48;
+    } }];
+  },
   bossEnd: ctx => {
     const b = ctx.b;
     return [

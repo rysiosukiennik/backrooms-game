@@ -2,7 +2,8 @@
 // kombo w powietrzu, wykonczenia, uniki), triki i animacja.
 import { V3, UP, clamp, lerp, damp, angLerp, save, doSave } from './util.js';
 import { G, P, cam, scene, camera, enemies } from './stan.js';
-import { supportAt, boxesNear, raycastCity, LAND, START, START_H, roofs, perches } from './miasto.js';
+import { supportAt, boxesNear, raycastCity, LAND, START, START_H, roofs, perches, nearestDoor } from './miasto.js';
+import { enterDoor, leaveInterior, nearExit } from './wnetrza.js';
 import { buildSpider, newPose, zeroPose, blendPose, applyPose, idlePose, runPose, crouchPose, tuckPose, aimArm, basisQ, SUITS, suitById } from './postac.js';
 import { hitEnemy, shootWeb, burst, finishEnemy, addXP } from './wrogowie.js';
 import { carPunch, carLeave } from './misje.js';
@@ -124,10 +125,14 @@ export function updatePlayer(dt, I) {
   // cel zaczepu (do ikonki w HUD)
   const foe = nearestEnemy(5);
   P.finReady = !!(foe && P.focus >= 1);
-  P.perchPt = (P.state !== 'car' && P.state !== 'pz' && !P.finReady) ? findPerch() : null;
+  P.doorNear = (!G.interior && P.state === 'ground' && !foe) ? nearestDoor(P.pos.x, P.pos.y, P.pos.z) : null;
+  P.exitNear = nearExit();
+  P.perchPt = (P.state !== 'car' && P.state !== 'pz' && !P.finReady && !P.doorNear && !G.interior) ? findPerch() : null;
 
   if (I.specialP) {
-    if (P.finReady) startFinisher(foe);
+    if (P.doorNear) enterDoor(P.doorNear);
+    else if (P.exitNear && !P.finReady) leaveInterior();
+    else if (P.finReady) startFinisher(foe);
     else if (P.perchPt) startPerchZip(P.perchPt);
   }
   if (I.dodgeP) startDodge(wx, wz, wl);
@@ -476,6 +481,7 @@ export function hurtPlayer(dmg, from, knock = 6) {
   return true;
 }
 export function respawn() {
+  if (G.interior) leaveInterior(true);
   let best = null, bd = 1e9;
   for (const r of roofs) {
     if (r.y1 < 25 || r.y1 > 120) continue;

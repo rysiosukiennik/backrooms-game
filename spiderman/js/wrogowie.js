@@ -135,7 +135,7 @@ export function updateShots(dt) {
 function webHit(e) {
   if (e.gone) return;
   burst(e.pos.x, e.pos.y + 1.1, e.pos.z, 12, 0xffffff, 3); sfx('splat'); addXP(5);
-  if (e.type === 'boss') { bossWeb(e); return; }
+  if (e.type === 'boss') { (e.webFn || bossWeb)(e); return; }
   e.webs++; e.webT = 6;
   if (e.type === 'brute') {
     e.stunT = 2.5; if (!e.dead) { e.state = 'hurt'; e.t = 0.4; }
@@ -151,7 +151,7 @@ function webHit(e) {
 export function finishEnemy(e) {
   if (e.dead || e.gone) return;
   burst(e.pos.x, e.pos.y + 1, e.pos.z, 30, 0xffffff, 6);
-  if (e.type === 'boss') { bossFinish(e); return; }
+  if (e.type === 'boss') { (e.finFn || bossFinish)(e); return; }
   e.webs = 9; e.webbed = true; killEnemy(e); e.air = false; e.state = 'down'; e.pos.y = supportAt(e.pos.x, e.pos.z, e.pos.y + 0.5, 0.1);
   addXP(20); popText('WYKOŃCZENIE!');
 }
@@ -190,7 +190,7 @@ export function makeEnemy(type) {
   };
 }
 
-function makeCrime(x0, x1, z0, z1, y, spot, n, bruteOK) {
+export function makeCrime(x0, x1, z0, z1, y, spot, n, bruteOK) {
   const cr = { spot, list: [], active: true, alert: false, clearT: 0, x: (x0 + x1) / 2, y, z: (z0 + z1) / 2 };
   let brutes = 0;
   for (let k = 0; k < n; k++) {
@@ -219,7 +219,7 @@ export function spawnStreetThugs(x, z, n) {
 // trafienie. Zwraca 'block', gdy cios zostal zablokowany.
 export function hitEnemy(e, dmg, kx, ky, kz, launch, fromAir) {
   if (e.dead || e.gone) return false;
-  if (e.type === 'boss') return bossHit(e, dmg * dmgMul(), launch);
+  if (e.type === 'boss') return (e.hit || bossHit)(e, dmg * dmgMul(), launch);
   if (e.type === 'brute' && e.stunT <= 0 && !fromAir && e.state !== 'hurt') {
     burst(e.pos.x, e.pos.y + 1.6, e.pos.z, 8, 0x9fd8ff, 3); sfx('block'); rumble(0.06, 0.2, 0.2);
     popText('BLOK!'); hint('brute', 'Osiłek blokuje ciosy. Trafiaj go siecią albo atakuj z powietrza!');

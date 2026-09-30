@@ -17,6 +17,7 @@ export const BODY = {
   spider: { w: 1, chest: 1, waist: 1, belly: 0, pec: 1, hips: 1, arm: 1, leg: 1, neck: 1, head: 1 },
   thug: { w: 0.97, chest: 0.93, waist: 1.08, belly: 0.1, pec: 0.3, hips: 1.02, arm: 0.93, leg: 1, neck: 1.05, head: 1 },
   brute: { w: 1.16, chest: 1.12, waist: 1.16, belly: 0.08, pec: 1.4, hips: 1.14, arm: 1.4, leg: 1.18, neck: 1.35, head: 1.02 },
+  fisk: { w: 1.34, chest: 1.24, waist: 1.6, belly: 0.55, pec: 0.4, hips: 1.32, arm: 1.32, leg: 1.1, neck: 1.6, head: 1.42 },
   boss: { w: 1.2, chest: 1.18, waist: 1.2, belly: 0.05, pec: 1.1, hips: 1.22, arm: 1.45, leg: 1.25, neck: 1.5, head: 1.05 },
 };
 
@@ -677,4 +678,36 @@ export function pedGeometries() {
     });
   }
   return frames;
+}
+
+// ---------------------------------------------------------------- Kingpin (Wilson Fisk): jasny garnitur, krawat, laska
+export function buildKingpin() {
+  const o = { kind: 'brute', top: 'tshirt', topCol: '#ece6d8', pants: '#ece6d8', skin: '#dcae8c', hair: 'bald', hairCol: '#111', hat: 'none', mask: false, shoe: 'boot', shoeCol: '#0d0d0d' };
+  const base = outfitCanvases(o), cream = '#ebe5d6';
+  const T = C(512, 512), A = C(256, 512), G = C(256, 512), tx = T.x;
+  tx.fillStyle = cream; tx.fillRect(0, 0, 512, 512);
+  tx.fillStyle = o.skin; tx.fillRect(0, 0, 512, TY(1.555));
+  for (const cx of [256]) { // koszula, klapy, krawat, guziki
+    tx.fillStyle = '#fbfaf5'; tx.beginPath(); tx.moveTo(cx - 34, TY(1.545)); tx.lineTo(cx + 34, TY(1.545)); tx.lineTo(cx + 8, TY(1.1)); tx.lineTo(cx - 8, TY(1.1)); tx.fill();
+    tx.strokeStyle = 'rgba(60,55,45,.55)'; tx.lineWidth = 3;
+    for (const sg of [-1, 1]) { tx.beginPath(); tx.moveTo(cx + sg * 36, TY(1.545)); tx.lineTo(cx + sg * 16, TY(1.3)); tx.lineTo(cx + sg * 30, TY(1.22)); tx.lineTo(cx + sg * 9, TY(1.02)); tx.stroke(); }
+    tx.fillStyle = '#161616'; tx.beginPath(); tx.moveTo(cx - 6, TY(1.52)); tx.lineTo(cx + 6, TY(1.52)); tx.lineTo(cx + 10, TY(1.16)); tx.lineTo(cx, TY(1.1)); tx.lineTo(cx - 10, TY(1.16)); tx.fill();
+    tx.fillStyle = '#8b7a4a'; for (const y of [1.06, 0.99]) { tx.beginPath(); tx.arc(cx + 22, TY(y), 3.2, 0, 7); tx.fill(); }
+  }
+  tx.fillStyle = 'rgba(0,0,0,.18)'; tx.fillRect(0, TY(0.975), 512, 4);
+  for (const cx of [128, 384]) { tx.fillStyle = 'rgba(80,70,55,.18)'; tx.fillRect(cx - 1, TY(0.97), 3, 512); }
+  noise(tx, 512, 512, 5000, 0.04);
+  A.x.fillStyle = cream; A.x.fillRect(0, 0, 256, 512); A.x.fillStyle = '#fbfaf5'; A.x.fillRect(0, AY(-0.5), 256, 512 - AY(-0.5)); noise(A.x, 256, 512, 1500, 0.04);
+  G.x.fillStyle = cream; G.x.fillRect(0, 0, 256, 512); G.x.fillStyle = 'rgba(80,70,55,.22)'; G.x.fillRect(63, 0, 3, 512); G.x.fillRect(191, 0, 3, 512); noise(G.x, 256, 512, 2500, 0.04);
+  const mat = (c, r = 0.75) => new THREE.MeshStandardMaterial({ map: tex(c), roughness: r });
+  const M = { torso: mat(T), arm: mat(A), leg: mat(G), head: new THREE.MeshStandardMaterial({ map: tex(base.Hd), roughness: 0.65 }), hand: new THREE.MeshStandardMaterial({ color: o.skin, roughness: 0.7 }), foot: mat(base.Sh, 0.5) };
+  const H = build('fisk', M, { face: true, shoe: 'boot' });
+  H.setHands('open', 'fist');
+  // laska: czarny trzon i srebrna galka
+  const cane = new THREE.Group();
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.017, 1.05, 10), new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.35, metalness: 0.3 }));
+  const knob = new THREE.Mesh(new THREE.SphereGeometry(0.045, 14, 10), new THREE.MeshStandardMaterial({ color: 0xc9c9cf, roughness: 0.25, metalness: 0.9 }));
+  knob.position.y = 0.55; shaft.position.y = 0.05; cane.add(shaft, knob); cane.rotation.x = Math.PI; cane.position.set(0, -0.3, 0.02);
+  cane.traverse(o2 => { if (o2.isMesh) o2.castShadow = true; }); H.elR.add(cane); H.cane = cane;
+  return H;
 }

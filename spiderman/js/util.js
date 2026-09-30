@@ -49,7 +49,7 @@ export const linHex = (c, hex) => c.setHex(hex).convertSRGBToLinear();
 const KEY = 'spiderman_nyc_v1';
 export const save = {
   lvl: 1, xp: 0, suit: 'adv', bags: [], crimes: 0, gfx: 'high',
-  skills: [], races: {}, bossWins: 0, chases: 0, tod: 'sunset', music: true,
+  skills: [], races: {}, bossWins: 0, chases: 0, fisk: 0, tod: 'sunset', music: true,
 };
 try { Object.assign(save, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) {}
 export function doSave() { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) {} }

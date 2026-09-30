@@ -1,6 +1,6 @@
 // Pozy i animacja szkieletu postaci oraz lista strojow. Same modele buduje model.js.
 import { V3, DOWN, cv, canvasTex } from './util.js';
-export { buildSpider, buildThug, buildBoss, suitThumb, suitMats } from './model.js';
+export { buildSpider, buildThug, buildBoss, buildKingpin, suitThumb, suitMats } from './model.js';
 
 export const SG = new THREE.SphereGeometry(1, 28, 18);
 export function el(mat, sx, sy, sz, x = 0, y = 0, z = 0, geo = SG) {
