@@ -638,14 +638,14 @@
     x.restore();
   }
   function headWeb(x, W, H, col, lw) {
-    const cx = W / 2, cy = H * 0.52, N = 22;
+    const cx = W / 2, cy2 = H * 0.52, N = 22;
     x.strokeStyle = col;
     x.lineWidth = lw;
     for (let i = 0; i < N; i++) {
       const g = i / N * TAU;
       x.beginPath();
-      x.moveTo(cx, cy);
-      x.lineTo(cx + Math.cos(g) * W, cy + Math.sin(g) * W * 0.5);
+      x.moveTo(cx, cy2);
+      x.lineTo(cx + Math.cos(g) * W, cy2 + Math.sin(g) * W * 0.5);
       x.stroke();
     }
     for (let r = 1; r <= 10; r++) {
@@ -653,20 +653,20 @@
       x.beginPath();
       for (let i = 0; i < N; i++) {
         const g0 = i / N * TAU, g1 = (i + 1) / N * TAU, gm = (g0 + g1) / 2;
-        x.moveTo(cx + Math.cos(g0) * R, cy + Math.sin(g0) * R * 0.5);
-        x.quadraticCurveTo(cx + Math.cos(gm) * R * 0.86, cy + Math.sin(gm) * R * 0.43, cx + Math.cos(g1) * R, cy + Math.sin(g1) * R * 0.5);
+        x.moveTo(cx + Math.cos(g0) * R, cy2 + Math.sin(g0) * R * 0.5);
+        x.quadraticCurveTo(cx + Math.cos(gm) * R * 0.86, cy2 + Math.sin(gm) * R * 0.43, cx + Math.cos(g1) * R, cy2 + Math.sin(g1) * R * 0.5);
       }
       x.stroke();
     }
   }
-  function ell(x, cx, cy, rx, ry) {
+  function ell(x, cx, cy2, rx, ry) {
     x.beginPath();
-    x.ellipse(cx, cy, rx, ry, 0, 0, TAU);
+    x.ellipse(cx, cy2, rx, ry, 0, 0, TAU);
     x.fill();
   }
-  function drawSpider(x, cx, cy, s, col, style, sxk = 0.85) {
+  function drawSpider(x, cx, cy2, s, col, style, sxk = 0.85) {
     x.save();
-    x.translate(cx, cy);
+    x.translate(cx, cy2);
     x.scale(sxk, 1);
     x.fillStyle = col;
     x.strokeStyle = col;
@@ -722,15 +722,15 @@
         if (s.glow) webLines(T3.e.x, x0, y0, w, y1 - y0, s.web, 2.4);
       } else hexDots(T3.b.x, x0, y0, w, y1 - y0, "#949494");
     };
-    const logo = (T3, cx, cy, size, sxk) => {
+    const logo = (T3, cx, cy2, size, sxk) => {
       if (s.logoS === "none") return;
-      drawSpider(T3.m.x, cx, cy, size, s.logo, s.logoS, sxk);
+      drawSpider(T3.m.x, cx, cy2, size, s.logo, s.logoS, sxk);
       T3.b.x.save();
       T3.b.x.shadowColor = "#fff";
       T3.b.x.shadowBlur = 4;
-      drawSpider(T3.b.x, cx, cy, size, "#c8c8c8", s.logoS, sxk);
+      drawSpider(T3.b.x, cx, cy2, size, "#c8c8c8", s.logoS, sxk);
       T3.b.x.restore();
-      if (s.glow) drawSpider(T3.e.x, cx, cy, size, s.logo, s.logoS, sxk);
+      if (s.glow) drawSpider(T3.e.x, cx, cy2, size, s.logo, s.logoS, sxk);
     };
     const T2 = mk(512, 512);
     region(T2, 0, TY(1.555), s.parts.head);
@@ -754,7 +754,7 @@
     T2.m.x.fillRect(0, TY(0.985) - 2, 512, 4);
     const big = s.logoS === "big";
     logo(T2, 256, TY(big ? 1.34 : 1.36), big ? 185 : 80, 0.85);
-    for (const bx of [0, 512]) logo(T2, bx, TY(1.33), big ? 175 : 110, 0.85);
+    for (const bx2 of [0, 512]) logo(T2, bx2, TY(1.33), big ? 175 : 110, 0.85);
     noise(T2.m.x, 512, 512, 3e3, 0.035);
     const A = mk(256, 512);
     region(A, 0, AY(-0.28), s.parts.uarm);
@@ -1502,9 +1502,9 @@
     for (let ix = a; ix <= b; ix++) for (let iz = c; iz <= d; iz++) {
       const l = hash.get(hk(ix, iz));
       if (!l) continue;
-      for (const bx of l) if (bx.q !== stamp) {
-        bx.q = stamp;
-        out.push(bx);
+      for (const bx2 of l) if (bx2.q !== stamp) {
+        bx2.q = stamp;
+        out.push(bx2);
       }
     }
     return out;
@@ -1619,12 +1619,12 @@
   }
   function facadeTex(s) {
     const S = 512, C2 = 128, c = cv(S, S), x = c.getContext("2d"), e = cv(S, S), ex = e.getContext("2d");
-    const rc = cv(S, S), rx = rc.getContext("2d"), bc = cv(S, S), bx = bc.getContext("2d");
+    const rc = cv(S, S), rx = rc.getContext("2d"), bc = cv(S, S), bx2 = bc.getContext("2d");
     const wr = Math.round(s.rough * 255);
     rx.fillStyle = `rgb(${wr},${wr},${wr})`;
     rx.fillRect(0, 0, S, S);
-    bx.fillStyle = "#9a9a9a";
-    bx.fillRect(0, 0, S, S);
+    bx2.fillStyle = "#9a9a9a";
+    bx2.fillRect(0, 0, S, S);
     x.fillStyle = s.wall;
     x.fillRect(0, 0, S, S);
     ex.fillStyle = "#000";
@@ -1642,9 +1642,9 @@
       x.fillStyle = "rgba(0,0,0,.14)";
       for (let y = 0; y < S; y += 6) x.fillRect(0, y, S, 1);
       for (let y = 0; y < S; y += 6) for (let xx = y / 6 % 2 * 7; xx < S; xx += 14) x.fillRect(xx, y, 1, 6);
-      bx.fillStyle = "#7a7a7a";
-      for (let y = 0; y < S; y += 6) bx.fillRect(0, y, S, 1);
-      for (let y = 0; y < S; y += 6) for (let xx = y / 6 % 2 * 7; xx < S; xx += 14) bx.fillRect(xx, y, 1, 6);
+      bx2.fillStyle = "#7a7a7a";
+      for (let y = 0; y < S; y += 6) bx2.fillRect(0, y, S, 1);
+      for (let y = 0; y < S; y += 6) for (let xx = y / 6 % 2 * 7; xx < S; xx += 14) bx2.fillRect(xx, y, 1, 6);
     }
     const [l, t, r, b] = s.inset;
     for (let j = 0; j < 4; j++) {
@@ -1666,8 +1666,8 @@
         x.fillRect(X, Y, W, H);
         rx.fillStyle = "#141414";
         rx.fillRect(X, Y, W, H);
-        bx.fillStyle = "#5a5a5a";
-        bx.fillRect(X, Y, W, H);
+        bx2.fillStyle = "#5a5a5a";
+        bx2.fillRect(X, Y, W, H);
         const q = Math.random();
         if (q < s.lit) {
           x.fillStyle = "rgba(255,205,130,.7)";
@@ -1693,11 +1693,11 @@
           rx.strokeStyle = "#8c8c8c";
           rx.lineWidth = 4;
           rx.strokeRect(X, Y, W, H);
-          bx.fillStyle = "#c8c8c8";
-          bx.fillRect(X - 5, Y + H, W + 10, 6);
-          bx.strokeStyle = "#b0b0b0";
-          bx.lineWidth = 4;
-          bx.strokeRect(X, Y, W, H);
+          bx2.fillStyle = "#c8c8c8";
+          bx2.fillRect(X - 5, Y + H, W + 10, 6);
+          bx2.strokeStyle = "#b0b0b0";
+          bx2.lineWidth = 4;
+          bx2.strokeRect(X, Y, W, H);
           x.strokeStyle = s.frame;
           x.lineWidth = 4;
           x.strokeRect(X, Y, W, H);
@@ -2467,6 +2467,114 @@
     glowPoints(gl, 16767392, 4);
     meshFrom(leafG, new THREE.MeshStandardMaterial({ color: 4862242, roughness: 0.6, emissive: 16756832, emissiveIntensity: 0.15 }), false);
   }
+  function propGeo(parts) {
+    const pos = [], nor = [], col = [], idx = [], c = new THREE.Color();
+    for (const [g, hex] of parts) {
+      const off = pos.length / 3, p = g.attributes.position, n = g.attributes.normal;
+      c.setHex(hex).convertSRGBToLinear();
+      for (let i = 0; i < p.count; i++) {
+        pos.push(p.getX(i), p.getY(i), p.getZ(i));
+        nor.push(n.getX(i), n.getY(i), n.getZ(i));
+        col.push(c.r, c.g, c.b);
+      }
+      if (g.index) for (let i = 0; i < g.index.count; i++) idx.push(g.index.getX(i) + off);
+      else for (let i = 0; i < p.count; i++) idx.push(i + off);
+    }
+    const m = new THREE.BufferGeometry();
+    m.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    m.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+    m.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+    m.setIndex(idx);
+    return m;
+  }
+  function buildProps(blocks) {
+    const L = {};
+    for (const k in PROPS) L[k] = [];
+    const near = (x, z, r) => doors.some((d) => Math.hypot(x - d.gx, z - d.gz) < r);
+    const put = (k, x, z, yaw, r = 1.5) => {
+      if (near(x, z, r)) return;
+      L[k].push({ x, z, yaw, ci: Math.floor(srand() * PROPS[k].cols.length) });
+    };
+    const edge = (b, side, t, ins) => {
+      const x0 = b.x0 + 4, x1 = b.x1 - 4, z0 = b.z0 + 4, z1 = b.z1 - 4;
+      if (side === 0) return [x0 + t * (x1 - x0), b.z0 + ins, Math.PI];
+      if (side === 1) return [x0 + t * (x1 - x0), b.z1 - ins, 0];
+      if (side === 2) return [b.x0 + ins, z0 + t * (z1 - z0), -Math.PI / 2];
+      return [b.x1 - ins, z0 + t * (z1 - z0), Math.PI / 2];
+    };
+    const R4 = () => Math.floor(srand() * 4);
+    for (const b of blocks) {
+      const [hx, hz, hy] = edge(b, R4(), srand(), 1.9);
+      put("hydrant", hx, hz, hy);
+      if (srand() < 0.6) {
+        const [mx, mz, my] = edge(b, R4(), srand(), 1.8);
+        put("mailbox", mx, mz, my);
+      }
+      for (let k = 0, n = 2 + Math.floor(srand() * 3); k < n; k++) {
+        const [tx, tz, ty] = edge(b, R4(), srand(), 1.6 + srand() * 0.4);
+        put("trash", tx, tz, ty, 1.2);
+      }
+      if (srand() < 0.55) {
+        const s = R4(), [dx, dz, dy] = edge(b, s, 0.1 + srand() * 0.8, 3);
+        put("dumpster", dx, dz, dy + (srand() < 0.5 ? 0 : Math.PI), 2.6);
+        const q = edge(b, s, 0.1 + srand() * 0.8, 3);
+        put("crates", q[0], q[1], srand() * 6, 2.2);
+      }
+      if (srand() < 0.5) {
+        const [nx, nz2, ny] = edge(b, R4(), srand(), 2.1);
+        put("news", nx, nz2, ny);
+      }
+      if (srand() < 0.35) {
+        const s = R4(), t0 = srand() * 0.6;
+        for (let k = 0; k < 4; k++) {
+          const [px, pz, py] = edge(b, s, t0 + k * 0.07, 1.3);
+          put("meter", px, pz, py + Math.PI / 2, 1.2);
+        }
+      }
+      if (srand() < 0.5) {
+        const [bx2, bz2, by2] = edge(b, R4(), srand(), 2.3);
+        put("bench", bx2, bz2, by2);
+      }
+      if (srand() < 0.14) {
+        const [sx, sz, sy] = edge(b, R4(), 0.3 + srand() * 0.4, 1.4);
+        put("shelter", sx, sz, sy, 3);
+      }
+      if (srand() < 0.12) {
+        const s = R4(), t0 = srand() * 0.7;
+        for (let k = 0; k < 5; k++) {
+          const [cx, cz] = edge(b, s, t0 + k * 0.05, 0.55);
+          put("cone", cx, cz, 0, 0.3);
+        }
+      }
+      const cs = [[b.x0 + 0.9, b.z0 + 0.9], [b.x1 - 0.9, b.z0 + 0.9], [b.x0 + 0.9, b.z1 - 0.9], [b.x1 - 0.9, b.z1 - 0.9]][R4()];
+      put("sign", cs[0], cs[1], srand() < 0.5 ? 0 : Math.PI / 2, 0.5);
+      if (srand() < 0.3) {
+        const inX = srand() < 0.5, x = inX ? b.x0 + srand() * (b.x1 - b.x0) : srand() < 0.5 ? b.x0 - 3 : b.x1 + 3, z = inX ? srand() < 0.5 ? b.z0 - 3 : b.z1 + 3 : b.z0 + srand() * (b.z1 - b.z0);
+        L.vent.push({ x, z, yaw: 0, ci: 0, road: true });
+      }
+    }
+    for (let k = 0; k < 14; k++) {
+      const x = (k % 2 ? PK.x0 + 42 : PK.x0 + 196) + 3, z = PK.z0 + 20 + k * 25;
+      if (z < PK.z1 - 10) L.bench.push({ x, z, yaw: k % 2 ? -Math.PI / 2 : Math.PI / 2, ci: Math.floor(srand() * 3), park: true });
+    }
+    const o = new THREE.Object3D(), col = new THREE.Color();
+    for (const k in PROPS) {
+      const list = L[k];
+      if (!list.length) continue;
+      const im = new THREE.InstancedMesh(PROPS[k].geo(), new THREE.MeshStandardMaterial({ color: 16777215, vertexColors: true, roughness: 0.65, metalness: k === "hydrant" || k === "mailbox" ? 0.2 : 0.05 }), list.length);
+      list.forEach((p, i) => {
+        o.position.set(p.x, p.road ? 0.02 : p.park ? 0.06 : SW, p.z);
+        o.rotation.set(0, p.yaw, 0);
+        o.scale.setScalar(1);
+        o.updateMatrix();
+        im.setMatrixAt(i, o.matrix);
+        im.setColorAt(i, col.setHex(PROPS[k].cols[p.ci % PROPS[k].cols.length]));
+      });
+      im.frustumCulled = false;
+      im.receiveShadow = true;
+      scene.add(im);
+    }
+  }
   function nearestDoor(x, y, z, r = 2.6) {
     if (y > 6) return null;
     let best = null, bd = r;
@@ -2487,12 +2595,13 @@
     shopGeo = newGeo();
     trimGeo = newGeo();
     curbGeo = newGeo();
-    const trees = [], lamps2 = [], tlights = [];
+    const trees = [], lamps2 = [], tlights = [], propBlocks = [];
     for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) {
       if (isPark(i, j)) continue;
       const b = blk(i, j), cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2, dk = distKey(i, j), D = DIST[dk];
       lamps2.push([b.x0 + 0.6, b.z0 + 0.6, -1], [b.x1 - 0.6, b.z0 + 0.6, 1], [b.x0 + 0.6, b.z1 - 0.6, -1], [b.x1 - 0.6, b.z1 - 0.6, 1]);
       tlights.push([b.x0 + 1.1, b.z0 + 1.6, (i + j) % 2]);
+      propBlocks.push(b);
       fullBox(curbGeo, b.x0, b.x1, 0, SW, b.z0, b.z1, 4);
       addBox({ x0: b.x0, x1: b.x1, y0: 0, y1: SW, z0: b.z0, z1: b.z1 });
       if (["harlem", "uws", "ues", "gv", "ct", "hk"].includes(dk) && srand() < 0.6)
@@ -2527,6 +2636,7 @@
     buildPark(trees);
     buildTrees(trees);
     buildDoors();
+    buildProps(propBlocks);
     facMats = STY.map((s) => {
       const t = facadeTex(s);
       return groundAO(new THREE.MeshStandardMaterial({
@@ -2835,7 +2945,7 @@
       if (m.instanceColor) m.instanceColor.needsUpdate = true;
     }
   }
-  var BW, BD, ST, NX, NZ, CX, CZ, CW, CD, X0, Z0, LAND, PK, POND, isPark, inPark, isecPos, DIST, doors, boxes, roofs, footprints, spots, perches, START, START_H, HC2, hash, stamp, hk, _s1, _s2, _rl, rayN, _rbN, CHUNK, STY, CURT, SHOPS, SIGNC, sunDir, sun, sky, clouds, stars, moon, hemi, amb, water, pondM, waterNormal, TOD, TOD_NAMES, skyU, lin3, pmrem, envRT, skyScene, facMats, shopMat, lampMat, boardMats, glowPts, todName, savedL, facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo, SW, tanks, awnings, masts, boards, DOOR_TYPES, FISK_DOOR, LANDMARKS, export_arena, ARENA, cars, peds, carBody, carGlass, carWheel, carSign, headL, tailL, pedMesh, _o, _c;
+  var BW, BD, ST, NX, NZ, CX, CZ, CW, CD, X0, Z0, LAND, PK, POND, isPark, inPark, isecPos, DIST, doors, boxes, roofs, footprints, spots, perches, START, START_H, HC2, hash, stamp, hk, _s1, _s2, _rl, rayN, _rbN, CHUNK, STY, CURT, SHOPS, SIGNC, sunDir, sun, sky, clouds, stars, moon, hemi, amb, water, pondM, waterNormal, TOD, TOD_NAMES, skyU, lin3, pmrem, envRT, skyScene, facMats, shopMat, lampMat, boardMats, glowPts, todName, savedL, facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo, SW, tanks, awnings, masts, boards, DOOR_TYPES, FISK_DOOR, LANDMARKS, export_arena, ARENA, bx, cy, PROPS, cars, peds, carBody, carGlass, carWheel, carSign, headL, tailL, pedMesh, _o, _c;
   var init_miasto = __esm({
     "js/miasto.js"() {
       init_util();
@@ -3019,6 +3129,30 @@
       };
       export_arena = { x: 0, z: 0 };
       ARENA = export_arena;
+      bx = (w, h, d, x, y, z) => {
+        const g = new THREE.BoxGeometry(w, h, d);
+        g.translate(x, y, z);
+        return g;
+      };
+      cy = (r02, r1, h, x, y, z, seg = 10) => {
+        const g = new THREE.CylinderGeometry(r02, r1, h, seg);
+        g.translate(x, y, z);
+        return g;
+      };
+      PROPS = {
+        trash: { geo: () => propGeo([[cy(0.3, 0.26, 0.86, 0, 0.43, 0), 10132896], [cy(0.34, 0.34, 0.07, 0, 0.9, 0), 7304055], [cy(0.31, 0.31, 0.03, 0, 0.6, 0, 12), 5593437]]), cols: [16777215, 10473640, 10467542, 7829367] },
+        dumpster: { geo: () => propGeo([[bx(2.3, 1.15, 1.1, 0, 0.7, 0), 16777215], [bx(2.34, 0.08, 1.14, 0, 1.31, 0), 2829099], [bx(2.3, 0.14, 1.1, 0, 0.1, 0), 2236962], [cy(0.11, 0.11, 0.1, -0.9, 0.09, 0.4, 8), 1118481], [cy(0.11, 0.11, 0.1, 0.9, 0.09, 0.4, 8), 1118481]]), cols: [3107645, 2903946, 8010274, 3882820] },
+        hydrant: { geo: () => propGeo([[cy(0.15, 0.17, 0.62, 0, 0.33, 0), 16777215], [new THREE.SphereGeometry(0.15, 10, 8).translate(0, 0.66, 0), 16777215], [cy(0.06, 0.06, 0.4, 0, 0.45, 0, 8).rotateZ(Math.PI / 2), 14277081], [cy(0.09, 0.09, 0.05, 0, 0.05, 0), 3355443]]), cols: [12593183, 12593183, 14727198] },
+        mailbox: { geo: () => propGeo([[bx(0.5, 0.65, 0.45, 0, 0.98, 0), 16777215], [cy(0.23, 0.23, 0.45, 0, 1.31, 0, 10).rotateX(Math.PI / 2), 16777215], [bx(0.1, 0.7, 0.1, -0.18, 0.35, 0), 3355443], [bx(0.1, 0.7, 0.1, 0.18, 0.35, 0), 3355443], [bx(0.32, 0.03, 0.02, 0, 1.1, 0.23), 1118481]]), cols: [2051996, 2051996, 10234399] },
+        bench: { geo: () => propGeo([[bx(1.7, 0.07, 0.5, 0, 0.5, 0), 16777215], [bx(1.7, 0.4, 0.06, 0, 0.78, -0.22), 16777215], [bx(0.08, 0.5, 0.45, -0.75, 0.25, 0), 2764080], [bx(0.08, 0.5, 0.45, 0.75, 0.25, 0), 2764080]]), cols: [7031338, 4024904, 9071162] },
+        meter: { geo: () => propGeo([[cy(0.035, 0.035, 1.15, 0, 0.58, 0, 6), 3816768], [bx(0.2, 0.3, 0.14, 0, 1.28, 0), 5593437], [bx(0.14, 0.1, 0.02, 0, 1.33, 0.08), 10147488]]), cols: [16777215] },
+        news: { geo: () => propGeo([[bx(0.65, 0.95, 0.5, 0, 0.5, 0), 16777215], [bx(0.5, 0.32, 0.04, 0, 0.72, 0.26), 15328466], [bx(0.7, 0.08, 0.55, 0, 1, 0), 2829099]]), cols: [12068383, 2908072, 14262302, 3111498] },
+        cone: { geo: () => propGeo([[new THREE.ConeGeometry(0.16, 0.7, 10).translate(0, 0.4, 0), 16738836], [bx(0.4, 0.05, 0.4, 0, 0.03, 0), 2829099], [cy(0.13, 0.145, 0.06, 0, 0.42, 0, 10), 15921906]]), cols: [16777215] },
+        sign: { geo: () => propGeo([[cy(0.04, 0.04, 3.4, 0, 1.7, 0, 6), 5593437], [bx(1.05, 0.26, 0.04, 0, 3.3, 0), 2058810], [bx(0.9, 0.16, 0.05, 0, 3.3, 5e-3), 15921906]]), cols: [16777215] },
+        crates: { geo: () => propGeo([[bx(0.7, 0.55, 0.7, 0, 0.28, 0), 16777215], [bx(0.6, 0.5, 0.6, 0.15, 0.83, 0.05), 16777215], [bx(0.5, 0.4, 0.5, -0.55, 0.2, 0.3), 16777215]]), cols: [11042895, 10189388, 8284746] },
+        vent: { geo: () => propGeo([[new THREE.CylinderGeometry(0.22, 0.4, 1.4, 12).translate(0, 0.7, 0), 16742938], [cy(0.42, 0.42, 0.12, 0, 0.06, 0, 12), 4473924], [cy(0.235, 0.235, 0.12, 0, 0.9, 0, 12), 15921906], [cy(0.2, 0.2, 0.1, 0, 1.36, 0, 12), 15921906]]), cols: [16777215] },
+        shelter: { geo: () => propGeo([[bx(3.6, 0.1, 1.4, 0, 2.5, 0), 2830131], [bx(0.08, 2.5, 0.08, -1.7, 1.25, -0.6), 2830131], [bx(0.08, 2.5, 0.08, 1.7, 1.25, -0.6), 2830131], [bx(3.4, 2.1, 0.04, 0, 1.3, -0.62), 10470614], [bx(0.04, 2.1, 1.1, -1.7, 1.3, -0.05), 10470614], [bx(1.8, 0.06, 0.4, 0.2, 0.5, -0.4), 7031338], [bx(0.9, 1.4, 0.05, -0.5, 1.4, -0.6), 15262936]]), cols: [16777215] }
+      };
       cars = [];
       peds = [];
       pedMesh = [];
@@ -7329,8 +7463,8 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       if (P.deadT <= 0) respawn();
       return;
     }
-    const sy = Math.sin(cam.yaw), cy = Math.cos(cam.yaw);
-    let wx = -sy * -I.my + cy * I.mx, wz = -cy * -I.my - sy * I.mx;
+    const sy = Math.sin(cam.yaw), cy2 = Math.cos(cam.yaw);
+    let wx = -sy * -I.my + cy2 * I.mx, wz = -cy2 * -I.my - sy * I.mx;
     let wl = Math.hypot(wx, wz);
     if (wl > 1) {
       wx /= wl;
