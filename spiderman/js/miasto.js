@@ -2,7 +2,7 @@
 // rzeki, niebo (zachod / dzien / noc), samochody, przechodnie. Tu sa tez kolizje i promienie.
 import { V3, clamp, srand, sr, cv, canvasTex, rnd, linHex, linearize, dbg } from './util.js';
 import { scene, camera, renderer, P, G } from './stan.js';
-import { pedGeometries } from './model.js';
+import { pedGeometries, pedFaceTexture } from './model.js';
 
 export const BW = 64, BD = 44, ST = 18, NX = 8, NZ = 18;
 export const CX = BW + ST, CZ = BD + ST, CW = NX * CX, CD = NZ * CZ, X0 = -CW / 2, Z0 = -CD / 2;
@@ -117,6 +117,14 @@ function walls(g, x0, x1, y0, y1, z0, z1, us, vs, v0 = y0 / vs, v1 = y1 / vs) {
   quad(g, [x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], [0, 0, -1], [-x1 / us, v0], [-x0 / us, v0], [-x0 / us, v1], [-x1 / us, v1]);
   quad(g, [x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [1, 0, 0], [-z1 / us, v0], [-z0 / us, v0], [-z0 / us, v1], [-z1 / us, v1]);
   quad(g, [x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], [-1, 0, 0], [z0 / us, v0], [z1 / us, v0], [z1 / us, v1], [z0 / us, v1]);
+}
+// jak walls(), ale tylko wybrane sciany (n: z0, s: z1, w: x0, e: x1); UV liczone z bezwzglednych wspolrzednych
+function wallsFaces(g, x0, x1, y0, y1, z0, z1, us, vs, faces) {
+  const v0 = y0 / vs, v1 = y1 / vs;
+  if (faces.includes('s')) quad(g, [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], [0, 0, 1], [x0 / us, v0], [x1 / us, v0], [x1 / us, v1], [x0 / us, v1]);
+  if (faces.includes('n')) quad(g, [x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], [0, 0, -1], [-x1 / us, v0], [-x0 / us, v0], [-x0 / us, v1], [-x1 / us, v1]);
+  if (faces.includes('e')) quad(g, [x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [1, 0, 0], [-z1 / us, v0], [-z0 / us, v0], [-z0 / us, v1], [-z1 / us, v1]);
+  if (faces.includes('w')) quad(g, [x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], [-1, 0, 0], [z0 / us, v0], [z1 / us, v0], [z1 / us, v1], [z0 / us, v1]);
 }
 function top(g, x0, x1, y, z0, z1, us) {
   quad(g, [x0, y, z1], [x1, y, z1], [x1, y, z0], [x0, y, z0], [0, 1, 0], [x0 / us, z1 / us], [x1 / us, z1 / us], [x1 / us, z0 / us], [x0 / us, z0 / us]);
@@ -457,8 +465,26 @@ export function updateEnv() {
 let facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo;
 export const SW = 0.15; // wysokosc chodnika
 const tanks = [], awnings = [], masts = [], boards = [];
-function solid(x0, x1, y0, y1, z0, z1, st) {
-  walls(facGeo[st], x0, x1, y0, y1, z0, z1, 16, 14);
+// sciany budynku z otworem drzwiowym: trzy sciany w calosci, czwarta w trzech kawalkach (po bokach i nad drzwiami)
+function carveWalls(g, x0, x1, y0, y1, z0, z1, d) {
+  const f = d.face, ga0 = d.c - d.gw / 2, ga1 = d.c + d.gw / 2;
+  wallsFaces(g, x0, x1, y0, y1, z0, z1, 16, 14, ['n', 's', 'w', 'e'].filter(q => q !== f));
+  if (d.ns) { wallsFaces(g, x0, ga0, y0, y1, z0, z1, 16, 14, [f]); wallsFaces(g, ga1, x1, y0, y1, z0, z1, 16, 14, [f]); wallsFaces(g, ga0, ga1, d.gh, y1, z0, z1, 16, 14, [f]); }
+  else { wallsFaces(g, x0, x1, y0, y1, z0, ga0, 16, 14, [f]); wallsFaces(g, x0, x1, y0, y1, ga1, z1, 16, 14, [f]); wallsFaces(g, x0, x1, d.gh, y1, ga0, ga1, 16, 14, [f]); }
+}
+// kolizje budynku z wneka: sciany, tyl, nadproze, strop nad pokojem — wszystko na pelna wysokosc, zeby dalo sie biegac po scianach
+function carveBoxes(d, x0, x1, y0, y1, z0, z1) {
+  const r = d.room, ns = d.ns, ga0 = d.c - d.gw / 2, ga1 = d.c + d.gw / 2;
+  const P = (u0, u1, v0, v1, ya, yb) => { if (u1 - u0 < 0.02 || v1 - v0 < 0.02 || yb - ya < 0.02) return; addBox(ns ? { x0: u0, x1: u1, z0: v0, z1: v1, y0: ya, y1: yb } : { x0: v0, x1: v1, z0: u0, z1: u1, y0: ya, y1: yb }); };
+  P(r.fa0, r.cu0, r.fd0, r.fd1, y0, y1); P(r.cu1, r.fa1, r.fd0, r.fd1, y0, y1);
+  const front = r.doorV === r.fd1 ? [r.cv1, r.fd1] : [r.fd0, r.cv0];
+  if (r.doorV === r.fd1) P(r.cu0, r.cu1, r.fd0, r.cv0, y0, y1); else P(r.cu0, r.cu1, r.cv1, r.fd1, y0, y1);
+  P(r.cu0, ga0, front[0], front[1], y0, y1); P(ga1, r.cu1, front[0], front[1], y0, y1); P(ga0, ga1, front[0], front[1], d.gh, y1);
+  P(r.cu0, r.cu1, r.cv0, r.cv1, SW + r.ch, y1);
+  return { x0, x1, y0, y1, z0, z1 };
+}
+function solid(x0, x1, y0, y1, z0, z1, st, door) {
+  if (door) carveWalls(facGeo[st], x0, x1, y0, y1, z0, z1, door); else walls(facGeo[st], x0, x1, y0, y1, z0, z1, 16, 14);
   top(roofGeo, x0, x1, y1, z0, z1, 10);
   if (x1 - x0 > 5 && z1 - z0 > 5 && y1 - y0 > 6) { // gzyms
     const o = st >= 3 && st <= 4 ? 0.2 : 0.4, h = 0.7;
@@ -477,7 +503,7 @@ function solid(x0, x1, y0, y1, z0, z1, st) {
       fullBox(trimGeo, x0 - o, x0 + 0.02, y, y + h, z0, z1, 4, true); fullBox(trimGeo, x1 - 0.02, x1 + o, y, y + h, z0, z1, 4, true);
     }
   }
-  return addBox({ x0, x1, y0, y1, z0, z1 });
+  return door ? carveBoxes(door, x0, x1, y0, y1, z0, z1) : addBox({ x0, x1, y0, y1, z0, z1 });
 }
 function parapet(b) {
   const t = 0.35, h = 0.5, { x0, x1, z0, z1, y1 } = b;
@@ -486,26 +512,53 @@ function parapet(b) {
   for (const [px, pz] of [[x0 + 0.5, z0 + 0.5], [x1 - 0.5, z0 + 0.5], [x0 + 0.5, z1 - 0.5], [x1 - 0.5, z1 - 0.5]]) perches.push(new V3(px, y1, pz));
 }
 // witryny sklepow na scianach od ulicy
-function storefront(x0, x1, z0, z1, bk) {
+function storefront(X0, X1, Z0, Z1, bk, gap) {
   const H = 4.6, o = 0.06, row = () => Math.floor(srand() * 4), v = r => [r / 4, (r + 1) / 4];
-  const side = (face) => {
+  const side = (face, x0, x1, z0, z1) => {
     const [va, vb] = v(row()); const g = shopGeo;
     if (face === 'n') quad(g, [x1, 0.1, z0 - o], [x0, 0.1, z0 - o], [x0, H, z0 - o], [x1, H, z0 - o], [0, 0, -1], [-x1 / 16, 1 - vb], [-x0 / 16, 1 - vb], [-x0 / 16, 1 - va], [-x1 / 16, 1 - va]);
     if (face === 's') quad(g, [x0, 0.1, z1 + o], [x1, 0.1, z1 + o], [x1, H, z1 + o], [x0, H, z1 + o], [0, 0, 1], [x0 / 16, 1 - vb], [x1 / 16, 1 - vb], [x1 / 16, 1 - va], [x0 / 16, 1 - va]);
     if (face === 'w') quad(g, [x0 - o, 0.1, z0], [x0 - o, 0.1, z1], [x0 - o, H, z1], [x0 - o, H, z0], [-1, 0, 0], [z0 / 16, 1 - vb], [z1 / 16, 1 - vb], [z1 / 16, 1 - va], [z0 / 16, 1 - va]);
     if (face === 'e') quad(g, [x1 + o, 0.1, z1], [x1 + o, 0.1, z0], [x1 + o, H, z0], [x1 + o, H, z1], [1, 0, 0], [-z1 / 16, 1 - vb], [-z0 / 16, 1 - vb], [-z0 / 16, 1 - va], [-z1 / 16, 1 - va]);
-    // markizy
     const along = face === 'n' || face === 's' ? [x0, x1] : [z0, z1];
     for (let a = along[0] + 1.5; a < along[1] - 4; a += sr(5, 9)) {
       if (srand() < 0.45) continue;
       const w = sr(2.6, 4), c = a + w / 2;
-      // obrot tak, zeby lokalne +Z wskazywalo na ulice (wtedy przechylenie opuszcza zewnetrzny brzeg)
       if (face === 'n') awnings.push([c, z0 - 0.7, Math.PI, w]); else if (face === 's') awnings.push([c, z1 + 0.7, 0, w]);
       else if (face === 'w') awnings.push([x0 - 0.7, c, -Math.PI / 2, w]); else awnings.push([x1 + 0.7, c, Math.PI / 2, w]);
     }
   };
-  if (z0 - bk.z0 < 4.5) side('n'); if (bk.z1 - z1 < 4.5) side('s');
-  if (x0 - bk.x0 < 4.5) side('w'); if (bk.x1 - x1 < 4.5) side('e');
+  const run = face => {
+    if (gap && gap.face === face) { // drzwi: dwa kawalki witryny po bokach
+      if (face === 'n' || face === 's') { if (gap.a0 - X0 > 0.8) side(face, X0, gap.a0, Z0, Z1); if (X1 - gap.a1 > 0.8) side(face, gap.a1, X1, Z0, Z1); }
+      else { if (gap.a0 - Z0 > 0.8) side(face, X0, X1, Z0, gap.a0); if (Z1 - gap.a1 > 0.8) side(face, X0, X1, gap.a1, Z1); }
+    } else side(face, X0, X1, Z0, Z1);
+  };
+  if (Z0 - bk.z0 < 4.5) run('n'); if (bk.z1 - Z1 < 4.5) run('s');
+  if (X0 - bk.x0 < 4.5) run('w'); if (bk.x1 - X1 < 4.5) run('e');
+}
+const DOOR_TYPES = [['shop', 'SKLEP'], ['shop', 'SKLEP'], ['cafe', 'KAWIARNIA'], ['bar', 'BAR'], ['apt', 'MIESZKANIE'], ['apt', 'MIESZKANIE'], ['office', 'BIURO'], ['gym', 'SIŁOWNIA']];
+// wymiary pokoi (cw: szerokosc wzdluz sciany, cd: glebokosc w glab budynku, ch: wysokosc)
+export const ROOMSPEC = { shop: { cw: 14, cd: 9, ch: 3.6 }, cafe: { cw: 14, cd: 10, ch: 3.6 }, bar: { cw: 12, cd: 9, ch: 3.6 }, apt: { cw: 9, cd: 7, ch: 3.1 }, office: { cw: 16, cd: 11, ch: 3.6 }, gym: { cw: 14, cd: 10, ch: 3.8 }, fisk: { cw: 22, cd: 22, ch: 8 } };
+// drzwi + wneka na pokoj wewnatrz bryly budynku. Zwraca null, gdy pokoj sie nie miesci.
+// Uklad: "u" biegnie wzdluz sciany z drzwiami, "v" w glab budynku (v = 0 przy drzwiach).
+function makeDoor(x0, x1, z0, z1, bk, type, name, forceFace, forceC) {
+  const faces = [];
+  if (z0 - bk.z0 < 4.5) faces.push('n'); if (bk.z1 - z1 < 4.5) faces.push('s'); if (x0 - bk.x0 < 4.5) faces.push('w'); if (bk.x1 - x1 < 4.5) faces.push('e');
+  const face = forceFace || faces[Math.floor(srand() * faces.length)]; if (!face) return null;
+  const spec = ROOMSPEC[type], big = type === 'fisk', gw = big ? 3.4 : 1.7, gh = big ? 3.6 : 2.7, t = 0.5, margin = t + 0.8;
+  const ns = face === 'n' || face === 's', a0 = ns ? x0 : z0, a1 = ns ? x1 : z1, fd0 = ns ? z0 : x0, fd1 = ns ? z1 : x1;
+  let c = forceC ?? (a0 + (a1 - a0) / 2 + (srand() - 0.5) * (a1 - a0 - 10));
+  c = Math.max(a0 + margin + gw / 2, Math.min(a1 - margin - gw / 2, c));
+  const cu0 = Math.max(a0 + margin, c - spec.cw / 2), cu1 = Math.min(a1 - margin, c + spec.cw / 2), cw = cu1 - cu0, cd = Math.min(spec.cd, fd1 - fd0 - 2 * t - 0.8);
+  if (cw < Math.min(8, spec.cw * 0.7) || cd < 5.5) return null;
+  const nx = face === 'w' ? -1 : face === 'e' ? 1 : 0, nz = face === 'n' ? -1 : face === 's' ? 1 : 0;
+  const doorV = nx + nz > 0 ? fd1 : fd0, sIn = doorV === fd1 ? -1 : 1, cvDoor = doorV + sIn * t, cvFar = cvDoor + sIn * cd;
+  const room = { cu0, cu1, cv0: Math.min(cvDoor, cvFar), cv1: Math.max(cvDoor, cvFar), cvDoor, sIn, doorV, fd0, fd1, fa0: a0, fa1: a1, cw, cd, t, ch: spec.ch, uc: (cu0 + cu1) / 2 };
+  room.bx0 = ns ? cu0 : room.cv0; room.bx1 = ns ? cu1 : room.cv1; room.bz0 = ns ? room.cv0 : cu0; room.bz1 = ns ? room.cv1 : cu1;
+  room.W = (u, v) => { const A = room.uc + u, D = room.cvDoor + room.sIn * v; return ns ? [A, D] : [D, A]; };
+  const d = { x: ns ? c : doorV, z: ns ? doorV : c, nx, nz, type, name, big, gw, gh, face, ns, c, room };
+  doors.push(d); return d;
 }
 function roofProps(b) {
   const w = b.x1 - b.x0, d = b.z1 - b.z0;
@@ -521,24 +574,12 @@ function roofProps(b) {
   if (b.y1 > 80) for (let i = 0; i < 1 + Math.floor(srand() * 2); i++) masts.push({ x: sr(b.x0 + 2, b.x1 - 2), y: b.y1, z: sr(b.z0 + 2, b.z1 - 2), h: sr(6, 18) });
   if (b.y1 > 18 && b.y1 < 80 && w > 18 && srand() < 0.14) boards.push(b);
 }
-const DOOR_TYPES = [['shop', 'SKLEP'], ['shop', 'SKLEP'], ['apt', 'MIESZKANIE'], ['office', 'BIURO'], ['apt', 'MIESZKANIE']];
-// drzwi wejsciowe: kawalek sciany od strony ulicy z framuga, daszkiem i schodkiem
-function addDoor(x0, x1, z0, z1, bk, type, name, forceFace) {
-  const faces = [];
-  if (z0 - bk.z0 < 4.5) faces.push('n'); if (bk.z1 - z1 < 4.5) faces.push('s'); if (x0 - bk.x0 < 4.5) faces.push('w'); if (bk.x1 - x1 < 4.5) faces.push('e');
-  const face = forceFace || faces[Math.floor(srand() * faces.length)]; if (!face) return null;
-  const ns = face === 'n' || face === 's', len = ns ? x1 - x0 : z1 - z0; if (len < 9) return null;
-  const c = (ns ? x0 : z0) + len / 2 + (srand() - 0.5) * (len - 8);
-  const nx = face === 'w' ? -1 : face === 'e' ? 1 : 0, nz = face === 'n' ? -1 : face === 's' ? 1 : 0;
-  const wx = face === 'w' ? x0 : face === 'e' ? x1 : c, wz = face === 'n' ? z0 : face === 's' ? z1 : c;
-  const d = { x: wx, z: wz, nx, nz, type, name, big: type === 'fisk' };
-  doors.push(d); return d;
-}
 function building(x0, x1, z0, z1, h, st, dk, bk) {
-  let b = solid(x0, x1, 0, h, z0, z1, st);
+  let dr = null;
+  if (bk && doors.length < 90 && srand() < 0.3) { const [t, n] = DOOR_TYPES[Math.floor(srand() * DOOR_TYPES.length)]; dr = makeDoor(x0, x1, z0, z1, bk, t, n); }
+  let b = solid(x0, x1, 0, h, z0, z1, st, dr);
   footprints.push({ x0, x1, z0, z1, h, dk });
-  if (bk) storefront(x0, x1, z0, z1, bk);
-  if (bk && doors.length < 90 && srand() < 0.3) { const [t, n] = DOOR_TYPES[Math.floor(srand() * DOOR_TYPES.length)]; addDoor(x0, x1, z0, z1, bk, t, n); }
+  if (bk) storefront(x0, x1, z0, z1, bk, dr ? { face: dr.face, a0: dr.c - dr.gw / 2 - 0.3, a1: dr.c + dr.gw / 2 + 0.3 } : null);
   if (h > 55 && srand() < 0.55) {
     const ix = Math.min(sr(3, 7), (x1 - x0) * 0.2), iz = Math.min(sr(3, 7), (z1 - z0) * 0.2), h2 = h + sr(12, h * 0.45);
     b = solid(x0 + ix, x1 - ix, h, h2, z0 + iz, z1 - iz, st);
@@ -551,10 +592,10 @@ function building(x0, x1, z0, z1, h, st, dk, bk) {
   }
   roofs.push(b); roofProps(b);
 }
-function tiers(cx, cz, T, st, dk) {
-  let b;
+function tiers(cx, cz, T, st, dk, door) {
+  let b, first = true;
   for (const [hw, hd, y0, y1, s] of T) {
-    b = solid(cx - hw, cx + hw, y0, y1, cz - hd, cz + hd, s ?? st);
+    b = solid(cx - hw, cx + hw, y0, y1, cz - hd, cz + hd, s ?? st, first ? door : null); first = false;
     footprints.push({ x0: cx - hw, x1: cx + hw, z0: cz - hd, z1: cz + hd, h: y1, dk });
   }
   roofs.push(b); parapet(b); return b;
@@ -573,8 +614,8 @@ const LANDMARKS = {
     START.set(t.x0 + 0.5, 206, cz + 1.2);
   },
   '6,9': (b, cx, cz) => { // szklana wieza
-    tiers(cx, cz, [[13, 13, 0, 285, 3], [9, 9, 285, 300, 4], [2, 10, 300, 330, 4]], 3, 'mid');
-    FISK_DOOR = { x: cx, z: cz + 13, nx: 0, nz: 1, type: 'fisk', name: 'FISK TOWER', big: true }; doors.push(FISK_DOOR);
+    FISK_DOOR = makeDoor(cx - 13, cx + 13, cz - 13, cz + 13, b, 'fisk', 'FISK TOWER', 's', cx);
+    tiers(cx, cz, [[13, 13, 0, 285, 3], [9, 9, 285, 300, 4], [2, 10, 300, 330, 4]], 3, 'mid', FISK_DOOR);
     building(b.x0 + 3, b.x0 + 16, b.z0 + 3, b.z1 - 3, 30, 2, 'mid', b);
   },
   '2,16': (b, cx, cz) => { // wieza w dzielnicy finansowej
@@ -681,14 +722,13 @@ function buildTrafficLights(list) {
 
 // geometria drzwi: framuga, skrzydlo, daszek; szyld z nazwa swieci nocy
 function buildDoors() {
-  const leafG = newGeo(), frameG = trimGeo, gl = [];
+  const frameG = trimGeo, gl = [];
   for (const d of doors) {
-    const w = d.big ? 3.4 : 1.7, h = d.big ? 3.6 : 2.7, tx = -d.nz, tz = d.nx; // tx,tz: kierunek wzdluz sciany
+    const w = d.gw, h = d.gh, tx = -d.nz, tz = d.nx; // tx,tz: kierunek wzdluz sciany
     const box = (g, a0, a1, y0, y1, o0, o1) => { // a: wzdluz sciany (od srodka), o: od sciany na zewnatrz
       const ax0 = d.x + tx * a0 + d.nx * o0, ax1 = d.x + tx * a1 + d.nx * o1, az0 = d.z + tz * a0 + d.nz * o0, az1 = d.z + tz * a1 + d.nz * o1;
       fullBox(g, Math.min(ax0, ax1), Math.max(ax0, ax1), y0, y1, Math.min(az0, az1), Math.max(az0, az1), 4, true);
     };
-    box(leafG, -w / 2, w / 2, SW, h, 0.02, 0.14);                                   // skrzydlo drzwi
     box(frameG, -w / 2 - 0.3, -w / 2, SW, h + 0.3, 0, 0.32); box(frameG, w / 2, w / 2 + 0.3, SW, h + 0.3, 0, 0.32);
     box(frameG, -w / 2 - 0.3, w / 2 + 0.3, h, h + 0.35, 0, 0.32);                  // nadproze
     box(frameG, -w / 2 - 0.5, w / 2 + 0.5, 0, SW + 0.12, 0.1, 0.9);                 // schodek
@@ -698,7 +738,6 @@ function buildDoors() {
     gl.push(d.x + d.nx * 0.5, h + 0.9, d.z + d.nz * 0.5);
   }
   glowPoints(gl, 0xffd9a0, 4);
-  meshFrom(leafG, new THREE.MeshStandardMaterial({ color: 0x4a3122, roughness: 0.6, emissive: 0xffb060, emissiveIntensity: 0.15 }), false);
 }
 // ---------------------------------------------------------------- rekwizyty uliczne
 // Male detale na chodnikach: kazdy rodzaj to jedna geometria z kolorami wierzcholkow i jedno rysowanie
@@ -953,9 +992,9 @@ function initTraffic() {
     p.sc = sr(0.92, 1.06);
     peds.push(p);
   }
-  const frames = pedGeometries(), mats = [0.85, 0.8, 0.6].map(r => new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: r }));
+  const frames = pedGeometries(), face = pedFaceTexture(), mats = [0.85, 0.8, 0.6, 0.65].map((r, q) => new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: r, map: q === 3 ? face : null }));
   mats.forEach(m => { m.userData.lin = true; });
-  pedMesh = frames.map(f => ['top', 'bot', 'skin'].map((k, q) => {
+  pedMesh = frames.map(f => ['top', 'bot', 'hand', 'head'].map((k, q) => {
     const m = new THREE.InstancedMesh(f[k], mats[q], peds.length);
     m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false; m.castShadow = false; m.receiveShadow = true;
     m.setColorAt(0, _c.setRGB(1, 1, 1)); m.userData.linIC = true; m.count = 0; scene.add(m); return m;
@@ -1000,7 +1039,7 @@ export function updateTraffic(dt) {
     const f = Math.floor(p.ph / Math.PI) % 2, k = cnt[f]++;
     const yaw = p.ax === 'x' ? (p.sp > 0 ? Math.PI / 2 : -Math.PI / 2) : (p.sp > 0 ? 0 : Math.PI);
     _o.position.set(x, SW + Math.abs(Math.sin(p.ph)) * 0.03, z); _o.rotation.set(0, yaw, 0); _o.scale.setScalar(p.sc); _o.updateMatrix();
-    for (let q = 0; q < 3; q++) { pedMesh[f][q].setMatrixAt(k, _o.matrix); pedMesh[f][q].setColorAt(k, p.cols[q]); }
+    for (let q = 0; q < 4; q++) { pedMesh[f][q].setMatrixAt(k, _o.matrix); pedMesh[f][q].setColorAt(k, p.cols[Math.min(q, 2)]); }
   }
   for (let f = 0; f < 2; f++) for (const m of pedMesh[f]) { m.count = cnt[f]; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
 }

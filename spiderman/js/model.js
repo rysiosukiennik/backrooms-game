@@ -670,11 +670,12 @@ export function pedGeometries() {
     const handL = rigid(tubeData(smooth([{ y: -0.06, rx: 0.01, rz: 0.01 }, { y: -0.03, rx: 0.02, rz: 0.04 }, { y: 0.03, rx: 0.02, rz: 0.038 }, { y: 0.05, rx: 0.01, rz: 0.01 }], 1), 8, () => 0, null), H.handL);
     const handR = rigid(tubeData(smooth([{ y: -0.06, rx: 0.01, rz: 0.01 }, { y: -0.03, rx: 0.02, rz: 0.04 }, { y: 0.03, rx: 0.02, rz: 0.038 }, { y: 0.05, rx: 0.01, rz: 0.01 }], 1), 8, () => 0, null), H.handR);
     const shoeL = rigid(shoeData('spider', 1.05), H.ftL), shoeR = rigid(shoeData('spider', 1.05), H.ftR);
-    const head = rigid(headData(b, true, 10, 7), H.neck);
+    const head = rigid(headData(b, true, 16, 11), H.neck);
     frames.push({
       top: toGeo(merge([top, skin(arm), skin(mirror(arm))])),
       bot: toGeo(merge([bot, skin(leg), skin(mirror(leg)), shoeL, shoeR])),
-      skin: toGeo(merge([head, handL, handR])),
+      hand: toGeo(merge([handL, handR])),
+      head: toGeo(head),
     });
   }
   return frames;
@@ -710,4 +711,10 @@ export function buildKingpin() {
   knob.position.y = 0.55; shaft.position.y = 0.05; cane.add(shaft, knob); cane.rotation.x = Math.PI; cane.position.set(0, -0.3, 0.02);
   cane.traverse(o2 => { if (o2.isMesh) o2.castShadow = true; }); H.elR.add(cane); H.cane = cane;
   return H;
+}
+
+// tekstura twarzy przechodniow: jasna skora + rysy; kolor skory dochodzi z koloru instancji (mnozenie)
+export function pedFaceTexture() {
+  const c = outfitCanvases({ kind: 'thug', top: 'tshirt', topCol: '#fff', pants: '#fff', skin: '#f6e9de', hair: 'short', hairCol: '#5a5a5a', hat: 'none', mask: false, shoe: 'sneaker', shoeCol: '#fff' });
+  return tex(c.Hd);
 }

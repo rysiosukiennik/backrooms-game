@@ -125,8 +125,7 @@ export function updatePlayer(dt, I) {
   // cel zaczepu (do ikonki w HUD)
   const foe = nearestEnemy(5);
   P.finReady = !!(foe && P.focus >= 1);
-  P.doorNear = (!G.interior && P.state === 'ground' && !foe) ? nearestDoor(P.pos.x, P.pos.y, P.pos.z) : null;
-  P.exitNear = nearExit();
+  P.doorNear = null; P.exitNear = false; // pokoje sa prawdziwe — wchodzi sie normalnie przez drzwi
   P.perchPt = (P.state !== 'car' && P.state !== 'pz' && !P.finReady && !P.doorNear && !G.interior) ? findPerch() : null;
 
   if (I.specialP) {

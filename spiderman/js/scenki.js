@@ -61,28 +61,24 @@ const SCENES = {
       } },
     ];
   },
-  fisk: ctx => {
-    const b = ctx.b, p = ctx.p;
+  fisk: ctx => { // wspolrzedne pokoju (u wzdluz sciany, v w glab), zeby kamera zawsze byla w srodku sali
+    const b = ctx.b, R = ctx.room, y = b.y, bv = R.cd - 3.8;
+    const at = (u, v, h) => { const [x, z] = R.W(u, v); camera.position.set(x, y + h, z); };
     return [
-      { dur: 4, text: 'WILSON FISK', sub: 'Kingpin. Prawie całe miasto jest jego.', at: t => {
-        camera.position.set(p.x + lerp(3.4, 1.2, ease(t)), p.y + 1.55, p.z + lerp(3.2, 1.8, ease(t)));
-        camera.lookAt(b.x, b.y + 1.5, b.z); camera.fov = 48;
-      } },
-      { dur: 3.4, text: 'Nie powinieneś tu wchodzić, pająku.', sub: '', at: t => {
-        camera.position.set(b.x + 0.9, b.y + 1.6, b.z + lerp(5.2, 3.6, ease(t))); camera.lookAt(b.x, b.y + 1.55, b.z); camera.fov = 42;
-      } },
+      { dur: 4, text: 'WILSON FISK', sub: 'Kingpin. Prawie całe miasto jest jego.', at: t => { at(lerp(-6, -3.5, ease(t)), lerp(R.cd * 0.3, R.cd * 0.45, ease(t)), 1.7); camera.lookAt(b.x, y + 1.5, b.z); camera.fov = 50; } },
+      { dur: 3.4, text: 'Nie powinieneś tu wchodzić, pająku.', sub: '', at: t => { at(0.9, bv - lerp(5.2, 3.6, ease(t)), 1.6); camera.lookAt(b.x, y + 1.55, b.z); camera.fov = 42; } },
     ];
   },
   fisk2: ctx => {
-    const b = ctx.b;
+    const b = ctx.b, R = ctx.room, y = b.y, bv = R.cd - 3.8;
     return [{ dur: 3.4, text: 'Skoro nalegasz…', sub: 'Bądź gotów.', at: t => {
-      camera.position.set(b.x - 2.6, b.y + lerp(0.6, 1.3, t), b.z + lerp(6, 4.4, ease(t))); camera.lookAt(b.x, b.y + 1.9, b.z); camera.fov = 46;
+      const [x, z] = R.W(-2.6, bv - lerp(6, 4.4, ease(t))); camera.position.set(x, y + lerp(0.6, 1.3, t), z); camera.lookAt(b.x, y + 1.9, b.z); camera.fov = 46;
     } }];
   },
   fiskEnd: ctx => {
-    const b = ctx.b;
+    const b = ctx.b, R = ctx.room, y = b.y, bv = R.cd - 3.8;
     return [{ dur: 4.2, text: 'KINGPIN POKONANY', sub: 'Nowy Jork odetchnął z ulgą.', at: t => {
-      const a = lerp(0.2, 2.4, ease(t)); camera.position.set(b.x + Math.cos(a) * 7, b.y + lerp(1.3, 3.2, t), b.z + Math.sin(a) * 7); camera.lookAt(b.x, b.y + 0.8, b.z); camera.fov = 48;
+      const a = lerp(0.3, 2.6, ease(t)), [x, z] = R.W(5 * Math.cos(a), bv - 5 * Math.sin(a)); camera.position.set(x, y + lerp(1.3, 3.0, t), z); camera.lookAt(b.x, y + 0.8, b.z); camera.fov = 48;
     } }];
   },
   bossEnd: ctx => {
