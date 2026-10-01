@@ -1,14 +1,14 @@
 // Start gry i glowna petla: stan menu / gra / pauza, kamera trzecioosobowa, poswiata (bloom).
-import { V3, clamp, lerp, damp, angLerp, save, doSave, dbg } from './util.js';
+import { V3, clamp, lerp, damp, angLerp, save, doSave, dbg, resetProgress } from './util.js';
 import { G, P, cam, scene, camera, renderer, canvas, hooks, zglosBlad, pixelRatio } from './stan.js';
 import { buildCity, updateTraffic, updateEnv, raycastCity, setTOD } from './miasto.js';
 import { initPlayer, updatePlayer, updatePlayerVisual } from './gracz.js';
 import { initFX, updateFX, spawnCrime, updateEnemies, updateCrimes, updateShots, initBags, updateBags } from './wrogowie.js';
 import { initMissions, updateMissions } from './misje.js';
 import { playCine, updateCine } from './scenki.js';
-import { initUI, updateHUD, updateMenu, updatePause, openPause, showHUD, showMsg, key } from './ui.js';
-import { pollPads, gameInput, endFrame, lockMouse, pad } from './wejscie.js';
-import { initAudio, setWind, setMusic, cityAmbience } from './dzwiek.js';
+import { initUI, updateHUD, updateMenu, updatePause, openPause, showHUD, showMsg, key, hideSplash } from './ui.js';
+import { pollPads, gameInput, endFrame, lockMouse, pad, KP, MP } from './wejscie.js';
+import { initAudio, setWind, setMusic, cityAmbience, sfx } from './dzwiek.js';
 import { updateRooms } from './wnetrza.js';
 
 try {
@@ -55,8 +55,12 @@ beacon.visible = false; scene.add(beacon);
 hooks.start = mode => {
   G.mode = mode; initAudio();
   showHUD(true); G.state = 'play';
-  if (!G.started) {
-    G.started = true; P.perch = false;
+  if (!G.started && save.pos && save.hasGame) { // kontynuacja: wracamy dokladnie tam, gdzie zapisano
+    G.started = true; P.perch = false; P.pos.set(save.pos[0], save.pos[1] + 0.2, save.pos[2]); P.vel.set(0, 0, 0); P.state = 'air'; P.airT = 0.2; P.heading = save.hd || 0;
+    cam.yaw = P.heading + Math.PI; cam.pitch = -0.25; cam.dist = 6; cam.tgt.copy(P.pos).add(new V3(0, 1.4, 0));
+    showMsg('WITAJ Z POWROTEM', `Poziom ${save.lvl} · wczytano zapis`, 3.5);
+  } else if (!G.started) {
+    G.started = true; P.perch = false; save.hasGame = true; doSave();
     cam.yaw = P.heading + Math.PI - 0.6; cam.pitch = -0.3; cam.dist = 6; cam.tgt.copy(P.pos).add(new V3(0, 1.4, 0));
     P.perch = true; // wstep filmowy: Spider-Man przycupniety na szczycie wiezowca
     playCine('intro', { onEnd: () => { P.perch = false; cam.tgt.copy(P.pos).add(new V3(0, 1.4, 0)); showMsg('NOWY JORK', `Zeskocz z wieżowca i przytrzymaj ${key('swing')} w powietrzu, żeby się bujać`, 6); } });
@@ -65,6 +69,11 @@ hooks.start = mode => {
   if (mode === 'kb') lockMouse();
   else if (!pad.connected) showMsg('NIE WYKRYTO PADA', 'Podłącz pada i naciśnij na nim dowolny przycisk', 4);
 };
+// zapis gry: postep zapisuje sie sam, a to dodatkowo zapamietuje miejsce, w ktorym stoisz
+function savePos() { save.pos = [P.pos.x, P.pos.y, P.pos.z]; save.hd = P.heading; save.hasGame = true; save.savedAt = Date.now(); doSave(); }
+hooks.save = () => { savePos(); sfx('win'); showMsg('GRA ZAPISANA', 'Postęp i miejsce zostały zapamiętane', 2.5); };
+hooks.newGame = () => { resetProgress(); location.reload(); };
+let posT = 0;
 hooks.toMenu = () => {
   G.state = 'menu'; showHUD(false);
   if (document.pointerLockElement) document.exitPointerLock();
@@ -177,9 +186,15 @@ function step(now) {
       updateHUD(rdt);
       setWind(P.vel.length());
       cityAmbience(rdt, P.pos.y < 30);
+      posT += rdt; if (posT > 8 && !P.dead && P.pos.y > 0 && P.pos.y < 400) { posT = 0; savePos(); } // autozapis miejsca co 8 s
       checkSpeed(rdt);
     }
-  } else if (G.state === 'menu') { updateMenu(rdt); menuCam(rdt); setWind(0); }
+  } else if (G.state === 'menu') {
+    if (G.splash) { // ekran tytulowy: dowolny przycisk wchodzi do menu (ten sam przycisk nie wybiera pozycji menu)
+      if (Object.keys(KP).length || Object.keys(MP).length || pad.b.some((b, i) => b && !pad.prev[i])) hideSplash();
+    } else updateMenu(rdt);
+    menuCam(rdt); setWind(0);
+  }
   else if (G.state === 'pause') { updatePause(rdt); setWind(0); }
 
   if (G.state === 'play') updateRooms(dt);

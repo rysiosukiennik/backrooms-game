@@ -65,6 +65,16 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
 #lockHint{position:absolute;left:50%;top:62%;transform:translateX(-50%);padding:10px 24px;background:rgba(0,0,0,.65);font-weight:700;font-size:20px;border:1px solid var(--cy)}
 #vig{position:fixed;inset:0;z-index:4;pointer-events:none;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 58%,rgba(8,6,14,.42) 100%)}
 #flare{position:fixed;left:0;top:0;width:520px;height:520px;margin:-260px 0 0 -260px;z-index:4;pointer-events:none;opacity:0;background:radial-gradient(circle,rgba(255,236,200,.55) 0%,rgba(255,200,130,.22) 18%,rgba(255,170,90,.08) 40%,rgba(255,170,90,0) 62%),radial-gradient(circle at 70% 70%,rgba(160,200,255,.14) 0,rgba(160,200,255,0) 8%)}
+#tytul{position:fixed;inset:0;z-index:40;background:#05090f radial-gradient(ellipse at 50% 40%,#2a1a3a,#05090f 70%);transition:opacity .9s;cursor:pointer}
+#tytul.off{opacity:0;pointer-events:none}
+#tytul img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#tytul:after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.25) 0%,rgba(0,0,0,0) 35%,rgba(0,0,0,.6) 100%)}
+#tytul .tt{position:absolute;left:0;right:0;top:11vh;text-align:center;z-index:2;text-shadow:0 6px 40px rgba(0,0,0,.7)}
+#tytul .tt b{display:block;font-family:'Bebas Neue',Impact,sans-serif;font-weight:400;font-size:clamp(70px,14vw,200px);line-height:.85;letter-spacing:4px}
+#tytul .tt b i{font-style:normal;color:var(--red)}
+#tytul .tt span{display:block;font-weight:700;font-size:clamp(16px,2.2vw,28px);letter-spacing:14px;color:var(--cy);margin-top:12px}
+#tytul .tp{position:absolute;left:0;right:0;bottom:7vh;text-align:center;z-index:2;font-weight:700;font-size:22px;letter-spacing:4px;animation:mig 1.6s ease-in-out infinite}
+@keyframes mig{50%{opacity:.35}}
 #fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:20;transition:opacity .6s}
 #menu{position:fixed;inset:0;z-index:10;background:linear-gradient(90deg,rgba(3,10,18,.9) 0%,rgba(3,10,18,.55) 38%,transparent 64%)}
 #logo{position:absolute;left:7vw;top:8vh}
@@ -174,6 +184,7 @@ const HTML = `
   <div id="pauseFoot"></div>
 </div>
 <div id="vig"></div><div id="flare"></div>
+<div id="tytul"><img src="tytul.jpg" alt="" onerror="this.style.display='none'"><div class="tt"><b>SPIDER<i>-</i>MAN</b><span>NOWY JORK</span></div><div class="tp">NACIŚNIJ DOWOLNY PRZYCISK</div></div>
 <div id="fade"></div>`;
 
 // ---------------------------------------------------------------- przyciski
@@ -408,6 +419,7 @@ function menuItems() {
   return [
     ['pad', 'GRAJ NA PADZIE'],
     ['kb', 'GRAJ NA KOMPUTERZE <small>klawiatura + mysz</small>'],
+    ['new', newLabel()],
     ['suits', 'STROJE'], ['skills', 'UMIEJĘTNOŚCI'], ['moves', 'STEROWANIE'],
     ['tod', todLabel()], ['music', musLabel()], ['gfx', gfxLabel()],
   ];
@@ -425,13 +437,22 @@ function renderMenu() {
   }
   [...L.children].forEach((d, i) => {
     const [a, t] = items[i];
-    const h = G.started && (a === 'pad' || a === 'kb') ? t.replace('GRAJ', 'WRÓĆ DO GRY') : t;
+    const h = (a === 'pad' || a === 'kb') ? t.replace('GRAJ', G.started ? 'WRÓĆ DO GRY' : save.hasGame ? 'KONTYNUUJ' : 'GRAJ') : t;
     if (d.innerHTML !== h) d.innerHTML = h;
     d.classList.toggle('f', i === G.menuIdx);
   });
 }
+// nowa gra kasuje postep, wiec wymaga drugiego potwierdzenia w ciagu 4 sekund
+let askNew = -9999;
+const newLabel = () => performance.now() - askNew < 4000 ? 'NA PEWNO? POSTĘP ZNIKNIE' : (G.started || save.hasGame ? 'NOWA GRA <small>kasuje postęp</small>' : 'NOWA GRA');
+function confirmNew(refresh) {
+  if (performance.now() - askNew < 4000) { hooks.newGame(); return; }
+  askNew = performance.now(); refresh(); setTimeout(refresh, 4100);
+}
+export function hideSplash() { const t = $('tytul'); if (!t || !G.splash) return; G.splash = false; t.classList.add('off'); setTimeout(() => t.remove(), 1000); }
 function menuAct(a) {
   sfx('ui');
+  if (a === 'new') { confirmNew(renderMenu); return; }
   if (a === 'pad' || a === 'kb') hooks.start(a);
   else if (a === 'suits') openPause('suits', true);
   else if (a === 'skills') openPause('skills', true);
@@ -448,7 +469,7 @@ export function updateMenu(dt) {
   if (N.ok) menuAct(menuItems()[G.menuIdx][0]);
   const f = (pad.connected ? `🎮 Wykryto pada: <b>${pad.type === 'ps' ? 'PlayStation' : 'Xbox / inny'}</b>` : '🎮 Pad niepodłączony — podłącz i naciśnij dowolny przycisk')
     + `<br>${audioOK() ? '🔊 Dźwięk włączony' : '🔈 Kliknij lub naciśnij klawisz, żeby włączyć dźwięk'}`
-    + `<br>Poziom ${save.lvl} · Plecaki ${save.bags.length}/${BAGS_N} · Postępy ${progress()}%`;
+    + `<br>Poziom ${save.lvl} · Plecaki ${save.bags.length}/${BAGS_N} · Postępy ${progress()}%` + (save.savedAt ? ` · Zapis: ${new Date(save.savedAt).toLocaleString('pl-PL', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}` : '');
   if (f !== footTxt) { footTxt = f; $('menuFoot').innerHTML = f; }
 }
 
@@ -702,7 +723,7 @@ function renderMoves() {
 // ---- gra
 function gameItems() {
   const base = [['tod', todLabel()], ['music', musLabel()], ['gfx', gfxLabel()]];
-  return G.pauseFrom === 'menu' ? [['back', 'WRÓĆ'], ...base] : [['resume', 'WZNÓW GRĘ'], ...base, ['menu', 'MENU GŁÓWNE']];
+  return G.pauseFrom === 'menu' ? [['back', 'WRÓĆ'], ...base] : [['resume', 'WZNÓW GRĘ'], ['save', 'ZAPISZ GRĘ'], ...base, ['new', newLabel()], ['menu', 'MENU GŁÓWNE']];
 }
 function renderGame() {
   const it = gameItems(), L = $('gameList'); G.gameIdx = clamp(G.gameIdx, 0, it.length - 1);
@@ -718,6 +739,8 @@ function renderGame() {
 }
 function gameAct(a) {
   sfx('ui');
+  if (a === 'save') { hooks.save(); renderGame(); return; }
+  if (a === 'new') { confirmNew(renderGame); return; }
   if (a === 'resume' || a === 'back') closePause();
   else if (a === 'gfx') { hooks.gfx(); renderGame(); }
   else if (a === 'tod') { hooks.tod(); renderGame(); }
@@ -733,6 +756,7 @@ function updateGame(N) {
 
 // ---------------------------------------------------------------- start interfejsu
 export function initUI() {
+  G.splash = true;
   const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
   const wrap = document.createElement('div'); wrap.innerHTML = HTML; while (wrap.firstChild) document.body.appendChild(wrap.firstChild);
   buildMiniBase();

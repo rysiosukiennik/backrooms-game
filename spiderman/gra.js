@@ -64,6 +64,11 @@
       }
     });
   }
+  function resetProgress() {
+    const keep = { gfx: save.gfx, tod: save.tod, music: save.music };
+    Object.assign(save, { lvl: 1, xp: 0, suit: "adv", bags: [], crimes: 0, skills: [], races: {}, bossWins: 0, chases: 0, fisk: 0, pos: null, hd: 0, hasGame: false, savedAt: 0 }, keep);
+    doSave();
+  }
   function doSave() {
     try {
       localStorage.setItem(KEY, JSON.stringify(save));
@@ -97,6 +102,10 @@
         bossWins: 0,
         chases: 0,
         fisk: 0,
+        pos: null,
+        hd: 0,
+        hasGame: false,
+        savedAt: 0,
         tod: "sunset",
         music: true
       };
@@ -6656,6 +6665,7 @@
     return [
       ["pad", "GRAJ NA PADZIE"],
       ["kb", "GRAJ NA KOMPUTERZE <small>klawiatura + mysz</small>"],
+      ["new", newLabel()],
       ["suits", "STROJE"],
       ["skills", "UMIEJ\u0118TNO\u015ACI"],
       ["moves", "STEROWANIE"],
@@ -6678,13 +6688,33 @@
     }
     [...L.children].forEach((d, i) => {
       const [a, t] = items[i];
-      const h = G.started && (a === "pad" || a === "kb") ? t.replace("GRAJ", "WR\xD3\u0106 DO GRY") : t;
+      const h = a === "pad" || a === "kb" ? t.replace("GRAJ", G.started ? "WR\xD3\u0106 DO GRY" : save.hasGame ? "KONTYNUUJ" : "GRAJ") : t;
       if (d.innerHTML !== h) d.innerHTML = h;
       d.classList.toggle("f", i === G.menuIdx);
     });
   }
+  function confirmNew(refresh) {
+    if (performance.now() - askNew < 4e3) {
+      hooks.newGame();
+      return;
+    }
+    askNew = performance.now();
+    refresh();
+    setTimeout(refresh, 4100);
+  }
+  function hideSplash() {
+    const t = $("tytul");
+    if (!t || !G.splash) return;
+    G.splash = false;
+    t.classList.add("off");
+    setTimeout(() => t.remove(), 1e3);
+  }
   function menuAct(a) {
     sfx("ui");
+    if (a === "new") {
+      confirmNew(renderMenu);
+      return;
+    }
     if (a === "pad" || a === "kb") hooks.start(a);
     else if (a === "suits") openPause("suits", true);
     else if (a === "skills") openPause("skills", true);
@@ -6713,7 +6743,7 @@
       sfx("ui");
     }
     if (N.ok) menuAct(menuItems()[G.menuIdx][0]);
-    const f = (pad.connected ? `\u{1F3AE} Wykryto pada: <b>${pad.type === "ps" ? "PlayStation" : "Xbox / inny"}</b>` : "\u{1F3AE} Pad niepod\u0142\u0105czony \u2014 pod\u0142\u0105cz i naci\u015Bnij dowolny przycisk") + `<br>${audioOK() ? "\u{1F50A} D\u017Awi\u0119k w\u0142\u0105czony" : "\u{1F508} Kliknij lub naci\u015Bnij klawisz, \u017Ceby w\u0142\u0105czy\u0107 d\u017Awi\u0119k"}<br>Poziom ${save.lvl} \xB7 Plecaki ${save.bags.length}/${BAGS_N} \xB7 Post\u0119py ${progress()}%`;
+    const f = (pad.connected ? `\u{1F3AE} Wykryto pada: <b>${pad.type === "ps" ? "PlayStation" : "Xbox / inny"}</b>` : "\u{1F3AE} Pad niepod\u0142\u0105czony \u2014 pod\u0142\u0105cz i naci\u015Bnij dowolny przycisk") + `<br>${audioOK() ? "\u{1F50A} D\u017Awi\u0119k w\u0142\u0105czony" : "\u{1F508} Kliknij lub naci\u015Bnij klawisz, \u017Ceby w\u0142\u0105czy\u0107 d\u017Awi\u0119k"}<br>Poziom ${save.lvl} \xB7 Plecaki ${save.bags.length}/${BAGS_N} \xB7 Post\u0119py ${progress()}%` + (save.savedAt ? ` \xB7 Zapis: ${new Date(save.savedAt).toLocaleString("pl-PL", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}` : "");
     if (f !== footTxt) {
       footTxt = f;
       $("menuFoot").innerHTML = f;
@@ -7095,7 +7125,7 @@
   }
   function gameItems() {
     const base = [["tod", todLabel()], ["music", musLabel()], ["gfx", gfxLabel()]];
-    return G.pauseFrom === "menu" ? [["back", "WR\xD3\u0106"], ...base] : [["resume", "WZN\xD3W GR\u0118"], ...base, ["menu", "MENU G\u0141\xD3WNE"]];
+    return G.pauseFrom === "menu" ? [["back", "WR\xD3\u0106"], ...base] : [["resume", "WZN\xD3W GR\u0118"], ["save", "ZAPISZ GR\u0118"], ...base, ["new", newLabel()], ["menu", "MENU G\u0141\xD3WNE"]];
   }
   function renderGame() {
     const it = gameItems(), L = $("gameList");
@@ -7118,6 +7148,15 @@
   }
   function gameAct(a) {
     sfx("ui");
+    if (a === "save") {
+      hooks.save();
+      renderGame();
+      return;
+    }
+    if (a === "new") {
+      confirmNew(renderGame);
+      return;
+    }
     if (a === "resume" || a === "back") closePause();
     else if (a === "gfx") {
       hooks.gfx();
@@ -7146,6 +7185,7 @@
     if (N.ok) gameAct(gameItems()[G.gameIdx][0]);
   }
   function initUI() {
+    G.splash = true;
     const st = document.createElement("style");
     st.textContent = CSS;
     document.head.appendChild(st);
@@ -7183,7 +7223,7 @@
     $("menu").classList.toggle("hidden", on);
     if (!on) renderMenu();
   }
-  var CSS, HTML, GLY, kk, msgT, dmgT, distT, distChk, promptT, lastPrompt, lastDist, popT, hintT, hintsShown, icoCrime, icoWP, progress, miniBase, MM, LN, _p, set, _sf, _so, flareK, gfxLabel, todLabel, musLabel, footTxt, TABS, mapV, SV;
+  var CSS, HTML, GLY, kk, msgT, dmgT, distT, distChk, promptT, lastPrompt, lastDist, popT, hintT, hintsShown, icoCrime, icoWP, progress, miniBase, MM, LN, _p, set, _sf, _so, flareK, gfxLabel, todLabel, musLabel, askNew, newLabel, footTxt, TABS, mapV, SV;
   var init_ui = __esm({
     "js/ui.js"() {
       init_util();
@@ -7251,6 +7291,16 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
 #lockHint{position:absolute;left:50%;top:62%;transform:translateX(-50%);padding:10px 24px;background:rgba(0,0,0,.65);font-weight:700;font-size:20px;border:1px solid var(--cy)}
 #vig{position:fixed;inset:0;z-index:4;pointer-events:none;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 58%,rgba(8,6,14,.42) 100%)}
 #flare{position:fixed;left:0;top:0;width:520px;height:520px;margin:-260px 0 0 -260px;z-index:4;pointer-events:none;opacity:0;background:radial-gradient(circle,rgba(255,236,200,.55) 0%,rgba(255,200,130,.22) 18%,rgba(255,170,90,.08) 40%,rgba(255,170,90,0) 62%),radial-gradient(circle at 70% 70%,rgba(160,200,255,.14) 0,rgba(160,200,255,0) 8%)}
+#tytul{position:fixed;inset:0;z-index:40;background:#05090f radial-gradient(ellipse at 50% 40%,#2a1a3a,#05090f 70%);transition:opacity .9s;cursor:pointer}
+#tytul.off{opacity:0;pointer-events:none}
+#tytul img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#tytul:after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.25) 0%,rgba(0,0,0,0) 35%,rgba(0,0,0,.6) 100%)}
+#tytul .tt{position:absolute;left:0;right:0;top:11vh;text-align:center;z-index:2;text-shadow:0 6px 40px rgba(0,0,0,.7)}
+#tytul .tt b{display:block;font-family:'Bebas Neue',Impact,sans-serif;font-weight:400;font-size:clamp(70px,14vw,200px);line-height:.85;letter-spacing:4px}
+#tytul .tt b i{font-style:normal;color:var(--red)}
+#tytul .tt span{display:block;font-weight:700;font-size:clamp(16px,2.2vw,28px);letter-spacing:14px;color:var(--cy);margin-top:12px}
+#tytul .tp{position:absolute;left:0;right:0;bottom:7vh;text-align:center;z-index:2;font-weight:700;font-size:22px;letter-spacing:4px;animation:mig 1.6s ease-in-out infinite}
+@keyframes mig{50%{opacity:.35}}
 #fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:20;transition:opacity .6s}
 #menu{position:fixed;inset:0;z-index:10;background:linear-gradient(90deg,rgba(3,10,18,.9) 0%,rgba(3,10,18,.55) 38%,transparent 64%)}
 #logo{position:absolute;left:7vw;top:8vh}
@@ -7359,6 +7409,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
   <div id="pauseFoot"></div>
 </div>
 <div id="vig"></div><div id="flare"></div>
+<div id="tytul"><img src="tytul.jpg" alt="" onerror="this.style.display='none'"><div class="tt"><b>SPIDER<i>-</i>MAN</b><span>NOWY JORK</span></div><div class="tp">NACI\u015ANIJ DOWOLNY PRZYCISK</div></div>
 <div id="fade"></div>`;
       GLY = {
         xbox: { jump: "A", dodge: "B", punch: "X", web: "RB", swing: "RT", special: "Y", map: "VIEW", pause: "MENU", ok: "A", back: "B", y: "Y", lb: "LB", rb: "RB", lt: "LT", rt: "RT" },
@@ -7393,6 +7444,8 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       gfxLabel = () => "GRAFIKA: " + (save.gfx === "high" ? "WYSOKA" : "NISKA");
       todLabel = () => "PORA DNIA: " + TOD_NAMES[save.tod];
       musLabel = () => "MUZYKA: " + (save.music ? "W\u0141\u0104CZONA" : "WY\u0141\u0104CZONA");
+      askNew = -9999;
+      newLabel = () => performance.now() - askNew < 4e3 ? "NA PEWNO? POST\u0118P ZNIKNIE" : G.started || save.hasGame ? "NOWA GRA <small>kasuje post\u0119p</small>" : "NOWA GRA";
       footTxt = "";
       TABS = [["map", "MAPA"], ["skills", "UMIEJ\u0118TNO\u015ACI"], ["miss", "MISJE"], ["suits", "STROJE"], ["moves", "LISTA RUCH\xD3W"], ["game", "GRA"]];
       mapV = { cx: 0, cz: 0, zoom: 1 };
@@ -9109,9 +9162,24 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     initAudio();
     showHUD(true);
     G.state = "play";
-    if (!G.started) {
+    if (!G.started && save.pos && save.hasGame) {
       G.started = true;
       P.perch = false;
+      P.pos.set(save.pos[0], save.pos[1] + 0.2, save.pos[2]);
+      P.vel.set(0, 0, 0);
+      P.state = "air";
+      P.airT = 0.2;
+      P.heading = save.hd || 0;
+      cam.yaw = P.heading + Math.PI;
+      cam.pitch = -0.25;
+      cam.dist = 6;
+      cam.tgt.copy(P.pos).add(new V3(0, 1.4, 0));
+      showMsg("WITAJ Z POWROTEM", `Poziom ${save.lvl} \xB7 wczytano zapis`, 3.5);
+    } else if (!G.started) {
+      G.started = true;
+      P.perch = false;
+      save.hasGame = true;
+      doSave();
       cam.yaw = P.heading + Math.PI - 0.6;
       cam.pitch = -0.3;
       cam.dist = 6;
@@ -9127,6 +9195,23 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     if (mode2 === "kb") lockMouse();
     else if (!pad.connected) showMsg("NIE WYKRYTO PADA", "Pod\u0142\u0105cz pada i naci\u015Bnij na nim dowolny przycisk", 4);
   };
+  function savePos() {
+    save.pos = [P.pos.x, P.pos.y, P.pos.z];
+    save.hd = P.heading;
+    save.hasGame = true;
+    save.savedAt = Date.now();
+    doSave();
+  }
+  hooks.save = () => {
+    savePos();
+    sfx("win");
+    showMsg("GRA ZAPISANA", "Post\u0119p i miejsce zosta\u0142y zapami\u0119tane", 2.5);
+  };
+  hooks.newGame = () => {
+    resetProgress();
+    location.reload();
+  };
+  var posT = 0;
   hooks.toMenu = () => {
     G.state = "menu";
     showHUD(false);
@@ -9276,10 +9361,17 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
         updateHUD(rdt);
         setWind(P.vel.length());
         cityAmbience(rdt, P.pos.y < 30);
+        posT += rdt;
+        if (posT > 8 && !P.dead && P.pos.y > 0 && P.pos.y < 400) {
+          posT = 0;
+          savePos();
+        }
         checkSpeed(rdt);
       }
     } else if (G.state === "menu") {
-      updateMenu(rdt);
+      if (G.splash) {
+        if (Object.keys(KP).length || Object.keys(MP).length || pad.b.some((b, i) => b && !pad.prev[i])) hideSplash();
+      } else updateMenu(rdt);
       menuCam(rdt);
       setWind(0);
     } else if (G.state === "pause") {
