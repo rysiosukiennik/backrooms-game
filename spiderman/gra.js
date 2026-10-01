@@ -2771,6 +2771,7 @@
         L.vent.push({ x, z, yaw: 0, ci: 0, road: true });
       }
     }
+    for (const v of L.vent) ventList.push(v);
     for (let k = 0; k < 14; k++) {
       const x = (k % 2 ? PK.x0 + 42 : PK.x0 + 196) + 3, z = PK.z0 + 20 + k * 25;
       if (z < PK.z1 - 10) L.bench.push({ x, z, yaw: k % 2 ? -Math.PI / 2 : Math.PI / 2, ci: Math.floor(srand() * 3), park: true });
@@ -2971,6 +2972,7 @@
     for (const r of roofs) if (r.x1 - r.x0 >= 14 && r.z1 - r.z0 >= 14 && r.y1 >= 15 && r.y1 <= 100) spots.push({ x0: r.x0, x1: r.x1, z0: r.z0, z1: r.z1, y1: r.y1, cx: (r.x0 + r.x1) / 2, cz: (r.z0 + r.z1) / 2, busy: false });
     footprints.sort((a, b) => a.h - b.h);
     initTraffic();
+    initLife();
   }
   function loftZ(rings, segs, n) {
     const pos = [], idx = [];
@@ -3094,6 +3096,58 @@
       return m;
     }));
   }
+  function initLife() {
+    const sc = cv(64, 64), sx = sc.getContext("2d"), sg = sx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    sg.addColorStop(0, "rgba(255,255,255,.55)");
+    sg.addColorStop(0.6, "rgba(255,255,255,.2)");
+    sg.addColorStop(1, "rgba(255,255,255,0)");
+    sx.fillStyle = sg;
+    sx.fillRect(0, 0, 64, 64);
+    const N = Math.max(1, ventList.length) * 10, pos = new Float32Array(N * 3);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    steam = { N, pos, age: new Float32Array(N).map((_, i) => i % 10 * 0.35), pts: new THREE.Points(g, new THREE.PointsMaterial({ map: canvasTex(sc), size: 4.5, sizeAttenuation: true, transparent: true, opacity: 0.5, depthWrite: false, color: 15265008 })) };
+    steam.pts.frustumCulled = false;
+    scene.add(steam.pts);
+    const wg = new THREE.BufferGeometry();
+    wg.setAttribute("position", new THREE.Float32BufferAttribute([0, 0, 0.12, 0.45, 0.05, -0.08, 0, 0, -0.14, 0, 0, 0.12, -0.45, 0.05, -0.08, 0, 0, -0.14, 0, 0, 0.12, 0.02, 0, -0.14, -0.02, 0, -0.14], 3));
+    wg.computeVertexNormals();
+    birds = new THREE.InstancedMesh(wg, new THREE.MeshStandardMaterial({ color: 5593182, roughness: 0.9, side: THREE.DoubleSide }), BIRD_N);
+    for (let i = 0; i < BIRD_N; i++) {
+      const gi = Math.floor(i / 7);
+      const r = srand;
+      birdData.push({ cx: X0 + 40 + gi * 97 % 600, cz: Z0 + 60 + gi * 173 % 1050, r: 22 + srand() * 30, h: 45 + srand() * 90, w: 0.35 + srand() * 0.25, ph: srand() * 6.28, fl: 8 + srand() * 4 });
+    }
+    birds.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    birds.frustumCulled = false;
+    scene.add(birds);
+  }
+  function updateLife(dt) {
+    if (!steam) return;
+    const t = G.time;
+    ventList.forEach((v, vi) => {
+      for (let k = 0; k < 10; k++) {
+        const i = vi * 10 + k;
+        steam.age[i] += dt;
+        if (steam.age[i] > 3.5) steam.age[i] -= 3.5;
+        const a = steam.age[i], dx = Math.sin(i * 12.9 + a * 1.3) * 0.25 * a, dz = Math.cos(i * 7.7 + a * 1.1) * 0.25 * a;
+        steam.pos[i * 3] = v.x + dx + a * 0.25;
+        steam.pos[i * 3 + 1] = 1.5 + a * 1.9;
+        steam.pos[i * 3 + 2] = v.z + dz;
+      }
+    });
+    steam.pts.geometry.attributes.position.needsUpdate = true;
+    birdData.forEach((b, i) => {
+      const a = t * b.w + b.ph, x = b.cx + Math.cos(a) * b.r, z = b.cz + Math.sin(a) * b.r, y = b.h + Math.sin(a * 2.3) * 4;
+      _bo.position.set(x, y, z);
+      _bo.rotation.set(0, Math.atan2(-Math.sin(a), Math.cos(a)) + Math.PI / 2 * 0, Math.sin(t * b.fl + i) * 0.5);
+      _bo.rotation.y = Math.atan2(-Math.sin(a) * b.r, Math.cos(a) * b.r);
+      _bo.scale.set(1, 1, 1);
+      _bo.updateMatrix();
+      birds.setMatrixAt(i, _bo.matrix);
+    });
+    birds.instanceMatrix.needsUpdate = true;
+  }
   function scarePeds(x, z, r = 45) {
     for (const p of peds) {
       const px = p.ax === "x" ? p.s : p.c, pz = p.ax === "x" ? p.c : p.s;
@@ -3105,6 +3159,7 @@
     }
   }
   function updateTraffic(dt) {
+    updateLife(dt);
     const hp = headL.geometry.attributes.position, tp = tailL.geometry.attributes.position;
     cars.forEach((c, i) => {
       const L = c.L;
@@ -3173,7 +3228,7 @@
       if (m.instanceColor) m.instanceColor.needsUpdate = true;
     }
   }
-  var BW, BD, ST, NX, NZ, CX, CZ, CW, CD, X0, Z0, LAND, PK, POND, isPark, inPark, isecPos, DIST, doors, boxes, roofs, footprints, spots, perches, START, START_H, HC2, hash, stamp, hk, _s1, _s2, _rl, rayN, _rbN, CHUNK, cur, STY, CURT, SHOPS, SIGNC, sunDir, sun, sky, clouds, stars, moon, hemi, amb, water, pondM, waterNormal, TOD, TOD_NAMES, skyU, lin3, pmrem, envRT, skyScene, facMats, shopMat, lampMat, boardMats, glowPts, todName, facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo, ironGeo, SW, tanks, awnings, masts, boards, DOOR_TYPES, ROOMSPEC, acUnits, balconyCount, streetFaces, FISK_DOOR, LANDMARKS, export_arena, ARENA, bx, cy, PROPS, cars, peds, carBody, carGlass, carWheel, carSign, headL, tailL, pedMesh, _o, _c;
+  var BW, BD, ST, NX, NZ, CX, CZ, CW, CD, X0, Z0, LAND, PK, POND, isPark, inPark, isecPos, DIST, doors, boxes, roofs, footprints, spots, perches, START, START_H, HC2, hash, stamp, hk, _s1, _s2, _rl, rayN, _rbN, CHUNK, cur, STY, CURT, SHOPS, SIGNC, sunDir, sun, sky, clouds, stars, moon, hemi, amb, water, pondM, waterNormal, TOD, TOD_NAMES, skyU, lin3, pmrem, envRT, skyScene, facMats, shopMat, lampMat, boardMats, glowPts, todName, facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo, ironGeo, SW, tanks, awnings, masts, boards, DOOR_TYPES, ROOMSPEC, acUnits, balconyCount, streetFaces, FISK_DOOR, LANDMARKS, export_arena, ARENA, bx, cy, PROPS, ventList, cars, peds, carBody, carGlass, carWheel, carSign, headL, tailL, pedMesh, _o, _c, steam, birds, BIRD_N, birdData, _bo;
   var init_miasto = __esm({
     "js/miasto.js"() {
       init_util();
@@ -3391,11 +3446,17 @@
         vent: { geo: () => propGeo([[new THREE.CylinderGeometry(0.22, 0.4, 1.4, 12).translate(0, 0.7, 0), 16742938], [cy(0.42, 0.42, 0.12, 0, 0.06, 0, 12), 4473924], [cy(0.235, 0.235, 0.12, 0, 0.9, 0, 12), 15921906], [cy(0.2, 0.2, 0.1, 0, 1.36, 0, 12), 15921906]]), cols: [16777215] },
         shelter: { geo: () => propGeo([[bx(3.6, 0.1, 1.4, 0, 2.5, 0), 2830131], [bx(0.08, 2.5, 0.08, -1.7, 1.25, -0.6), 2830131], [bx(0.08, 2.5, 0.08, 1.7, 1.25, -0.6), 2830131], [bx(3.4, 2.1, 0.04, 0, 1.3, -0.62), 10470614], [bx(0.04, 2.1, 1.1, -1.7, 1.3, -0.05), 10470614], [bx(1.8, 0.06, 0.4, 0.2, 0.5, -0.4), 7031338], [bx(0.9, 1.4, 0.05, -0.5, 1.4, -0.6), 15262936]]), cols: [16777215] }
       };
+      ventList = [];
       cars = [];
       peds = [];
       pedMesh = [];
       _o = new THREE.Object3D();
       _c = new THREE.Color();
+      steam = null;
+      birds = null;
+      BIRD_N = 70;
+      birdData = [];
+      _bo = new THREE.Object3D();
     }
   });
 
@@ -6499,6 +6560,25 @@
       sn.style.transform = `translate(${hp[0] - 55}px,${hp[1] - 60}px)`;
     } else sn.style.opacity = 0;
     drawMini();
+    updateFlare();
+  }
+  function updateFlare() {
+    const el2 = $("flare");
+    if (!el2) return;
+    let want = 0;
+    if (G.state === "play" && !G.cine && !G.interior && save.tod !== "night") {
+      _sf.copy(camera.position).addScaledVector(sunDir, 1500).project(camera);
+      if (_sf.z < 1 && Math.abs(_sf.x) < 1.15 && Math.abs(_sf.y) < 1.15) {
+        _so.copy(sunDir);
+        const blocked = raycastCity(camera.position, _so, 700) < 699;
+        if (!blocked) {
+          want = Math.max(0, 1 - Math.hypot(_sf.x, _sf.y) * 0.55) * (save.tod === "day" ? 0.55 : 1);
+          el2.style.transform = `translate(${(_sf.x * 0.5 + 0.5) * innerWidth}px,${(-_sf.y * 0.5 + 0.5) * innerHeight}px)`;
+        }
+      }
+    }
+    flareK += (want - flareK) * 0.12;
+    el2.style.opacity = flareK.toFixed(3);
   }
   function menuItems() {
     return [
@@ -7031,7 +7111,7 @@
     $("menu").classList.toggle("hidden", on);
     if (!on) renderMenu();
   }
-  var CSS, HTML, GLY, kk, msgT, dmgT, distT, distChk, promptT, lastPrompt, lastDist, popT, hintT, hintsShown, icoCrime, icoWP, progress, miniBase, MM, LN, _p, set, gfxLabel, todLabel, musLabel, footTxt, TABS, mapV, SV;
+  var CSS, HTML, GLY, kk, msgT, dmgT, distT, distChk, promptT, lastPrompt, lastDist, popT, hintT, hintsShown, icoCrime, icoWP, progress, miniBase, MM, LN, _p, set, _sf, _so, flareK, gfxLabel, todLabel, musLabel, footTxt, TABS, mapV, SV;
   var init_ui = __esm({
     "js/ui.js"() {
       init_util();
@@ -7097,6 +7177,8 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
 #lines{position:absolute;inset:0;width:100%;height:100%;opacity:0}
 #dmg{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 40%,rgba(200,0,0,.65) 100%);opacity:0;transition:opacity .35s}
 #lockHint{position:absolute;left:50%;top:62%;transform:translateX(-50%);padding:10px 24px;background:rgba(0,0,0,.65);font-weight:700;font-size:20px;border:1px solid var(--cy)}
+#vig{position:fixed;inset:0;z-index:4;pointer-events:none;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 58%,rgba(8,6,14,.42) 100%)}
+#flare{position:fixed;left:0;top:0;width:520px;height:520px;margin:-260px 0 0 -260px;z-index:4;pointer-events:none;opacity:0;background:radial-gradient(circle,rgba(255,236,200,.55) 0%,rgba(255,200,130,.22) 18%,rgba(255,170,90,.08) 40%,rgba(255,170,90,0) 62%),radial-gradient(circle at 70% 70%,rgba(160,200,255,.14) 0,rgba(160,200,255,0) 8%)}
 #fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:20;transition:opacity .6s}
 #menu{position:fixed;inset:0;z-index:10;background:linear-gradient(90deg,rgba(3,10,18,.9) 0%,rgba(3,10,18,.55) 38%,transparent 64%)}
 #logo{position:absolute;left:7vw;top:8vh}
@@ -7204,6 +7286,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
   <div class="page" id="pg-game"><div id="gameList"></div><div id="gameStats"></div></div>
   <div id="pauseFoot"></div>
 </div>
+<div id="vig"></div><div id="flare"></div>
 <div id="fade"></div>`;
       GLY = {
         xbox: { jump: "A", dodge: "B", punch: "X", web: "RB", swing: "RT", special: "Y", map: "VIEW", pause: "MENU", ok: "A", back: "B", y: "Y", lb: "LB", rb: "RB", lt: "LT", rt: "RT" },
@@ -7232,6 +7315,9 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
         const e = $(id);
         if (e.style[prop] !== v) e.style[prop] = v;
       };
+      _sf = new V3();
+      _so = new V3();
+      flareK = 0;
       gfxLabel = () => "GRAFIKA: " + (save.gfx === "high" ? "WYSOKA" : "NISKA");
       todLabel = () => "PORA DNIA: " + TOD_NAMES[save.tod];
       musLabel = () => "MUZYKA: " + (save.music ? "W\u0141\u0104CZONA" : "WY\u0141\u0104CZONA");

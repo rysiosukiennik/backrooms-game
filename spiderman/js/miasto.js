@@ -872,6 +872,7 @@ const PROPS = {
   vent: { geo: () => propGeo([[new THREE.CylinderGeometry(0.22, 0.4, 1.4, 12).translate(0, 0.7, 0), 0xff7a1a], [cy(0.42, 0.42, 0.12, 0, 0.06, 0, 12), 0x444444], [cy(0.235, 0.235, 0.12, 0, 0.9, 0, 12), 0xf2f2f2], [cy(0.2, 0.2, 0.1, 0, 1.36, 0, 12), 0xf2f2f2]]), cols: [0xffffff] },
   shelter: { geo: () => propGeo([[bx(3.6, 0.1, 1.4, 0, 2.5, 0), 0x2b2f33], [bx(0.08, 2.5, 0.08, -1.7, 1.25, -0.6), 0x2b2f33], [bx(0.08, 2.5, 0.08, 1.7, 1.25, -0.6), 0x2b2f33], [bx(3.4, 2.1, 0.04, 0, 1.3, -0.62), 0x9fc4d6], [bx(0.04, 2.1, 1.1, -1.7, 1.3, -0.05), 0x9fc4d6], [bx(1.8, 0.06, 0.4, 0.2, 0.5, -0.4), 0x6b4a2a], [bx(0.9, 1.4, 0.05, -0.5, 1.4, -0.6), 0xe8e4d8]]), cols: [0xffffff] },
 };
+export const ventList = [];
 function buildProps(blocks) {
   const L = {}; for (const k in PROPS) L[k] = [];
   const near = (x, z, r) => doors.some(d => Math.hypot(x - d.gx, z - d.gz) < r);
@@ -895,6 +896,7 @@ function buildProps(blocks) {
     const cs = [[b.x0 + 0.9, b.z0 + 0.9], [b.x1 - 0.9, b.z0 + 0.9], [b.x0 + 0.9, b.z1 - 0.9], [b.x1 - 0.9, b.z1 - 0.9]][R4()]; put('sign', cs[0], cs[1], srand() < 0.5 ? 0 : Math.PI / 2, 0.5);
     if (srand() < 0.3) { const inX = srand() < 0.5, x = inX ? b.x0 + srand() * (b.x1 - b.x0) : (srand() < 0.5 ? b.x0 - 3 : b.x1 + 3), z = inX ? (srand() < 0.5 ? b.z0 - 3 : b.z1 + 3) : b.z0 + srand() * (b.z1 - b.z0); L.vent.push({ x, z, yaw: 0, ci: 0, road: true }); }
   }
+  for (const v of L.vent) ventList.push(v);
   for (let k = 0; k < 14; k++) { const x = (k % 2 ? PK.x0 + 42 : PK.x0 + 196) + 3, z = PK.z0 + 20 + k * 25; if (z < PK.z1 - 10) L.bench.push({ x, z, yaw: k % 2 ? -Math.PI / 2 : Math.PI / 2, ci: Math.floor(srand() * 3), park: true }); }
   const o = new THREE.Object3D(), col = new THREE.Color();
   for (const k in PROPS) {
@@ -1024,6 +1026,7 @@ export function buildCity() {
   for (const r of roofs) if (r.x1 - r.x0 >= 14 && r.z1 - r.z0 >= 14 && r.y1 >= 15 && r.y1 <= 100) spots.push({ x0: r.x0, x1: r.x1, z0: r.z0, z1: r.z1, y1: r.y1, cx: (r.x0 + r.x1) / 2, cz: (r.z0 + r.z1) / 2, busy: false });
   footprints.sort((a, b) => a.h - b.h);
   initTraffic();
+  initLife();
 }
 
 // ---------------------------------------------------------------- ruch uliczny
@@ -1112,6 +1115,42 @@ function initTraffic() {
     m.setColorAt(0, _c.setRGB(1, 1, 1)); m.userData.linIC = true; m.count = 0; scene.add(m); return m;
   }));
 }
+// ---------------------------------------------------------------- para z kominow i golebie
+let steam = null, birds = null;
+const BIRD_N = 70, birdData = [];
+function initLife() {
+  const sc = cv(64, 64), sx = sc.getContext('2d'), sg = sx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  sg.addColorStop(0, 'rgba(255,255,255,.55)'); sg.addColorStop(0.6, 'rgba(255,255,255,.2)'); sg.addColorStop(1, 'rgba(255,255,255,0)'); sx.fillStyle = sg; sx.fillRect(0, 0, 64, 64);
+  const N = Math.max(1, ventList.length) * 10, pos = new Float32Array(N * 3);
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  steam = { N, pos, age: new Float32Array(N).map((_, i) => (i % 10) * 0.35), pts: new THREE.Points(g, new THREE.PointsMaterial({ map: canvasTex(sc), size: 4.5, sizeAttenuation: true, transparent: true, opacity: 0.5, depthWrite: false, color: 0xe8ecf0 })) };
+  steam.pts.frustumCulled = false; scene.add(steam.pts);
+  // golebie: trojkatne skrzydla, krazace nad kwartalami
+  const wg = new THREE.BufferGeometry();
+  wg.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0.12, 0.45, 0.05, -0.08, 0, 0, -0.14, 0, 0, 0.12, -0.45, 0.05, -0.08, 0, 0, -0.14, 0, 0, 0.12, 0.02, 0, -0.14, -0.02, 0, -0.14], 3)); wg.computeVertexNormals();
+  birds = new THREE.InstancedMesh(wg, new THREE.MeshStandardMaterial({ color: 0x55585e, roughness: 0.9, side: THREE.DoubleSide }), BIRD_N);
+  for (let i = 0; i < BIRD_N; i++) { const gi = Math.floor(i / 7); const r = srand; birdData.push({ cx: X0 + 40 + ((gi * 97) % 600) , cz: Z0 + 60 + ((gi * 173) % 1050), r: 22 + srand() * 30, h: 45 + srand() * 90, w: 0.35 + srand() * 0.25, ph: srand() * 6.28, fl: 8 + srand() * 4 }); }
+  birds.instanceMatrix.setUsage(THREE.DynamicDrawUsage); birds.frustumCulled = false; scene.add(birds);
+}
+const _bo = new THREE.Object3D();
+function updateLife(dt) {
+  if (!steam) return;
+  const t = G.time;
+  ventList.forEach((v, vi) => {
+    for (let k = 0; k < 10; k++) {
+      const i = vi * 10 + k; steam.age[i] += dt; if (steam.age[i] > 3.5) steam.age[i] -= 3.5;
+      const a = steam.age[i], dx = Math.sin(i * 12.9 + a * 1.3) * 0.25 * a, dz = Math.cos(i * 7.7 + a * 1.1) * 0.25 * a;
+      steam.pos[i * 3] = v.x + dx + a * 0.25; steam.pos[i * 3 + 1] = 1.5 + a * 1.9; steam.pos[i * 3 + 2] = v.z + dz;
+    }
+  });
+  steam.pts.geometry.attributes.position.needsUpdate = true;
+  birdData.forEach((b, i) => {
+    const a = t * b.w + b.ph, x = b.cx + Math.cos(a) * b.r, z = b.cz + Math.sin(a) * b.r, y = b.h + Math.sin(a * 2.3) * 4;
+    _bo.position.set(x, y, z); _bo.rotation.set(0, Math.atan2(-Math.sin(a), Math.cos(a)) + Math.PI / 2 * 0, Math.sin(t * b.fl + i) * 0.5);
+    _bo.rotation.y = Math.atan2(-Math.sin(a) * b.r, Math.cos(a) * b.r) ; _bo.scale.set(1, 1, 1); _bo.updateMatrix(); birds.setMatrixAt(i, _bo.matrix);
+  });
+  birds.instanceMatrix.needsUpdate = true;
+}
 // przechodnie uciekaja przed strzalami
 export function scarePeds(x, z, r = 45) {
   for (const p of peds) {
@@ -1123,6 +1162,7 @@ export function scarePeds(x, z, r = 45) {
   }
 }
 export function updateTraffic(dt) {
+  updateLife(dt);
   const hp = headL.geometry.attributes.position, tp = tailL.geometry.attributes.position;
   cars.forEach((c, i) => {
     const L = c.L;

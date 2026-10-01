@@ -1,7 +1,7 @@
 // Interfejs: menu glowne, HUD, minimapa, pauza z zakladkami (mapa, umiejetnosci, misje, stroje, ruchy, gra).
 import { $, clamp, save, doSave, cv, V3, linearize } from './util.js';
 import { G, P, cam, camera, canvas, crimes, enemies, hooks } from './stan.js';
-import { LAND, PK, POND, DIST, districtAt, footprints, TOD_NAMES, ARENA } from './miasto.js';
+import { LAND, PK, POND, DIST, districtAt, footprints, TOD_NAMES, ARENA, sunDir, raycastCity } from './miasto.js';
 import { SUITS, suitThumb, buildSpider, newPose, applyPose } from './postac.js';
 import { setSuit } from './gracz.js';
 import { need, bags, BAGS_N, webTarget } from './wrogowie.js';
@@ -63,6 +63,8 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
 #lines{position:absolute;inset:0;width:100%;height:100%;opacity:0}
 #dmg{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 40%,rgba(200,0,0,.65) 100%);opacity:0;transition:opacity .35s}
 #lockHint{position:absolute;left:50%;top:62%;transform:translateX(-50%);padding:10px 24px;background:rgba(0,0,0,.65);font-weight:700;font-size:20px;border:1px solid var(--cy)}
+#vig{position:fixed;inset:0;z-index:4;pointer-events:none;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 58%,rgba(8,6,14,.42) 100%)}
+#flare{position:fixed;left:0;top:0;width:520px;height:520px;margin:-260px 0 0 -260px;z-index:4;pointer-events:none;opacity:0;background:radial-gradient(circle,rgba(255,236,200,.55) 0%,rgba(255,200,130,.22) 18%,rgba(255,170,90,.08) 40%,rgba(255,170,90,0) 62%),radial-gradient(circle at 70% 70%,rgba(160,200,255,.14) 0,rgba(160,200,255,0) 8%)}
 #fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:20;transition:opacity .6s}
 #menu{position:fixed;inset:0;z-index:10;background:linear-gradient(90deg,rgba(3,10,18,.9) 0%,rgba(3,10,18,.55) 38%,transparent 64%)}
 #logo{position:absolute;left:7vw;top:8vh}
@@ -171,6 +173,7 @@ const HTML = `
   <div class="page" id="pg-game"><div id="gameList"></div><div id="gameStats"></div></div>
   <div id="pauseFoot"></div>
 </div>
+<div id="vig"></div><div id="flare"></div>
 <div id="fade"></div>`;
 
 // ---------------------------------------------------------------- przyciski
@@ -379,6 +382,22 @@ export function updateHUD(dt) {
   if (hp) { sn.style.opacity = 1; sn.style.transform = `translate(${hp[0] - 55}px,${hp[1] - 60}px)`; } else sn.style.opacity = 0;
 
   drawMini();
+  updateFlare();
+}
+// odblask slonca w obiektywie: widoczny tylko, gdy slonce jest w kadrze i nie zaslaniaja go budynki
+const _sf = new V3(), _so = new V3();
+let flareK = 0;
+function updateFlare() {
+  const el = $('flare'); if (!el) return;
+  let want = 0;
+  if (G.state === 'play' && !G.cine && !G.interior && save.tod !== 'night') {
+    _sf.copy(camera.position).addScaledVector(sunDir, 1500).project(camera);
+    if (_sf.z < 1 && Math.abs(_sf.x) < 1.15 && Math.abs(_sf.y) < 1.15) {
+      _so.copy(sunDir); const blocked = raycastCity(camera.position, _so, 700) < 699;
+      if (!blocked) { want = Math.max(0, 1 - Math.hypot(_sf.x, _sf.y) * 0.55) * (save.tod === 'day' ? 0.55 : 1); el.style.transform = `translate(${(_sf.x * 0.5 + 0.5) * innerWidth}px,${(-_sf.y * 0.5 + 0.5) * innerHeight}px)`; }
+    }
+  }
+  flareK += (want - flareK) * 0.12; el.style.opacity = flareK.toFixed(3);
 }
 
 // ---------------------------------------------------------------- menu glowne
