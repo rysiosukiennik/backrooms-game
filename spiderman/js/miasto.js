@@ -104,28 +104,31 @@ export function raycastCity(o, d, maxT) {
 // Geometria miasta jest dzielona na kawalki 160 x 160 m: karta graficzna rysuje tylko te,
 // ktore widac (i tylko te blisko gracza do cieni), zamiast calego miasta naraz.
 const CHUNK = +(new URLSearchParams(location.search).get('chunk')) || 330;
+// parametry biezacego budynku: odcien, rozmiar kafla okien i jego przesuniecie (kazdy budynek wyglada inaczej)
+const cur = { tint: [1, 1, 1], us: 16, vs: 14, uo: 0, vo: 0 };
+function randomBuildingLook() {
+  const L = 0.8 + srand() * 0.32;
+  cur.tint = [L * (1 + (srand() - 0.5) * 0.14), L * (1 + (srand() - 0.5) * 0.1), L * (1 + (srand() - 0.5) * 0.14)];
+  cur.us = 13 + srand() * 5; cur.vs = 12 + srand() * 4; cur.uo = Math.floor(srand() * 4) / 4; cur.vo = Math.floor(srand() * 4) / 4;
+}
 function newGeo() { return { chunks: new Map() }; }
 function quad(g, a, b, c, d, n, ua, ub, uc, ud) {
   const key = Math.floor(a[0] / CHUNK) * 1000 + Math.floor(a[2] / CHUNK);
-  let s = g.chunks.get(key); if (!s) { s = { p: [], n: [], u: [] }; g.chunks.set(key, s); }
+  let s = g.chunks.get(key); if (!s) { s = { p: [], n: [], u: [], c: [] }; g.chunks.set(key, s); }
   for (const [Q, U] of [[a, ua], [b, ub], [c, uc], [a, ua], [c, uc], [d, ud]]) {
-    s.p.push(Q[0], Q[1], Q[2]); s.n.push(n[0], n[1], n[2]); s.u.push(U[0], U[1]);
+    s.p.push(Q[0], Q[1], Q[2]); s.n.push(n[0], n[1], n[2]); s.u.push(U[0], U[1]); s.c.push(cur.tint[0], cur.tint[1], cur.tint[2]);
   }
 }
-function walls(g, x0, x1, y0, y1, z0, z1, us, vs, v0 = y0 / vs, v1 = y1 / vs) {
-  quad(g, [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], [0, 0, 1], [x0 / us, v0], [x1 / us, v0], [x1 / us, v1], [x0 / us, v1]);
-  quad(g, [x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], [0, 0, -1], [-x1 / us, v0], [-x0 / us, v0], [-x0 / us, v1], [-x1 / us, v1]);
-  quad(g, [x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [1, 0, 0], [-z1 / us, v0], [-z0 / us, v0], [-z0 / us, v1], [-z1 / us, v1]);
-  quad(g, [x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], [-1, 0, 0], [z0 / us, v0], [z1 / us, v0], [z1 / us, v1], [z0 / us, v1]);
-}
-// jak walls(), ale tylko wybrane sciany (n: z0, s: z1, w: x0, e: x1); UV liczone z bezwzglednych wspolrzednych
+// sciany (n: z0, s: z1, w: x0, e: x1); UV liczone z bezwzglednych wspolrzednych. Elewacje (16 x 14) biora rozmiar i przesuniecie wzoru z cur.
 function wallsFaces(g, x0, x1, y0, y1, z0, z1, us, vs, faces) {
-  const v0 = y0 / vs, v1 = y1 / vs;
-  if (faces.includes('s')) quad(g, [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], [0, 0, 1], [x0 / us, v0], [x1 / us, v0], [x1 / us, v1], [x0 / us, v1]);
-  if (faces.includes('n')) quad(g, [x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], [0, 0, -1], [-x1 / us, v0], [-x0 / us, v0], [-x0 / us, v1], [-x1 / us, v1]);
-  if (faces.includes('e')) quad(g, [x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [1, 0, 0], [-z1 / us, v0], [-z0 / us, v0], [-z0 / us, v1], [-z1 / us, v1]);
-  if (faces.includes('w')) quad(g, [x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], [-1, 0, 0], [z0 / us, v0], [z1 / us, v0], [z1 / us, v1], [z0 / us, v1]);
+  let uo = 0, vo = 0; if (us === 16 && vs === 14) { us = cur.us; vs = cur.vs; uo = cur.uo; vo = cur.vo; }
+  const v0 = y0 / vs + vo, v1 = y1 / vs + vo, X0 = x0 / us + uo, X1 = x1 / us + uo, Z0 = z0 / us + uo, Z1 = z1 / us + uo;
+  if (faces.includes('s')) quad(g, [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], [0, 0, 1], [X0, v0], [X1, v0], [X1, v1], [X0, v1]);
+  if (faces.includes('n')) quad(g, [x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], [0, 0, -1], [-X1, v0], [-X0, v0], [-X0, v1], [-X1, v1]);
+  if (faces.includes('e')) quad(g, [x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [1, 0, 0], [-Z1, v0], [-Z0, v0], [-Z0, v1], [-Z1, v1]);
+  if (faces.includes('w')) quad(g, [x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], [-1, 0, 0], [Z0, v0], [Z1, v0], [Z1, v1], [Z0, v1]);
 }
+function walls(g, x0, x1, y0, y1, z0, z1, us, vs) { wallsFaces(g, x0, x1, y0, y1, z0, z1, us, vs, ['n', 's', 'w', 'e']); }
 function top(g, x0, x1, y, z0, z1, us) {
   quad(g, [x0, y, z1], [x1, y, z1], [x1, y, z0], [x0, y, z0], [0, 1, 0], [x0 / us, z1 / us], [x1 / us, z1 / us], [x1 / us, z0 / us], [x0 / us, z0 / us]);
 }
@@ -141,6 +144,8 @@ function meshFrom(g, mat, cast = true) {
     geo.setAttribute('position', new THREE.Float32BufferAttribute(s.p, 3));
     geo.setAttribute('normal', new THREE.Float32BufferAttribute(s.n, 3));
     geo.setAttribute('uv', new THREE.Float32BufferAttribute(s.u, 2));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(s.c, 3));
+    mat.vertexColors = true;
     geo.computeBoundingSphere();
     const m = new THREE.Mesh(geo, mat); m.castShadow = cast; m.receiveShadow = true; m.matrixAutoUpdate = false;
     scene.add(m);
@@ -185,6 +190,7 @@ function facadeTex(s) {
       x.fillStyle = g; x.fillRect(X, Y, W, H);
       x.fillStyle = 'rgba(18,22,30,.55)'; x.fillRect(X, Y, W, H);
       rx.fillStyle = '#141414'; rx.fillRect(X, Y, W, H);
+      { const sg = x.createLinearGradient(0, Y + H, 0, Y + H + 40); sg.addColorStop(0, 'rgba(20,16,12,.32)'); sg.addColorStop(1, 'rgba(20,16,12,0)'); x.fillStyle = sg; x.fillRect(X + 3, Y + H, W - 6, 40); } // smuga brudu pod oknem
       bx.fillStyle = '#5a5a5a'; bx.fillRect(X, Y, W, H);
       const q = Math.random();
       if (q < s.lit) { x.fillStyle = 'rgba(255,205,130,.7)'; x.fillRect(X, Y, W, H); }
@@ -503,6 +509,11 @@ function solid(x0, x1, y0, y1, z0, z1, st, door) {
       fullBox(trimGeo, x0 - o, x0 + 0.02, y, y + h, z0, z1, 4, true); fullBox(trimGeo, x1 - 0.02, x1 + o, y, y + h, z0, z1, 4, true);
     }
   }
+  if (!door && y0 === 0 && x1 - x0 > 6 && z1 - z0 > 6 && y1 > 8) { // cokol z ciemniejszego kamienia
+    const o = 0.14, h = 0.95;
+    fullBox(trimGeo, x0 - o, x1 + o, 0, h, z0 - o, z0 + 0.02, 4); fullBox(trimGeo, x0 - o, x1 + o, 0, h, z1 - 0.02, z1 + o, 4);
+    fullBox(trimGeo, x0 - o, x0 + 0.02, 0, h, z0, z1, 4); fullBox(trimGeo, x1 - 0.02, x1 + o, 0, h, z0, z1, 4);
+  }
   return door ? carveBoxes(door, x0, x1, y0, y1, z0, z1) : addBox({ x0, x1, y0, y1, z0, z1 });
 }
 function parapet(b) {
@@ -574,11 +585,31 @@ function roofProps(b) {
   if (b.y1 > 80) for (let i = 0; i < 1 + Math.floor(srand() * 2); i++) masts.push({ x: sr(b.x0 + 2, b.x1 - 2), y: b.y1, z: sr(b.z0 + 2, b.z1 - 2), h: sr(6, 18) });
   if (b.y1 > 18 && b.y1 < 80 && w > 18 && srand() < 0.14) boards.push(b);
 }
+const acUnits = [];
+// klimatyzatory w oknach: pozycje liczone z siatki okien tego budynku (ten sam wzor co tekstura)
+function addAC(x0, x1, z0, z1, h, dr) {
+  const per = 0.07 + srand() * 0.05;
+  for (const face of ['n', 's', 'w', 'e']) {
+    const ns = face === 'n' || face === 's', len = ns ? x1 - x0 : z1 - z0, cw = cur.us / 4, ch = cur.vs / 4;
+    for (let k = -2; k < Math.ceil(len / cw) + 2; k++) {
+      const a = ((k + 0.5) / 4 - cur.uo) * cur.us; // srodek okna wzdluz sciany (wspolrzedna bezwzgledna)
+      const pos = ns ? a : a; if (pos < (ns ? x0 : z0) + 1.2 || pos > (ns ? x1 : z1) - 1.2) continue;
+      for (let m = 1; m * ch < h - 4 && acUnits.length < 2600; m++) {
+        const y = ((m + 0.54) / 4 - cur.vo) * cur.vs + (cur.vs / 4) * 0; if (y < 5.2 || y > h - 2) continue;
+        if (srand() > per) continue;
+        if (dr && dr.face === face && Math.abs(pos - dr.c) < 3 && y < 8) continue;
+        acUnits.push({ face, x: ns ? pos : face === 'w' ? x0 - 0.3 : x1 + 0.3, z: ns ? (face === 'n' ? z0 - 0.3 : z1 + 0.3) : pos, y: y - 0.55, ns, c: 0.55 + srand() * 0.4 });
+      }
+    }
+  }
+}
 function building(x0, x1, z0, z1, h, st, dk, bk) {
+  randomBuildingLook();
   let dr = null;
   if (bk && doors.length < 90 && srand() < 0.3) { const [t, n] = DOOR_TYPES[Math.floor(srand() * DOOR_TYPES.length)]; dr = makeDoor(x0, x1, z0, z1, bk, t, n); }
   let b = solid(x0, x1, 0, h, z0, z1, st, dr);
   footprints.push({ x0, x1, z0, z1, h, dk });
+  if (bk && h > 9) addAC(x0, x1, z0, z1, h, dr);
   if (bk) storefront(x0, x1, z0, z1, bk, dr ? { face: dr.face, a0: dr.c - dr.gw / 2 - 0.3, a1: dr.c + dr.gw / 2 + 0.3 } : null);
   if (h > 55 && srand() < 0.55) {
     const ix = Math.min(sr(3, 7), (x1 - x0) * 0.2), iz = Math.min(sr(3, 7), (z1 - z0) * 0.2), h2 = h + sr(12, h * 0.45);
@@ -593,6 +624,7 @@ function building(x0, x1, z0, z1, h, st, dk, bk) {
   roofs.push(b); roofProps(b);
 }
 function tiers(cx, cz, T, st, dk, door) {
+  randomBuildingLook();
   let b, first = true;
   for (const [hw, hd, y0, y1, s] of T) {
     b = solid(cx - hw, cx + hw, y0, y1, cz - hd, cz + hd, s ?? st, first ? door : null); first = false;
@@ -802,6 +834,12 @@ function buildProps(blocks) {
   }
 }
 
+function buildAC() {
+  if (!acUnits.length) return;
+  const g = new THREE.BoxGeometry(1, 1, 1), im = new THREE.InstancedMesh(g, new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, metalness: 0.2 }), acUnits.length), o = new THREE.Object3D(), c = new THREE.Color();
+  acUnits.forEach((u, i) => { o.position.set(u.x, u.y, u.z); o.scale.set(u.ns ? 0.85 : 0.55, 0.5, u.ns ? 0.55 : 0.85); o.updateMatrix(); im.setMatrixAt(i, o.matrix); const v = 0.55 + u.c * 0.4; im.setColorAt(i, c.setRGB(v, v, v * 1.02)); });
+  im.frustumCulled = false; im.receiveShadow = true; scene.add(im);
+}
 export function nearestDoor(x, y, z, r = 2.6) {
   if (y > 6) return null;
   let best = null, bd = r;
@@ -838,13 +876,14 @@ export function buildCity() {
   buildPark(trees);
   buildTrees(trees);
   buildDoors(); // przed sklejeniem geometrii (framugi trafiaja do trimGeo, daszki do markiz)
+  buildAC();
   buildProps(propBlocks); // po drzwiach: nie stawiamy niczego w wejsciach
 
   facMats = STY.map(s => {
     const t = facadeTex(s);
     return groundAO(new THREE.MeshStandardMaterial({
       map: t.map, emissiveMap: t.emi, emissive: 0xffffff, emissiveIntensity: 0.3,
-      roughness: dbg('nobump') ? s.rough : 1, roughnessMap: dbg('nobump') ? null : t.rough, bumpMap: dbg('nobump') ? null : t.bump, bumpScale: 0.025, metalness: s.metal ? 0.45 : 0.08,
+      roughness: dbg('nobump') ? s.rough : 1, roughnessMap: dbg('nobump') ? null : t.rough, bumpMap: dbg('nobump') ? null : t.bump, bumpScale: 0.07, metalness: s.metal ? 0.45 : 0.08,
     }));
   });
   facGeo.forEach((g, i) => meshFrom(g, facMats[i]));

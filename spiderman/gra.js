@@ -1575,6 +1575,14 @@
     }
     return best;
   }
+  function randomBuildingLook() {
+    const L = 0.8 + srand() * 0.32;
+    cur.tint = [L * (1 + (srand() - 0.5) * 0.14), L * (1 + (srand() - 0.5) * 0.1), L * (1 + (srand() - 0.5) * 0.14)];
+    cur.us = 13 + srand() * 5;
+    cur.vs = 12 + srand() * 4;
+    cur.uo = Math.floor(srand() * 4) / 4;
+    cur.vo = Math.floor(srand() * 4) / 4;
+  }
   function newGeo() {
     return { chunks: /* @__PURE__ */ new Map() };
   }
@@ -1582,27 +1590,32 @@
     const key2 = Math.floor(a[0] / CHUNK) * 1e3 + Math.floor(a[2] / CHUNK);
     let s = g.chunks.get(key2);
     if (!s) {
-      s = { p: [], n: [], u: [] };
+      s = { p: [], n: [], u: [], c: [] };
       g.chunks.set(key2, s);
     }
     for (const [Q, U] of [[a, ua], [b, ub], [c, uc], [a, ua], [c, uc], [d, ud]]) {
       s.p.push(Q[0], Q[1], Q[2]);
       s.n.push(n[0], n[1], n[2]);
       s.u.push(U[0], U[1]);
+      s.c.push(cur.tint[0], cur.tint[1], cur.tint[2]);
     }
   }
-  function walls(g, x0, x1, y0, y1, z0, z1, us, vs, v0 = y0 / vs, v1 = y1 / vs) {
-    quad(g, [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], [0, 0, 1], [x0 / us, v0], [x1 / us, v0], [x1 / us, v1], [x0 / us, v1]);
-    quad(g, [x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], [0, 0, -1], [-x1 / us, v0], [-x0 / us, v0], [-x0 / us, v1], [-x1 / us, v1]);
-    quad(g, [x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [1, 0, 0], [-z1 / us, v0], [-z0 / us, v0], [-z0 / us, v1], [-z1 / us, v1]);
-    quad(g, [x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], [-1, 0, 0], [z0 / us, v0], [z1 / us, v0], [z1 / us, v1], [z0 / us, v1]);
-  }
   function wallsFaces(g, x0, x1, y0, y1, z0, z1, us, vs, faces) {
-    const v0 = y0 / vs, v1 = y1 / vs;
-    if (faces.includes("s")) quad(g, [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], [0, 0, 1], [x0 / us, v0], [x1 / us, v0], [x1 / us, v1], [x0 / us, v1]);
-    if (faces.includes("n")) quad(g, [x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], [0, 0, -1], [-x1 / us, v0], [-x0 / us, v0], [-x0 / us, v1], [-x1 / us, v1]);
-    if (faces.includes("e")) quad(g, [x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [1, 0, 0], [-z1 / us, v0], [-z0 / us, v0], [-z0 / us, v1], [-z1 / us, v1]);
-    if (faces.includes("w")) quad(g, [x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], [-1, 0, 0], [z0 / us, v0], [z1 / us, v0], [z1 / us, v1], [z0 / us, v1]);
+    let uo = 0, vo = 0;
+    if (us === 16 && vs === 14) {
+      us = cur.us;
+      vs = cur.vs;
+      uo = cur.uo;
+      vo = cur.vo;
+    }
+    const v0 = y0 / vs + vo, v1 = y1 / vs + vo, X02 = x0 / us + uo, X1 = x1 / us + uo, Z02 = z0 / us + uo, Z1 = z1 / us + uo;
+    if (faces.includes("s")) quad(g, [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], [0, 0, 1], [X02, v0], [X1, v0], [X1, v1], [X02, v1]);
+    if (faces.includes("n")) quad(g, [x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], [0, 0, -1], [-X1, v0], [-X02, v0], [-X02, v1], [-X1, v1]);
+    if (faces.includes("e")) quad(g, [x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [1, 0, 0], [-Z1, v0], [-Z02, v0], [-Z02, v1], [-Z1, v1]);
+    if (faces.includes("w")) quad(g, [x0, y0, z0], [x0, y0, z1], [x0, y1, z1], [x0, y1, z0], [-1, 0, 0], [Z02, v0], [Z1, v0], [Z1, v1], [Z02, v1]);
+  }
+  function walls(g, x0, x1, y0, y1, z0, z1, us, vs) {
+    wallsFaces(g, x0, x1, y0, y1, z0, z1, us, vs, ["n", "s", "w", "e"]);
   }
   function top(g, x0, x1, y, z0, z1, us) {
     quad(g, [x0, y, z1], [x1, y, z1], [x1, y, z0], [x0, y, z0], [0, 1, 0], [x0 / us, z1 / us], [x1 / us, z1 / us], [x1 / us, z0 / us], [x0 / us, z0 / us]);
@@ -1621,6 +1634,8 @@
       geo.setAttribute("position", new THREE.Float32BufferAttribute(s.p, 3));
       geo.setAttribute("normal", new THREE.Float32BufferAttribute(s.n, 3));
       geo.setAttribute("uv", new THREE.Float32BufferAttribute(s.u, 2));
+      geo.setAttribute("color", new THREE.Float32BufferAttribute(s.c, 3));
+      mat.vertexColors = true;
       geo.computeBoundingSphere();
       const m = new THREE.Mesh(geo, mat);
       m.castShadow = cast;
@@ -1678,6 +1693,13 @@
         x.fillRect(X, Y, W, H);
         rx.fillStyle = "#141414";
         rx.fillRect(X, Y, W, H);
+        {
+          const sg = x.createLinearGradient(0, Y + H, 0, Y + H + 40);
+          sg.addColorStop(0, "rgba(20,16,12,.32)");
+          sg.addColorStop(1, "rgba(20,16,12,0)");
+          x.fillStyle = sg;
+          x.fillRect(X + 3, Y + H, W - 6, 40);
+        }
         bx2.fillStyle = "#5a5a5a";
         bx2.fillRect(X, Y, W, H);
         const q = Math.random();
@@ -2204,6 +2226,13 @@
         fullBox(trimGeo, x1 - 0.02, x1 + o, y, y + h, z0, z1, 4, true);
       }
     }
+    if (!door && y0 === 0 && x1 - x0 > 6 && z1 - z0 > 6 && y1 > 8) {
+      const o = 0.14, h = 0.95;
+      fullBox(trimGeo, x0 - o, x1 + o, 0, h, z0 - o, z0 + 0.02, 4);
+      fullBox(trimGeo, x0 - o, x1 + o, 0, h, z1 - 0.02, z1 + o, 4);
+      fullBox(trimGeo, x0 - o, x0 + 0.02, 0, h, z0, z1, 4);
+      fullBox(trimGeo, x1 - 0.02, x1 + o, 0, h, z0, z1, 4);
+    }
     return door ? carveBoxes(door, x0, x1, y0, y1, z0, z1) : addBox({ x0, x1, y0, y1, z0, z1 });
   }
   function parapet(b) {
@@ -2295,7 +2324,26 @@
     if (b.y1 > 80) for (let i = 0; i < 1 + Math.floor(srand() * 2); i++) masts.push({ x: sr(b.x0 + 2, b.x1 - 2), y: b.y1, z: sr(b.z0 + 2, b.z1 - 2), h: sr(6, 18) });
     if (b.y1 > 18 && b.y1 < 80 && w > 18 && srand() < 0.14) boards.push(b);
   }
+  function addAC(x0, x1, z0, z1, h, dr) {
+    const per = 0.07 + srand() * 0.05;
+    for (const face of ["n", "s", "w", "e"]) {
+      const ns = face === "n" || face === "s", len = ns ? x1 - x0 : z1 - z0, cw = cur.us / 4, ch = cur.vs / 4;
+      for (let k = -2; k < Math.ceil(len / cw) + 2; k++) {
+        const a = ((k + 0.5) / 4 - cur.uo) * cur.us;
+        const pos = ns ? a : a;
+        if (pos < (ns ? x0 : z0) + 1.2 || pos > (ns ? x1 : z1) - 1.2) continue;
+        for (let m = 1; m * ch < h - 4 && acUnits.length < 2600; m++) {
+          const y = ((m + 0.54) / 4 - cur.vo) * cur.vs + cur.vs / 4 * 0;
+          if (y < 5.2 || y > h - 2) continue;
+          if (srand() > per) continue;
+          if (dr && dr.face === face && Math.abs(pos - dr.c) < 3 && y < 8) continue;
+          acUnits.push({ face, x: ns ? pos : face === "w" ? x0 - 0.3 : x1 + 0.3, z: ns ? face === "n" ? z0 - 0.3 : z1 + 0.3 : pos, y: y - 0.55, ns, c: 0.55 + srand() * 0.4 });
+        }
+      }
+    }
+  }
   function building(x0, x1, z0, z1, h, st, dk, bk) {
+    randomBuildingLook();
     let dr = null;
     if (bk && doors.length < 90 && srand() < 0.3) {
       const [t, n] = DOOR_TYPES[Math.floor(srand() * DOOR_TYPES.length)];
@@ -2303,6 +2351,7 @@
     }
     let b = solid(x0, x1, 0, h, z0, z1, st, dr);
     footprints.push({ x0, x1, z0, z1, h, dk });
+    if (bk && h > 9) addAC(x0, x1, z0, z1, h, dr);
     if (bk) storefront(x0, x1, z0, z1, bk, dr ? { face: dr.face, a0: dr.c - dr.gw / 2 - 0.3, a1: dr.c + dr.gw / 2 + 0.3 } : null);
     if (h > 55 && srand() < 0.55) {
       const ix = Math.min(sr(3, 7), (x1 - x0) * 0.2), iz = Math.min(sr(3, 7), (z1 - z0) * 0.2), h2 = h + sr(12, h * 0.45);
@@ -2318,6 +2367,7 @@
     roofProps(b);
   }
   function tiers(cx, cz, T, st, dk, door) {
+    randomBuildingLook();
     let b, first = true;
     for (const [hw, hd, y0, y1, s] of T) {
       b = solid(cx - hw, cx + hw, y0, y1, cz - hd, cz + hd, s != null ? s : st, first ? door : null);
@@ -2624,6 +2674,21 @@
       scene.add(im);
     }
   }
+  function buildAC() {
+    if (!acUnits.length) return;
+    const g = new THREE.BoxGeometry(1, 1, 1), im = new THREE.InstancedMesh(g, new THREE.MeshStandardMaterial({ color: 16777215, roughness: 0.6, metalness: 0.2 }), acUnits.length), o = new THREE.Object3D(), c = new THREE.Color();
+    acUnits.forEach((u, i) => {
+      o.position.set(u.x, u.y, u.z);
+      o.scale.set(u.ns ? 0.85 : 0.55, 0.5, u.ns ? 0.55 : 0.85);
+      o.updateMatrix();
+      im.setMatrixAt(i, o.matrix);
+      const v = 0.55 + u.c * 0.4;
+      im.setColorAt(i, c.setRGB(v, v, v * 1.02));
+    });
+    im.frustumCulled = false;
+    im.receiveShadow = true;
+    scene.add(im);
+  }
   function buildCity() {
     buildSky();
     facGeo = STY.map(() => newGeo());
@@ -2673,6 +2738,7 @@
     buildPark(trees);
     buildTrees(trees);
     buildDoors();
+    buildAC();
     buildProps(propBlocks);
     facMats = STY.map((s) => {
       const t = facadeTex(s);
@@ -2684,7 +2750,7 @@
         roughness: dbg("nobump") ? s.rough : 1,
         roughnessMap: dbg("nobump") ? null : t.rough,
         bumpMap: dbg("nobump") ? null : t.bump,
-        bumpScale: 0.025,
+        bumpScale: 0.07,
         metalness: s.metal ? 0.45 : 0.08
       }));
     });
@@ -2982,7 +3048,7 @@
       if (m.instanceColor) m.instanceColor.needsUpdate = true;
     }
   }
-  var BW, BD, ST, NX, NZ, CX, CZ, CW, CD, X0, Z0, LAND, PK, POND, isPark, inPark, isecPos, DIST, doors, boxes, roofs, footprints, spots, perches, START, START_H, HC2, hash, stamp, hk, _s1, _s2, _rl, rayN, _rbN, CHUNK, STY, CURT, SHOPS, SIGNC, sunDir, sun, sky, clouds, stars, moon, hemi, amb, water, pondM, waterNormal, TOD, TOD_NAMES, skyU, lin3, pmrem, envRT, skyScene, facMats, shopMat, lampMat, boardMats, glowPts, todName, facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo, SW, tanks, awnings, masts, boards, DOOR_TYPES, ROOMSPEC, FISK_DOOR, LANDMARKS, export_arena, ARENA, bx, cy, PROPS, cars, peds, carBody, carGlass, carWheel, carSign, headL, tailL, pedMesh, _o, _c;
+  var BW, BD, ST, NX, NZ, CX, CZ, CW, CD, X0, Z0, LAND, PK, POND, isPark, inPark, isecPos, DIST, doors, boxes, roofs, footprints, spots, perches, START, START_H, HC2, hash, stamp, hk, _s1, _s2, _rl, rayN, _rbN, CHUNK, cur, STY, CURT, SHOPS, SIGNC, sunDir, sun, sky, clouds, stars, moon, hemi, amb, water, pondM, waterNormal, TOD, TOD_NAMES, skyU, lin3, pmrem, envRT, skyScene, facMats, shopMat, lampMat, boardMats, glowPts, todName, facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo, SW, tanks, awnings, masts, boards, DOOR_TYPES, ROOMSPEC, acUnits, FISK_DOOR, LANDMARKS, export_arena, ARENA, bx, cy, PROPS, cars, peds, carBody, carGlass, carWheel, carSign, headL, tailL, pedMesh, _o, _c;
   var init_miasto = __esm({
     "js/miasto.js"() {
       init_util();
@@ -3034,6 +3100,7 @@
       rayN = new V3();
       _rbN = new V3();
       CHUNK = +new URLSearchParams(location.search).get("chunk") || 330;
+      cur = { tint: [1, 1, 1], us: 16, vs: 14, uo: 0, vo: 0 };
       STY = [
         { wall: "#7d3f2e", gTop: "#e8b68e", gBot: "#2d3440", inset: [26, 20, 26, 30], lit: 0.12, rough: 0.9, frame: "#d9d0c0", brick: true, fire: true },
         { wall: "#b8a283", gTop: "#f3c49a", gBot: "#3a4250", inset: [24, 20, 24, 30], lit: 0.1, rough: 0.85, frame: "#8a7a62" },
@@ -3146,6 +3213,7 @@
       boards = [];
       DOOR_TYPES = [["shop", "SKLEP"], ["shop", "SKLEP"], ["cafe", "KAWIARNIA"], ["bar", "BAR"], ["apt", "MIESZKANIE"], ["apt", "MIESZKANIE"], ["office", "BIURO"], ["gym", "SI\u0141OWNIA"]];
       ROOMSPEC = { shop: { cw: 14, cd: 9, ch: 3.6 }, cafe: { cw: 14, cd: 10, ch: 3.6 }, bar: { cw: 12, cd: 9, ch: 3.6 }, apt: { cw: 9, cd: 7, ch: 3.1 }, office: { cw: 16, cd: 11, ch: 3.6 }, gym: { cw: 14, cd: 10, ch: 3.8 }, fisk: { cw: 22, cd: 22, ch: 8 } };
+      acUnits = [];
       FISK_DOOR = null;
       LANDMARKS = {
         "4,10": (b, cx, cz) => {
@@ -6553,13 +6621,13 @@
     refreshSkills();
   }
   function updateSkills(N) {
-    const cur = SKILLS[G.skillIdx];
-    const col = SKILLS.filter((s) => s.col === cur.col), ri = col.indexOf(cur);
+    const cur2 = SKILLS[G.skillIdx];
+    const col = SKILLS.filter((s) => s.col === cur2.col), ri = col.indexOf(cur2);
     let t = null;
     if (N.up && ri > 0) t = col[ri - 1];
     if (N.down && ri < col.length - 1) t = col[ri + 1];
     if (N.left || N.right) {
-      const nc = clamp(cur.col + (N.left ? -1 : 1), 0, COLS.length - 1), c2 = SKILLS.filter((s) => s.col === nc);
+      const nc = clamp(cur2.col + (N.left ? -1 : 1), 0, COLS.length - 1), c2 = SKILLS.filter((s) => s.col === nc);
       t = c2[Math.min(ri, c2.length - 1)];
     }
     if (t) {
