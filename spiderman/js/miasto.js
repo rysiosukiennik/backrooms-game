@@ -163,9 +163,11 @@ const STY = [
 ];
 const CURT = ['rgba(200,60,50,.55)', 'rgba(230,210,160,.55)', 'rgba(60,90,150,.5)', 'rgba(240,240,230,.5)', 'rgba(120,160,90,.5)'];
 function facadeTex(s) {
-  const S = 512, C = 128, c = cv(S, S), x = c.getContext('2d'), e = cv(S, S), ex = e.getContext('2d');
+  const S = 512, C = 128, c = cv(2 * S, 2 * S), x = c.getContext('2d'), e = cv(2 * S, 2 * S), ex = e.getContext('2d');
   // szorstkosc (jasne = matowe, ciemne = gladkie jak szklo) i wypuklosc (okna wglebione w sciane)
-  const rc = cv(S, S), rx = rc.getContext('2d'), bc = cv(S, S), bx = bc.getContext('2d');
+  const rc = cv(2 * S, 2 * S), rx = rc.getContext('2d'), bc = cv(2 * S, 2 * S), bx = bc.getContext('2d'), mc = cv(2 * S, 2 * S), mx = mc.getContext('2d');
+  for (const q of [x, ex, rx, bx, mx]) q.scale(2, 2);
+  mx.fillStyle = s.metal ? '#707070' : '#000'; mx.fillRect(0, 0, S, S); // szyby odbijaja niebo mocniej niz sciana
   const wr = Math.round(s.rough * 255);
   rx.fillStyle = `rgb(${wr},${wr},${wr})`; rx.fillRect(0, 0, S, S);
   bx.fillStyle = '#9a9a9a'; bx.fillRect(0, 0, S, S);
@@ -179,6 +181,7 @@ function facadeTex(s) {
     x.fillStyle = 'rgba(0,0,0,.14)'; for (let y = 0; y < S; y += 6) x.fillRect(0, y, S, 1); for (let y = 0; y < S; y += 6) for (let xx = (y / 6 % 2) * 7; xx < S; xx += 14) x.fillRect(xx, y, 1, 6);
     bx.fillStyle = '#7a7a7a'; for (let y = 0; y < S; y += 6) bx.fillRect(0, y, S, 1); for (let y = 0; y < S; y += 6) for (let xx = (y / 6 % 2) * 7; xx < S; xx += 14) bx.fillRect(xx, y, 1, 6);
   }
+  for (let i = 0; i < 26; i++) { const px = Math.random() * S, py = Math.random() * S, rr = 30 + Math.random() * 70, gg = x.createRadialGradient(px, py, 0, px, py, rr); gg.addColorStop(0, `rgba(30,25,20,${0.05 + Math.random() * 0.05})`); gg.addColorStop(1, 'rgba(30,25,20,0)'); x.fillStyle = gg; x.fillRect(px - rr, py - rr, rr * 2, rr * 2); }
   const [l, t, r, b] = s.inset;
   for (let j = 0; j < 4; j++) {
     if (s.band) { x.fillStyle = s.band; x.fillRect(0, j * C + C - b, S, b); }
@@ -189,7 +192,16 @@ function facadeTex(s) {
       const g = x.createLinearGradient(0, Y, 0, Y + H); g.addColorStop(0, s.gTop); g.addColorStop(1, s.gBot);
       x.fillStyle = g; x.fillRect(X, Y, W, H);
       x.fillStyle = 'rgba(18,22,30,.55)'; x.fillRect(X, Y, W, H);
-      rx.fillStyle = '#141414'; rx.fillRect(X, Y, W, H);
+      rx.fillStyle = s.metal ? '#0a0a0a' : '#1c1c1c'; rx.fillRect(X, Y, W, H);
+      mx.fillStyle = s.metal ? '#d8d8d8' : '#a8a8a8'; mx.fillRect(X, Y, W, H);
+      // wnetrze: rolety, zaslony albo ciemny pokoj; odbicie nieba jako jasna skosna smuga
+      { const kind = Math.random();
+        if (kind < 0.28) { x.fillStyle = 'rgba(205,195,170,.55)'; const hh = H * (0.25 + Math.random() * 0.6); x.fillRect(X, Y, W, hh); x.fillStyle = 'rgba(0,0,0,.18)'; for (let yy = Y; yy < Y + hh; yy += 5) x.fillRect(X, yy, W, 1); } // roleta
+        else if (kind < 0.5) { x.fillStyle = CURT[Math.floor(Math.random() * CURT.length)]; x.fillRect(X, Y, W * 0.34, H); x.fillRect(X + W * 0.66, Y, W * 0.34, H); }                                            // zaslony
+        x.fillStyle = 'rgba(255,255,255,.09)'; x.beginPath(); x.moveTo(X + W * 0.1, Y + H); x.lineTo(X + W * 0.55, Y); x.lineTo(X + W * 0.75, Y); x.lineTo(X + W * 0.3, Y + H); x.fill(); }
+      x.fillStyle = 'rgba(0,0,0,.4)'; x.fillRect(X, Y, W, 4); x.fillRect(X, Y, 3, H);              // cien gornej i lewej krawedzi wneki
+      x.fillStyle = 'rgba(255,255,255,.14)'; x.fillRect(X, Y + H - 2, W, 2);                       // jasny dolny brzeg (parapet)
+      if (s.frame) { x.fillStyle = 'rgba(255,255,255,.1)'; x.fillRect(X - 5, Y - 8, W + 10, 6); x.fillStyle = 'rgba(0,0,0,.2)'; x.fillRect(X - 5, Y - 2, W + 10, 2); } // nadproze
       { const sg = x.createLinearGradient(0, Y + H, 0, Y + H + 40); sg.addColorStop(0, 'rgba(20,16,12,.32)'); sg.addColorStop(1, 'rgba(20,16,12,0)'); x.fillStyle = sg; x.fillRect(X + 3, Y + H, W - 6, 40); } // smuga brudu pod oknem
       bx.fillStyle = '#5a5a5a'; bx.fillRect(X, Y, W, H);
       const q = Math.random();
@@ -213,7 +225,8 @@ function facadeTex(s) {
         if (Math.random() < 0.12) { x.fillStyle = '#9ea3a8'; x.fillRect(X + W * 0.3, Y + H - 22, W * 0.4, 20); x.fillStyle = '#6d7277'; x.fillRect(X + W * 0.3, Y + H - 8, W * 0.4, 3); }
       } else { x.fillStyle = 'rgba(0,0,0,.4)'; x.fillRect(X + W - 2, Y, 4, H); }
     }
-    if (s.fire) { // schody przeciwpozarowe
+    if (s.band) { x.fillStyle = 'rgba(0,0,0,.35)'; for (let k = 0; k <= 4; k++) { x.fillRect(k * C - 1, j * C, 3, C); mx.fillStyle = '#303030'; mx.fillRect(k * C - 1, j * C, 3, C); } }
+    if (false) { // (schody przeciwpozarowe sa teraz prawdziwa geometria)
       x.strokeStyle = '#161616'; x.lineWidth = 3;
       const fx = 128 + 10, fw = 236, fy = j * C + C - 16;
       x.fillStyle = 'rgba(20,20,20,.9)'; x.fillRect(fx, fy, fw, 5);
@@ -222,8 +235,8 @@ function facadeTex(s) {
       x.beginPath(); x.moveTo(fx + 30, fy); x.lineTo(fx + 110, fy - C + 16); x.stroke();
     }
   }
-  const map = canvasTex(c, true), emi = canvasTex(e, true), rough = canvasTex(rc, true), bump = canvasTex(bc, true);
-  return { map, emi, rough, bump };
+  const map = canvasTex(c, true), emi = canvasTex(e, true), rough = canvasTex(rc, true), bump = canvasTex(bc, true), metal = canvasTex(mc, true);
+  return { map, emi, rough, bump, metal };
 }
 // ciemniej przy ziemi miedzy budynkami (jak w prawdziwych ulicach, gdzie malo swiatla dochodzi na dol)
 function groundAO(m, k = 0.5, h = 18) {
@@ -941,9 +954,10 @@ export function buildCity() {
     const t = facadeTex(s);
     return groundAO(new THREE.MeshStandardMaterial({
       map: t.map, emissiveMap: t.emi, emissive: 0xffffff, emissiveIntensity: 0.3,
-      roughness: dbg('nobump') ? s.rough : 1, roughnessMap: dbg('nobump') ? null : t.rough, bumpMap: dbg('nobump') ? null : t.bump, bumpScale: 0.07, metalness: s.metal ? 0.45 : 0.08,
+      roughness: 1, roughnessMap: t.rough, bumpMap: dbg('nobump') ? null : t.bump, bumpScale: 0.07, metalness: 1, metalnessMap: t.metal,
     }));
   });
+  facMats.forEach((m, i) => { m.userData.env = STY[i].metal ? 2.2 : 1.5; });
   facGeo.forEach((g, i) => meshFrom(g, facMats[i]));
   const roofMat = new THREE.MeshStandardMaterial({ map: canvasTex(noiseCanvas('#8a8780', 7000, 0.14, 256, { n: 40, r: 5, c: ['rgba(60,60,60,.3)', 'rgba(120,110,100,.3)'] }), true), roughness: 1 });
   meshFrom(roofGeo, roofMat, false);
