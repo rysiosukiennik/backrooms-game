@@ -1932,6 +1932,33 @@
     }
     return c;
   }
+  function grassCanvas(size = 256) {
+    const c = cv(size, size), x = c.getContext("2d");
+    x.fillStyle = "#557f36";
+    x.fillRect(0, 0, size, size);
+    for (let i = 0; i < 40; i++) {
+      x.fillStyle = `rgba(${Math.random() < 0.5 ? "30,50,15" : "140,160,70"},${0.05 + Math.random() * 0.07})`;
+      x.beginPath();
+      x.arc(Math.random() * size, Math.random() * size, 10 + Math.random() * 30, 0, 7);
+      x.fill();
+    }
+    x.lineWidth = 1;
+    for (let i = 0; i < 9e3; i++) {
+      const px = Math.random() * size, py = Math.random() * size, l = 2 + Math.random() * 4, k = 0.6 + Math.random() * 0.7;
+      x.strokeStyle = `rgba(${70 * k | 0},${115 * k | 0},${40 * k | 0},0.55)`;
+      x.beginPath();
+      x.moveTo(px, py);
+      x.lineTo(px + (Math.random() - 0.5) * 2, py - l);
+      x.stroke();
+    }
+    for (let i = 0; i < 14; i++) {
+      x.fillStyle = Math.random() < 0.6 ? "#f2efe2" : "#e6d36a";
+      x.beginPath();
+      x.arc(Math.random() * size, Math.random() * size, 0.9, 0, 7);
+      x.fill();
+    }
+    return c;
+  }
   function sidewalkCanvas() {
     const c = cv(256, 256), x = c.getContext("2d");
     x.fillStyle = "#9a958c";
@@ -2207,7 +2234,8 @@
     clouds.material.opacity = T.cloud;
     linHex(clouds.material.color, T.cloudCol);
     linHex(water.material.color, T.water);
-    linHex(pondM.material.color, T.water);
+    linHex(pondM.material.color, T.water).multiplyScalar(0.45);
+    pondM.material.color.g *= 1.15;
     stars.visible = T.stars > 0;
     moon.visible = name === "night";
     for (const m of facMats) m.emissiveIntensity = T.win;
@@ -2605,10 +2633,25 @@
     }
   }
   function buildPark(inst) {
-    const gc = noiseCanvas("#5b8a3a", 9e3, 0.1, 256, { n: 60, r: 3, c: ["#6f9e45", "#4b7a2e", "#e8e0a0", "#f3f3f3"] });
-    const gt = canvasTex(gc, true);
-    gt.repeat.set((PK.x1 - PK.x0) / 14, (PK.z1 - PK.z0) / 14);
-    const g = new THREE.Mesh(new THREE.PlaneGeometry(PK.x1 - PK.x0, PK.z1 - PK.z0), new THREE.MeshStandardMaterial({ map: gt, roughness: 1 }));
+    const gt = canvasTex(grassCanvas(), true);
+    gt.repeat.set((PK.x1 - PK.x0) / 9, (PK.z1 - PK.z0) / 9);
+    const PW = PK.x1 - PK.x0, PD = PK.z1 - PK.z0, cx0 = (PK.x0 + PK.x1) / 2, cz0 = (PK.z0 + PK.z1) / 2;
+    const pg = new THREE.PlaneGeometry(PW, PD, Math.ceil(PW / 6), Math.ceil(PD / 6)), pp2 = pg.attributes.position, pc = [];
+    const pathsX = [cx0 - 60, cx0 + 70], pathsZ = [PK.z0 + PD * 0.15, PK.z0 + PD * 0.42];
+    for (let i = 0; i < pp2.count; i++) {
+      const wx = cx0 + pp2.getX(i), wz = cz0 - pp2.getY(i);
+      let k = 1 + 0.13 * Math.sin(wx * 0.021 + Math.sin(wz * 0.013) * 2) * Math.cos(wz * 0.017 + 1.3) + 0.07 * Math.sin(wx * 0.07 + wz * 0.05);
+      k += (Math.floor(wx / 9) % 2 ? 0.05 : -0.05) * (Math.abs(wz - cz0) < PD * 0.4 ? 1 : 0);
+      let dry = 0;
+      for (const px of pathsX) dry = Math.max(dry, 1 - Math.abs(wx - px) / 7);
+      for (const pz of pathsZ) dry = Math.max(dry, 1 - Math.abs(wz - pz) / 7);
+      const pe = Math.sqrt(((wx - POND.x) / POND.rx) ** 2 + ((wz - POND.z) / POND.rz) ** 2);
+      if (pe < 1.15) k *= 0.82;
+      dry = Math.max(0, dry) * 0.6;
+      pc.push(k * (1 + dry * 0.35), k * (1 - dry * 0.05), k * (1 - dry * 0.3));
+    }
+    pg.setAttribute("color", new THREE.Float32BufferAttribute(pc, 3));
+    const g = new THREE.Mesh(pg, new THREE.MeshStandardMaterial({ map: gt, roughness: 1, vertexColors: true }));
     g.rotation.x = -Math.PI / 2;
     g.position.set((PK.x0 + PK.x1) / 2, 0.06, (PK.z0 + PK.z1) / 2);
     g.receiveShadow = true;
@@ -2618,6 +2661,52 @@
     pondM.scale.set(POND.rx, POND.rz, 1);
     pondM.position.set(POND.x, 0.1, POND.z);
     scene.add(pondM);
+    {
+      const mud = new THREE.Mesh(new THREE.RingGeometry(0.97, 1.07, 96, 1), new THREE.MeshStandardMaterial({ color: 5917754, roughness: 1 }));
+      mud.rotation.x = -Math.PI / 2;
+      mud.scale.set(POND.rx, POND.rz, 1);
+      mud.position.set(POND.x, 0.11, POND.z);
+      mud.receiveShadow = true;
+      scene.add(mud);
+      const stones = [], reeds = [];
+      for (let i = 0; i < 260; i++) {
+        const a = srand() * Math.PI * 2, r = 0.985 + srand() * 0.06;
+        stones.push({ x: POND.x + Math.cos(a) * POND.rx * r, z: POND.z + Math.sin(a) * POND.rz * r, s: sr(0.25, 0.75), r: srand() * 6 });
+      }
+      for (let c = 0; c < 9; c++) {
+        const a0 = srand() * Math.PI * 2;
+        for (let i = 0; i < 70; i++) {
+          const a = a0 + sr(-0.12, 0.12), r = sr(0.9, 1);
+          reeds.push({ x: POND.x + Math.cos(a) * POND.rx * r, z: POND.z + Math.sin(a) * POND.rz * r, h: sr(1.1, 2.2), t: sr(-0.25, 0.25), r: srand() * 6 });
+        }
+      }
+      const sg = new THREE.DodecahedronGeometry(1, 0);
+      sg.scale(1, 0.45, 0.8);
+      buildInstanced(sg, new THREE.MeshStandardMaterial({ color: 8814970, roughness: 0.9, flatShading: true }), stones, (o, t) => {
+        o.position.set(t.x, 0.12, t.z);
+        o.rotation.set(0, t.r, 0);
+        o.scale.setScalar(t.s);
+      });
+      const rg = new THREE.ConeGeometry(0.035, 1, 4);
+      rg.translate(0, 0.5, 0);
+      buildInstanced(rg, new THREE.MeshStandardMaterial({ color: 8227397, roughness: 0.9 }), reeds, (o, t) => {
+        o.position.set(t.x, 0.1, t.z);
+        o.rotation.set(t.t, t.r, t.t * 0.5);
+        o.scale.set(1, t.h, 1);
+      });
+      const lily = [];
+      for (let i = 0; i < 60; i++) {
+        const a = srand() * Math.PI * 2, r = sr(0.55, 0.9);
+        lily.push({ x: POND.x + Math.cos(a) * POND.rx * r, z: POND.z + Math.sin(a) * POND.rz * r, s: sr(0.35, 0.8), r: srand() * 6 });
+      }
+      const lg = new THREE.CircleGeometry(1, 10, 0.4, Math.PI * 2 - 0.4);
+      lg.rotateX(-Math.PI / 2);
+      buildInstanced(lg, new THREE.MeshStandardMaterial({ color: 5208628, roughness: 0.6 }), lily, (o, t) => {
+        o.position.set(t.x, 0.13, t.z);
+        o.rotation.set(0, t.r, 0);
+        o.scale.setScalar(t.s);
+      }, false);
+    }
     const pm = new THREE.MeshStandardMaterial({ color: 11904910, roughness: 1 });
     const path = (x, z, w, d) => {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), pm);
@@ -2643,7 +2732,7 @@
     const trunk = new THREE.CylinderGeometry(0.13, 0.34, 1, 8);
     trunk.translate(0, 0.5, 0);
     const crown = (() => {
-      const pos = [], col2 = [], idx = [];
+      const pos = [], col2 = [], idx = [], nor = [];
       let base = 0;
       const lobes = [[0, 0.1, 0, 0.75], [0.45, -0.05, 0.1, 0.5], [-0.42, 0, -0.15, 0.52], [0.1, 0.05, 0.48, 0.48], [-0.1, 0, -0.5, 0.5], [0.05, 0.55, 0.05, 0.45], [0.35, 0.3, -0.35, 0.38]];
       for (const [lx, ly, lz, lr] of lobes) {
@@ -2653,6 +2742,7 @@
           const n = 1 + 0.16 * Math.sin(x * 9 + lx * 7) * Math.cos(z * 8 + ly * 5) + 0.1 * Math.sin(y * 13 + lz * 9);
           const X = lx + x * n, Y = ly + y * n * 0.82, Z = lz + z * n;
           pos.push(X, Y, Z);
+          nor.push(x / l * 0.8 + X * 0.25, y / l * 0.8 + Y * 0.25 + 0.15, z / l * 0.8 + Z * 0.25);
           const k = 0.62 + 0.5 * Math.min(1, Math.max(0, (Y + 0.7) / 1.5)) + 0.12 * Math.sin(X * 17 + Z * 11);
           col2.push(k, k, k);
         }
@@ -2664,7 +2754,14 @@
       G2.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
       G2.setAttribute("color", new THREE.Float32BufferAttribute(col2, 3));
       G2.setIndex(idx);
-      G2.computeVertexNormals();
+      const nv = new THREE.Vector3();
+      for (let i = 0; i < nor.length; i += 3) {
+        nv.set(nor[i], nor[i + 1], nor[i + 2]).normalize();
+        nor[i] = nv.x;
+        nor[i + 1] = nv.y;
+        nor[i + 2] = nv.z;
+      }
+      G2.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
       return G2;
     })();
     const tm = new THREE.MeshStandardMaterial({ map: canvasTex(noiseCanvas("#5a4030", 3e3, 0.15, 128), true), roughness: 1 });
