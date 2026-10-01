@@ -2376,6 +2376,37 @@
     if (b.y1 > 80) for (let i = 0; i < 1 + Math.floor(srand() * 2); i++) masts.push({ x: sr(b.x0 + 2, b.x1 - 2), y: b.y1, z: sr(b.z0 + 2, b.z1 - 2), h: sr(6, 18) });
     if (b.y1 > 18 && b.y1 < 80 && w > 18 && srand() < 0.14) boards.push(b);
   }
+  function slopeQuad(g, a, b, c, d) {
+    const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = d[0] - a[0], vy = d[1] - a[1], vz = d[2] - a[2];
+    let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz2 = ux * vy - uy * vx;
+    const l = Math.hypot(nx, ny, nz2) || 1;
+    nx /= l;
+    ny /= l;
+    nz2 /= l;
+    if (ny < 0) {
+      nx = -nx;
+      ny = -ny;
+      nz2 = -nz2;
+    }
+    const uv = (p) => [p[0] / 5, p[2] / 5];
+    quad(g, a, b, c, d, [nx, ny, nz2], uv(a), uv(b), uv(c), uv(d));
+  }
+  function hipRoof(x0, x1, z0, z1, y, rise) {
+    const o = 0.35;
+    x0 -= o;
+    x1 += o;
+    z0 -= o;
+    z1 += o;
+    y -= 0.15;
+    const w = x1 - x0, d = z1 - z0, top2 = y + rise + 0.15;
+    const A = w >= d ? [x0 + d / 2, top2, (z0 + z1) / 2] : [(x0 + x1) / 2, top2, z0 + w / 2];
+    const B = w >= d ? [x1 - d / 2, top2, (z0 + z1) / 2] : [(x0 + x1) / 2, top2, z1 - w / 2];
+    const g = pitchGeo;
+    slopeQuad(g, [x0, y, z1], [x1, y, z1], [B[0], B[1], B[2]], [A[0], A[1], A[2]]);
+    slopeQuad(g, [x1, y, z0], [x0, y, z0], [A[0], A[1], A[2]], [B[0], B[1], B[2]]);
+    slopeQuad(g, [x1, y, z1], [x1, y, z0], [B[0], B[1], B[2]], [B[0], B[1], B[2]]);
+    slopeQuad(g, [x0, y, z0], [x0, y, z1], [A[0], A[1], A[2]], [A[0], A[1], A[2]]);
+  }
   function wallBox(g, face, x0, x1, z0, z1, a0, a1, ya, yb, d0, d1) {
     const w = face === "n" ? z0 : face === "s" ? z1 : face === "w" ? x0 : x1, sg = face === "n" || face === "w" ? -1 : 1;
     const e0 = w + sg * d0, e1 = w + sg * d1, lo = Math.min(e0, e1), hi = Math.max(e0, e1);
@@ -2458,7 +2489,7 @@
       }
     }
   }
-  function building(x0, x1, z0, z1, h, st, dk, bk) {
+  function building(x0, x1, z0, z1, h, st, dk, bk, pitched) {
     randomBuildingLook();
     let dr = null;
     if (bk && doors.length < 90 && srand() < 0.3) {
@@ -2481,6 +2512,15 @@
         b = solid(b.x0 + jx, b.x1 - jx, h2, h3, b.z0 + jz, b.z1 - jz, st);
         footprints.push({ x0: b.x0, x1: b.x1, z0: b.z0, z1: b.z1, h: h3, dk });
       }
+    }
+    if (pitched) {
+      const rise = 1.7 + srand() * 1.4, ins = Math.min(1.8, (x1 - x0) / 4, (z1 - z0) / 4);
+      hipRoof(x0, x1, z0, z1, h, rise);
+      const core = addBox({ x0: x0 + ins, x1: x1 - ins, y0: h, y1: h + rise * 0.72, z0: z0 + ins, z1: z1 - ins });
+      const cx = x0 + (x1 - x0) * (0.3 + srand() * 0.4), cz = (z0 + z1) / 2;
+      fullBox(trimGeo, cx - 0.5, cx + 0.5, h + rise * 0.3, h + rise + 1.3, cz - 0.5, cz + 0.5, 4);
+      roofs.push(core);
+      return;
     }
     roofs.push(b);
     roofProps(b);
@@ -2818,7 +2858,8 @@
     trimGeo = newGeo();
     curbGeo = newGeo();
     ironGeo = newGeo();
-    const trees = [], lamps2 = [], tlights = [], propBlocks = [];
+    pitchGeo = newGeo();
+    const trees = [], lamps2 = [], tlights = [], propBlocks = [], pocketParks = [];
     for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) {
       if (isPark(i, j)) continue;
       const b = blk(i, j), cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2, dk = distKey(i, j), D = DIST[dk];
@@ -2850,9 +2891,19 @@
         lots = [[x0, mx, z0, mz], [mx, x1, z0, mz], [x0, mx, mz, z1], [mx, x1, mz, z1]];
       }
       for (const l of lots) {
+        if (srand() < 0.07 && l[1] - l[0] > 16 && l[3] - l[2] > 14 && dk !== "mid" && dk !== "fin") {
+          pocketParks.push(l);
+          for (let q = 0, n = 5 + Math.floor(srand() * 5); q < n; q++) trees.push({ x: sr(l[0] + 2, l[1] - 2), y: SW, z: sr(l[2] + 2, l[3] - 2), s: sr(1.8, 3), h: sr(2.4, 3.6) });
+          continue;
+        }
         let h = sr(D.h[0], D.h[1]);
         if (srand() < D.tall) h *= sr(1.4, 2.1);
-        building(l[0] + 0.4, l[1] - 0.4, l[2] + 0.4, l[3] - 0.4, h, D.st[Math.floor(srand() * D.st.length)], dk, b);
+        let pitched = false;
+        if (dk !== "mid" && dk !== "fin" && srand() < 0.14) {
+          h = sr(8, 14);
+          pitched = l[1] - l[0] < 34 && l[3] - l[2] < 30 && srand() < 0.7;
+        }
+        building(l[0] + 0.4, l[1] - 0.4, l[2] + 0.4, l[3] - 0.4, h, D.st[Math.floor(srand() * D.st.length)], dk, b, pitched);
       }
     }
     buildGround();
@@ -2883,6 +2934,27 @@
     const roofMat = new THREE.MeshStandardMaterial({ map: canvasTex(noiseCanvas("#8a8780", 7e3, 0.14, 256, { n: 40, r: 5, c: ["rgba(60,60,60,.3)", "rgba(120,110,100,.3)"] }), true), roughness: 1 });
     meshFrom(roofGeo, roofMat, false);
     meshFrom(ironGeo, new THREE.MeshStandardMaterial({ color: 2303530, roughness: 0.5, metalness: 0.55 }), false);
+    {
+      const c = cv(256, 256), x = c.getContext("2d");
+      x.fillStyle = "#5b4a43";
+      x.fillRect(0, 0, 256, 256);
+      for (let y = 0; y < 256; y += 16) for (let xx = y / 16 % 2 * 16 - 16; xx < 256; xx += 32) {
+        const k = 0.85 + Math.random() * 0.3;
+        x.fillStyle = `rgb(${91 * k | 0},${74 * k | 0},${67 * k | 0})`;
+        x.fillRect(xx + 1, y + 1, 30, 14);
+      }
+      meshFrom(pitchGeo, new THREE.MeshStandardMaterial({ map: canvasTex(c, true), roughness: 0.9 }), true);
+    }
+    if (pocketParks.length) {
+      const gm = new THREE.MeshStandardMaterial({ map: canvasTex(noiseCanvas("#5b8a3a", 6e3, 0.1, 128, { n: 30, r: 3, c: ["#6f9e45", "#4b7a2e", "#f3f3f3"] }), true), roughness: 1 });
+      for (const l of pocketParks) {
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(l[1] - l[0] - 1, l[3] - l[2] - 1), gm);
+        m.rotation.x = -Math.PI / 2;
+        m.position.set((l[0] + l[1]) / 2, SW + 0.03, (l[2] + l[3]) / 2);
+        m.receiveShadow = true;
+        scene.add(m);
+      }
+    }
     meshFrom(trimGeo, groundAO(new THREE.MeshStandardMaterial({ map: canvasTex(noiseCanvas("#b3aa9c", 3e3, 0.1, 128), true), roughness: 0.9 })));
     const st = shopTex();
     shopMat = groundAO(new THREE.MeshStandardMaterial({ map: st.map, emissiveMap: st.emi, emissive: 16777215, emissiveIntensity: 0.8, roughness: 0.35, metalness: 0.1 }), 0.75, 6);
@@ -3228,7 +3300,7 @@
       if (m.instanceColor) m.instanceColor.needsUpdate = true;
     }
   }
-  var BW, BD, ST, NX, NZ, CX, CZ, CW, CD, X0, Z0, LAND, PK, POND, isPark, inPark, isecPos, DIST, doors, boxes, roofs, footprints, spots, perches, START, START_H, HC2, hash, stamp, hk, _s1, _s2, _rl, rayN, _rbN, CHUNK, cur, STY, CURT, SHOPS, SIGNC, sunDir, sun, sky, clouds, stars, moon, hemi, amb, water, pondM, waterNormal, TOD, TOD_NAMES, skyU, lin3, pmrem, envRT, skyScene, facMats, shopMat, lampMat, boardMats, glowPts, todName, facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo, ironGeo, SW, tanks, awnings, masts, boards, DOOR_TYPES, ROOMSPEC, acUnits, balconyCount, streetFaces, FISK_DOOR, LANDMARKS, export_arena, ARENA, bx, cy, PROPS, ventList, cars, peds, carBody, carGlass, carWheel, carSign, headL, tailL, pedMesh, _o, _c, steam, birds, BIRD_N, birdData, _bo;
+  var BW, BD, ST, NX, NZ, CX, CZ, CW, CD, X0, Z0, LAND, PK, POND, isPark, inPark, isecPos, DIST, doors, boxes, roofs, footprints, spots, perches, START, START_H, HC2, hash, stamp, hk, _s1, _s2, _rl, rayN, _rbN, CHUNK, cur, STY, CURT, SHOPS, SIGNC, sunDir, sun, sky, clouds, stars, moon, hemi, amb, water, pondM, waterNormal, TOD, TOD_NAMES, skyU, lin3, pmrem, envRT, skyScene, facMats, shopMat, lampMat, boardMats, glowPts, todName, facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo, ironGeo, pitchGeo, SW, tanks, awnings, masts, boards, DOOR_TYPES, ROOMSPEC, acUnits, balconyCount, streetFaces, FISK_DOOR, LANDMARKS, export_arena, ARENA, bx, cy, PROPS, ventList, cars, peds, carBody, carGlass, carWheel, carSign, headL, tailL, pedMesh, _o, _c, steam, birds, BIRD_N, birdData, _bo;
   var init_miasto = __esm({
     "js/miasto.js"() {
       init_util();
