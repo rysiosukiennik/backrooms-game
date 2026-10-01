@@ -806,16 +806,36 @@ const export_arena = { x: 0, z: 0 };
 export const ARENA = export_arena;
 
 function buildTrees(list) {
-  const trunk = new THREE.CylinderGeometry(0.18, 0.3, 1, 6); trunk.translate(0, 0.5, 0);
-  const crown = new THREE.IcosahedronGeometry(1, 1);
+  const trunk = new THREE.CylinderGeometry(0.13, 0.34, 1, 8); trunk.translate(0, 0.5, 0);
+  // korona z kilku splaszczonych, pofalowanych kep liscia; ciemniejsza od spodu, jasniejsza od gory
+  const crown = (() => {
+    const pos = [], col = [], idx = []; let base = 0;
+    const lobes = [[0, 0.1, 0, 0.75], [0.45, -0.05, 0.1, 0.5], [-0.42, 0, -0.15, 0.52], [0.1, 0.05, 0.48, 0.48], [-0.1, 0.0, -0.5, 0.5], [0.05, 0.55, 0.05, 0.45], [0.35, 0.3, -0.35, 0.38]];
+    for (const [lx, ly, lz, lr] of lobes) {
+      const g = new THREE.IcosahedronGeometry(lr, 2), p = g.attributes.position, ix = g.index ? g.index.array : null;
+      for (let i = 0; i < p.count; i++) {
+        const x = p.getX(i), y = p.getY(i), z = p.getZ(i), l = Math.hypot(x, y, z) || 1;
+        const n = 1 + 0.16 * Math.sin(x * 9 + lx * 7) * Math.cos(z * 8 + ly * 5) + 0.1 * Math.sin(y * 13 + lz * 9);
+        const X = lx + x * n, Y = ly + y * n * 0.82, Z = lz + z * n;
+        pos.push(X, Y, Z);
+        const k = 0.62 + 0.5 * Math.min(1, Math.max(0, (Y + 0.7) / 1.5)) + 0.12 * Math.sin(X * 17 + Z * 11);
+        col.push(k, k, k);
+      }
+      if (ix) for (let i = 0; i < ix.length; i++) idx.push(ix[i] + base); else for (let i = 0; i < p.count; i++) idx.push(i + base);
+      base += p.count;
+    }
+    const G2 = new THREE.BufferGeometry();
+    G2.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); G2.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    G2.setIndex(idx); G2.computeVertexNormals(); return G2;
+  })();
   const tm = new THREE.MeshStandardMaterial({ map: canvasTex(noiseCanvas('#5a4030', 3000, 0.15, 128), true), roughness: 1 });
-  const cm = new THREE.MeshStandardMaterial({ map: canvasTex(noiseCanvas('#dddddd', 4000, 0.18, 128), true), roughness: 0.95, flatShading: true });
+  const cm = new THREE.MeshStandardMaterial({ map: canvasTex(noiseCanvas('#dddddd', 4000, 0.18, 128), true), roughness: 0.92, vertexColors: true });
   const T = new THREE.InstancedMesh(trunk, tm, list.length), C = new THREE.InstancedMesh(crown, cm, list.length);
   const o = new THREE.Object3D(), col = new THREE.Color();
   const pal = [0x4f7a2f, 0x5d8a35, 0x3f6a2a, 0x6f8f3a, 0xb8782e, 0xa0522d, 0x7a8f35];
   list.forEach((t, i) => {
     o.position.set(t.x, t.y || 0, t.z); o.rotation.set(0, srand() * 6, 0); o.scale.set(1, t.h, 1); o.updateMatrix(); T.setMatrixAt(i, o.matrix);
-    o.position.set(t.x, (t.y || 0) + t.h + t.s * 0.6, t.z); o.scale.set(t.s, t.s * 0.85, t.s); o.updateMatrix(); C.setMatrixAt(i, o.matrix);
+    o.position.set(t.x, (t.y || 0) + t.h + t.s * 0.45, t.z); o.rotation.set(0, srand() * 6, 0); o.scale.set(t.s * 1.5, t.s * 1.5, t.s * 1.5); o.updateMatrix(); C.setMatrixAt(i, o.matrix);
     col.setHex(pal[Math.floor(srand() * pal.length)]); C.setColorAt(i, col);
   });
   for (const m of [T, C]) { m.castShadow = false; m.receiveShadow = true; m.frustumCulled = false; scene.add(m); }

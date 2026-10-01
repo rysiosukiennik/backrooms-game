@@ -2640,11 +2640,35 @@
     }
   }
   function buildTrees(list) {
-    const trunk = new THREE.CylinderGeometry(0.18, 0.3, 1, 6);
+    const trunk = new THREE.CylinderGeometry(0.13, 0.34, 1, 8);
     trunk.translate(0, 0.5, 0);
-    const crown = new THREE.IcosahedronGeometry(1, 1);
+    const crown = (() => {
+      const pos = [], col2 = [], idx = [];
+      let base = 0;
+      const lobes = [[0, 0.1, 0, 0.75], [0.45, -0.05, 0.1, 0.5], [-0.42, 0, -0.15, 0.52], [0.1, 0.05, 0.48, 0.48], [-0.1, 0, -0.5, 0.5], [0.05, 0.55, 0.05, 0.45], [0.35, 0.3, -0.35, 0.38]];
+      for (const [lx, ly, lz, lr] of lobes) {
+        const g = new THREE.IcosahedronGeometry(lr, 2), p = g.attributes.position, ix = g.index ? g.index.array : null;
+        for (let i = 0; i < p.count; i++) {
+          const x = p.getX(i), y = p.getY(i), z = p.getZ(i), l = Math.hypot(x, y, z) || 1;
+          const n = 1 + 0.16 * Math.sin(x * 9 + lx * 7) * Math.cos(z * 8 + ly * 5) + 0.1 * Math.sin(y * 13 + lz * 9);
+          const X = lx + x * n, Y = ly + y * n * 0.82, Z = lz + z * n;
+          pos.push(X, Y, Z);
+          const k = 0.62 + 0.5 * Math.min(1, Math.max(0, (Y + 0.7) / 1.5)) + 0.12 * Math.sin(X * 17 + Z * 11);
+          col2.push(k, k, k);
+        }
+        if (ix) for (let i = 0; i < ix.length; i++) idx.push(ix[i] + base);
+        else for (let i = 0; i < p.count; i++) idx.push(i + base);
+        base += p.count;
+      }
+      const G2 = new THREE.BufferGeometry();
+      G2.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+      G2.setAttribute("color", new THREE.Float32BufferAttribute(col2, 3));
+      G2.setIndex(idx);
+      G2.computeVertexNormals();
+      return G2;
+    })();
     const tm = new THREE.MeshStandardMaterial({ map: canvasTex(noiseCanvas("#5a4030", 3e3, 0.15, 128), true), roughness: 1 });
-    const cm = new THREE.MeshStandardMaterial({ map: canvasTex(noiseCanvas("#dddddd", 4e3, 0.18, 128), true), roughness: 0.95, flatShading: true });
+    const cm = new THREE.MeshStandardMaterial({ map: canvasTex(noiseCanvas("#dddddd", 4e3, 0.18, 128), true), roughness: 0.92, vertexColors: true });
     const T = new THREE.InstancedMesh(trunk, tm, list.length), C2 = new THREE.InstancedMesh(crown, cm, list.length);
     const o = new THREE.Object3D(), col = new THREE.Color();
     const pal = [5208623, 6130229, 4155946, 7311162, 12089390, 10506797, 8032053];
@@ -2654,8 +2678,9 @@
       o.scale.set(1, t.h, 1);
       o.updateMatrix();
       T.setMatrixAt(i, o.matrix);
-      o.position.set(t.x, (t.y || 0) + t.h + t.s * 0.6, t.z);
-      o.scale.set(t.s, t.s * 0.85, t.s);
+      o.position.set(t.x, (t.y || 0) + t.h + t.s * 0.45, t.z);
+      o.rotation.set(0, srand() * 6, 0);
+      o.scale.set(t.s * 1.5, t.s * 1.5, t.s * 1.5);
       o.updateMatrix();
       C2.setMatrixAt(i, o.matrix);
       col.setHex(pal[Math.floor(srand() * pal.length)]);
@@ -6665,6 +6690,7 @@
     return [
       ["pad", "GRAJ NA PADZIE"],
       ["kb", "GRAJ NA KOMPUTERZE <small>klawiatura + mysz</small>"],
+      ...SLOTS.map((n) => ["ld" + n, slotLabel(n, "WCZYTAJ ZAPIS")]),
       ["new", newLabel()],
       ["suits", "STROJE"],
       ["skills", "UMIEJ\u0118TNO\u015ACI"],
@@ -6693,6 +6719,39 @@
       d.classList.toggle("f", i === G.menuIdx);
     });
   }
+  function slotRead(n) {
+    try {
+      return JSON.parse(localStorage.getItem(slotKey(n)) || "null");
+    } catch (e) {
+      return null;
+    }
+  }
+  function slotLabel(n, verb) {
+    const s = slotRead(n);
+    return s ? `${verb} ${n} <small>poz. ${s.lvl} \xB7 ${s.pct}% \xB7 ${fmtT(s.savedAt)}</small>` : `${verb} ${n} <small>pusty</small>`;
+  }
+  function slotSave(n) {
+    hooks.save();
+    try {
+      localStorage.setItem(slotKey(n), JSON.stringify({ ...save, pct: progress() }));
+      showMsg("ZAPIS " + n, "Gra zapisana w slocie " + n, 2.5);
+    } catch (e) {
+      showMsg("B\u0141\u0104D ZAPISU", "Przegl\u0105darka nie pozwala zapisywa\u0107 (tryb prywatny?)", 3.5);
+    }
+  }
+  function slotLoad(n) {
+    const sl = slotRead(n);
+    if (!sl) return;
+    const keep = { gfx: save.gfx, tod: save.tod, music: save.music };
+    delete sl.pct;
+    Object.assign(save, sl, keep, { hasGame: true });
+    doSave();
+    try {
+      sessionStorage.setItem("sp_skip", "1");
+    } catch (e) {
+    }
+    location.reload();
+  }
   function confirmNew(refresh) {
     if (performance.now() - askNew < 4e3) {
       hooks.newGame();
@@ -6713,6 +6772,10 @@
     sfx("ui");
     if (a === "new") {
       confirmNew(renderMenu);
+      return;
+    }
+    if (a[0] === "l" && a[1] === "d") {
+      slotLoad(+a[2]);
       return;
     }
     if (a === "pad" || a === "kb") hooks.start(a);
@@ -7125,7 +7188,7 @@
   }
   function gameItems() {
     const base = [["tod", todLabel()], ["music", musLabel()], ["gfx", gfxLabel()]];
-    return G.pauseFrom === "menu" ? [["back", "WR\xD3\u0106"], ...base] : [["resume", "WZN\xD3W GR\u0118"], ["save", "ZAPISZ GR\u0118"], ...base, ["new", newLabel()], ["menu", "MENU G\u0141\xD3WNE"]];
+    return G.pauseFrom === "menu" ? [["back", "WR\xD3\u0106"], ...base] : [["resume", "WZN\xD3W GR\u0118"], ...SLOTS.map((n) => ["sv" + n, slotLabel(n, "ZAPISZ W SLOCIE")]), ...base, ["new", newLabel()], ["menu", "MENU G\u0141\xD3WNE"]];
   }
   function renderGame() {
     const it = gameItems(), L = $("gameList");
@@ -7148,8 +7211,8 @@
   }
   function gameAct(a) {
     sfx("ui");
-    if (a === "save") {
-      hooks.save();
+    if (a[0] === "s" && a[1] === "v") {
+      slotSave(+a[2]);
       renderGame();
       return;
     }
@@ -7192,6 +7255,15 @@
     const wrap = document.createElement("div");
     wrap.innerHTML = HTML;
     while (wrap.firstChild) document.body.appendChild(wrap.firstChild);
+    try {
+      if (sessionStorage.getItem("sp_skip")) {
+        sessionStorage.removeItem("sp_skip");
+        G.splash = false;
+        const t = $("tytul");
+        if (t) t.remove();
+      }
+    } catch (e) {
+    }
     buildMiniBase();
     renderMenu();
     const mc = $("mapc");
@@ -7223,7 +7295,7 @@
     $("menu").classList.toggle("hidden", on);
     if (!on) renderMenu();
   }
-  var CSS, HTML, GLY, kk, msgT, dmgT, distT, distChk, promptT, lastPrompt, lastDist, popT, hintT, hintsShown, icoCrime, icoWP, progress, miniBase, MM, LN, _p, set, _sf, _so, flareK, gfxLabel, todLabel, musLabel, askNew, newLabel, footTxt, TABS, mapV, SV;
+  var CSS, HTML, GLY, kk, msgT, dmgT, distT, distChk, promptT, lastPrompt, lastDist, popT, hintT, hintsShown, icoCrime, icoWP, progress, miniBase, MM, LN, _p, set, _sf, _so, flareK, gfxLabel, todLabel, musLabel, SLOTS, slotKey, fmtT, askNew, newLabel, footTxt, TABS, mapV, SV;
   var init_ui = __esm({
     "js/ui.js"() {
       init_util();
@@ -7444,6 +7516,9 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       gfxLabel = () => "GRAFIKA: " + (save.gfx === "high" ? "WYSOKA" : "NISKA");
       todLabel = () => "PORA DNIA: " + TOD_NAMES[save.tod];
       musLabel = () => "MUZYKA: " + (save.music ? "W\u0141\u0104CZONA" : "WY\u0141\u0104CZONA");
+      SLOTS = [1, 2, 3];
+      slotKey = (n) => "spiderman_nyc_slot" + n;
+      fmtT = (ts) => new Date(ts).toLocaleString("pl-PL", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" });
       askNew = -9999;
       newLabel = () => performance.now() - askNew < 4e3 ? "NA PEWNO? POST\u0118P ZNIKNIE" : G.started || save.hasGame ? "NOWA GRA <small>kasuje post\u0119p</small>" : "NOWA GRA";
       footTxt = "";

@@ -419,6 +419,7 @@ function menuItems() {
   return [
     ['pad', 'GRAJ NA PADZIE'],
     ['kb', 'GRAJ NA KOMPUTERZE <small>klawiatura + mysz</small>'],
+    ...SLOTS.map(n => ['ld' + n, slotLabel(n, 'WCZYTAJ ZAPIS')]),
     ['new', newLabel()],
     ['suits', 'STROJE'], ['skills', 'UMIEJĘTNOŚCI'], ['moves', 'STEROWANIE'],
     ['tod', todLabel()], ['music', musLabel()], ['gfx', gfxLabel()],
@@ -442,6 +443,26 @@ function renderMenu() {
     d.classList.toggle('f', i === G.menuIdx);
   });
 }
+// trzy sloty zapisu: kazdy trzyma pelny postep + miejsce na mapie
+const SLOTS = [1, 2, 3], slotKey = n => 'spiderman_nyc_slot' + n;
+function slotRead(n) { try { return JSON.parse(localStorage.getItem(slotKey(n)) || 'null'); } catch (e) { return null; } }
+const fmtT = ts => new Date(ts).toLocaleString('pl-PL', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' });
+function slotLabel(n, verb) {
+  const s = slotRead(n);
+  return s ? `${verb} ${n} <small>poz. ${s.lvl} · ${s.pct}% · ${fmtT(s.savedAt)}</small>` : `${verb} ${n} <small>pusty</small>`;
+}
+function slotSave(n) {
+  hooks.save();
+  try { localStorage.setItem(slotKey(n), JSON.stringify({ ...save, pct: progress() })); showMsg('ZAPIS ' + n, 'Gra zapisana w slocie ' + n, 2.5); }
+  catch (e) { showMsg('BŁĄD ZAPISU', 'Przeglądarka nie pozwala zapisywać (tryb prywatny?)', 3.5); }
+}
+function slotLoad(n) {
+  const sl = slotRead(n); if (!sl) return;
+  const keep = { gfx: save.gfx, tod: save.tod, music: save.music };
+  delete sl.pct; Object.assign(save, sl, keep, { hasGame: true }); doSave();
+  try { sessionStorage.setItem('sp_skip', '1'); } catch (e) {}
+  location.reload();
+}
 // nowa gra kasuje postep, wiec wymaga drugiego potwierdzenia w ciagu 4 sekund
 let askNew = -9999;
 const newLabel = () => performance.now() - askNew < 4000 ? 'NA PEWNO? POSTĘP ZNIKNIE' : (G.started || save.hasGame ? 'NOWA GRA <small>kasuje postęp</small>' : 'NOWA GRA');
@@ -453,6 +474,7 @@ export function hideSplash() { const t = $('tytul'); if (!t || !G.splash) return
 function menuAct(a) {
   sfx('ui');
   if (a === 'new') { confirmNew(renderMenu); return; }
+  if (a[0] === 'l' && a[1] === 'd') { slotLoad(+a[2]); return; }
   if (a === 'pad' || a === 'kb') hooks.start(a);
   else if (a === 'suits') openPause('suits', true);
   else if (a === 'skills') openPause('skills', true);
@@ -723,7 +745,7 @@ function renderMoves() {
 // ---- gra
 function gameItems() {
   const base = [['tod', todLabel()], ['music', musLabel()], ['gfx', gfxLabel()]];
-  return G.pauseFrom === 'menu' ? [['back', 'WRÓĆ'], ...base] : [['resume', 'WZNÓW GRĘ'], ['save', 'ZAPISZ GRĘ'], ...base, ['new', newLabel()], ['menu', 'MENU GŁÓWNE']];
+  return G.pauseFrom === 'menu' ? [['back', 'WRÓĆ'], ...base] : [['resume', 'WZNÓW GRĘ'], ...SLOTS.map(n => ['sv' + n, slotLabel(n, 'ZAPISZ W SLOCIE')]), ...base, ['new', newLabel()], ['menu', 'MENU GŁÓWNE']];
 }
 function renderGame() {
   const it = gameItems(), L = $('gameList'); G.gameIdx = clamp(G.gameIdx, 0, it.length - 1);
@@ -739,7 +761,7 @@ function renderGame() {
 }
 function gameAct(a) {
   sfx('ui');
-  if (a === 'save') { hooks.save(); renderGame(); return; }
+  if (a[0] === 's' && a[1] === 'v') { slotSave(+a[2]); renderGame(); return; }
   if (a === 'new') { confirmNew(renderGame); return; }
   if (a === 'resume' || a === 'back') closePause();
   else if (a === 'gfx') { hooks.gfx(); renderGame(); }
@@ -759,6 +781,7 @@ export function initUI() {
   G.splash = true;
   const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
   const wrap = document.createElement('div'); wrap.innerHTML = HTML; while (wrap.firstChild) document.body.appendChild(wrap.firstChild);
+  try { if (sessionStorage.getItem('sp_skip')) { sessionStorage.removeItem('sp_skip'); G.splash = false; const t = $('tytul'); if (t) t.remove(); } } catch (e) {}
   buildMiniBase();
   renderMenu();
   const mc = $('mapc'); let drag = null;
