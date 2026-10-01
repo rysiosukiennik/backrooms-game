@@ -468,7 +468,7 @@ export function updateEnv() {
 }
 
 // ---------------------------------------------------------------- budowanie miasta
-let facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo;
+let facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo, ironGeo;
 export const SW = 0.15; // wysokosc chodnika
 const tanks = [], awnings = [], masts = [], boards = [];
 // sciany budynku z otworem drzwiowym: trzy sciany w calosci, czwarta w trzech kawalkach (po bokach i nad drzwiami)
@@ -586,6 +586,61 @@ function roofProps(b) {
   if (b.y1 > 18 && b.y1 < 80 && w > 18 && srand() < 0.14) boards.push(b);
 }
 const acUnits = [];
+let balconyCount = 0;
+function wallBox(g, face, x0, x1, z0, z1, a0, a1, ya, yb, d0, d1) {
+  const w = face === 'n' ? z0 : face === 's' ? z1 : face === 'w' ? x0 : x1, sg = face === 'n' || face === 'w' ? -1 : 1;
+  const e0 = w + sg * d0, e1 = w + sg * d1, lo = Math.min(e0, e1), hi = Math.max(e0, e1);
+  if (face === 'n' || face === 's') fullBox(g, a0, a1, ya, yb, lo, hi, 4); else fullBox(g, lo, hi, ya, yb, a0, a1, 4);
+}
+const streetFaces = (x0, x1, z0, z1, bk) => { const r = []; if (z0 - bk.z0 < 4.5) r.push('n'); if (bk.z1 - z1 < 4.5) r.push('s'); if (x0 - bk.x0 < 4.5) r.push('w'); if (bk.x1 - x1 < 4.5) r.push('e'); return r; };
+// parapety pod oknami nizszych pieter (ciagle pasy z kamienia)
+function addSills(x0, x1, z0, z1, h, bk, dr) {
+  const ch = cur.vs / 4;
+  for (const face of streetFaces(x0, x1, z0, z1, bk)) {
+    const ns = face === 'n' || face === 's', a0 = (ns ? x0 : z0) + 0.3, a1 = (ns ? x1 : z1) - 0.3;
+    for (let m = 1; m * ch < Math.min(h - 3, 19); m++) {
+      const y = ((m + 0.25) / 4 - cur.vo) * cur.vs; if (y < 5 || y > Math.min(h - 3, 19)) continue;
+      if (dr && dr.face === face && y < 7) continue;
+      wallBox(trimGeo, face, x0, x1, z0, z1, a0, a1, y - 0.04, y + 0.1, 0, 0.17);
+    }
+  }
+}
+// schody przeciwpozarowe: pomosty, balustrady i drabinki na scianie od ulicy
+function addFireEscape(x0, x1, z0, z1, h, bk, dr) {
+  const faces = streetFaces(x0, x1, z0, z1, bk).filter(q => !dr || dr.face !== q); if (!faces.length) return;
+  const face = faces[Math.floor(srand() * faces.length)], ns = face === 'n' || face === 's', len = ns ? x1 - x0 : z1 - z0, ch = cur.vs / 4;
+  const c = (ns ? x0 : z0) + 5 + srand() * Math.max(0.1, len - 10);
+  const B = (a0, a1, ya, yb, d0, d1) => wallBox(ironGeo, face, x0, x1, z0, z1, a0, a1, ya, yb, d0, d1);
+  let prev = null;
+  for (let m = 1; m * ch < h - 3; m++) {
+    const y = ((m + 0.25) / 4 - cur.vo) * cur.vs; if (y < 5.5 || y > h - 3.5) continue;
+    B(c - 1.5, c + 1.5, y, y + 0.07, 0, 1.1);                                             // pomost
+    B(c - 1.5, c + 1.5, y + 0.95, y + 1.0, 1.04, 1.1); B(c - 1.5, c + 1.5, y + 0.5, y + 0.54, 1.04, 1.1); // balustrada
+    B(c - 1.5, c - 1.44, y + 0.07, y + 1.0, 0, 1.1); B(c + 1.44, c + 1.5, y + 0.07, y + 1.0, 0, 1.1);
+    for (const a of [-0.5, 0.5]) B(c + a - 0.03, c + a + 0.03, y, y + 1.0, 1.04, 1.1);
+    if (prev !== null) { B(c + 1.0, c + 1.06, prev, y, 0.12, 0.18); B(c + 1.3, c + 1.36, prev, y, 0.12, 0.18); for (let r = prev + 0.35; r < y; r += 0.35) B(c + 1.0, c + 1.36, r, r + 0.03, 0.12, 0.18); } // drabinka
+    prev = y;
+  }
+}
+// balkony z balustrada przy czesci okien (wyzsze pietra, budynki mieszkalne)
+function addBalconies(x0, x1, z0, z1, h, bk, dr) {
+  const ch = cur.vs / 4, cw = cur.us / 4;
+  for (const face of streetFaces(x0, x1, z0, z1, bk)) {
+    const ns = face === 'n' || face === 's', lo = (ns ? x0 : z0) + 1.5, hi = (ns ? x1 : z1) - 1.5;
+    for (let k = -2; k < Math.ceil((hi - lo) / cw) + 3; k++) {
+      const a = ((k + 0.5) / 4 - cur.uo) * cur.us; if (a < lo || a > hi) continue;
+      for (let m = 2; m * ch < h - 4 && balconyCount < 420; m++) {
+        const y = ((m + 0.25) / 4 - cur.vo) * cur.vs; if (y < 6 || y > h - 3.5 || srand() > 0.07) continue;
+        if (dr && dr.face === face && Math.abs(a - dr.c) < 3) continue;
+        balconyCount++; const wd = cw * 0.42;
+        wallBox(ironGeo, face, x0, x1, z0, z1, a - wd, a + wd, y - 0.05, y + 0.1, 0, 1.0);
+        wallBox(ironGeo, face, x0, x1, z0, z1, a - wd, a + wd, y + 0.95, y + 1.0, 0.94, 1.0);
+        wallBox(ironGeo, face, x0, x1, z0, z1, a - wd, a - wd + 0.05, y + 0.1, y + 1.0, 0, 1.0); wallBox(ironGeo, face, x0, x1, z0, z1, a + wd - 0.05, a + wd, y + 0.1, y + 1.0, 0, 1.0);
+        for (let q = -2; q <= 2; q++) wallBox(ironGeo, face, x0, x1, z0, z1, a + q * wd * 0.4 - 0.025, a + q * wd * 0.4 + 0.025, y + 0.1, y + 0.95, 0.94, 1.0);
+      }
+    }
+  }
+}
 // klimatyzatory w oknach: pozycje liczone z siatki okien tego budynku (ten sam wzor co tekstura)
 function addAC(x0, x1, z0, z1, h, dr) {
   const per = 0.07 + srand() * 0.05;
@@ -610,6 +665,9 @@ function building(x0, x1, z0, z1, h, st, dk, bk) {
   let b = solid(x0, x1, 0, h, z0, z1, st, dr);
   footprints.push({ x0, x1, z0, z1, h, dk });
   if (bk && h > 9) addAC(x0, x1, z0, z1, h, dr);
+  if (bk && h > 9 && st !== 3 && st !== 4) addSills(x0, x1, z0, z1, h, bk, dr);
+  if (bk && h > 14 && st === 0 && srand() < 0.6) addFireEscape(x0, x1, z0, z1, h, bk, dr);
+  if (bk && h > 14 && (st === 1 || st === 2 || st === 5) && srand() < 0.55) addBalconies(x0, x1, z0, z1, h, bk, dr);
   if (bk) storefront(x0, x1, z0, z1, bk, dr ? { face: dr.face, a0: dr.c - dr.gw / 2 - 0.3, a1: dr.c + dr.gw / 2 + 0.3 } : null);
   if (h > 55 && srand() < 0.55) {
     const ix = Math.min(sr(3, 7), (x1 - x0) * 0.2), iz = Math.min(sr(3, 7), (z1 - z0) * 0.2), h2 = h + sr(12, h * 0.45);
@@ -848,7 +906,7 @@ export function nearestDoor(x, y, z, r = 2.6) {
 }
 export function buildCity() {
   buildSky();
-  facGeo = STY.map(() => newGeo()); roofGeo = newGeo(); farGeo = newGeo(); shopGeo = newGeo(); trimGeo = newGeo(); curbGeo = newGeo();
+  facGeo = STY.map(() => newGeo()); roofGeo = newGeo(); farGeo = newGeo(); shopGeo = newGeo(); trimGeo = newGeo(); curbGeo = newGeo(); ironGeo = newGeo();
   const trees = [], lamps = [], tlights = [], propBlocks = [];
   for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) {
     if (isPark(i, j)) continue;
@@ -889,6 +947,7 @@ export function buildCity() {
   facGeo.forEach((g, i) => meshFrom(g, facMats[i]));
   const roofMat = new THREE.MeshStandardMaterial({ map: canvasTex(noiseCanvas('#8a8780', 7000, 0.14, 256, { n: 40, r: 5, c: ['rgba(60,60,60,.3)', 'rgba(120,110,100,.3)'] }), true), roughness: 1 });
   meshFrom(roofGeo, roofMat, false);
+  meshFrom(ironGeo, new THREE.MeshStandardMaterial({ color: 0x23262a, roughness: 0.5, metalness: 0.55 }), false);
   meshFrom(trimGeo, groundAO(new THREE.MeshStandardMaterial({ map: canvasTex(noiseCanvas('#b3aa9c', 3000, 0.1, 128), true), roughness: 0.9 })));
   const st = shopTex();
   shopMat = groundAO(new THREE.MeshStandardMaterial({ map: st.map, emissiveMap: st.emi, emissive: 0xffffff, emissiveIntensity: 0.8, roughness: 0.35, metalness: 0.1 }), 0.75, 6);

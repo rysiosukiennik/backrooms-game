@@ -2324,6 +2324,70 @@
     if (b.y1 > 80) for (let i = 0; i < 1 + Math.floor(srand() * 2); i++) masts.push({ x: sr(b.x0 + 2, b.x1 - 2), y: b.y1, z: sr(b.z0 + 2, b.z1 - 2), h: sr(6, 18) });
     if (b.y1 > 18 && b.y1 < 80 && w > 18 && srand() < 0.14) boards.push(b);
   }
+  function wallBox(g, face, x0, x1, z0, z1, a0, a1, ya, yb, d0, d1) {
+    const w = face === "n" ? z0 : face === "s" ? z1 : face === "w" ? x0 : x1, sg = face === "n" || face === "w" ? -1 : 1;
+    const e0 = w + sg * d0, e1 = w + sg * d1, lo = Math.min(e0, e1), hi = Math.max(e0, e1);
+    if (face === "n" || face === "s") fullBox(g, a0, a1, ya, yb, lo, hi, 4);
+    else fullBox(g, lo, hi, ya, yb, a0, a1, 4);
+  }
+  function addSills(x0, x1, z0, z1, h, bk, dr) {
+    const ch = cur.vs / 4;
+    for (const face of streetFaces(x0, x1, z0, z1, bk)) {
+      const ns = face === "n" || face === "s", a0 = (ns ? x0 : z0) + 0.3, a1 = (ns ? x1 : z1) - 0.3;
+      for (let m = 1; m * ch < Math.min(h - 3, 19); m++) {
+        const y = ((m + 0.25) / 4 - cur.vo) * cur.vs;
+        if (y < 5 || y > Math.min(h - 3, 19)) continue;
+        if (dr && dr.face === face && y < 7) continue;
+        wallBox(trimGeo, face, x0, x1, z0, z1, a0, a1, y - 0.04, y + 0.1, 0, 0.17);
+      }
+    }
+  }
+  function addFireEscape(x0, x1, z0, z1, h, bk, dr) {
+    const faces = streetFaces(x0, x1, z0, z1, bk).filter((q) => !dr || dr.face !== q);
+    if (!faces.length) return;
+    const face = faces[Math.floor(srand() * faces.length)], ns = face === "n" || face === "s", len = ns ? x1 - x0 : z1 - z0, ch = cur.vs / 4;
+    const c = (ns ? x0 : z0) + 5 + srand() * Math.max(0.1, len - 10);
+    const B = (a0, a1, ya, yb, d0, d1) => wallBox(ironGeo, face, x0, x1, z0, z1, a0, a1, ya, yb, d0, d1);
+    let prev = null;
+    for (let m = 1; m * ch < h - 3; m++) {
+      const y = ((m + 0.25) / 4 - cur.vo) * cur.vs;
+      if (y < 5.5 || y > h - 3.5) continue;
+      B(c - 1.5, c + 1.5, y, y + 0.07, 0, 1.1);
+      B(c - 1.5, c + 1.5, y + 0.95, y + 1, 1.04, 1.1);
+      B(c - 1.5, c + 1.5, y + 0.5, y + 0.54, 1.04, 1.1);
+      B(c - 1.5, c - 1.44, y + 0.07, y + 1, 0, 1.1);
+      B(c + 1.44, c + 1.5, y + 0.07, y + 1, 0, 1.1);
+      for (const a of [-0.5, 0.5]) B(c + a - 0.03, c + a + 0.03, y, y + 1, 1.04, 1.1);
+      if (prev !== null) {
+        B(c + 1, c + 1.06, prev, y, 0.12, 0.18);
+        B(c + 1.3, c + 1.36, prev, y, 0.12, 0.18);
+        for (let r = prev + 0.35; r < y; r += 0.35) B(c + 1, c + 1.36, r, r + 0.03, 0.12, 0.18);
+      }
+      prev = y;
+    }
+  }
+  function addBalconies(x0, x1, z0, z1, h, bk, dr) {
+    const ch = cur.vs / 4, cw = cur.us / 4;
+    for (const face of streetFaces(x0, x1, z0, z1, bk)) {
+      const ns = face === "n" || face === "s", lo = (ns ? x0 : z0) + 1.5, hi = (ns ? x1 : z1) - 1.5;
+      for (let k = -2; k < Math.ceil((hi - lo) / cw) + 3; k++) {
+        const a = ((k + 0.5) / 4 - cur.uo) * cur.us;
+        if (a < lo || a > hi) continue;
+        for (let m = 2; m * ch < h - 4 && balconyCount < 420; m++) {
+          const y = ((m + 0.25) / 4 - cur.vo) * cur.vs;
+          if (y < 6 || y > h - 3.5 || srand() > 0.07) continue;
+          if (dr && dr.face === face && Math.abs(a - dr.c) < 3) continue;
+          balconyCount++;
+          const wd = cw * 0.42;
+          wallBox(ironGeo, face, x0, x1, z0, z1, a - wd, a + wd, y - 0.05, y + 0.1, 0, 1);
+          wallBox(ironGeo, face, x0, x1, z0, z1, a - wd, a + wd, y + 0.95, y + 1, 0.94, 1);
+          wallBox(ironGeo, face, x0, x1, z0, z1, a - wd, a - wd + 0.05, y + 0.1, y + 1, 0, 1);
+          wallBox(ironGeo, face, x0, x1, z0, z1, a + wd - 0.05, a + wd, y + 0.1, y + 1, 0, 1);
+          for (let q = -2; q <= 2; q++) wallBox(ironGeo, face, x0, x1, z0, z1, a + q * wd * 0.4 - 0.025, a + q * wd * 0.4 + 0.025, y + 0.1, y + 0.95, 0.94, 1);
+        }
+      }
+    }
+  }
   function addAC(x0, x1, z0, z1, h, dr) {
     const per = 0.07 + srand() * 0.05;
     for (const face of ["n", "s", "w", "e"]) {
@@ -2352,6 +2416,9 @@
     let b = solid(x0, x1, 0, h, z0, z1, st, dr);
     footprints.push({ x0, x1, z0, z1, h, dk });
     if (bk && h > 9) addAC(x0, x1, z0, z1, h, dr);
+    if (bk && h > 9 && st !== 3 && st !== 4) addSills(x0, x1, z0, z1, h, bk, dr);
+    if (bk && h > 14 && st === 0 && srand() < 0.6) addFireEscape(x0, x1, z0, z1, h, bk, dr);
+    if (bk && h > 14 && (st === 1 || st === 2 || st === 5) && srand() < 0.55) addBalconies(x0, x1, z0, z1, h, bk, dr);
     if (bk) storefront(x0, x1, z0, z1, bk, dr ? { face: dr.face, a0: dr.c - dr.gw / 2 - 0.3, a1: dr.c + dr.gw / 2 + 0.3 } : null);
     if (h > 55 && srand() < 0.55) {
       const ix = Math.min(sr(3, 7), (x1 - x0) * 0.2), iz = Math.min(sr(3, 7), (z1 - z0) * 0.2), h2 = h + sr(12, h * 0.45);
@@ -2697,6 +2764,7 @@
     shopGeo = newGeo();
     trimGeo = newGeo();
     curbGeo = newGeo();
+    ironGeo = newGeo();
     const trees = [], lamps2 = [], tlights = [], propBlocks = [];
     for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) {
       if (isPark(i, j)) continue;
@@ -2757,6 +2825,7 @@
     facGeo.forEach((g, i) => meshFrom(g, facMats[i]));
     const roofMat = new THREE.MeshStandardMaterial({ map: canvasTex(noiseCanvas("#8a8780", 7e3, 0.14, 256, { n: 40, r: 5, c: ["rgba(60,60,60,.3)", "rgba(120,110,100,.3)"] }), true), roughness: 1 });
     meshFrom(roofGeo, roofMat, false);
+    meshFrom(ironGeo, new THREE.MeshStandardMaterial({ color: 2303530, roughness: 0.5, metalness: 0.55 }), false);
     meshFrom(trimGeo, groundAO(new THREE.MeshStandardMaterial({ map: canvasTex(noiseCanvas("#b3aa9c", 3e3, 0.1, 128), true), roughness: 0.9 })));
     const st = shopTex();
     shopMat = groundAO(new THREE.MeshStandardMaterial({ map: st.map, emissiveMap: st.emi, emissive: 16777215, emissiveIntensity: 0.8, roughness: 0.35, metalness: 0.1 }), 0.75, 6);
@@ -3048,7 +3117,7 @@
       if (m.instanceColor) m.instanceColor.needsUpdate = true;
     }
   }
-  var BW, BD, ST, NX, NZ, CX, CZ, CW, CD, X0, Z0, LAND, PK, POND, isPark, inPark, isecPos, DIST, doors, boxes, roofs, footprints, spots, perches, START, START_H, HC2, hash, stamp, hk, _s1, _s2, _rl, rayN, _rbN, CHUNK, cur, STY, CURT, SHOPS, SIGNC, sunDir, sun, sky, clouds, stars, moon, hemi, amb, water, pondM, waterNormal, TOD, TOD_NAMES, skyU, lin3, pmrem, envRT, skyScene, facMats, shopMat, lampMat, boardMats, glowPts, todName, facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo, SW, tanks, awnings, masts, boards, DOOR_TYPES, ROOMSPEC, acUnits, FISK_DOOR, LANDMARKS, export_arena, ARENA, bx, cy, PROPS, cars, peds, carBody, carGlass, carWheel, carSign, headL, tailL, pedMesh, _o, _c;
+  var BW, BD, ST, NX, NZ, CX, CZ, CW, CD, X0, Z0, LAND, PK, POND, isPark, inPark, isecPos, DIST, doors, boxes, roofs, footprints, spots, perches, START, START_H, HC2, hash, stamp, hk, _s1, _s2, _rl, rayN, _rbN, CHUNK, cur, STY, CURT, SHOPS, SIGNC, sunDir, sun, sky, clouds, stars, moon, hemi, amb, water, pondM, waterNormal, TOD, TOD_NAMES, skyU, lin3, pmrem, envRT, skyScene, facMats, shopMat, lampMat, boardMats, glowPts, todName, facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo, ironGeo, SW, tanks, awnings, masts, boards, DOOR_TYPES, ROOMSPEC, acUnits, balconyCount, streetFaces, FISK_DOOR, LANDMARKS, export_arena, ARENA, bx, cy, PROPS, cars, peds, carBody, carGlass, carWheel, carSign, headL, tailL, pedMesh, _o, _c;
   var init_miasto = __esm({
     "js/miasto.js"() {
       init_util();
@@ -3214,6 +3283,15 @@
       DOOR_TYPES = [["shop", "SKLEP"], ["shop", "SKLEP"], ["cafe", "KAWIARNIA"], ["bar", "BAR"], ["apt", "MIESZKANIE"], ["apt", "MIESZKANIE"], ["office", "BIURO"], ["gym", "SI\u0141OWNIA"]];
       ROOMSPEC = { shop: { cw: 14, cd: 9, ch: 3.6 }, cafe: { cw: 14, cd: 10, ch: 3.6 }, bar: { cw: 12, cd: 9, ch: 3.6 }, apt: { cw: 9, cd: 7, ch: 3.1 }, office: { cw: 16, cd: 11, ch: 3.6 }, gym: { cw: 14, cd: 10, ch: 3.8 }, fisk: { cw: 22, cd: 22, ch: 8 } };
       acUnits = [];
+      balconyCount = 0;
+      streetFaces = (x0, x1, z0, z1, bk) => {
+        const r = [];
+        if (z0 - bk.z0 < 4.5) r.push("n");
+        if (bk.z1 - z1 < 4.5) r.push("s");
+        if (x0 - bk.x0 < 4.5) r.push("w");
+        if (bk.x1 - x1 < 4.5) r.push("e");
+        return r;
+      };
       FISK_DOOR = null;
       LANDMARKS = {
         "4,10": (b, cx, cz) => {
