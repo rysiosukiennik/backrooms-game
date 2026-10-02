@@ -1876,41 +1876,114 @@
     const W = 1024, H = 512, c = cv(W, H), x = c.getContext("2d"), e = cv(W, H), ex = e.getContext("2d");
     ex.fillStyle = "#000";
     ex.fillRect(0, 0, W, H);
+    const FONTS = ["bold 21px Arial", "bold 22px Georgia", "italic bold 22px Georgia", "bold 20px Verdana", "900 22px Impact"];
     for (let row = 0; row < 4; row++) for (let u = 0; u < 4; u++) {
       const X = u * 256, Y = row * 128, col = SIGNC[Math.floor(Math.random() * SIGNC.length)], name = SHOPS[Math.floor(Math.random() * SHOPS.length)];
-      x.fillStyle = "#2b2622";
+      const stone = ["#3b3633", "#4a4440", "#2c2b2d", "#5a534b"][Math.floor(Math.random() * 4)];
+      x.fillStyle = stone;
       x.fillRect(X, Y, 256, 128);
-      x.fillStyle = col;
-      x.fillRect(X + 4, Y + 4, 248, 28);
-      x.fillStyle = "#fff";
-      x.font = "bold 22px Arial";
+      for (let i = 0; i < 700; i++) {
+        x.fillStyle = Math.random() < 0.5 ? "rgba(255,255,255,.08)" : "rgba(0,0,0,.15)";
+        x.fillRect(X + Math.random() * 256, Y + Math.random() * 128, 1.5, 1.5);
+      }
+      const dark = Math.random() < 0.35, sy = Y + 5, sh = 25;
+      const sg = x.createLinearGradient(0, sy, 0, sy + sh);
+      sg.addColorStop(0, dark ? "#1d1d1f" : col);
+      sg.addColorStop(1, dark ? "#0f0f10" : "rgba(0,0,0,.35)");
+      x.fillStyle = dark ? "#1d1d1f" : col;
+      x.fillRect(X + 14, sy, 228, sh);
+      x.fillStyle = sg;
+      x.fillRect(X + 14, sy, 228, sh);
+      x.fillStyle = "rgba(255,255,255,.18)";
+      x.fillRect(X + 14, sy, 228, 2);
+      x.fillStyle = "rgba(0,0,0,.5)";
+      x.fillRect(X + 14, sy + sh, 228, 3);
+      x.font = FONTS[Math.floor(Math.random() * FONTS.length)];
       x.textAlign = "center";
       x.textBaseline = "middle";
-      x.fillText(name, X + 128, Y + 19);
-      ex.fillStyle = col;
-      ex.fillRect(X + 4, Y + 4, 248, 28);
-      ex.fillStyle = "#fff";
-      ex.font = "bold 22px Arial";
+      x.fillStyle = "rgba(0,0,0,.5)";
+      x.fillText(name, X + 129, sy + sh / 2 + 2);
+      x.fillStyle = dark ? "#e0b860" : "#fff";
+      x.fillText(name, X + 128, sy + sh / 2 + 1);
+      ex.font = x.font;
       ex.textAlign = "center";
       ex.textBaseline = "middle";
-      ex.fillText(name, X + 128, Y + 19);
-      const g = x.createLinearGradient(0, Y + 36, 0, Y + 128);
-      g.addColorStop(0, "#b8966c");
-      g.addColorStop(1, "#3b2c20");
-      x.fillStyle = g;
-      x.fillRect(X + 10, Y + 38, 160, 86);
-      x.fillStyle = "rgba(40,30,25,.5)";
-      for (let k = 0; k < 5; k++) x.fillRect(X + 18 + k * 30, Y + 80 + Math.random() * 20, 20, 44);
-      x.strokeStyle = "#111";
-      x.lineWidth = 4;
-      x.strokeRect(X + 10, Y + 38, 160, 86);
-      x.fillStyle = "#1d1a18";
-      x.fillRect(X + 184, Y + 40, 60, 88);
-      x.fillStyle = "#e7c48c";
-      x.fillRect(X + 192, Y + 48, 44, 40);
-      ex.fillStyle = "rgb(255,200,130)";
-      ex.fillRect(X + 10, Y + 38, 160, 86);
-      ex.fillRect(X + 192, Y + 48, 44, 40);
+      ex.fillStyle = dark ? "#c09040" : "#ddd";
+      ex.fillText(name, X + 128, sy + sh / 2 + 1);
+      for (const lx of [X + 50, X + 128, X + 206]) {
+        x.fillStyle = "#111";
+        x.fillRect(lx - 3, sy - 4, 6, 4);
+      }
+      const gx = X + 16, gy = Y + 38, gw = 164, gh = 80;
+      const wg = x.createLinearGradient(0, gy, 0, gy + gh);
+      wg.addColorStop(0, "#5b4a36");
+      wg.addColorStop(0.5, "#2a241f");
+      wg.addColorStop(1, "#141414");
+      x.fillStyle = wg;
+      x.fillRect(gx, gy, gw, gh);
+      const shelfC = ["#c0392b", "#e9c46a", "#2a9d8f", "#f4f1de", "#e76f51", "#457b9d", "#8d99ae", "#6a994e"];
+      for (let r = 0; r < 3; r++) {
+        const yy = gy + 22 + r * 20;
+        x.fillStyle = "rgba(200,190,170,.35)";
+        x.fillRect(gx + 6, yy, gw - 12, 2);
+        for (let k = gx + 8; k < gx + gw - 10; k += 4 + Math.random() * 6) {
+          x.fillStyle = shelfC[Math.floor(Math.random() * shelfC.length)];
+          const ph = 5 + Math.random() * 9;
+          x.globalAlpha = 0.55;
+          x.fillRect(k, yy - ph, 3 + Math.random() * 3, ph);
+          x.globalAlpha = 1;
+        }
+      }
+      if (Math.random() < 0.6) {
+        x.fillStyle = "rgba(15,12,10,.75)";
+        const px = gx + 20 + Math.random() * (gw - 40);
+        x.beginPath();
+        x.arc(px, gy + 34, 5, 0, 7);
+        x.fill();
+        x.fillRect(px - 6, gy + 39, 12, 30);
+      }
+      const lg = x.createLinearGradient(0, gy, 0, gy + 30);
+      lg.addColorStop(0, "rgba(255,220,160,.35)");
+      lg.addColorStop(1, "rgba(255,220,160,0)");
+      x.fillStyle = lg;
+      x.fillRect(gx, gy, gw, 30);
+      x.fillStyle = "rgba(190,210,235,.13)";
+      x.beginPath();
+      x.moveTo(gx + 20, gy + gh);
+      x.lineTo(gx + 80, gy);
+      x.lineTo(gx + 115, gy);
+      x.lineTo(gx + 55, gy + gh);
+      x.fill();
+      x.fillStyle = "rgba(190,210,235,.07)";
+      x.fillRect(gx, gy + gh - 18, gw, 18);
+      if (Math.random() < 0.5) {
+        x.fillStyle = "rgba(255,255,255,.75)";
+        x.font = "bold 9px Arial";
+        x.fillText(Math.random() < 0.5 ? "OTWARTE" : "-30%", gx + gw - 26, gy + 12);
+      }
+      x.strokeStyle = "#1a1b1d";
+      x.lineWidth = 3;
+      x.strokeRect(gx, gy, gw, gh);
+      x.fillStyle = "#1a1b1d";
+      x.fillRect(gx + gw / 2 - 1, gy, 3, gh);
+      x.fillStyle = "#6b6e72";
+      x.fillRect(gx, gy + gh, gw, 8);
+      ex.fillStyle = "rgba(150,110,60,.9)";
+      ex.fillRect(gx, gy, gw, gh * 0.7);
+      const dx = X + 190, dy = Y + 40, dw = 48, dh = 86;
+      x.fillStyle = "#1a1b1d";
+      x.fillRect(dx - 3, dy - 3, dw + 6, dh + 3);
+      const dg = x.createLinearGradient(0, dy, 0, dy + dh);
+      dg.addColorStop(0, "#4a3c2c");
+      dg.addColorStop(1, "#151515");
+      x.fillStyle = dg;
+      x.fillRect(dx, dy, dw, dh);
+      x.fillStyle = "rgba(190,210,235,.12)";
+      x.fillRect(dx + 6, dy, 10, dh);
+      x.fillStyle = "#b8bcc2";
+      x.fillRect(dx + dw - 9, dy + 38, 3, 16);
+      ex.fillStyle = "rgba(120,90,50,.9)";
+      ex.fillRect(dx, dy, dw, dh * 0.6);
     }
     const map = canvasTex(c, true), emi = canvasTex(e, true);
     map.wrapT = emi.wrapT = THREE.ClampToEdgeWrapping;
@@ -2617,6 +2690,25 @@
       }
     }
   }
+  function addCornice(x0, x1, z0, z1, h, st) {
+    const glass = st === 3 || st === 4, p = glass ? 0.15 : 0.55;
+    fullBox(trimGeo, x0 - p, x1 + p, h - 0.75, h - 0.15, z0 - p, z1 + p, 4);
+    if (!glass) {
+      const q = 0.28;
+      fullBox(trimGeo, x0 - q, x1 + q, h - 1.25, h - 0.75, z0 - q, z1 + q, 4);
+      fullBox(trimGeo, x0 - 0.12, x1 + 0.12, h - 1.6, h - 1.25, z0 - 0.12, z1 + 0.12, 4);
+    }
+  }
+  function addBase(x0, x1, z0, z1, h, st) {
+    const glass = st === 3 || st === 4;
+    if (h > 8) fullBox(glass ? ironGeo : trimGeo, x0 - 0.22, x1 + 0.22, 4.65, 5.05, z0 - 0.22, z1 + 0.22, 4);
+    if (!glass && h > 10) for (const [px, pz] of [[x0, z0], [x1, z0], [x0, z1], [x1, z1]]) {
+      const ax = px === x0 ? -1 : 1, az = pz === z0 ? -1 : 1;
+      const A = [px, px - ax * 0.9].sort((m, n) => m - n), Bz = [pz, pz + az * 0.12].sort((m, n) => m - n), Cx = [px, px + ax * 0.12].sort((m, n) => m - n), Dz = [pz, pz - az * 0.9].sort((m, n) => m - n);
+      fullBox(trimGeo, A[0], A[1], 5.05, h - 1.6, Bz[0], Bz[1], 4);
+      fullBox(trimGeo, Cx[0], Cx[1], 5.05, h - 1.6, Dz[0], Dz[1], 4);
+    }
+  }
   function building(x0, x1, z0, z1, h, st, dk, bk, pitched) {
     randomBuildingLook();
     let dr = null;
@@ -2630,10 +2722,15 @@
     if (bk && h > 9 && st !== 3 && st !== 4) addSills(x0, x1, z0, z1, h, bk, dr);
     if (bk && h > 14 && st === 0 && srand() < 0.6) addFireEscape(x0, x1, z0, z1, h, bk, dr);
     if (bk && h > 14 && (st === 1 || st === 2 || st === 5) && srand() < 0.55) addBalconies(x0, x1, z0, z1, h, bk, dr);
+    if (bk && !pitched) {
+      addBase(x0, x1, z0, z1, h, st);
+      if (h < 140) addCornice(x0, x1, z0, z1, h, st);
+    }
     if (bk) storefront(x0, x1, z0, z1, bk, dr ? { face: dr.face, a0: dr.c - dr.gw / 2 - 0.3, a1: dr.c + dr.gw / 2 + 0.3 } : null);
     if (h > 55 && srand() < 0.55) {
       const ix = Math.min(sr(3, 7), (x1 - x0) * 0.2), iz = Math.min(sr(3, 7), (z1 - z0) * 0.2), h2 = h + sr(12, h * 0.45);
       b = solid(x0 + ix, x1 - ix, h, h2, z0 + iz, z1 - iz, st);
+      if (h2 < 160) addCornice(b.x0, b.x1, b.z0, b.z1, h2, st);
       footprints.push({ x0: b.x0, x1: b.x1, z0: b.z0, z1: b.z1, h: h2, dk });
       if (h2 > 110 && srand() < 0.5) {
         const jx = (b.x1 - b.x0) * 0.2, jz = (b.z1 - b.z0) * 0.2, h3 = h2 + sr(10, 40);
