@@ -314,13 +314,30 @@ function sidewalkCanvas() {
   return c;
 }
 function groundTex() {
-  const S = 6, W = CX * S, H = CZ * S, c = cv(W, H), x = c.getContext('2d'), s0 = ST / 2 * S;
+  const S = 10, W = CX * S, H = CZ * S, c = cv(W, H), x = c.getContext('2d'), s0 = ST / 2 * S;
   x.fillStyle = '#56575c'; x.fillRect(0, 0, W, H);
-  for (let i = 0; i < 6000; i++) { const g = 48 + Math.random() * 28 | 0; x.fillStyle = `rgba(${g},${g},${g + 4},.4)`; x.fillRect(Math.random() * W, Math.random() * H, 2, 2); }
+  for (let i = 0; i < 16000; i++) { const g = 48 + Math.random() * 28 | 0; x.fillStyle = `rgba(${g},${g},${g + 4},.4)`; x.fillRect(Math.random() * W, Math.random() * H, 2, 2); }
+  // jezdnia: laty po remontach, pekniecia, plamy oleju, wyjezdzone koleiny
+  const onRoad = () => { const ax = Math.random() < 0.5; return ax ? [Math.random() * W, Math.random() * s0 * 0.95] : [Math.random() * s0 * 0.95, Math.random() * H]; };
+  for (let i = 0; i < 14; i++) { const [px, py] = onRoad(), w = (4 + Math.random() * 14) * S, h = (2 + Math.random() * 4) * S, k = Math.random() < 0.6 ? 38 : 72;
+    x.save(); x.translate(px, py); x.rotate(Math.random() < 0.5 ? 0 : Math.PI / 2); x.fillStyle = `rgba(${k},${k},${k + 3},.55)`; x.fillRect(-w / 2, -h / 2, w, h); x.strokeStyle = 'rgba(20,20,20,.35)'; x.lineWidth = 1.5; x.strokeRect(-w / 2, -h / 2, w, h); x.restore(); }
+  x.strokeStyle = 'rgba(25,25,28,.5)'; x.lineWidth = 1;
+  for (let i = 0; i < 40; i++) { let [px, py] = onRoad(); x.beginPath(); x.moveTo(px, py); for (let j = 0; j < 6; j++) { px += (Math.random() - 0.5) * 18; py += (Math.random() - 0.5) * 18; x.lineTo(px, py); } x.stroke(); }
+  for (let i = 0; i < 30; i++) { const [px, py] = onRoad(), r = 3 + Math.random() * 9; const gr = x.createRadialGradient(px, py, 0, px, py, r); gr.addColorStop(0, 'rgba(15,15,18,.45)'); gr.addColorStop(1, 'rgba(15,15,18,0)'); x.fillStyle = gr; x.beginPath(); x.arc(px, py, r, 0, 7); x.fill(); }
+  // wlazy kanalowe (z napisem jak w NYC) i kratki sciekowe przy krawezniku
+  const manhole = (px, py) => { const r = 0.42 * S; x.fillStyle = '#2f2c29'; x.beginPath(); x.arc(px, py, r + 1.5, 0, 7); x.fill(); x.fillStyle = '#4a443d'; x.beginPath(); x.arc(px, py, r, 0, 7); x.fill();
+    x.strokeStyle = 'rgba(20,18,16,.8)'; x.lineWidth = 1; for (let k = -r + 2; k < r; k += 2.5) { x.beginPath(); x.moveTo(px - r * 0.8, py + k); x.lineTo(px + r * 0.8, py + k); x.stroke(); } };
+  manhole(W * 0.31, s0 * 0.5); manhole(s0 * 0.5, H * 0.62); manhole(W * 0.77, s0 * 0.45); manhole(s0 * 0.45, H * 0.18);
+  const drain = (px, py, vert) => { x.fillStyle = '#1b1c1e'; const w = (vert ? 0.5 : 1.0) * S, h = (vert ? 1.0 : 0.5) * S; x.fillRect(px - w / 2, py - h / 2, w, h); x.fillStyle = '#5b5d60';
+    for (let k = 0; k < 5; k++) vert ? x.fillRect(px - w / 2, py - h / 2 + (k + 0.5) * h / 5, w, 1) : x.fillRect(px - w / 2 + (k + 0.5) * w / 5, py - h / 2, 1, h); };
+  for (const fx of [0.25, 0.75]) { drain(s0 + BW * S * fx, s0 - 0.5 * S, false); drain(s0 + BW * S * fx, s0 + BD * S + 0.5 * S, false); }
+  for (const fz of [0.3, 0.7]) { drain(s0 - 0.5 * S, s0 + BD * S * fz, true); drain(s0 + BW * S + 0.5 * S, s0 + BD * S * fz, true); }
   x.fillStyle = '#8e8981'; x.fillRect(s0, s0, BW * S, BD * S);
   x.strokeStyle = 'rgba(0,0,0,.13)'; x.lineWidth = 1;
   for (let a = s0; a <= s0 + BW * S; a += 2 * S) { x.beginPath(); x.moveTo(a, s0); x.lineTo(a, s0 + BD * S); x.stroke(); }
   for (let a = s0; a <= s0 + BD * S; a += 2 * S) { x.beginPath(); x.moveTo(s0, a); x.lineTo(s0 + BW * S, a); x.stroke(); }
+  for (let i = 0; i < 60; i++) { const k = Math.random() < 0.5 ? 'rgba(0,0,0,' : 'rgba(255,250,240,'; x.fillStyle = k + (0.04 + Math.random() * 0.07) + ')'; x.fillRect(s0 + Math.floor(Math.random() * BW / 2) * 2 * S, s0 + Math.floor(Math.random() * BD / 2) * 2 * S, 2 * S, 2 * S); }
+  for (let i = 0; i < 120; i++) { x.fillStyle = 'rgba(40,40,40,.35)'; x.beginPath(); x.arc(s0 + Math.random() * BW * S, s0 + Math.random() * BD * S, 0.8 + Math.random(), 0, 7); x.fill(); }
   x.fillStyle = '#6f6b64'; x.fillRect(s0 + 3 * S, s0 + 3 * S, (BW - 6) * S, (BD - 6) * S);
   x.strokeStyle = '#c2bcb2'; x.lineWidth = 3; x.strokeRect(s0 + 1, s0 + 1, BW * S - 2, BD * S - 2);
   x.fillStyle = '#d8b23a'; x.fillRect(0, 0, 2, H); x.fillRect(W - 2, 0, 2, H);
@@ -339,9 +356,10 @@ function groundTex() {
   for (let i = 0; i < 900; i++) { const k = 225 + Math.random() * 30 | 0; rx.fillStyle = `rgb(${k},${k},${k})`; rx.fillRect(Math.random() * W, Math.random() * H, 3, 3); }
   const road = (fx) => { for (let n = 0; n < fx; n++) { // kaluze tylko na jezdni (pasy przy krawedziach komorki)
     const alongX = Math.random() < 0.5, px = alongX ? Math.random() * W : Math.random() * s0 * 0.9, py = alongX ? Math.random() * s0 * 0.9 : Math.random() * H;
-    const r = 6 + Math.random() * 26; rx.fillStyle = 'rgb(70,70,70)'; rx.beginPath(); rx.ellipse(px, py, r * (1 + Math.random()), r, Math.random() * 3, 0, 7); rx.fill(); x.fillStyle = 'rgba(0,0,0,.22)'; x.beginPath(); x.ellipse(px, py, r, r * 0.8, 0, 0, 7); x.fill(); } };
-  road(26);
-  for (const lx of [s0 * 0.28, s0 * 0.72]) { rx.fillStyle = 'rgb(205,205,205)'; rx.fillRect(0, lx - 5, W, 10); rx.fillRect(lx - 5, 0, 10, H); x.fillStyle = 'rgba(0,0,0,.14)'; x.fillRect(0, lx - 5, W, 10); x.fillRect(lx - 5, 0, 10, H); }
+    const r = 4 + Math.random() * 9; for (let q = 0, nq = 3 + Math.random() * 4 | 0; q < nq; q++) { const ox = px + (Math.random() - 0.5) * r * 2.2, oy = py + (Math.random() - 0.5) * r * 1.4, rr = r * (0.4 + Math.random() * 0.6); // nieregularna kaluza z kilku plam
+      rx.fillStyle = 'rgb(95,95,95)'; rx.beginPath(); rx.ellipse(ox, oy, rr * 1.4, rr, Math.random() * 3, 0, 7); rx.fill(); x.fillStyle = 'rgba(0,0,0,.12)'; x.beginPath(); x.ellipse(ox, oy, rr * 1.5, rr * 1.1, 0, 0, 7); x.fill(); } } };
+  for (const lx of [s0 * 0.28, s0 * 0.72]) { rx.fillStyle = 'rgb(222,222,222)'; rx.fillRect(0, lx - 5, W, 10); rx.fillRect(lx - 5, 0, 10, H); x.fillStyle = 'rgba(0,0,0,.14)'; x.fillRect(0, lx - 5, W, 10); x.fillRect(lx - 5, 0, 10, H); }
+  road(20);
   const t = canvasTex(c, true), r2 = canvasTex(rc, true); return { map: t, rough: r2 };
 }
 function neonTex(text, col) {
@@ -772,6 +790,15 @@ function buildGround() {
   const gt = groundTex(); for (const t of [gt.map, gt.rough]) { t.repeat.set(LW / CX, LD / CZ); t.offset.set(-24 / CX, -24 / CZ); }
   const g = new THREE.Mesh(new THREE.PlaneGeometry(LW, LD), new THREE.MeshStandardMaterial({ map: gt.map, roughnessMap: gt.rough, roughness: 1, metalness: 0 }));
   g.rotation.x = -Math.PI / 2; g.position.y = 0.02; g.receiveShadow = true; scene.add(g);
+  { // drobne ziarno asfaltu i chodnika (powtarza sie co 3 m), mnozone na podloze — ostre z bliska
+    const c = cv(256, 256), x = c.getContext('2d'); x.fillStyle = '#ffffff'; x.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 9000; i++) { const k = 150 + Math.random() * 105 | 0; x.fillStyle = `rgb(${k},${k},${k})`; x.fillRect(Math.random() * 256, Math.random() * 256, 1 + Math.random() * 1.5, 1 + Math.random() * 1.5); }
+    for (let i = 0; i < 500; i++) { x.fillStyle = 'rgb(250,250,250)'; x.fillRect(Math.random() * 256, Math.random() * 256, 1.5, 1.5); }
+    const t = canvasTex(c, true); t.repeat.set(LW / 3, LD / 3); t.encoding = THREE.LinearEncoding;
+    const m = new THREE.MeshBasicMaterial({ map: t, blending: THREE.MultiplyBlending, transparent: true, premultipliedAlpha: true, depthWrite: false, fog: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+    m.userData.lin = true;
+    const gr = new THREE.Mesh(new THREE.PlaneGeometry(LW, LD), m); gr.rotation.x = -Math.PI / 2; gr.position.y = 0.025; gr.renderOrder = 1; scene.add(gr);
+  }
   const base = new THREE.Mesh(new THREE.BoxGeometry(LW, 6, LD), new THREE.MeshStandardMaterial({ color: 0x77726a, roughness: 1 }));
   base.position.y = -3; scene.add(base);
   waterNormal = waterNormals(); waterNormal.repeat.set(9000 / 30, 9000 / 30);
