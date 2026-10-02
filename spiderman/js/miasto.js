@@ -357,7 +357,7 @@ function groundTex() {
   const road = (fx) => { for (let n = 0; n < fx; n++) { // kaluze tylko na jezdni (pasy przy krawedziach komorki)
     const alongX = Math.random() < 0.5, px = alongX ? Math.random() * W : Math.random() * s0 * 0.9, py = alongX ? Math.random() * s0 * 0.9 : Math.random() * H;
     const r = 4 + Math.random() * 9; for (let q = 0, nq = 3 + Math.random() * 4 | 0; q < nq; q++) { const ox = px + (Math.random() - 0.5) * r * 2.2, oy = py + (Math.random() - 0.5) * r * 1.4, rr = r * (0.4 + Math.random() * 0.6); // nieregularna kaluza z kilku plam
-      rx.fillStyle = 'rgb(95,95,95)'; rx.beginPath(); rx.ellipse(ox, oy, rr * 1.4, rr, Math.random() * 3, 0, 7); rx.fill(); x.fillStyle = 'rgba(0,0,0,.12)'; x.beginPath(); x.ellipse(ox, oy, rr * 1.5, rr * 1.1, 0, 0, 7); x.fill(); } } };
+      rx.fillStyle = 'rgb(135,135,135)'; rx.beginPath(); rx.ellipse(ox, oy, rr * 1.4, rr, Math.random() * 3, 0, 7); rx.fill(); x.fillStyle = 'rgba(0,0,0,.12)'; x.beginPath(); x.ellipse(ox, oy, rr * 1.5, rr * 1.1, 0, 0, 7); x.fill(); } } };
   for (const lx of [s0 * 0.28, s0 * 0.72]) { rx.fillStyle = 'rgb(222,222,222)'; rx.fillRect(0, lx - 5, W, 10); rx.fillRect(lx - 5, 0, 10, H); x.fillStyle = 'rgba(0,0,0,.14)'; x.fillRect(0, lx - 5, W, 10); x.fillRect(lx - 5, 0, 10, H); }
   road(20);
   const t = canvasTex(c, true), r2 = canvasTex(rc, true); return { map: t, rough: r2 };
@@ -1167,7 +1167,7 @@ export function buildCity() {
 
 // ---------------------------------------------------------------- ruch uliczny
 const cars = [], peds = [];
-let carBody, carGlass, carWheel, carSign, headL, tailL, pedMesh = [];
+let carBody, carGlass, carWheel, carSign, carParts = [], carRims, headL, tailL, pedMesh = [];
 const _o = new THREE.Object3D(), _c = new THREE.Color();
 
 // ksztalt wzdluz osi Z z pierscieni (przekroj prostokat z zaokragleniami)
@@ -1204,7 +1204,20 @@ function carGeometries() {
     const w = new THREE.CylinderGeometry(0.34, 0.34, 0.24, 16); w.rotateZ(Math.PI / 2); w.translate(x, 0.34, z); wheels.push(w);
   }
   const sign = new THREE.BoxGeometry(0.55, 0.2, 0.26); sign.translate(0, 1.58, -0.3);
-  return { body: mergeGeos([body, roof]), glass, wheels: mergeGeos(wheels), sign };
+  // detale: felgi, zderzaki z kratka, lusterka, tablice; swiatla przednie i tylne osobno (swieca)
+  const bx = (w, h, d, x, y, z) => { const g = new THREE.BoxGeometry(w, h, d); g.translate(x, y, z); return g; };
+  const rims = [];
+  for (const [x, z] of [[0.83, 1.38], [-0.83, 1.38], [0.83, -1.36], [-0.83, -1.36]]) {
+    const r = new THREE.CylinderGeometry(0.21, 0.21, 0.03, 14); r.rotateZ(Math.PI / 2); r.translate(x + Math.sign(x) * 0.115, 0.34, z); rims.push(r);
+    const hub = new THREE.CylinderGeometry(0.06, 0.06, 0.05, 8); hub.rotateZ(Math.PI / 2); hub.translate(x + Math.sign(x) * 0.13, 0.34, z); rims.push(hub);
+  }
+  const chrome = mergeGeos([bx(0.82, 0.03, 0.03, 0, 0.73, 2.21), bx(0.06, 0.03, 0.03, 0.62, 0.95, 0.15), bx(0.06, 0.03, 0.03, -0.62, 0.95, 0.15)]);
+  const trim = mergeGeos([bx(1.74, 0.2, 0.16, 0, 0.37, 2.19), bx(1.74, 0.2, 0.16, 0, 0.37, -2.19), bx(0.8, 0.15, 0.05, 0, 0.62, 2.22),
+    bx(0.16, 0.1, 0.12, 0.97, 1.0, 0.95), bx(0.16, 0.1, 0.12, -0.97, 1.0, 0.95), bx(1.84, 0.05, 3.0, 0, 0.27, 0)]);
+  const plate = mergeGeos([bx(0.5, 0.12, 0.02, 0, 0.58, -2.29), bx(0.5, 0.12, 0.02, 0, 0.42, 2.28)]);
+  const head = mergeGeos([bx(0.34, 0.12, 0.05, 0.6, 0.74, 2.13), bx(0.34, 0.12, 0.05, -0.6, 0.74, 2.13)]);
+  const tail = mergeGeos([bx(0.36, 0.13, 0.05, 0.62, 0.78, -2.21), bx(0.36, 0.13, 0.05, -0.62, 0.78, -2.21)]);
+  return { body: mergeGeos([body, roof]), glass, wheels: mergeGeos(wheels), rims: mergeGeos(rims), sign, chrome, trim, plate, head, tail };
 }
 function initTraffic() {
   const lanes = [];
@@ -1213,7 +1226,7 @@ function initTraffic() {
   const carCols = [0xf2c00f, 0xf2c00f, 0xf2c00f, 0x1d1f24, 0xe9e9e9, 0x8a1a1a, 0x2a4d8a, 0x6c6f75, 0x234a2f, 0xb0b3b8];
   for (const L of lanes) {
     L.sp = sr(9, 15); L.len = (L.ax === 'z' ? CD : CW) + 20;
-    const n = L.ax === 'z' ? 3 + Math.floor(srand() * 3) : 1 + Math.floor(srand() * 2);
+    const n = L.ax === 'z' ? 7 + Math.floor(srand() * 4) : 2 + Math.floor(srand() * 3);
     for (let k = 0; k < n; k++) cars.push({ L, s: (k / n) * L.len + sr(0, L.len / n * 0.4), col: carCols[Math.floor(srand() * carCols.length)] });
   }
   const G2 = carGeometries();
@@ -1222,7 +1235,21 @@ function initTraffic() {
   carGlass = new THREE.InstancedMesh(G2.glass, new THREE.MeshStandardMaterial({ color: 0x0c1016, roughness: 0.05, metalness: 0.6 }), cars.length);
   carWheel = new THREE.InstancedMesh(G2.wheels, new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.85 }), cars.length);
   carSign = new THREE.InstancedMesh(G2.sign, new THREE.MeshStandardMaterial({ color: 0xfff6d8, emissive: 0xffe7a0, emissiveIntensity: 0.6 }), cars.length);
-  cars.forEach((c, i) => { carBody.setColorAt(i, _c.setHex(c.col)); c.taxi = c.col === 0xf2c00f; });
+  const chromeM = new THREE.MeshStandardMaterial({ color: 0xc8ccd2, roughness: 0.25, metalness: 0.9 });
+  carRims = new THREE.InstancedMesh(G2.rims, chromeM, cars.length); carRims.instanceMatrix.setUsage(THREE.DynamicDrawUsage); carRims.frustumCulled = false; scene.add(carRims);
+  carParts = [
+    [G2.chrome, chromeM],
+    [G2.trim, new THREE.MeshStandardMaterial({ color: 0x1b1c1f, roughness: 0.7 })],
+    [G2.plate, new THREE.MeshStandardMaterial({ color: 0xf0eee4, roughness: 0.5 })],
+    [G2.head, new THREE.MeshStandardMaterial({ color: 0xf4f6ff, emissive: 0xfff2d6, emissiveIntensity: 0.7, roughness: 0.1 })],
+    [G2.tail, new THREE.MeshStandardMaterial({ color: 0x7a0c0c, emissive: 0xff1a10, emissiveIntensity: 0.6, roughness: 0.2 })],
+  ].map(([g, m]) => { const im = new THREE.InstancedMesh(g, m, cars.length); im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); im.frustumCulled = false; scene.add(im); return im; });
+  cars.forEach((c, i) => {
+    carBody.setColorAt(i, _c.setHex(c.col)); c.taxi = c.col === 0xf2c00f;
+    // rozne sylwetki: male auta, sedany, wysokie SUV-y i dostawczaki
+    const t = c.taxi ? 1 : srand();
+    c.sc = t < 0.2 ? [0.94, 0.95, 0.86] : t < 0.7 ? [1, 1, 1 + srand() * 0.06] : t < 0.9 ? [1.06, 1.2, 1.04] : [1.08, 1.42, 1.16];
+  });
   for (const m of [carBody, carGlass, carWheel, carSign]) { m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false; m.castShadow = false; scene.add(m); }
   headL = glowPoints(new Array(cars.length * 3).fill(0), 0xfff2d0, 2.6);
   tailL = glowPoints(new Array(cars.length * 3).fill(0), 0xff2020, 1.8);
@@ -1307,13 +1334,18 @@ export function updateTraffic(dt) {
     if (L.ax === 'z') { x = L.c; z = Z0 - 10 + c.s; yaw = L.dir > 0 ? 0 : Math.PI; fx = 0; fz = L.dir; }
     else { z = L.c; x = X0 - 10 + c.s; yaw = L.dir > 0 ? Math.PI / 2 : -Math.PI / 2; fx = L.dir; fz = 0; }
     const hide = inPark(x, z);
-    _o.position.set(x, 0, z); _o.rotation.set(0, yaw, 0); _o.scale.setScalar(hide ? 0.0001 : 1); _o.updateMatrix();
-    carBody.setMatrixAt(i, _o.matrix); carGlass.setMatrixAt(i, _o.matrix); carWheel.setMatrixAt(i, _o.matrix);
+    _o.position.set(x, 0, z); _o.rotation.set(0, yaw, 0); if (hide) _o.scale.setScalar(0.0001); else _o.scale.set(c.sc[0], c.sc[1], c.sc[2]); _o.updateMatrix();
+    carBody.setMatrixAt(i, _o.matrix); carGlass.setMatrixAt(i, _o.matrix);
+    for (const m of carParts) m.setMatrixAt(i, _o.matrix);
+    if (!hide) { _o.scale.y = 1; _o.updateMatrix(); } // kola zawsze okragle
+    carWheel.setMatrixAt(i, _o.matrix); carRims.setMatrixAt(i, _o.matrix);
     if (!c.taxi) { _o.scale.setScalar(0.0001); _o.updateMatrix(); }
     carSign.setMatrixAt(i, _o.matrix);
     const hy = hide ? -99 : 0.72;
     hp.setXYZ(i, x + fx * 2.3, hy, z + fz * 2.3); tp.setXYZ(i, x - fx * 2.3, hy, z - fz * 2.3);
   });
+  for (const m of carParts) m.instanceMatrix.needsUpdate = true;
+  carRims.instanceMatrix.needsUpdate = true;
   carBody.instanceMatrix.needsUpdate = carGlass.instanceMatrix.needsUpdate = carWheel.instanceMatrix.needsUpdate = carSign.instanceMatrix.needsUpdate = true;
   hp.needsUpdate = tp.needsUpdate = true;
   // przechodnie blisko kamery; kazdy w jednej z dwoch klatek kroku

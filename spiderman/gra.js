@@ -2137,7 +2137,7 @@
         const r = 4 + Math.random() * 9;
         for (let q = 0, nq = 3 + Math.random() * 4 | 0; q < nq; q++) {
           const ox = px + (Math.random() - 0.5) * r * 2.2, oy = py + (Math.random() - 0.5) * r * 1.4, rr = r * (0.4 + Math.random() * 0.6);
-          rx.fillStyle = "rgb(95,95,95)";
+          rx.fillStyle = "rgb(135,135,135)";
           rx.beginPath();
           rx.ellipse(ox, oy, rr * 1.4, rr, Math.random() * 3, 0, 7);
           rx.fill();
@@ -3341,7 +3341,35 @@
     }
     const sign = new THREE.BoxGeometry(0.55, 0.2, 0.26);
     sign.translate(0, 1.58, -0.3);
-    return { body: mergeGeos([body, roof]), glass, wheels: mergeGeos(wheels), sign };
+    const bx2 = (w, h, d, x, y, z) => {
+      const g = new THREE.BoxGeometry(w, h, d);
+      g.translate(x, y, z);
+      return g;
+    };
+    const rims = [];
+    for (const [x, z] of [[0.83, 1.38], [-0.83, 1.38], [0.83, -1.36], [-0.83, -1.36]]) {
+      const r = new THREE.CylinderGeometry(0.21, 0.21, 0.03, 14);
+      r.rotateZ(Math.PI / 2);
+      r.translate(x + Math.sign(x) * 0.115, 0.34, z);
+      rims.push(r);
+      const hub = new THREE.CylinderGeometry(0.06, 0.06, 0.05, 8);
+      hub.rotateZ(Math.PI / 2);
+      hub.translate(x + Math.sign(x) * 0.13, 0.34, z);
+      rims.push(hub);
+    }
+    const chrome = mergeGeos([bx2(0.82, 0.03, 0.03, 0, 0.73, 2.21), bx2(0.06, 0.03, 0.03, 0.62, 0.95, 0.15), bx2(0.06, 0.03, 0.03, -0.62, 0.95, 0.15)]);
+    const trim = mergeGeos([
+      bx2(1.74, 0.2, 0.16, 0, 0.37, 2.19),
+      bx2(1.74, 0.2, 0.16, 0, 0.37, -2.19),
+      bx2(0.8, 0.15, 0.05, 0, 0.62, 2.22),
+      bx2(0.16, 0.1, 0.12, 0.97, 1, 0.95),
+      bx2(0.16, 0.1, 0.12, -0.97, 1, 0.95),
+      bx2(1.84, 0.05, 3, 0, 0.27, 0)
+    ]);
+    const plate = mergeGeos([bx2(0.5, 0.12, 0.02, 0, 0.58, -2.29), bx2(0.5, 0.12, 0.02, 0, 0.42, 2.28)]);
+    const head = mergeGeos([bx2(0.34, 0.12, 0.05, 0.6, 0.74, 2.13), bx2(0.34, 0.12, 0.05, -0.6, 0.74, 2.13)]);
+    const tail = mergeGeos([bx2(0.36, 0.13, 0.05, 0.62, 0.78, -2.21), bx2(0.36, 0.13, 0.05, -0.62, 0.78, -2.21)]);
+    return { body: mergeGeos([body, roof]), glass, wheels: mergeGeos(wheels), rims: mergeGeos(rims), sign, chrome, trim, plate, head, tail };
   }
   function initTraffic() {
     const lanes = [];
@@ -3357,7 +3385,7 @@
     for (const L of lanes) {
       L.sp = sr(9, 15);
       L.len = (L.ax === "z" ? CD : CW) + 20;
-      const n = L.ax === "z" ? 3 + Math.floor(srand() * 3) : 1 + Math.floor(srand() * 2);
+      const n = L.ax === "z" ? 7 + Math.floor(srand() * 4) : 2 + Math.floor(srand() * 3);
       for (let k = 0; k < n; k++) cars.push({ L, s: k / n * L.len + sr(0, L.len / n * 0.4), col: carCols[Math.floor(srand() * carCols.length)] });
     }
     const G2 = carGeometries();
@@ -3365,9 +3393,29 @@
     carGlass = new THREE.InstancedMesh(G2.glass, new THREE.MeshStandardMaterial({ color: 790550, roughness: 0.05, metalness: 0.6 }), cars.length);
     carWheel = new THREE.InstancedMesh(G2.wheels, new THREE.MeshStandardMaterial({ color: 1381653, roughness: 0.85 }), cars.length);
     carSign = new THREE.InstancedMesh(G2.sign, new THREE.MeshStandardMaterial({ color: 16774872, emissive: 16770976, emissiveIntensity: 0.6 }), cars.length);
+    const chromeM = new THREE.MeshStandardMaterial({ color: 13159634, roughness: 0.25, metalness: 0.9 });
+    carRims = new THREE.InstancedMesh(G2.rims, chromeM, cars.length);
+    carRims.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    carRims.frustumCulled = false;
+    scene.add(carRims);
+    carParts = [
+      [G2.chrome, chromeM],
+      [G2.trim, new THREE.MeshStandardMaterial({ color: 1776671, roughness: 0.7 })],
+      [G2.plate, new THREE.MeshStandardMaterial({ color: 15789796, roughness: 0.5 })],
+      [G2.head, new THREE.MeshStandardMaterial({ color: 16054015, emissive: 16773846, emissiveIntensity: 0.7, roughness: 0.1 })],
+      [G2.tail, new THREE.MeshStandardMaterial({ color: 7998476, emissive: 16718352, emissiveIntensity: 0.6, roughness: 0.2 })]
+    ].map(([g, m]) => {
+      const im = new THREE.InstancedMesh(g, m, cars.length);
+      im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      im.frustumCulled = false;
+      scene.add(im);
+      return im;
+    });
     cars.forEach((c, i) => {
       carBody.setColorAt(i, _c.setHex(c.col));
       c.taxi = c.col === 15908879;
+      const t = c.taxi ? 1 : srand();
+      c.sc = t < 0.2 ? [0.94, 0.95, 0.86] : t < 0.7 ? [1, 1, 1 + srand() * 0.06] : t < 0.9 ? [1.06, 1.2, 1.04] : [1.08, 1.42, 1.16];
     });
     for (const m of [carBody, carGlass, carWheel, carSign]) {
       m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -3499,11 +3547,18 @@
       const hide = inPark(x, z);
       _o.position.set(x, 0, z);
       _o.rotation.set(0, yaw, 0);
-      _o.scale.setScalar(hide ? 1e-4 : 1);
+      if (hide) _o.scale.setScalar(1e-4);
+      else _o.scale.set(c.sc[0], c.sc[1], c.sc[2]);
       _o.updateMatrix();
       carBody.setMatrixAt(i, _o.matrix);
       carGlass.setMatrixAt(i, _o.matrix);
+      for (const m of carParts) m.setMatrixAt(i, _o.matrix);
+      if (!hide) {
+        _o.scale.y = 1;
+        _o.updateMatrix();
+      }
       carWheel.setMatrixAt(i, _o.matrix);
+      carRims.setMatrixAt(i, _o.matrix);
       if (!c.taxi) {
         _o.scale.setScalar(1e-4);
         _o.updateMatrix();
@@ -3513,6 +3568,8 @@
       hp.setXYZ(i, x + fx * 2.3, hy, z + fz * 2.3);
       tp.setXYZ(i, x - fx * 2.3, hy, z - fz * 2.3);
     });
+    for (const m of carParts) m.instanceMatrix.needsUpdate = true;
+    carRims.instanceMatrix.needsUpdate = true;
     carBody.instanceMatrix.needsUpdate = carGlass.instanceMatrix.needsUpdate = carWheel.instanceMatrix.needsUpdate = carSign.instanceMatrix.needsUpdate = true;
     hp.needsUpdate = tp.needsUpdate = true;
     const cnt = [0, 0], cxp = camera.position.x, czp = camera.position.z;
@@ -3546,7 +3603,7 @@
       if (m.instanceColor) m.instanceColor.needsUpdate = true;
     }
   }
-  var BW, BD, ST, NX, NZ, CX, CZ, CW, CD, X0, Z0, LAND, PK, POND, isPark, inPark, isecPos, DIST, doors, boxes, roofs, footprints, spots, perches, START, START_H, HC2, hash, stamp, hk, _s1, _s2, _rl, rayN, _rbN, CHUNK, cur, STY, CURT, SHOPS, SIGNC, sunDir, sun, sky, clouds, stars, moon, hemi, amb, water, pondM, waterNormal, TOD, TOD_NAMES, skyU, lin3, pmrem, envRT, skyScene, facMats, shopMat, lampMat, boardMats, glowPts, todName, facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo, ironGeo, pitchGeo, SW, tanks, awnings, masts, boards, DOOR_TYPES, ROOMSPEC, acUnits, balconyCount, streetFaces, FISK_DOOR, LANDMARKS, export_arena, ARENA, bx, cy, PROPS, ventList, cars, peds, carBody, carGlass, carWheel, carSign, headL, tailL, pedMesh, _o, _c, steam, birds, BIRD_N, birdData, _bo;
+  var BW, BD, ST, NX, NZ, CX, CZ, CW, CD, X0, Z0, LAND, PK, POND, isPark, inPark, isecPos, DIST, doors, boxes, roofs, footprints, spots, perches, START, START_H, HC2, hash, stamp, hk, _s1, _s2, _rl, rayN, _rbN, CHUNK, cur, STY, CURT, SHOPS, SIGNC, sunDir, sun, sky, clouds, stars, moon, hemi, amb, water, pondM, waterNormal, TOD, TOD_NAMES, skyU, lin3, pmrem, envRT, skyScene, facMats, shopMat, lampMat, boardMats, glowPts, todName, facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo, ironGeo, pitchGeo, SW, tanks, awnings, masts, boards, DOOR_TYPES, ROOMSPEC, acUnits, balconyCount, streetFaces, FISK_DOOR, LANDMARKS, export_arena, ARENA, bx, cy, PROPS, ventList, cars, peds, carBody, carGlass, carWheel, carSign, carParts, carRims, headL, tailL, pedMesh, _o, _c, steam, birds, BIRD_N, birdData, _bo;
   var init_miasto = __esm({
     "js/miasto.js"() {
       init_util();
@@ -3767,6 +3824,7 @@
       ventList = [];
       cars = [];
       peds = [];
+      carParts = [];
       pedMesh = [];
       _o = new THREE.Object3D();
       _c = new THREE.Color();
