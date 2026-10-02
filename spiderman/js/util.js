@@ -55,7 +55,7 @@ try { Object.assign(save, JSON.parse(localStorage.getItem(KEY) || '{}')); } catc
 // nowa gra: kasuje caly postep, ale zostawia ustawienia (grafika, pora dnia, muzyka)
 export function resetProgress() {
   const keep = { gfx: save.gfx, tod: save.tod, music: save.music };
-  Object.assign(save, { lvl: 1, xp: 0, suit: 'adv', bags: [], crimes: 0, skills: [], races: {}, bossWins: 0, chases: 0, fisk: 0, pos: null, hd: 0, hasGame: false, savedAt: 0 }, keep);
+  Object.assign(save, { lvl: 1, xp: 0, suit: 'adv', bags: [], crimes: 0, skills: [], races: {}, bossWins: 0, chases: 0, fisk: 0, pos: null, hd: 0, hasGame: false, savedAt: 0, colas: 0 }, keep);
   doSave();
 }
 export function doSave() { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) {} }

@@ -6,6 +6,9 @@ import { G, P, scene } from './stan.js';
 import { addBox, SW, doors } from './miasto.js';
 import { buildThug, newPose, applyPose, idlePose } from './postac.js';
 import { showMsg, popText } from './ui.js';
+import { sfx } from './dzwiek.js';
+import { maxHp } from './umiejetnosci.js';
+import { save, doSave } from './util.js';
 import { startFisk } from './fisk.js';
 
 export const ROOMS = {};
@@ -105,6 +108,12 @@ const BUILD = {
     box(-hw + 0.4, -hw + 0.95, 1.5, cd - 2, 0, 2.2, flat(0x8a8f96, 0.6)); shelfItems(c, 1.7, cd - 2.2, -hw + 0.95, 1);
     for (const a of [-hw + 2.8, hw - 4.6]) { box(a, a + 1.9, cd * 0.3, cd * 0.3 + 0.6, 0, 1.8, flat(0x8a8f96, 0.6)); shelfItems(c, a + 0.2, a + 1.7, cd * 0.3, -1, [0.3, 0.85, 1.4]); }
     box(hw - 1.4, hw - 0.4, 1.5, cd - 2, 0, 2.2, flat(0xdfe6ea, 0.4)); box(hw - 1.45, hw - 1.4, 1.7, cd - 2.2, 0.2, 2.1, glow(0x9fd6ff, 0.5), false); // lodowki
+    { // puszki coli za szyba lodowki + czerwony szyld nad nia
+      const cans = []; for (const y of [0.45, 0.95, 1.45, 1.9]) for (let v = 1.8; v < cd - 2.3; v += 0.16) cans.push([hw - 1.55, y, v, 0.07, 0.13, 0.07]);
+      c.inst(cans, ['#c8102e', '#c8102e', '#c8102e', '#d9d9d9', '#1b1b1b']);
+      box(hw - 1.5, hw - 1.45, 2.2, cd - 2.6, 2.25, 2.6, glow(0xe0202a, 1.1), false);
+      c.rm.cola = c.world(hw - 2.1, (1.5 + cd - 2) / 2); c.rm.colaT = 0;
+    }
     c.npc(0, cm + 1.4); c.npc(hw * 0.4, 3, -1, 0.3);
   },
   cafe(c) {
@@ -182,8 +191,19 @@ function buildRoom(d) {
 }
 export const playerInRoom = (d, m = 0) => { const r = d.room; return P.pos.x > r.bx0 - m && P.pos.x < r.bx1 + m && P.pos.z > r.bz0 - m && P.pos.z < r.bz1 + m && P.pos.y > -1 && P.pos.y < SW + r.ch + 0.6; };
 let acc = 0, wasInFisk = false;
+// cola z lodowki w sklepie: pelne zdrowie + puszka w dloni
+let canMesh = null, canT = 0;
+export function takeCola() {
+  const d = P.colaNear; if (!d || !d.rm) return;
+  d.rm.colaT = 15; P.hp = maxHp(); save.colas = (save.colas || 0) + 1; doSave();
+  sfx('cola'); popText('+ ZDROWIE'); showMsg('ZIMNA COLA', save.colas === 1 ? 'Pełne zdrowie! Sprzedawca macha ręką: „Na koszt firmy!”' : `Pełne zdrowie · wypite cole: ${save.colas}`, 2.6);
+  if (!canMesh) { canMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.033, 0.033, 0.12, 12), new THREE.MeshStandardMaterial({ color: 0xc8102e, roughness: 0.3, metalness: 0.6 })); }
+  if (P.H && P.H.handR) { P.H.handR.add(canMesh); canMesh.position.set(0, -0.05, 0.03); canMesh.rotation.set(0, 0, 0); canT = 3; }
+}
 export function updateRooms(dt) {
   acc += dt;
+  if (canT > 0) { canT -= dt; if (canT <= 0 && canMesh && canMesh.parent) canMesh.parent.remove(canMesh); }
+  P.colaNear = null;
   const near = (d) => Math.hypot(P.pos.x - d.x, P.pos.z - d.z);
   if (acc > 0.3) { // budowanie i ukrywanie co chwile, nie co klatke
     acc = 0; let built = 0;
@@ -197,6 +217,7 @@ export function updateRooms(dt) {
     if (!d.rm || !d.rm.g.visible) continue;
     if (Math.hypot(P.pos.x - d.x, P.pos.z - d.z) < 32) { for (const n of d.rm.npcs) { n.t += dt; for (const k in n.p) n.p[k] = 0; idlePose(n.p, n.t); applyPose(n.H, n.p); } }
     const inside = playerInRoom(d, 0);
+    if (d.rm.cola) { d.rm.colaT = Math.max(0, d.rm.colaT - dt); if (inside && d.rm.colaT <= 0 && Math.hypot(P.pos.x - d.rm.cola[0], P.pos.z - d.rm.cola[1]) < 2.4) P.colaNear = d; }
     if (inside && !d.rm.entered) { d.rm.entered = true; const [t, s] = INTRO[d.type]; showMsg(t, s, 3.2); if (d.type !== 'fisk') { popText('+20 PD'); import('./wrogowie.js').then(m => m.addXP(20)); } }
   }
   const fd = doors.find(d => d.type === 'fisk');

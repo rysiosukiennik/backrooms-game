@@ -3,7 +3,7 @@
 import { V3, UP, clamp, lerp, damp, angLerp, save, doSave } from './util.js';
 import { G, P, cam, scene, camera, enemies } from './stan.js';
 import { supportAt, boxesNear, raycastCity, LAND, START, START_H, roofs, perches, nearestDoor } from './miasto.js';
-import { enterDoor, leaveInterior, nearExit } from './wnetrza.js';
+import { enterDoor, leaveInterior, nearExit, takeCola } from './wnetrza.js';
 import { buildSpider, newPose, zeroPose, blendPose, applyPose, idlePose, runPose, crouchPose, tuckPose, aimArm, basisQ, SUITS, suitById } from './postac.js';
 import { hitEnemy, shootWeb, burst, finishEnemy, addXP } from './wrogowie.js';
 import { carPunch, carLeave } from './misje.js';
@@ -126,11 +126,12 @@ export function updatePlayer(dt, I) {
   const foe = nearestEnemy(5);
   P.finReady = !!(foe && P.focus >= 1);
   P.doorNear = null; P.exitNear = false; // pokoje sa prawdziwe — wchodzi sie normalnie przez drzwi
-  P.perchPt = (P.state !== 'car' && P.state !== 'pz' && !P.finReady && !P.doorNear && !G.interior) ? findPerch() : null;
+  P.perchPt = (P.state !== 'car' && P.state !== 'pz' && !P.finReady && !P.doorNear && !P.colaNear && !G.interior) ? findPerch() : null;
 
   if (I.specialP) {
     if (P.doorNear) enterDoor(P.doorNear);
     else if (P.exitNear && !P.finReady) leaveInterior();
+    else if (P.colaNear && !P.finReady) takeCola();
     else if (P.finReady) startFinisher(foe);
     else if (P.perchPt) startPerchZip(P.perchPt);
   }

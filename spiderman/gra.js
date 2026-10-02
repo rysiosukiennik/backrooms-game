@@ -66,7 +66,7 @@
   }
   function resetProgress() {
     const keep = { gfx: save.gfx, tod: save.tod, music: save.music };
-    Object.assign(save, { lvl: 1, xp: 0, suit: "adv", bags: [], crimes: 0, skills: [], races: {}, bossWins: 0, chases: 0, fisk: 0, pos: null, hd: 0, hasGame: false, savedAt: 0 }, keep);
+    Object.assign(save, { lvl: 1, xp: 0, suit: "adv", bags: [], crimes: 0, skills: [], races: {}, bossWins: 0, chases: 0, fisk: 0, pos: null, hd: 0, hasGame: false, savedAt: 0, colas: 0 }, keep);
     doSave();
   }
   function doSave() {
@@ -4242,6 +4242,12 @@
         tone("sawtooth", 200, 800, 0.35, 0.12 * v);
         nz(0.4, "bandpass", 800, 0.3 * v, 3e3);
         break;
+      case "cola":
+        nz(0.06, "highpass", 2500, 0.6 * v, 8e3);
+        nz(0.9, "highpass", 5e3, 0.18 * v, 9e3);
+        tone("sine", 300, 120, 0.25, 0.15 * v, 0.9);
+        break;
+      // syk otwieranej puszki i lyk
       case "pickup":
         [660, 880, 1320].forEach((f, i) => tone("triangle", f, f, 0.18, 0.18, i * 0.08));
         break;
@@ -6967,6 +6973,7 @@
       promptT = 0.2;
       const arr = [];
       const near = enemies.some((e) => !e.dead && e.pos.distanceTo(P.pos) < 14);
+      if (P.colaNear) arr.push(["special", '<b style="color:#ff4a4a">We\u017A col\u0119 z lod\xF3wki</b>']);
       if (P.doorNear) arr.push(["special", `<b style="color:#ffc93c">Wejd\u017A: ${P.doorNear.name}</b>`]);
       else if (P.exitNear) arr.push(["special", '<b style="color:#39ff6a">Wyjd\u017A</b>']);
       if (P.finReady) arr.push(["special", '<b style="color:#3fe3ff">WYKO\u0143CZENIE</b>']);
@@ -7985,8 +7992,33 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     scene.add(c.rm.g);
     return c.rm;
   }
+  function takeCola() {
+    const d = P.colaNear;
+    if (!d || !d.rm) return;
+    d.rm.colaT = 15;
+    P.hp = maxHp();
+    save.colas = (save.colas || 0) + 1;
+    doSave();
+    sfx("cola");
+    popText("+ ZDROWIE");
+    showMsg("ZIMNA COLA", save.colas === 1 ? "Pe\u0142ne zdrowie! Sprzedawca macha r\u0119k\u0105: \u201ENa koszt firmy!\u201D" : `Pe\u0142ne zdrowie \xB7 wypite cole: ${save.colas}`, 2.6);
+    if (!canMesh) {
+      canMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.033, 0.033, 0.12, 12), new THREE.MeshStandardMaterial({ color: 13111342, roughness: 0.3, metalness: 0.6 }));
+    }
+    if (P.H && P.H.handR) {
+      P.H.handR.add(canMesh);
+      canMesh.position.set(0, -0.05, 0.03);
+      canMesh.rotation.set(0, 0, 0);
+      canT = 3;
+    }
+  }
   function updateRooms(dt) {
     acc += dt;
+    if (canT > 0) {
+      canT -= dt;
+      if (canT <= 0 && canMesh && canMesh.parent) canMesh.parent.remove(canMesh);
+    }
+    P.colaNear = null;
     const near = (d) => Math.hypot(P.pos.x - d.x, P.pos.z - d.z);
     if (acc > 0.3) {
       acc = 0;
@@ -8011,6 +8043,10 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
         }
       }
       const inside = playerInRoom(d, 0);
+      if (d.rm.cola) {
+        d.rm.colaT = Math.max(0, d.rm.colaT - dt);
+        if (inside && d.rm.colaT <= 0 && Math.hypot(P.pos.x - d.rm.cola[0], P.pos.z - d.rm.cola[1]) < 2.4) P.colaNear = d;
+      }
       if (inside && !d.rm.entered) {
         d.rm.entered = true;
         const [t, s] = INTRO[d.type];
@@ -8028,7 +8064,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       wasInFisk = inF;
     }
   }
-  var INTRO, tcache, noise3, TEX, mats, flat, glow, PAL, shelfItems, BUILD, playerInRoom, acc, wasInFisk, enterDoor, leaveInterior;
+  var INTRO, tcache, noise3, TEX, mats, flat, glow, PAL, shelfItems, BUILD, playerInRoom, acc, wasInFisk, canMesh, canT, enterDoor, leaveInterior;
   var init_wnetrza = __esm({
     "js/wnetrza.js"() {
       init_util();
@@ -8036,6 +8072,9 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       init_miasto();
       init_postac();
       init_ui();
+      init_dzwiek();
+      init_umiejetnosci();
+      init_util();
       init_fisk();
       INTRO = {
         shop: ["SKLEP", "Sprzedawca: \u201ESpider-Man?! We\u017A sobie col\u0119, na koszt firmy!\u201D"],
@@ -8184,6 +8223,14 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
           }
           box(hw - 1.4, hw - 0.4, 1.5, cd - 2, 0, 2.2, flat(14673642, 0.4));
           box(hw - 1.45, hw - 1.4, 1.7, cd - 2.2, 0.2, 2.1, glow(10475263, 0.5), false);
+          {
+            const cans = [];
+            for (const y of [0.45, 0.95, 1.45, 1.9]) for (let v = 1.8; v < cd - 2.3; v += 0.16) cans.push([hw - 1.55, y, v, 0.07, 0.13, 0.07]);
+            c.inst(cans, ["#c8102e", "#c8102e", "#c8102e", "#d9d9d9", "#1b1b1b"]);
+            box(hw - 1.5, hw - 1.45, 2.2, cd - 2.6, 2.25, 2.6, glow(14688298, 1.1), false);
+            c.rm.cola = c.world(hw - 2.1, (1.5 + cd - 2) / 2);
+            c.rm.colaT = 0;
+          }
           c.npc(0, cm + 1.4);
           c.npc(hw * 0.4, 3, -1, 0.3);
         },
@@ -8297,6 +8344,8 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       };
       acc = 0;
       wasInFisk = false;
+      canMesh = null;
+      canT = 0;
       enterDoor = () => {
       };
       leaveInterior = () => {
@@ -8503,10 +8552,11 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     P.finReady = !!(foe && P.focus >= 1);
     P.doorNear = null;
     P.exitNear = false;
-    P.perchPt = P.state !== "car" && P.state !== "pz" && !P.finReady && !P.doorNear && !G.interior ? findPerch() : null;
+    P.perchPt = P.state !== "car" && P.state !== "pz" && !P.finReady && !P.doorNear && !P.colaNear && !G.interior ? findPerch() : null;
     if (I.specialP) {
       if (P.doorNear) enterDoor(P.doorNear);
       else if (P.exitNear && !P.finReady) leaveInterior();
+      else if (P.colaNear && !P.finReady) takeCola();
       else if (P.finReady) startFinisher(foe);
       else if (P.perchPt) startPerchZip(P.perchPt);
     }

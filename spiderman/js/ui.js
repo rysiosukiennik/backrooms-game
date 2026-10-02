@@ -353,6 +353,7 @@ export function updateHUD(dt) {
     promptT = 0.2;
     const arr = [];
     const near = enemies.some(e => !e.dead && e.pos.distanceTo(P.pos) < 14);
+    if (P.colaNear) arr.push(['special', '<b style="color:#ff4a4a">Weź colę z lodówki</b>']);
     if (P.doorNear) arr.push(['special', `<b style="color:#ffc93c">Wejdź: ${P.doorNear.name}</b>`]);
     else if (P.exitNear) arr.push(['special', '<b style="color:#39ff6a">Wyjdź</b>']);
     if (P.finReady) arr.push(['special', '<b style="color:#3fe3ff">WYKOŃCZENIE</b>']);
