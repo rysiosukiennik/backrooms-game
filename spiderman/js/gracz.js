@@ -59,6 +59,7 @@ function collide() {
   for (const b of _cl) {
     if (p.x > b.x0 - r && p.x < b.x1 + r && p.z > b.z0 - r && p.z < b.z1 + r && p.y < b.y1 && p.y + 1.7 > b.y0) {
       if (P.prev.y >= b.y1 - 0.3) { p.y = b.y1; if (P.vel.y < 0) P.vel.y = 0; _res.top = b; }
+      else if (P.prev.y + 1.7 <= b.y0 + 0.3) { p.y = b.y0 - 1.7; if (P.vel.y > 0) P.vel.y = 0; } // glowa w sufit: zatrzymaj, nie spychaj w bok (inaczej wpadalo sie w bryle budynku)
       else {
         const a = p.x - (b.x0 - r), c = (b.x1 + r) - p.x, d = p.z - (b.z0 - r), e = (b.z1 + r) - p.z, m = Math.min(a, c, d, e);
         const n = new V3();

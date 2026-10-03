@@ -7913,7 +7913,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     const k = tname + ts + rough;
     if (mats[k]) return mats[k];
     const t = TEX[tname]();
-    return mats[k] = { m: new THREE.MeshStandardMaterial({ map: t, roughness: rough, emissive: 16777215, emissiveMap: t, emissiveIntensity: 0.32 }), ts };
+    return mats[k] = { m: new THREE.MeshStandardMaterial({ map: t, roughness: rough, emissive: 16777215, emissiveMap: t, emissiveIntensity: 0.17 }), ts };
   }
   function skyMat() {
     if (mats.sky) return mats.sky;
@@ -8192,7 +8192,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       mats = {};
       flat = (hex, rough = 0.7) => {
         const k = "f" + hex + rough;
-        return mats[k] || (mats[k] = { m: new THREE.MeshStandardMaterial({ color: hex, roughness: rough, emissive: hex, emissiveIntensity: 0.3 }), ts: 0 });
+        return mats[k] || (mats[k] = { m: new THREE.MeshStandardMaterial({ color: hex, roughness: rough, emissive: hex, emissiveIntensity: 0.15 }), ts: 0 });
       };
       glow = (hex, i = 1) => {
         const k = "g" + hex + i;
@@ -8422,6 +8422,9 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
           p.y = b.y1;
           if (P.vel.y < 0) P.vel.y = 0;
           _res.top = b;
+        } else if (P.prev.y + 1.7 <= b.y0 + 0.3) {
+          p.y = b.y0 - 1.7;
+          if (P.vel.y > 0) P.vel.y = 0;
         } else {
           const a = p.x - (b.x0 - r), c = b.x1 + r - p.x, d = p.z - (b.z0 - r), e = b.z1 + r - p.z, m = Math.min(a, c, d, e);
           const n = new V3();

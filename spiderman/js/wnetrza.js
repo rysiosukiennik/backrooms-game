@@ -46,9 +46,9 @@ const mats = {};
 function M(tname, ts = 2, rough = 0.85) {
   const k = tname + ts + rough; if (mats[k]) return mats[k];
   const t = TEX[tname]();
-  return (mats[k] = { m: new THREE.MeshStandardMaterial({ map: t, roughness: rough, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.32 }), ts });
+  return (mats[k] = { m: new THREE.MeshStandardMaterial({ map: t, roughness: rough, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 0.17 }), ts });
 }
-const flat = (hex, rough = 0.7) => { const k = 'f' + hex + rough; return mats[k] || (mats[k] = { m: new THREE.MeshStandardMaterial({ color: hex, roughness: rough, emissive: hex, emissiveIntensity: 0.3 }), ts: 0 }); };
+const flat = (hex, rough = 0.7) => { const k = 'f' + hex + rough; return mats[k] || (mats[k] = { m: new THREE.MeshStandardMaterial({ color: hex, roughness: rough, emissive: hex, emissiveIntensity: 0.15 }), ts: 0 }); };
 const glow = (hex, i = 1) => { const k = 'g' + hex + i; return mats[k] || (mats[k] = { m: new THREE.MeshStandardMaterial({ color: 0x111111, emissive: hex, emissiveIntensity: i, roughness: 0.5 }), ts: 0 }); };
 function skyMat() {
   if (mats.sky) return mats.sky;
