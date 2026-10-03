@@ -1585,7 +1585,7 @@
     return best;
   }
   function randomBuildingLook() {
-    const L = 0.8 + srand() * 0.32;
+    const L = 0.58 + srand() * 0.42;
     cur.tint = [L * (1 + (srand() - 0.5) * 0.14), L * (1 + (srand() - 0.5) * 0.1), L * (1 + (srand() - 0.5) * 0.14)];
     cur.us = 13 + srand() * 5;
     cur.vs = 12 + srand() * 4;
@@ -2828,7 +2828,7 @@
     scene.add(base);
     waterNormal = waterNormals();
     waterNormal.repeat.set(9e3 / 30, 9e3 / 30);
-    water = new THREE.Mesh(new THREE.PlaneGeometry(9e3, 9e3), new THREE.MeshStandardMaterial({ color: 6123398, roughness: 0.08, metalness: 0.35, normalMap: waterNormal, normalScale: new THREE.Vector2(0.35, 0.35) }));
+    water = new THREE.Mesh(new THREE.PlaneGeometry(9e3, 9e3), new THREE.MeshStandardMaterial({ color: 6123398, roughness: 0.16, metalness: 0.55, normalMap: waterNormal, normalScale: new THREE.Vector2(0.7, 0.7) }));
     water.rotation.x = -Math.PI / 2;
     water.position.y = -1.2;
     water.receiveShadow = true;
@@ -2846,16 +2846,25 @@
     bridge(LAND.x1 - 6, E0 + 30, Z0 + CD * 0.86, "stone");
     bridge(LAND.x1 - 6, E0 + 30, Z0 + CD * 0.62, "steel");
     bridge(W0 - 30, LAND.x0 + 6, Z0 + CD * 0.08, "steel");
-    for (let i = 0; i < 520; i++) {
+    for (let i = 0; i < 760; i++) {
       const side = srand();
       let x, z, h = sr(6, 38), w = sr(12, 40), d = sr(12, 40);
       if (side < 0.42) {
         x = sr(W0 - 420, W0 - 20);
         z = sr(-1500, 1500);
-        if (z > 250 && srand() < 0.12) h = sr(60, 170);
+        if ((z > 150 || z < -700) && srand() < 0.3) {
+          h = sr(60, 190);
+          w = sr(16, 30);
+          d = sr(16, 30);
+        }
       } else if (side < 0.84) {
         x = sr(E0 + 20, E0 + 420);
         z = sr(-1500, 1500);
+        if (z > 300 && z < 900 && srand() < 0.35) {
+          h = sr(50, 150);
+          w = sr(16, 28);
+          d = sr(16, 28);
+        }
       } else {
         x = sr(W0, E0);
         z = sr(N0 - 400, N0 - 20);
@@ -3842,11 +3851,11 @@
       cur = { tint: [1, 1, 1], us: 16, vs: 14, uo: 0, vo: 0 };
       STY = [
         { wall: "#7d3f2e", gTop: "#e8b68e", gBot: "#2d3440", inset: [26, 20, 26, 30], lit: 0.12, rough: 0.9, frame: "#d9d0c0", brick: true, fire: true },
-        { wall: "#b8a283", gTop: "#f3c49a", gBot: "#3a4250", inset: [24, 20, 24, 30], lit: 0.1, rough: 0.85, frame: "#8a7a62" },
-        { wall: "#8b8e93", gTop: "#e9b58f", gBot: "#34404d", inset: [20, 16, 20, 24], lit: 0.1, rough: 0.8, frame: "#5a5d62" },
+        { wall: "#9c866a", gTop: "#f3c49a", gBot: "#3a4250", inset: [24, 20, 24, 30], lit: 0.1, rough: 0.85, frame: "#8a7a62" },
+        { wall: "#76797e", gTop: "#e9b58f", gBot: "#34404d", inset: [20, 16, 20, 24], lit: 0.1, rough: 0.8, frame: "#5a5d62" },
         { wall: "#4d6275", gTop: "#f5c9a0", gBot: "#27415a", inset: [4, 6, 4, 18], lit: 0.05, rough: 0.35, metal: 0.3, band: "#34495a" },
         { wall: "#2a3340", gTop: "#d7a887", gBot: "#1b2430", inset: [4, 6, 4, 14], lit: 0.06, rough: 0.3, metal: 0.4, band: "#1c232d" },
-        { wall: "#c9c3b5", gTop: "#f2c6a0", gBot: "#3b4552", inset: [30, 24, 30, 28], lit: 0.1, rough: 0.9, frame: "#9d968a" }
+        { wall: "#a69c8a", gTop: "#f2c6a0", gBot: "#3b4552", inset: [30, 24, 30, 28], lit: 0.1, rough: 0.9, frame: "#9d968a" }
       ];
       CURT = ["rgba(200,60,50,.55)", "rgba(230,210,160,.55)", "rgba(60,90,150,.5)", "rgba(240,240,230,.5)", "rgba(120,160,90,.5)"];
       SHOPS = ["PIZZA", "DELI", "KAWA", "BANK", "APTEKA", "HOT DOG", "KWIATY", "BAR", "SUSHI", "SKLEP 24h", "PIEKARNIA", "KINO", "KSI\u0118GARNIA", "BURGER", "LODY", "FRYZJER"];
