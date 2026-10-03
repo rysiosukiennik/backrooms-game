@@ -2261,6 +2261,17 @@
     x.fillRect(0, 0, 64, 64);
     return canvasTex(c);
   }
+  function displayColor(c, exp) {
+    let [r, g, b] = c.map((v) => v * exp / 0.6);
+    [r, g, b] = [0.59719 * r + 0.35458 * g + 0.04823 * b, 0.076 * r + 0.90834 * g + 0.01566 * b, 0.0284 * r + 0.13383 * g + 0.83777 * b];
+    const fit = (v) => (v * (v + 0.0245786) - 90537e-9) / (v * (0.983729 * v + 0.432951) + 0.238081);
+    [r, g, b] = [fit(r), fit(g), fit(b)];
+    [r, g, b] = [1.60475 * r - 0.53108 * g - 0.07367 * b, -0.10208 * r + 1.10813 * g - 605e-5 * b, -327e-5 * r - 0.07276 * g + 1.07602 * b];
+    return [r, g, b].map((v) => {
+      v = Math.min(1, Math.max(0, v));
+      return v < 31308e-7 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055;
+    });
+  }
   function buildSky() {
     scene.fog = new THREE.Fog(15381388, 140, 1500);
     scene.background = new THREE.Color(0);
@@ -2303,6 +2314,8 @@
         if(h<0.) c = mix(hor, hor*.7, smoothstep(0.,-.3,h));
         float s = max(dot(vP, sunDir), 0.);
         c += glowC*pow(s,5.)*.7 + glowC*pow(s,60.)*1.5 + vec3(1.,.95,.85)*pow(s,900.)*disk;
+        vec3 fogC = hor*.97 + glowC*pow(s,4.)*.45; // przy horyzoncie niebo przechodzi w mgle (bez ostrego pasa)
+        c = mix(fogC, c, smoothstep(-.01,.16,h));
         gl_FragColor = vec4(c,1.);
         #include <tonemapping_fragment>
         #include <encodings_fragment>
@@ -2386,7 +2399,10 @@
     lin3(skyU.glowC.value, T.glow);
     skyU.disk.value = T.disk;
     const h = skyU.hor.value;
-    scene.fog.color.setRGB(h.x, h.y, h.z).multiplyScalar(0.92);
+    {
+      const c = displayColor([h.x * 0.97, h.y * 0.97, h.z * 0.97], T.exp);
+      scene.fog.color.setRGB(c[0], c[1], c[2]);
+    }
     scene.fog.near = T.fogN;
     scene.fog.far = T.fogF;
     linHex(sun.color, T.sunCol);
@@ -2411,6 +2427,7 @@
       g.material.opacity = T.lamps;
     }
     renderer.toneMappingExposure = T.exp;
+    canvas.style.filter = { sunset: "sepia(.14) saturate(1.18) contrast(1.07)", day: "saturate(1.12) contrast(1.06)", night: "saturate(1.08) contrast(1.1)" }[name] || "";
     updateEnvMap(T);
   }
   function updateEnv() {
@@ -2826,6 +2843,9 @@
     shore(-5e3, W0, -5e3, 5e3);
     shore(E0, 5e3, -5e3, 5e3);
     shore(W0, E0, -5e3, N0);
+    bridge(LAND.x1 - 6, E0 + 30, Z0 + CD * 0.86, "stone");
+    bridge(LAND.x1 - 6, E0 + 30, Z0 + CD * 0.62, "steel");
+    bridge(W0 - 30, LAND.x0 + 6, Z0 + CD * 0.08, "steel");
     for (let i = 0; i < 520; i++) {
       const side = srand();
       let x, z, h = sr(6, 38), w = sr(12, 40), d = sr(12, 40);
@@ -2843,6 +2863,73 @@
       walls(farGeo, x - w / 2, x + w / 2, 0.5, h, z - d / 2, z + d / 2, 16, 14);
       top(farGeo, x - w / 2, x + w / 2, h, z - d / 2, z + d / 2, 10);
     }
+  }
+  function bridge(xa, xb, z, kind) {
+    const stone = kind === "stone", deckY = 38, W = 13, L = xb - xa;
+    const tm = new THREE.MeshStandardMaterial(stone ? { color: 11048316, roughness: 0.9 } : { color: 7306374, roughness: 0.5, metalness: 0.5 });
+    const dm = new THREE.MeshStandardMaterial({ color: 3816770, roughness: 0.8 }), cm = new THREE.MeshStandardMaterial({ color: stone ? 8159108 : 9082270, roughness: 0.5, metalness: 0.6 });
+    const add = (geo, m, x, y, zz) => {
+      const o = new THREE.Mesh(geo, m);
+      o.position.set(x, y, zz);
+      o.castShadow = false;
+      o.receiveShadow = true;
+      scene.add(o);
+      return o;
+    };
+    const ramp = Math.min(70, L * 0.22), mid0 = xa + ramp, mid1 = xb - ramp;
+    add(new THREE.BoxGeometry(mid1 - mid0, 2.2, W), dm, (mid0 + mid1) / 2, deckY, z);
+    addBox({ x0: mid0, x1: mid1, y0: deckY - 1.1, y1: deckY + 1.1, z0: z - W / 2, z1: z + W / 2 });
+    for (const [a, b] of [[xa, mid0], [mid1, xb]]) {
+      const up = a === xa, g = new THREE.BoxGeometry(Math.hypot(b - a, deckY), 2.2, W), m = add(g, dm, (a + b) / 2, deckY / 2, z);
+      m.rotation.z = (up ? 1 : -1) * Math.atan2(deckY, b - a);
+    }
+    add(new THREE.BoxGeometry(mid1 - mid0, 1.2, 0.3), cm, (mid0 + mid1) / 2, deckY + 1.7, z - W / 2);
+    add(new THREE.BoxGeometry(mid1 - mid0, 1.2, 0.3), cm, (mid0 + mid1) / 2, deckY + 1.7, z + W / 2);
+    const tH = stone ? 84 : 92, tx = [xa + L * 0.3, xb - L * 0.3];
+    for (const x of tx) {
+      if (stone) {
+        add(new THREE.BoxGeometry(10, tH, 4.5), tm, x, tH / 2, z - W / 2 - 1.5);
+        add(new THREE.BoxGeometry(10, tH, 4.5), tm, x, tH / 2, z + W / 2 + 1.5);
+        add(new THREE.BoxGeometry(10, tH - deckY - 22, W + 3), tm, x, deckY + 22 + (tH - deckY - 22) / 2, z);
+        add(new THREE.BoxGeometry(11, 3, W + 13), tm, x, tH, z);
+        add(new THREE.BoxGeometry(12, deckY - 4, W + 14), tm, x, (deckY - 4) / 2, z);
+      } else {
+        for (const zz of [z - W / 2 - 1, z + W / 2 + 1]) add(new THREE.BoxGeometry(3.5, tH, 3.5), tm, x, tH / 2, zz);
+        for (let y = deckY + 12; y < tH; y += 16) add(new THREE.BoxGeometry(2.5, 2, W + 4), tm, x, y, z);
+        for (let y = deckY + 12; y < tH - 10; y += 16) for (const sgn of [1, -1]) {
+          const d = add(new THREE.BoxGeometry(0.8, Math.hypot(16, W + 2), 0.8), tm, x, y + 8, z);
+          d.rotation.x = sgn * Math.atan2(W + 2, 16);
+        }
+        add(new THREE.BoxGeometry(8, deckY - 4, W + 8), new THREE.MeshStandardMaterial({ color: 9077624, roughness: 0.9 }), x, (deckY - 4) / 2, z);
+      }
+      addBox({ x0: x - 5, x1: x + 5, y0: 0, y1: tH, z0: z - W / 2 - 4, z1: z - W / 2 + 0.2 });
+      addBox({ x0: x - 5, x1: x + 5, y0: 0, y1: tH, z0: z + W / 2 - 0.2, z1: z + W / 2 + 4 });
+      perches.push(new V3(x, tH + 1.5, z));
+    }
+    const cable = (zz) => {
+      const pts2 = [], sag = (x) => {
+        if (x < tx[0]) return deckY + 2 + (tH - deckY - 2) * (x - xa) / (tx[0] - xa);
+        if (x > tx[1]) return deckY + 2 + (tH - deckY - 2) * (xb - x) / (xb - tx[1]);
+        const t = (x - tx[0]) / (tx[1] - tx[0]);
+        return tH - (tH - deckY - 4) * 4 * t * (1 - t);
+      };
+      for (let x = mid0 - ramp * 0.5; x <= mid1 + ramp * 0.5; x += 6) pts2.push(new V3(x, sag(x), zz));
+      add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts2), 80, 0.45, 6, false), cm, 0, 0, 0);
+      const seg = [];
+      for (let x = mid0; x <= mid1; x += 4) {
+        const y = sag(x);
+        if (y > deckY + 3) seg.push(x, deckY + 1, zz, x, y, zz);
+      }
+      const lg = new THREE.BufferGeometry();
+      lg.setAttribute("position", new THREE.Float32BufferAttribute(seg, 3));
+      const l = new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 5922662, transparent: true, opacity: 0.8 }));
+      scene.add(l);
+    };
+    cable(z - W / 2 - 0.2);
+    cable(z + W / 2 + 0.2);
+    const lp = [];
+    for (let x = mid0; x <= mid1; x += 14) lp.push(x, deckY + 3.5, z - W / 2, x, deckY + 3.5, z + W / 2);
+    glowPoints(lp, 16766362, 4);
   }
   function buildPark(inst) {
     const gt = canvasTex(grassCanvas(), true);
@@ -3779,8 +3866,8 @@
         sunset: {
           top: [0.3, 0.38, 0.66],
           mid: [0.9, 0.6, 0.62],
-          hor: [1, 0.74, 0.5],
-          glow: [1, 0.66, 0.32],
+          hor: [1, 0.76, 0.48],
+          glow: [1, 0.68, 0.3],
           disk: 6,
           sun: [-0.82, 0.26, 0.3],
           sunCol: 16760970,
@@ -3788,14 +3875,14 @@
           hemi: [16767416, 4011072, 0.35],
           amb: 0.03,
           env: 0.9,
-          fogN: 160,
-          fogF: 1600,
+          fogN: 30,
+          fogF: 1050,
           win: 0.35,
           shop: 0.45,
           lamps: 0.6,
           cloud: 0.85,
           cloudCol: 16777215,
-          water: 7176086,
+          water: 10125936,
           stars: 0,
           exp: 1.05
         },
@@ -3811,8 +3898,8 @@
           hemi: [14478335, 4867904, 0.4],
           amb: 0.03,
           env: 1,
-          fogN: 240,
-          fogF: 2e3,
+          fogN: 60,
+          fogF: 1500,
           win: 0,
           shop: 0.12,
           lamps: 0,
