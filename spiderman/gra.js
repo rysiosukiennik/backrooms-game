@@ -134,13 +134,13 @@
       canvas.id = "c";
       document.body.prepend(canvas);
       try {
-        r0 = new THREE.WebGLRenderer({ canvas, antialias: save.gfx === "high" });
+        r0 = new THREE.WebGLRenderer({ canvas, antialias: true });
       } catch (e) {
         zglosBlad(e);
         throw e;
       }
       renderer = r0;
-      pixelRatio = () => Math.min(window.devicePixelRatio || 1, save.gfx === "high" ? 1.25 : 1);
+      pixelRatio = () => Math.max(1, Math.min(window.devicePixelRatio || 1, save.gfx === "high" ? 1.5 : 1));
       renderer.setPixelRatio(pixelRatio());
       canvas.addEventListener("webglcontextlost", (e) => {
         e.preventDefault();
@@ -2427,7 +2427,7 @@
       g.material.opacity = T.lamps;
     }
     renderer.toneMappingExposure = T.exp;
-    canvas.style.filter = { sunset: "sepia(.14) saturate(1.18) contrast(1.07)", day: "saturate(1.12) contrast(1.06)", night: "saturate(1.08) contrast(1.1)" }[name] || "";
+    canvas.style.filter = { sunset: "sepia(.12) saturate(1.15) contrast(1.12) brightness(.96)", day: "saturate(1.12) contrast(1.06)", night: "saturate(1.08) contrast(1.1)" }[name] || "";
     updateEnvMap(T);
   }
   function updateEnv() {
@@ -3878,15 +3878,15 @@
           hor: [1, 0.76, 0.48],
           glow: [1, 0.68, 0.3],
           disk: 6,
-          sun: [-0.82, 0.26, 0.3],
-          sunCol: 16760970,
-          sunI: 2.6,
-          hemi: [16767416, 4011072, 0.35],
+          sun: [-0.85, 0.17, 0.3],
+          sunCol: 16758903,
+          sunI: 2.9,
+          hemi: [16764840, 3024432, 0.2],
           amb: 0.03,
-          env: 0.9,
+          env: 0.42,
           fogN: 30,
           fogF: 1050,
-          win: 0.35,
+          win: 0.12,
           shop: 0.45,
           lamps: 0.6,
           cloud: 0.85,
@@ -9912,13 +9912,13 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     spT = 0;
     spN = 0;
     if (dbg("fixres")) return;
-    if (fps < 40 && resScale > 0.6) {
-      resScale = Math.max(0.6, resScale - 0.1);
+    if (fps < 34 && resScale > 0.8) {
+      resScale = Math.max(0.8, resScale - 0.05);
       applyRes();
-    } else if (fps > 56 && resScale < 1) {
-      resScale = Math.min(1, resScale + 0.1);
+    } else if (fps > 50 && resScale < 1) {
+      resScale = Math.min(1, resScale + 0.05);
       applyRes();
-    } else if (fps < 24 && resScale <= 0.6 && save.gfx === "high" && ++lowWarn >= 2) {
+    } else if (fps < 24 && resScale <= 0.8 && save.gfx === "high" && ++lowWarn >= 2) {
       hooks.gfx();
       showMsg("GRAFIKA: NISKA", "Prze\u0142\u0105czy\u0142em, \u017Ceby gra dzia\u0142a\u0142a p\u0142ynniej (zmienisz w Pauza \u2192 Gra)", 4);
     }

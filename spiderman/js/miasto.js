@@ -410,8 +410,8 @@ let sky = null, clouds = null, stars = null, moon = null, hemi = null, amb = nul
 const TOD = {
   sunset: {
     top: [0.3, 0.38, 0.66], mid: [0.9, 0.6, 0.62], hor: [1, 0.76, 0.48], glow: [1, 0.68, 0.3], disk: 6,
-    sun: [-0.82, 0.26, 0.3], sunCol: 0xffc08a, sunI: 2.6, hemi: [0xffd9b8, 0x3d3440, 0.35], amb: 0.03, env: 0.9,
-    fogN: 30, fogF: 1050, win: 0.35, shop: 0.45, lamps: 0.6, cloud: 0.85, cloudCol: 0xffffff, water: 0x9a8270, stars: 0, exp: 1.05,
+    sun: [-0.85, 0.17, 0.3], sunCol: 0xffb877, sunI: 2.9, hemi: [0xffcfa8, 0x2e2630, 0.2], amb: 0.03, env: 0.42,
+    fogN: 30, fogF: 1050, win: 0.12, shop: 0.45, lamps: 0.6, cloud: 0.85, cloudCol: 0xffffff, water: 0x9a8270, stars: 0, exp: 1.05,
   },
   day: {
     top: [0.18, 0.4, 0.85], mid: [0.46, 0.66, 0.93], hor: [0.8, 0.87, 0.95], glow: [1, 0.95, 0.8], disk: 5,
@@ -526,7 +526,7 @@ export function setTOD(name) {
   for (const m of boardMats) m.emissiveIntensity = 0.8 + T.lamps * 1.2;
   for (const g of glowPts) { g.visible = T.lamps > 0; g.material.opacity = T.lamps; }
   renderer.toneMappingExposure = T.exp;
-  canvas.style.filter = { sunset: 'sepia(.14) saturate(1.18) contrast(1.07)', day: 'saturate(1.12) contrast(1.06)', night: 'saturate(1.08) contrast(1.1)' }[name] || '';
+  canvas.style.filter = { sunset: 'sepia(.12) saturate(1.15) contrast(1.12) brightness(.96)', day: 'saturate(1.12) contrast(1.06)', night: 'saturate(1.08) contrast(1.1)' }[name] || '';
   updateEnvMap(T);
 }
 // swiatlo we wnetrzach: slonce wylaczone, cieple swiatlo otoczenia (bez przeliczania mapy nieba)

@@ -156,9 +156,9 @@ function checkSpeed(rdt) {
   if (spT < 2) return;
   const fps = spN / spT; spT = 0; spN = 0;
   if (dbg('fixres')) return;
-  if (fps < 40 && resScale > 0.6) { resScale = Math.max(0.6, resScale - 0.1); applyRes(); }
-  else if (fps > 56 && resScale < 1) { resScale = Math.min(1, resScale + 0.1); applyRes(); }
-  else if (fps < 24 && resScale <= 0.6 && save.gfx === 'high' && ++lowWarn >= 2) {
+  if (fps < 34 && resScale > 0.8) { resScale = Math.max(0.8, resScale - 0.05); applyRes(); } // nie schodzimy nizej niz 80% — inaczej obraz robi sie pikselowy
+  else if (fps > 50 && resScale < 1) { resScale = Math.min(1, resScale + 0.05); applyRes(); }
+  else if (fps < 24 && resScale <= 0.8 && save.gfx === 'high' && ++lowWarn >= 2) {
     hooks.gfx(); showMsg('GRAFIKA: NISKA', 'Przełączyłem, żeby gra działała płynniej (zmienisz w Pauza → Gra)', 4);
   }
 }

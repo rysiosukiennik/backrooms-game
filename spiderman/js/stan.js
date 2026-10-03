@@ -16,10 +16,11 @@ export function zglosBlad(e) {
 // Bez powerPreference: 'high-performance' — na laptopach z dwiema kartami (Intel + NVIDIA)
 // przelaczanie karty w przegladarce potrafilo dawac czarny ekran.
 let r0;
-try { r0 = new THREE.WebGLRenderer({ canvas, antialias: save.gfx === 'high' }); }
+// wygladzanie krawedzi zawsze (bez niego wszystko wyglada na pikselowe)
+try { r0 = new THREE.WebGLRenderer({ canvas, antialias: true }); }
 catch (e) { zglosBlad(e); throw e; }
 export const renderer = r0;
-export const pixelRatio = () => Math.min(window.devicePixelRatio || 1, save.gfx === 'high' ? 1.25 : 1);
+export const pixelRatio = () => Math.max(1, Math.min(window.devicePixelRatio || 1, save.gfx === 'high' ? 1.5 : 1));
 renderer.setPixelRatio(pixelRatio());
 
 // Karta graficzna "zgubila" obraz (za duzo gier/kart 3D naraz albo przeciazenie):
