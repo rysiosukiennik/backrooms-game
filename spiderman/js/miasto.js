@@ -330,6 +330,15 @@ function grassCanvas(size = 256) {
   for (let i = 0; i < 14; i++) { x.fillStyle = Math.random() < 0.6 ? '#f2efe2' : '#e6d36a'; x.beginPath(); x.arc(Math.random() * size, Math.random() * size, 0.9, 0, 7); x.fill(); } // pojedyncze kwiatki
   return c;
 }
+// gladki piaskowiec: miekkie przebarwienia i delikatne spoiny blokow (zamiast "korka" z ostrych kropek)
+function stoneCanvas() {
+  const S = 256, c = cv(S, S), x = c.getContext('2d'); x.fillStyle = '#b5ac9e'; x.fillRect(0, 0, S, S);
+  for (let i = 0; i < 30; i++) { const px = Math.random() * S, py = Math.random() * S, r = 20 + Math.random() * 60, g = x.createRadialGradient(px, py, 0, px, py, r); const d = Math.random() < 0.6; g.addColorStop(0, d ? 'rgba(70,60,50,.08)' : 'rgba(255,250,235,.07)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, S, S); }
+  for (let i = 0; i < 900; i++) { x.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,.035)' : 'rgba(255,255,255,.03)'; x.fillRect(Math.random() * S, Math.random() * S, 1, 1); }
+  x.fillStyle = 'rgba(60,50,40,.16)'; for (let y = 0; y < S; y += 64) x.fillRect(0, y, S, 1.5);
+  for (let y = 0; y < S; y += 64) for (let xx = (y / 64 % 2) * 64; xx < S; xx += 128) x.fillRect(xx, y, 1.5, 64);
+  return c;
+}
 function sidewalkCanvas() {
   const c = cv(256, 256), x = c.getContext('2d');
   x.fillStyle = '#9a958c'; x.fillRect(0, 0, 256, 256);
@@ -410,7 +419,7 @@ let sky = null, clouds = null, stars = null, moon = null, hemi = null, amb = nul
 const TOD = {
   sunset: {
     top: [0.3, 0.38, 0.66], mid: [0.9, 0.6, 0.62], hor: [1, 0.76, 0.48], glow: [1, 0.68, 0.3], disk: 6,
-    sun: [-0.85, 0.17, 0.3], sunCol: 0xffb877, sunI: 2.9, hemi: [0xffcfa8, 0x2e2630, 0.2], amb: 0.03, env: 0.42,
+    sun: [-0.85, 0.17, 0.3], sunCol: 0xffb877, sunI: 2.9, hemi: [0xc8c0e8, 0x3a2e2a, 0.38], amb: 0.05, env: 0.52,
     fogN: 30, fogF: 1050, win: 0.12, shop: 0.45, lamps: 0.6, cloud: 0.85, cloudCol: 0xffffff, water: 0x9a8270, stars: 0, exp: 1.05,
   },
   day: {
@@ -1204,7 +1213,7 @@ export function buildCity() {
     const gm = new THREE.MeshStandardMaterial({ map: canvasTex(noiseCanvas('#5b8a3a', 6000, 0.1, 128, { n: 30, r: 3, c: ['#6f9e45', '#4b7a2e', '#f3f3f3'] }), true), roughness: 1 });
     for (const l of pocketParks) { const m = new THREE.Mesh(new THREE.PlaneGeometry(l[1] - l[0] - 1, l[3] - l[2] - 1), gm); m.rotation.x = -Math.PI / 2; m.position.set((l[0] + l[1]) / 2, SW + 0.03, (l[2] + l[3]) / 2); m.receiveShadow = true; scene.add(m); }
   }
-  meshFrom(trimGeo, groundAO(new THREE.MeshStandardMaterial({ map: canvasTex(noiseCanvas('#b3aa9c', 3000, 0.1, 128), true), roughness: 0.9 })));
+  meshFrom(trimGeo, groundAO(new THREE.MeshStandardMaterial({ map: canvasTex(stoneCanvas(), true), roughness: 0.85 })));
   const st = shopTex();
   shopMat = groundAO(new THREE.MeshStandardMaterial({ map: st.map, emissiveMap: st.emi, emissive: 0xffffff, emissiveIntensity: 0.8, roughness: 0.35, metalness: 0.1 }), 0.75, 6);
   meshFrom(shopGeo, shopMat, false);

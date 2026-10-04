@@ -520,8 +520,11 @@ function buildPose(t, dt, hs) {
       if (P.vel.y > 2) { t.hLx = -1.3; t.kL = 1.9; t.hRx = 0.35; t.kR = 0.7; t.sLz = 1.1; t.sRz = -1.1; t.sLx = -0.4; t.sRx = 0.3; t.eL = -0.6; t.eR = -0.6; t.bp = 0.15; }
       else {
         const dive = clamp(-P.vel.y / 45, 0, 1);
-        t.sLz = 1.7; t.sRz = -1.7; t.eL = -0.4; t.eR = -0.4; t.hLz = 0.3; t.hRz = -0.3;
-        t.hLx = -0.35 + dive * 0.3; t.kL = 0.9 - dive * 0.5; t.hRx = 0.2; t.kR = 0.5; t.bp = dive * 1.1; t.hx = -dive * 0.7;
+        // swobodny lot jak w grze: rece odrzucone do tylu i lekko w dol, jedna noga ugieta, cialo pochylone, trzepot od wiatru
+        const f = Math.sin(G.time * 9) * (0.05 + dive * 0.08), g = Math.sin(G.time * 6.3 + 1) * (0.04 + dive * 0.06);
+        t.sLz = 0.75 + f; t.sRz = -0.95 - g; t.sLx = 0.55 + dive * 0.35; t.sRx = 0.75 + dive * 0.3; t.eL = -0.85; t.eR = -0.45;
+        t.hLz = 0.18; t.hRz = -0.12; t.hLx = -0.75 + dive * 0.25; t.kL = 1.45 - dive * 0.4; t.hRx = 0.3; t.kR = 0.35 + g;
+        t.bp = 0.25 + dive * 0.85; t.hx = -0.25 - dive * 0.55; t.spy = 0.12;
       }
       if (P.trickT > 0 && P.trickType === 2) { t.hLz = 1.4; t.hRz = -1.4; t.kL = 0; t.kR = 0; t.hLx = 0; t.hRx = 0; t.sLz = 2.6; t.sRz = -2.6; t.bp = 0; }
       break;

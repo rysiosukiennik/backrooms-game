@@ -2032,6 +2032,27 @@
     }
     return c;
   }
+  function stoneCanvas() {
+    const S = 256, c = cv(S, S), x = c.getContext("2d");
+    x.fillStyle = "#b5ac9e";
+    x.fillRect(0, 0, S, S);
+    for (let i = 0; i < 30; i++) {
+      const px = Math.random() * S, py = Math.random() * S, r = 20 + Math.random() * 60, g = x.createRadialGradient(px, py, 0, px, py, r);
+      const d = Math.random() < 0.6;
+      g.addColorStop(0, d ? "rgba(70,60,50,.08)" : "rgba(255,250,235,.07)");
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      x.fillStyle = g;
+      x.fillRect(0, 0, S, S);
+    }
+    for (let i = 0; i < 900; i++) {
+      x.fillStyle = Math.random() < 0.5 ? "rgba(0,0,0,.035)" : "rgba(255,255,255,.03)";
+      x.fillRect(Math.random() * S, Math.random() * S, 1, 1);
+    }
+    x.fillStyle = "rgba(60,50,40,.16)";
+    for (let y = 0; y < S; y += 64) x.fillRect(0, y, S, 1.5);
+    for (let y = 0; y < S; y += 64) for (let xx = y / 64 % 2 * 64; xx < S; xx += 128) x.fillRect(xx, y, 1.5, 64);
+    return c;
+  }
   function sidewalkCanvas() {
     const c = cv(256, 256), x = c.getContext("2d");
     x.fillStyle = "#9a958c";
@@ -3401,7 +3422,7 @@
         scene.add(m);
       }
     }
-    meshFrom(trimGeo, groundAO(new THREE.MeshStandardMaterial({ map: canvasTex(noiseCanvas("#b3aa9c", 3e3, 0.1, 128), true), roughness: 0.9 })));
+    meshFrom(trimGeo, groundAO(new THREE.MeshStandardMaterial({ map: canvasTex(stoneCanvas(), true), roughness: 0.85 })));
     const st = shopTex();
     shopMat = groundAO(new THREE.MeshStandardMaterial({ map: st.map, emissiveMap: st.emi, emissive: 16777215, emissiveIntensity: 0.8, roughness: 0.35, metalness: 0.1 }), 0.75, 6);
     meshFrom(shopGeo, shopMat, false);
@@ -3888,9 +3909,9 @@
           sun: [-0.85, 0.17, 0.3],
           sunCol: 16758903,
           sunI: 2.9,
-          hemi: [16764840, 3024432, 0.2],
-          amb: 0.03,
-          env: 0.42,
+          hemi: [13156584, 3812906, 0.38],
+          amb: 0.05,
+          env: 0.52,
           fogN: 30,
           fogF: 1050,
           win: 0.12,
@@ -9460,18 +9481,22 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
           t.bp = 0.15;
         } else {
           const dive = clamp(-P.vel.y / 45, 0, 1);
-          t.sLz = 1.7;
-          t.sRz = -1.7;
-          t.eL = -0.4;
-          t.eR = -0.4;
-          t.hLz = 0.3;
-          t.hRz = -0.3;
-          t.hLx = -0.35 + dive * 0.3;
-          t.kL = 0.9 - dive * 0.5;
-          t.hRx = 0.2;
-          t.kR = 0.5;
-          t.bp = dive * 1.1;
-          t.hx = -dive * 0.7;
+          const f = Math.sin(G.time * 9) * (0.05 + dive * 0.08), g = Math.sin(G.time * 6.3 + 1) * (0.04 + dive * 0.06);
+          t.sLz = 0.75 + f;
+          t.sRz = -0.95 - g;
+          t.sLx = 0.55 + dive * 0.35;
+          t.sRx = 0.75 + dive * 0.3;
+          t.eL = -0.85;
+          t.eR = -0.45;
+          t.hLz = 0.18;
+          t.hRz = -0.12;
+          t.hLx = -0.75 + dive * 0.25;
+          t.kL = 1.45 - dive * 0.4;
+          t.hRx = 0.3;
+          t.kR = 0.35 + g;
+          t.bp = 0.25 + dive * 0.85;
+          t.hx = -0.25 - dive * 0.55;
+          t.spy = 0.12;
         }
         if (P.trickT > 0 && P.trickType === 2) {
           t.hLz = 1.4;
