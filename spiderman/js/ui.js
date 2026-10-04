@@ -63,6 +63,8 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
 #lines{position:absolute;inset:0;width:100%;height:100%;opacity:0}
 #dmg{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 40%,rgba(200,0,0,.65) 100%);opacity:0;transition:opacity .35s}
 #lockHint{position:absolute;left:50%;top:62%;transform:translateX(-50%);padding:10px 24px;background:rgba(0,0,0,.65);font-weight:700;font-size:20px;border:1px solid var(--cy)}
+#grain{position:fixed;inset:-50%;z-index:5;pointer-events:none;opacity:.07;mix-blend-mode:overlay;animation:grain .5s steps(4) infinite}
+@keyframes grain{0%{transform:translate(0,0)}25%{transform:translate(-7%,4%)}50%{transform:translate(5%,-6%)}75%{transform:translate(-3%,8%)}100%{transform:translate(0,0)}}
 #vig{position:fixed;inset:0;z-index:4;pointer-events:none;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 58%,rgba(8,6,14,.42) 100%)}
 #flare{position:fixed;left:0;top:0;width:520px;height:520px;margin:-260px 0 0 -260px;z-index:4;pointer-events:none;opacity:0;background:radial-gradient(circle,rgba(255,236,200,.55) 0%,rgba(255,200,130,.22) 18%,rgba(255,170,90,.08) 40%,rgba(255,170,90,0) 62%),radial-gradient(circle at 70% 70%,rgba(160,200,255,.14) 0,rgba(160,200,255,0) 8%)}
 #tytul{position:fixed;inset:0;z-index:40;background:#05090f radial-gradient(ellipse at 50% 40%,#2a1a3a,#05090f 70%);transition:opacity .9s;cursor:pointer}
@@ -780,6 +782,11 @@ function updateGame(N) {
 // ---------------------------------------------------------------- start interfejsu
 export function initUI() {
   G.splash = true;
+  { // ziarno filmowe (bardzo delikatne) — obraz wyglada jak z kamery, nie z komputera
+    const c = cv(192, 192), x = c.getContext('2d'), im = x.createImageData(192, 192);
+    for (let i = 0; i < im.data.length; i += 4) { const v = Math.random() * 255 | 0; im.data[i] = im.data[i + 1] = im.data[i + 2] = v; im.data[i + 3] = 255; }
+    x.putImageData(im, 0, 0); const g = document.createElement('div'); g.id = 'grain'; g.style.backgroundImage = 'url(' + c.toDataURL() + ')'; document.body.appendChild(g);
+  }
   const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st);
   const wrap = document.createElement('div'); wrap.innerHTML = HTML; while (wrap.firstChild) document.body.appendChild(wrap.firstChild);
   try { if (sessionStorage.getItem('sp_skip')) { sessionStorage.removeItem('sp_skip'); G.splash = false; const t = $('tytul'); if (t) t.remove(); } } catch (e) {}

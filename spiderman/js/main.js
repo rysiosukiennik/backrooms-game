@@ -1,7 +1,7 @@
 // Start gry i glowna petla: stan menu / gra / pauza, kamera trzecioosobowa, poswiata (bloom).
 import { V3, clamp, lerp, damp, angLerp, save, doSave, dbg, resetProgress } from './util.js';
 import { G, P, cam, scene, camera, renderer, canvas, hooks, zglosBlad, pixelRatio } from './stan.js';
-import { buildCity, updateTraffic, updateEnv, raycastCity, setTOD } from './miasto.js';
+import { buildCity, updateTraffic, updateEnv, raycastCity, setTOD, setFogEncoded } from './miasto.js';
 import { initPlayer, updatePlayer, updatePlayerVisual } from './gracz.js';
 import { initFX, updateFX, spawnCrime, updateEnemies, updateCrimes, updateShots, initBags, updateBags } from './wrogowie.js';
 import { initMissions, updateMissions } from './misje.js';
@@ -28,8 +28,8 @@ setMusic(save.music);
 // (w dzien prawie jej nie widac, a kosztuje kilka pelnoekranowych przebiegow)
 let composer = null, bloom = null;
 function setupComposer() {
-  composer = null; bloom = null;
-  if (save.gfx !== 'high' || save.tod !== 'night' || !THREE.EffectComposer || !THREE.UnrealBloomPass) return;
+  composer = null; bloom = null; setFogEncoded(true);
+  if (save.gfx !== 'high' || !THREE.EffectComposer || !THREE.UnrealBloomPass) return;
   try {
     composer = new THREE.EffectComposer(renderer); composer.setPixelRatio(renderer.getPixelRatio());
     composer.addPass(new THREE.RenderPass(scene, camera));
@@ -39,11 +39,13 @@ function setupComposer() {
     if (THREE.GammaCorrectionShader) composer.addPass(new THREE.ShaderPass(THREE.GammaCorrectionShader));
     tuneBloom();
   } catch (e) { composer = null; }
+  setFogEncoded(!composer);
 }
 function tuneBloom() {
   if (!bloom) return;
   const n = save.tod === 'night';
-  bloom.strength = n ? 0.5 : 0.3; bloom.threshold = n ? 0.85 : 0.9;
+  const ss = save.tod === 'sunset'; // o zachodzie slonce i zlote odblaski w szybach lekko promieniuja
+  bloom.strength = n ? 0.5 : ss ? 0.42 : 0.22; bloom.threshold = n ? 0.85 : ss ? 0.78 : 0.9; bloom.radius = ss ? 0.6 : 0.45;
 }
 setupComposer();
 

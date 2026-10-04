@@ -2261,6 +2261,15 @@
     x.fillRect(0, 0, 64, 64);
     return canvasTex(c);
   }
+  function setFogEncoded(v) {
+    fogEnc = v;
+    if (lastTOD) applyFog(lastTOD);
+  }
+  function applyFog(T) {
+    const h = skyU.hor.value;
+    const c = displayColor([h.x * 0.97, h.y * 0.97, h.z * 0.97], T.exp);
+    scene.fog.color.setRGB(c[0], c[1], c[2]);
+  }
   function displayColor(c, exp) {
     let [r, g, b] = c.map((v) => v * exp / 0.6);
     [r, g, b] = [0.59719 * r + 0.35458 * g + 0.04823 * b, 0.076 * r + 0.90834 * g + 0.01566 * b, 0.0284 * r + 0.13383 * g + 0.83777 * b];
@@ -2269,6 +2278,7 @@
     [r, g, b] = [1.60475 * r - 0.53108 * g - 0.07367 * b, -0.10208 * r + 1.10813 * g - 605e-5 * b, -327e-5 * r - 0.07276 * g + 1.07602 * b];
     return [r, g, b].map((v) => {
       v = Math.min(1, Math.max(0, v));
+      if (!fogEnc) return v;
       return v < 31308e-7 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055;
     });
   }
@@ -2398,11 +2408,8 @@
     lin3(skyU.hor.value, T.hor);
     lin3(skyU.glowC.value, T.glow);
     skyU.disk.value = T.disk;
-    const h = skyU.hor.value;
-    {
-      const c = displayColor([h.x * 0.97, h.y * 0.97, h.z * 0.97], T.exp);
-      scene.fog.color.setRGB(c[0], c[1], c[2]);
-    }
+    lastTOD = T;
+    applyFog(T);
     scene.fog.near = T.fogN;
     scene.fog.far = T.fogF;
     linHex(sun.color, T.sunCol);
@@ -3367,7 +3374,7 @@
       }));
     });
     facMats.forEach((m, i) => {
-      m.userData.env = STY[i].metal ? 2.2 : 1.5;
+      m.userData.env = STY[i].metal ? 3.6 : 1.6;
     });
     facGeo.forEach((g, i) => meshFrom(g, facMats[i]));
     const roofMat = new THREE.MeshStandardMaterial({ map: canvasTex(noiseCanvas("#8a8780", 7e3, 0.14, 256, { n: 40, r: 5, c: ["rgba(60,60,60,.3)", "rgba(120,110,100,.3)"] }), true), roughness: 1 });
@@ -3796,7 +3803,7 @@
       if (m.instanceColor) m.instanceColor.needsUpdate = true;
     }
   }
-  var BW, BD, ST, NX, NZ, CX, CZ, CW, CD, X0, Z0, LAND, PK, POND, isPark, inPark, isecPos, DIST, doors, boxes, roofs, footprints, spots, perches, START, START_H, HC2, hash, stamp, hk, _s1, _s2, _rl, rayN, _rbN, CHUNK, cur, STY, CURT, SHOPS, SIGNC, sunDir, sun, sky, clouds, stars, moon, hemi, amb, water, pondM, waterNormal, TOD, TOD_NAMES, skyU, lin3, pmrem, envRT, skyScene, facMats, shopMat, lampMat, boardMats, glowPts, todName, facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo, ironGeo, pitchGeo, SW, tanks, awnings, masts, boards, DOOR_TYPES, ROOMSPEC, acUnits, balconyCount, streetFaces, FISK_DOOR, LANDMARKS, export_arena, ARENA, bx, cy, PROPS, ventList, cars, peds, carBody, carGlass, carWheel, carSign, carParts, carRims, headL, tailL, pedMesh, _o, _c, steam, birds, BIRD_N, birdData, _bo;
+  var BW, BD, ST, NX, NZ, CX, CZ, CW, CD, X0, Z0, LAND, PK, POND, isPark, inPark, isecPos, DIST, doors, boxes, roofs, footprints, spots, perches, START, START_H, HC2, hash, stamp, hk, _s1, _s2, _rl, rayN, _rbN, CHUNK, cur, STY, CURT, SHOPS, SIGNC, sunDir, sun, sky, clouds, stars, moon, hemi, amb, water, pondM, waterNormal, TOD, TOD_NAMES, skyU, fogEnc, lastTOD, lin3, pmrem, envRT, skyScene, facMats, shopMat, lampMat, boardMats, glowPts, todName, facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo, ironGeo, pitchGeo, SW, tanks, awnings, masts, boards, DOOR_TYPES, ROOMSPEC, acUnits, balconyCount, streetFaces, FISK_DOOR, LANDMARKS, export_arena, ARENA, bx, cy, PROPS, ventList, cars, peds, carBody, carGlass, carWheel, carSign, carParts, carRims, headL, tailL, pedMesh, _o, _c, steam, birds, BIRD_N, birdData, _bo;
   var init_miasto = __esm({
     "js/miasto.js"() {
       init_util();
@@ -3944,6 +3951,8 @@
       };
       TOD_NAMES = { sunset: "ZACH\xD3D S\u0141O\u0143CA", day: "DZIE\u0143", night: "NOC" };
       skyU = null;
+      fogEnc = true;
+      lastTOD = null;
       lin3 = (v, a) => v.set(...a.map((x) => Math.pow(x, 2.2)));
       pmrem = null;
       envRT = null;
@@ -7719,6 +7728,19 @@
   }
   function initUI() {
     G.splash = true;
+    {
+      const c = cv(192, 192), x = c.getContext("2d"), im = x.createImageData(192, 192);
+      for (let i = 0; i < im.data.length; i += 4) {
+        const v = Math.random() * 255 | 0;
+        im.data[i] = im.data[i + 1] = im.data[i + 2] = v;
+        im.data[i + 3] = 255;
+      }
+      x.putImageData(im, 0, 0);
+      const g = document.createElement("div");
+      g.id = "grain";
+      g.style.backgroundImage = "url(" + c.toDataURL() + ")";
+      document.body.appendChild(g);
+    }
     const st = document.createElement("style");
     st.textContent = CSS;
     document.head.appendChild(st);
@@ -7831,6 +7853,8 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
 #lines{position:absolute;inset:0;width:100%;height:100%;opacity:0}
 #dmg{position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 40%,rgba(200,0,0,.65) 100%);opacity:0;transition:opacity .35s}
 #lockHint{position:absolute;left:50%;top:62%;transform:translateX(-50%);padding:10px 24px;background:rgba(0,0,0,.65);font-weight:700;font-size:20px;border:1px solid var(--cy)}
+#grain{position:fixed;inset:-50%;z-index:5;pointer-events:none;opacity:.07;mix-blend-mode:overlay;animation:grain .5s steps(4) infinite}
+@keyframes grain{0%{transform:translate(0,0)}25%{transform:translate(-7%,4%)}50%{transform:translate(5%,-6%)}75%{transform:translate(-3%,8%)}100%{transform:translate(0,0)}}
 #vig{position:fixed;inset:0;z-index:4;pointer-events:none;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 58%,rgba(8,6,14,.42) 100%)}
 #flare{position:fixed;left:0;top:0;width:520px;height:520px;margin:-260px 0 0 -260px;z-index:4;pointer-events:none;opacity:0;background:radial-gradient(circle,rgba(255,236,200,.55) 0%,rgba(255,200,130,.22) 18%,rgba(255,170,90,.08) 40%,rgba(255,170,90,0) 62%),radial-gradient(circle at 70% 70%,rgba(160,200,255,.14) 0,rgba(160,200,255,0) 8%)}
 #tytul{position:fixed;inset:0;z-index:40;background:#05090f radial-gradient(ellipse at 50% 40%,#2a1a3a,#05090f 70%);transition:opacity .9s;cursor:pointer}
@@ -9722,7 +9746,8 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
   function setupComposer() {
     composer = null;
     bloom = null;
-    if (save.gfx !== "high" || save.tod !== "night" || !THREE.EffectComposer || !THREE.UnrealBloomPass) return;
+    setFogEncoded(true);
+    if (save.gfx !== "high" || !THREE.EffectComposer || !THREE.UnrealBloomPass) return;
     try {
       composer = new THREE.EffectComposer(renderer);
       composer.setPixelRatio(renderer.getPixelRatio());
@@ -9734,12 +9759,15 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     } catch (e) {
       composer = null;
     }
+    setFogEncoded(!composer);
   }
   function tuneBloom() {
     if (!bloom) return;
     const n = save.tod === "night";
-    bloom.strength = n ? 0.5 : 0.3;
-    bloom.threshold = n ? 0.85 : 0.9;
+    const ss = save.tod === "sunset";
+    bloom.strength = n ? 0.5 : ss ? 0.42 : 0.22;
+    bloom.threshold = n ? 0.85 : ss ? 0.78 : 0.9;
+    bloom.radius = ss ? 0.6 : 0.45;
   }
   setupComposer();
   var beacon = new THREE.Mesh(

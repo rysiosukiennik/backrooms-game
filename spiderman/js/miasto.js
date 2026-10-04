@@ -425,7 +425,10 @@ const TOD = {
   },
 };
 export const TOD_NAMES = { sunset: 'ZACHÓD SŁOŃCA', day: 'DZIEŃ', night: 'NOC' };
-let skyU = null;
+let skyU = null, fogEnc = true, lastTOD = null;
+// z efektami (bloom) obraz idzie przez bufor liniowy, wiec mgla nie moze byc juz zakodowana w sRGB
+export function setFogEncoded(v) { fogEnc = v; if (lastTOD) applyFog(lastTOD); }
+function applyFog(T) { const h = skyU.hor.value; const c = displayColor([h.x * 0.97, h.y * 0.97, h.z * 0.97], T.exp); scene.fog.color.setRGB(c[0], c[1], c[2]); }
 // three.js naklada mgle juz PO tonowaniu (ACES) i sRGB, wiec kolor mgly musi byc kolorem "jak na ekranie" — tak samo przeliczonym jak niebo
 function displayColor(c, exp) {
   let [r, g, b] = c.map(v => v * exp / 0.6);
@@ -433,7 +436,7 @@ function displayColor(c, exp) {
   const fit = v => (v * (v + 0.0245786) - 0.000090537) / (v * (0.983729 * v + 0.432951) + 0.238081);
   [r, g, b] = [fit(r), fit(g), fit(b)];
   [r, g, b] = [1.60475 * r - 0.53108 * g - 0.07367 * b, -0.10208 * r + 1.10813 * g - 0.00605 * b, -0.00327 * r - 0.07276 * g + 1.07602 * b];
-  return [r, g, b].map(v => { v = Math.min(1, Math.max(0, v)); return v < 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055; });
+  return [r, g, b].map(v => { v = Math.min(1, Math.max(0, v)); if (!fogEnc) return v; return v < 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055; });
 }
 const lin3 = (v, a) => v.set(...a.map(x => Math.pow(x, 2.2))); // sRGB -> liniowo
 function buildSky() {
@@ -514,7 +517,7 @@ export function setTOD(name) {
   const T = TOD[name] || TOD.sunset; todName = TOD[name] ? name : 'sunset';
   sunDir.set(...T.sun).normalize();
   lin3(skyU.top.value, T.top); lin3(skyU.mid.value, T.mid); lin3(skyU.hor.value, T.hor); lin3(skyU.glowC.value, T.glow); skyU.disk.value = T.disk;
-  const h = skyU.hor.value; { const c = displayColor([h.x * 0.97, h.y * 0.97, h.z * 0.97], T.exp); scene.fog.color.setRGB(c[0], c[1], c[2]); } scene.fog.near = T.fogN; scene.fog.far = T.fogF;
+  lastTOD = T; applyFog(T); scene.fog.near = T.fogN; scene.fog.far = T.fogF;
   linHex(sun.color, T.sunCol); sun.intensity = T.sunI;
   linHex(hemi.color, T.hemi[0]); linHex(hemi.groundColor, T.hemi[1]); hemi.intensity = T.hemi[2]; amb.intensity = T.amb;
   clouds.material.opacity = T.cloud; linHex(clouds.material.color, T.cloudCol);
@@ -1187,7 +1190,7 @@ export function buildCity() {
       roughness: 1, roughnessMap: t.rough, bumpMap: dbg('nobump') ? null : t.bump, bumpScale: 0.07, metalness: 1, metalnessMap: t.metal,
     }));
   });
-  facMats.forEach((m, i) => { m.userData.env = STY[i].metal ? 2.2 : 1.5; });
+  facMats.forEach((m, i) => { m.userData.env = STY[i].metal ? 3.6 : 1.6; });
   facGeo.forEach((g, i) => meshFrom(g, facMats[i]));
   const roofMat = new THREE.MeshStandardMaterial({ map: canvasTex(noiseCanvas('#8a8780', 7000, 0.14, 256, { n: 40, r: 5, c: ['rgba(60,60,60,.3)', 'rgba(120,110,100,.3)'] }), true), roughness: 1 });
   meshFrom(roofGeo, roofMat, false);
