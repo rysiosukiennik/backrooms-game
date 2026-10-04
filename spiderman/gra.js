@@ -7241,13 +7241,17 @@
   }
   function slotLoad(n) {
     const sl = slotRead(n);
-    if (!sl) return;
+    if (!sl) {
+      showMsg("SLOT " + n + " JEST PUSTY", "Najpierw zapisz gr\u0119: Pauza \u2192 Gra \u2192 Zapisz w slocie", 3);
+      return;
+    }
     const keep = { gfx: save.gfx, tod: save.tod, music: save.music };
     delete sl.pct;
     Object.assign(save, sl, keep, { hasGame: true });
     doSave();
     try {
       sessionStorage.setItem("sp_skip", "1");
+      sessionStorage.setItem("sp_load", G.mode || (pad.connected ? "pad" : "kb"));
     } catch (e) {
     }
     location.reload();
@@ -7688,7 +7692,7 @@
   }
   function gameItems() {
     const base = [["tod", todLabel()], ["music", musLabel()], ["gfx", gfxLabel()]];
-    return G.pauseFrom === "menu" ? [["back", "WR\xD3\u0106"], ...base] : [["resume", "WZN\xD3W GR\u0118"], ...SLOTS.map((n) => ["sv" + n, slotLabel(n, "ZAPISZ W SLOCIE")]), ...base, ["new", newLabel()], ["menu", "MENU G\u0141\xD3WNE"]];
+    return G.pauseFrom === "menu" ? [["back", "WR\xD3\u0106"], ...base] : [["resume", "WZN\xD3W GR\u0118"], ...SLOTS.map((n) => ["sv" + n, slotLabel(n, "ZAPISZ W SLOCIE")]), ...SLOTS.map((n) => ["ld" + n, slotLabel(n, "WCZYTAJ ZAPIS")]), ...base, ["new", newLabel()], ["menu", "MENU G\u0141\xD3WNE"]];
   }
   function renderGame() {
     const it = gameItems(), L = $("gameList");
@@ -7714,6 +7718,10 @@
     if (a[0] === "s" && a[1] === "v") {
       slotSave(+a[2]);
       renderGame();
+      return;
+    }
+    if (a[0] === "l" && a[1] === "d") {
+      slotLoad(+a[2]);
       return;
     }
     if (a === "new") {
@@ -10052,4 +10060,12 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
   window.SPIDER = { G, P, cam, hooks, res: () => resScale, info: () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles }), tick: (n, ms = 1e3 / 60) => {
     for (let i = 0; i < n; i++) step2(last + ms);
   } };
+  try {
+    const lm = sessionStorage.getItem("sp_load");
+    if (lm) {
+      sessionStorage.removeItem("sp_load");
+      hooks.start(lm);
+    }
+  } catch (e) {
+  }
 })();

@@ -460,11 +460,11 @@ function slotSave(n) {
   catch (e) { showMsg('BŁĄD ZAPISU', 'Przeglądarka nie pozwala zapisywać (tryb prywatny?)', 3.5); }
 }
 function slotLoad(n) {
-  const sl = slotRead(n); if (!sl) return;
+  const sl = slotRead(n); if (!sl) { showMsg('SLOT ' + n + ' JEST PUSTY', 'Najpierw zapisz grę: Pauza → Gra → Zapisz w slocie', 3); return; }
   const keep = { gfx: save.gfx, tod: save.tod, music: save.music };
   delete sl.pct; Object.assign(save, sl, keep, { hasGame: true }); doSave();
-  try { sessionStorage.setItem('sp_skip', '1'); } catch (e) {}
-  location.reload();
+  try { sessionStorage.setItem('sp_skip', '1'); sessionStorage.setItem('sp_load', G.mode || (pad.connected ? 'pad' : 'kb')); } catch (e) {}
+  location.reload(); // po przeladowaniu gra od razu startuje w zapisanym miejscu (main.js)
 }
 // nowa gra kasuje postep, wiec wymaga drugiego potwierdzenia w ciagu 4 sekund
 let askNew = -9999;
@@ -748,7 +748,7 @@ function renderMoves() {
 // ---- gra
 function gameItems() {
   const base = [['tod', todLabel()], ['music', musLabel()], ['gfx', gfxLabel()]];
-  return G.pauseFrom === 'menu' ? [['back', 'WRÓĆ'], ...base] : [['resume', 'WZNÓW GRĘ'], ...SLOTS.map(n => ['sv' + n, slotLabel(n, 'ZAPISZ W SLOCIE')]), ...base, ['new', newLabel()], ['menu', 'MENU GŁÓWNE']];
+  return G.pauseFrom === 'menu' ? [['back', 'WRÓĆ'], ...base] : [['resume', 'WZNÓW GRĘ'], ...SLOTS.map(n => ['sv' + n, slotLabel(n, 'ZAPISZ W SLOCIE')]), ...SLOTS.map(n => ['ld' + n, slotLabel(n, 'WCZYTAJ ZAPIS')]), ...base, ['new', newLabel()], ['menu', 'MENU GŁÓWNE']];
 }
 function renderGame() {
   const it = gameItems(), L = $('gameList'); G.gameIdx = clamp(G.gameIdx, 0, it.length - 1);
@@ -765,6 +765,7 @@ function renderGame() {
 function gameAct(a) {
   sfx('ui');
   if (a[0] === 's' && a[1] === 'v') { slotSave(+a[2]); renderGame(); return; }
+  if (a[0] === 'l' && a[1] === 'd') { slotLoad(+a[2]); return; }
   if (a === 'new') { confirmNew(renderGame); return; }
   if (a === 'resume' || a === 'back') closePause();
   else if (a === 'gfx') { hooks.gfx(); renderGame(); }

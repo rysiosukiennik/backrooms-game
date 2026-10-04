@@ -215,3 +215,5 @@ function loop(now) {
 requestAnimationFrame(loop);
 // podglad stanu w konsoli przegladarki (do testow)
 window.SPIDER = { G, P, cam, hooks, res: () => resScale, info: () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles }), tick: (n, ms = 1000 / 60) => { for (let i = 0; i < n; i++) step(last + ms); } };
+// wczytany zapis: po przeladowaniu strony od razu do gry (bez menu)
+try { const lm = sessionStorage.getItem('sp_load'); if (lm) { sessionStorage.removeItem('sp_load'); hooks.start(lm); } } catch (e) {}
