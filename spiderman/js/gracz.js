@@ -4,7 +4,7 @@ import { V3, UP, clamp, lerp, damp, angLerp, save, doSave } from './util.js';
 import { G, P, cam, scene, camera, enemies } from './stan.js';
 import { supportAt, boxesNear, raycastCity, LAND, START, START_H, roofs, perches, nearestDoor } from './miasto.js';
 import { enterDoor, leaveInterior, nearExit, takeCola } from './wnetrza.js';
-import { buildSpider, newPose, zeroPose, blendPose, applyPose, idlePose, runPose, crouchPose, tuckPose, aimArm, basisQ, SUITS, suitById } from './postac.js';
+import { buildSpider, newPose, zeroPose, blendPose, mixPose, applyPose, idlePose, runPose, crouchPose, tuckPose, heroLandPose, aimArm, basisQ, SUITS, suitById } from './postac.js';
 import { hitEnemy, shootWeb, burst, finishEnemy, addXP } from './wrogowie.js';
 import { carPunch, carLeave } from './misje.js';
 import { has, maxHp, swingMul, zipMax, perchRange } from './umiejetnosci.js';
@@ -15,6 +15,7 @@ import { showMsg, flashDamage, popText } from './ui.js';
 const GRAV = 27;
 const _t = new V3(), _h = new V3(), _f = new V3(), _u = new V3(), _q = new THREE.Quaternion(), _cf = new V3();
 const GROUND = { y1: 0, street: true };
+const _lp = newPose(); // pomocnicza poza (ladowanie)
 
 // ---------------------------------------------------------------- nici pajeczyny
 const webGeo = new THREE.CylinderGeometry(0.024, 0.024, 1, 5, 1, true); webGeo.translate(0, 0.5, 0);
@@ -286,6 +287,7 @@ function step(h, I, wx, wz, wl) {
 
 function land(imp) {
   P.state = 'ground'; P.zips = zipMax(); P.flipT = -1; P.pc.bp = 0; P.trickT = 0;
+  P.lvT = imp > 32 ? 0.85 : imp > 12 ? 0.34 : 0; P.lvDur = P.lvT; P.lvHero = imp > 32; cam.kick = Math.max(cam.kick || 0, Math.min(0.5, imp / 90));
   if (imp > 32) {
     P.landT = 0.45; P.landHard = true; G.shake = Math.max(G.shake, 0.45);
     rumble(0.25, 0.8, 0.5); sfx('land'); burst(P.pos.x, P.pos.y + 0.1, P.pos.z, 26, 0xcfc6b8, 6);
@@ -461,11 +463,11 @@ function release(jump) {
   if (jump) {
     P.vel.y = Math.max(P.vel.y, 0) + (has('swing2') ? 15 : 12);
     if (hs > 1) { P.vel.x += P.vel.x / hs * 5; P.vel.z += P.vel.z / hs * 5; }
-    P.flipT = 0; P.flipDur = 0.6; P.flipBack = false; sfx('whoosh');
+    P.flipT = 0; P.flipDur = 0.6; P.flipBack = false; P.flipRoll = hs > 14 && Math.random() < 0.4; sfx('whoosh');
   } else if (P.vel.y > 0) {
     P.vel.y += 1.5;
     if (hs > 1) { P.vel.x += P.vel.x / hs * 2; P.vel.z += P.vel.z / hs * 2; }
-    if (hs > 22 && Math.random() < 0.35) { P.flipT = 0; P.flipDur = 0.6; P.flipBack = false; }
+    if (hs > 22 && Math.random() < 0.35) { P.flipT = 0; P.flipDur = 0.6; P.flipBack = false; P.flipRoll = Math.random() < 0.4; }
   }
 }
 
@@ -510,11 +512,16 @@ function buildPose(t, dt, hs) {
       break;
     case 'ground':
       if (P.perchT > 0) crouchPose(t);
-      else if (P.landT > 0) {
-        if (P.landHard) { t.by = -0.42; t.hLx = -1.5; t.kL = 2.1; t.hRx = 0.3; t.kR = 1.9; t.bp = 0.55; t.sRx = -1.0; t.sRz = -0.2; t.sLz = 0.9; t.sLx = 0.3; t.hx = -0.5; }
-        else { t.by = -0.2; t.hLx = -0.7; t.kL = 1.2; t.hRx = -0.5; t.kR = 1; t.bp = 0.25; t.sLz = 0.4; t.sRz = -0.4; }
-      } else if (hs > 0.6) { P.runPh += dt * (hs * 1.05 + 1.5); runPose(t, P.runPh, Math.min(1, hs / 9), P.sprint && hs > 11); }
-      else idlePose(t, G.time);
+      else {
+        if (hs > 0.6) { P.runPh += dt * (hs * 1.05 + 1.5); runPose(t, P.runPh, Math.min(1, hs / 9), P.sprint && hs > 11); }
+        else idlePose(t, G.time, true);
+        if (hs > 3 && P.brake > 18) { // hamowanie: tulow odchylony do tylu, rece na boki
+          const b = clamp((P.brake - 18) / 50, 0, 1);
+          t.bp -= 0.45 * b; t.sLx -= 0.9 * b; t.sRx -= 0.9 * b; t.sLz += 0.5 * b; t.sRz -= 0.5 * b; t.hLx -= 0.4 * b; t.kL += 0.4 * b; t.by -= 0.05 * b;
+        }
+        if (P.lvT > 0) landPose(t, hs);
+        t.br += clamp(-P.turn * 0.04, -0.4, 0.4) * clamp(hs / 9, 0, 1) * (P.sprint ? 1.4 : 1);
+      }
       break;
     case 'air':
       if (P.vel.y > 2) { t.hLx = -1.3; t.kL = 1.9; t.hRx = 0.35; t.kR = 0.7; t.sLz = 1.1; t.sRz = -1.1; t.sLx = -0.4; t.sRx = 0.3; t.eL = -0.6; t.eR = -0.6; t.bp = 0.15; }
@@ -526,13 +533,10 @@ function buildPose(t, dt, hs) {
         t.hLz = 0.18; t.hRz = -0.12; t.hLx = -0.75 + dive * 0.25; t.kL = 1.45 - dive * 0.4; t.hRx = 0.3; t.kR = 0.35 + g;
         t.bp = 0.25 + dive * 0.85; t.hx = -0.25 - dive * 0.55; t.spy = 0.12;
       }
+      t.br += clamp(-P.turn * 0.05, -0.45, 0.45) * clamp(hs / 14, 0, 1);
       if (P.trickT > 0 && P.trickType === 2) { t.hLz = 1.4; t.hRz = -1.4; t.kL = 0; t.kR = 0; t.hLx = 0; t.hRx = 0; t.sLz = 2.6; t.sRz = -2.6; t.bp = 0; }
       break;
-    case 'swing':
-      t.hLx = -0.75; t.kL = 1.1; t.hRx = -0.45; t.kR = 0.8; t.hLz = 0.06; t.hRz = -0.06; t.hx = -0.25;
-      if (P.vel.y > 4) { t.hLx = -0.2; t.kL = 0.3; t.hRx = -0.1; t.kR = 0.2; }
-      if (P.swingSide > 0) { t.sLz = 1.0; t.sLx = 0.6; t.eL = -0.5; } else { t.sRz = -1.0; t.sRx = 0.6; t.eR = -0.5; }
-      break;
+    case 'swing': swingPose(t); break;
     case 'wall': {
       const v = Math.abs(P.wallVy);
       if (v > 9) { P.runPh += dt * v * 1.1; runPose(t, P.runPh, 1, false); t.bp = 0.1; }
@@ -545,10 +549,42 @@ function buildPose(t, dt, hs) {
       break;
     }
   }
-  if (P.flipT >= 0 || P.dodgeT > 0 || (P.trickT > 0 && P.trickType < 2)) tuckPose(t);
+  if (P.flipT >= 0 && P.flipRoll && P.dodgeT <= 0) { t.sLz = 1.35; t.sRz = -1.35; t.sLx = 0.2; t.sRx = 0.2; t.eL = -0.2; t.eR = -0.2; t.hLx = 0.1; t.hRx = 0.25; t.kL = 0.5; t.kR = 0.2; t.hLz = 0.12; t.hRz = -0.12; t.bp = 0.25; }
+  else if (P.flipT >= 0 || P.dodgeT > 0 || (P.trickT > 0 && P.trickType < 2)) tuckPose(t);
   if (P.atk) attackPose(t, P.atk);
   if (P.lunge) { t.sRx = -1.4; t.sLx = 0.6; t.bp = 0.35; t.hLx = -0.9; t.kL = 1.2; t.hRx = 0.4; t.kR = 0.6; }
   if (P.hurtT > 0) { t.bp -= 0.35; t.hx += 0.25; }
+}
+// bujanie: reka z siecia wyciagnieta do punktu zaczepu (aimArm), cialo wahadlem pochylone w strone ruchu,
+// nogi podkurczone w dole luku i wyprostowane (wlokace sie) u gory, druga reka balansuje
+function swingPose(t) {
+  const ar = P.swingSide > 0 ? 1 : -1;
+  const rx = P.anchor.x - P.pos.x, ry = P.anchor.y - P.pos.y, rz = P.anchor.z - P.pos.z;
+  const low = smooth01((ry / (Math.hypot(rx, ry, rz) || 1) - 0.45) / 0.5); // 1 = lina pionowo (dol luku), 0 = lina prawie pozioma (gora)
+  const sp = clamp(P.vel.length() / 50, 0, 1), w = Math.sin(G.time * 7) * 0.04;
+  t.hLx = lerp(0.25, -1.05, low); t.kL = lerp(0.12, 1.6, low); t.hRx = lerp(0.5, -0.5, low); t.kR = lerp(0.08, 1.15, low);
+  t.hLz = 0.08; t.hRz = -0.1; t.fL = lerp(0.5, 0.2, low); t.fR = lerp(0.6, 0.1, low);
+  t.bp = 0.12 + sp * 0.38 + (1 - low) * 0.08; t.br = ar * (0.1 + sp * 0.22); t.spy = -ar * (0.15 + 0.12 * sp); t.hx = -0.35 - sp * 0.2; t.hy = ar * 0.1;
+  t.by = -0.04 * low;
+  // wolna reka: do tylu na dole luku, rozlozona w bok u gory
+  const fx = ar > 0 ? 'L' : 'R', sg = ar > 0 ? 1 : -1;
+  t['s' + fx + 'x'] = lerp(-0.35, 0.95, low) + w; t['s' + fx + 'z'] = sg * lerp(1.0, 0.55, low); t['e' + fx] = lerp(-0.3, -0.9, low);
+  // reka z siecia: lekki luz w lokciu (aimArm wyprostuje, a tu tylko przygotowanie)
+  t['e' + (ar > 0 ? 'R' : 'L')] = -0.1;
+}
+const smooth01 = x => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
+// ladowanie: lekkie (przysiad) lub bohaterskie (przyklek z reka na ziemi), wygaszane plynnie
+function landPose(t, hs) {
+  const p = clamp(P.lvT / P.lvDur, 0, 1); // 1 -> 0
+  let amt;
+  if (P.lvHero) amt = p > 0.9 ? (1 - p) / 0.1 : p > 0.3 ? 1 : smooth01(p / 0.3);
+  else amt = Math.sin(clamp(1 - p, 0, 1) * Math.PI) ;
+  if (hs > 6) amt *= clamp(1 - (hs - 6) / 8, 0, 1); // w biegu tylko lekki wstrzas
+  zeroPose(_lp);
+  if (P.lvHero) heroLandPose(_lp);
+  else { _lp.by = -0.22; _lp.hLx = -0.7; _lp.kL = 1.3; _lp.hRx = -0.5; _lp.kR = 1.1; _lp.bp = 0.3; _lp.sLz = 0.45; _lp.sRz = -0.45; _lp.sLx = -0.3; _lp.sRx = -0.3; _lp.hx = -0.3; }
+  mixPose(t, _lp, amt);
+  t.by -= 0.12 * (P.lvHero ? 0.3 : 1) * amt * clamp(hs / 6, 0, 1);
 }
 function attackPose(t, a) {
   const k = Math.sin(clamp(a.t / a.dur, 0, 1) * Math.PI);
@@ -564,9 +600,16 @@ function attackPose(t, a) {
 export function updatePlayerVisual(dt) {
   const H = P.H; H.root.position.copy(P.pos);
   const hs = Math.hypot(P.vel.x, P.vel.z);
+  // predkosc skretu i hamowanie (tylko do pochylen/póz, nie do fizyki)
+  let dh = P.heading - (P.prevH ?? P.heading); dh = Math.atan2(Math.sin(dh), Math.cos(dh)); P.prevH = P.heading;
+  if (dt > 0) {
+    P.turn = lerp(P.turn || 0, clamp(dh / dt, -12, 12), damp(9, dt));
+    P.brake = lerp(P.brake || 0, Math.max(0, ((P.hsPrev ?? hs) - hs) / dt), damp(10, dt)); P.hsPrev = hs;
+    if (P.lvT > 0) P.lvT = Math.max(0, P.lvT - dt);
+  }
   const up = _u.set(0, 1, 0), fw = _f.set(Math.sin(P.heading), 0, Math.cos(P.heading));
   if (P.state === 'swing') {
-    up.subVectors(P.anchor, P.pos).normalize().lerp(UP, 0.2).normalize();
+    up.subVectors(P.anchor, P.pos).normalize().lerp(UP, 0.3).normalize();
     if (P.vel.lengthSq() > 4) fw.copy(P.vel).normalize();
   } else if (P.state === 'wall') { up.copy(P.wallN); fw.set(0, 1, 0); }
   else if (P.state === 'air' && hs > 3 && !P.lunge && !P.atk) { fw.set(P.vel.x, 0, P.vel.z).normalize(); P.heading = Math.atan2(fw.x, fw.z); }
@@ -574,11 +617,14 @@ export function updatePlayerVisual(dt) {
   H.root.quaternion.slerp(_q, damp(P.state === 'swing' ? 9 : 14, dt));
 
   const t = P.pt; zeroPose(t); buildPose(t, dt, hs);
-  blendPose(P.pc, t, damp(P.atk ? 26 : 14, dt));
+  // miekkie przejscia: wolniej w locie i na linie, szybko przy ciosach i wyladowaniu
+  blendPose(P.pc, t, damp(P.atk ? 26 : (P.lvT > 0 && P.lvHero && P.lvT > P.lvDur * 0.88) ? 30 : P.state === 'swing' ? 10 : P.state === 'air' ? 9 : 14, dt));
   // obroty "na calego" ustawiamy wprost, zeby salto nie cofalo sie przy wygladzaniu
   if (P.fin) P.pc.bp = clamp(P.fin.t / P.fin.dur, 0, 1) * Math.PI * 2;
+  else if (P.flipT >= 0 && P.flipRoll) { P.pc.br = clamp(P.flipT / P.flipDur, 0, 1) * Math.PI * 2 * (P.flipBack ? -1 : 1); P.flipRolling = true; }
   else if (P.flipT >= 0) P.pc.bp = clamp(P.flipT / P.flipDur, 0, 1) * Math.PI * 2 * (P.flipBack ? -1 : 1);
   else if (P.trickT > 0 && P.trickType === 1) P.pc.bp = (1 - P.trickT / 0.55) * Math.PI * 2;
+  if (P.flipT < 0 && P.flipRolling) { P.flipRolling = false; P.flipRoll = false; P.pc.br = 0; }
   if (P.dodgeT > 0) { P.pc.br = P.dodgeSide * (1 - P.dodgeT / 0.32) * Math.PI * 2; P.rolling = true; }
   else if (P.rolling) { P.rolling = false; P.pc.br = 0; }
   if (P.atk && P.atk.type === 3) { P.pc.bw = clamp(P.atk.t / P.atk.dur, 0, 1) * Math.PI * 2; P.spinning = true; }

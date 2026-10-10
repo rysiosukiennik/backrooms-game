@@ -4095,11 +4095,12 @@
     H.ftL.rotation.set(c.fL, 0, 0);
     H.ftR.rotation.set(c.fR, 0, 0);
   }
-  function idlePose(t, time) {
-    t.by = Math.sin(time * 2.2) * 8e-3;
-    t.chx = Math.sin(time * 2.2) * 0.02;
-    t.sLz = 0.14;
-    t.sRz = -0.14;
+  function idlePose(t, time, hero) {
+    const br = Math.sin(time * 2.2), sw = Math.sin(time * 0.55), sw2 = Math.sin(time * 0.37 + 1.3);
+    t.by = br * 8e-3 - (hero ? 0.04 : 0);
+    t.chx = br * 0.025 + (hero ? 0.1 : 0);
+    t.sLz = 0.14 + br * 0.02;
+    t.sRz = -0.14 - br * 0.02;
     t.sLx = 0.05;
     t.sRx = 0.05;
     t.eL = -0.25;
@@ -4108,6 +4109,24 @@
     t.hRz = -0.05;
     t.kL = 0.04;
     t.kR = 0.04;
+    if (!hero) return;
+    t.spz = sw * 0.035;
+    t.br = sw * 0.03;
+    t.bw = sw2 * 0.05;
+    t.hy = sw2 * 0.22 - t.bw;
+    t.hx = 0.04 + Math.sin(time * 0.43) * 0.05;
+    t.hLz = 0.1 + Math.max(0, sw) * 0.05;
+    t.hRz = -0.1 - Math.max(0, -sw) * 0.05;
+    t.hLx = -0.06;
+    t.hRx = 0.05;
+    t.kL = 0.2 + Math.max(0, sw) * 0.12;
+    t.kR = 0.2 + Math.max(0, -sw) * 0.12;
+    t.sLz = 0.2 + br * 0.03;
+    t.sRz = -0.2 - br * 0.03;
+    t.sLx = -0.12 + sw * 0.05;
+    t.sRx = -0.12 - sw * 0.05;
+    t.eL = -0.5;
+    t.eR = -0.5;
   }
   function runPose(t, ph, a, sprint) {
     const s = Math.sin(ph), c = Math.cos(ph);
@@ -4117,23 +4136,56 @@
     t.kR = 0.25 + Math.max(0, -c) * 1.4 * a;
     t.by = (Math.abs(s) * 0.06 - 0.04) * a;
     t.bp = 0.12 * a;
+    t.spy = -s * 0.16 * a;
+    t.br = s * 0.035 * a;
+    t.fL = Math.max(0, -c) * 0.5 * a;
+    t.fR = Math.max(0, c) * 0.5 * a;
     if (sprint) {
-      t.sLx = 1;
-      t.sRx = 1;
+      t.sLx = 0.95 + s * 0.35;
+      t.sRx = 0.95 - s * 0.35;
       t.sLz = 0.25;
       t.sRz = -0.25;
-      t.eL = -0.2;
-      t.eR = -0.2;
-      t.bp = 0.5;
-      t.hx = -0.4;
+      t.eL = -0.25 - Math.max(0, s) * 0.3;
+      t.eR = -0.25 - Math.max(0, -s) * 0.3;
+      t.bp = 0.55;
+      t.hx = -0.45;
+      t.by = (Math.abs(s) * 0.08 - 0.12) * a;
+      t.hLx = -s * 1.05;
+      t.hRx = s * 1.05;
+      t.kL += 0.2;
+      t.kR += 0.2;
     } else {
-      t.sLx = s * 0.75 * a;
-      t.sRx = -s * 0.75 * a;
-      t.eL = -0.9;
-      t.eR = -0.9;
+      t.sLx = s * 0.8 * a;
+      t.sRx = -s * 0.8 * a;
+      t.eL = -0.9 - Math.max(0, -s) * 0.4;
+      t.eR = -0.9 - Math.max(0, s) * 0.4;
       t.sLz = 0.1;
       t.sRz = -0.1;
+      t.hx = -0.08 * a;
     }
+  }
+  function mixPose(t, o, w) {
+    for (const q of POSEK) t[q] += (o[q] - t[q]) * w;
+  }
+  function heroLandPose(t) {
+    t.by = -0.7;
+    t.bp = 0.55;
+    t.spx = 0.2;
+    t.hx = -0.8;
+    t.hLx = -1.55;
+    t.kL = 1.95;
+    t.hLz = 0.2;
+    t.fL = 0.2;
+    t.hRx = 0.55;
+    t.kR = 2.3;
+    t.hRz = -0.25;
+    t.fR = 0.9;
+    t.sRx = -0.95;
+    t.sRz = -0.3;
+    t.eR = -0.08;
+    t.sLx = 0.9;
+    t.sLz = 0.95;
+    t.eL = -0.3;
   }
   function crouchPose(t) {
     t.by = -0.5;
@@ -8946,6 +8998,10 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     P.flipT = -1;
     P.pc.bp = 0;
     P.trickT = 0;
+    P.lvT = imp > 32 ? 0.85 : imp > 12 ? 0.34 : 0;
+    P.lvDur = P.lvT;
+    P.lvHero = imp > 32;
+    cam.kick = Math.max(cam.kick || 0, Math.min(0.5, imp / 90));
     if (imp > 32) {
       P.landT = 0.45;
       P.landHard = true;
@@ -9315,6 +9371,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       P.flipT = 0;
       P.flipDur = 0.6;
       P.flipBack = false;
+      P.flipRoll = hs > 14 && Math.random() < 0.4;
       sfx("whoosh");
     } else if (P.vel.y > 0) {
       P.vel.y += 1.5;
@@ -9326,6 +9383,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
         P.flipT = 0;
         P.flipDur = 0.6;
         P.flipBack = false;
+        P.flipRoll = Math.random() < 0.4;
       }
     }
   }
@@ -9446,33 +9504,25 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
         break;
       case "ground":
         if (P.perchT > 0) crouchPose(t);
-        else if (P.landT > 0) {
-          if (P.landHard) {
-            t.by = -0.42;
-            t.hLx = -1.5;
-            t.kL = 2.1;
-            t.hRx = 0.3;
-            t.kR = 1.9;
-            t.bp = 0.55;
-            t.sRx = -1;
-            t.sRz = -0.2;
-            t.sLz = 0.9;
-            t.sLx = 0.3;
-            t.hx = -0.5;
-          } else {
-            t.by = -0.2;
-            t.hLx = -0.7;
-            t.kL = 1.2;
-            t.hRx = -0.5;
-            t.kR = 1;
-            t.bp = 0.25;
-            t.sLz = 0.4;
-            t.sRz = -0.4;
+        else {
+          if (hs > 0.6) {
+            P.runPh += dt * (hs * 1.05 + 1.5);
+            runPose(t, P.runPh, Math.min(1, hs / 9), P.sprint && hs > 11);
+          } else idlePose(t, G.time, true);
+          if (hs > 3 && P.brake > 18) {
+            const b = clamp((P.brake - 18) / 50, 0, 1);
+            t.bp -= 0.45 * b;
+            t.sLx -= 0.9 * b;
+            t.sRx -= 0.9 * b;
+            t.sLz += 0.5 * b;
+            t.sRz -= 0.5 * b;
+            t.hLx -= 0.4 * b;
+            t.kL += 0.4 * b;
+            t.by -= 0.05 * b;
           }
-        } else if (hs > 0.6) {
-          P.runPh += dt * (hs * 1.05 + 1.5);
-          runPose(t, P.runPh, Math.min(1, hs / 9), P.sprint && hs > 11);
-        } else idlePose(t, G.time);
+          if (P.lvT > 0) landPose(t, hs);
+          t.br += clamp(-P.turn * 0.04, -0.4, 0.4) * clamp(hs / 9, 0, 1) * (P.sprint ? 1.4 : 1);
+        }
         break;
       case "air":
         if (P.vel.y > 2) {
@@ -9506,6 +9556,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
           t.hx = -0.25 - dive * 0.55;
           t.spy = 0.12;
         }
+        t.br += clamp(-P.turn * 0.05, -0.45, 0.45) * clamp(hs / 14, 0, 1);
         if (P.trickT > 0 && P.trickType === 2) {
           t.hLz = 1.4;
           t.hRz = -1.4;
@@ -9519,28 +9570,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
         }
         break;
       case "swing":
-        t.hLx = -0.75;
-        t.kL = 1.1;
-        t.hRx = -0.45;
-        t.kR = 0.8;
-        t.hLz = 0.06;
-        t.hRz = -0.06;
-        t.hx = -0.25;
-        if (P.vel.y > 4) {
-          t.hLx = -0.2;
-          t.kL = 0.3;
-          t.hRx = -0.1;
-          t.kR = 0.2;
-        }
-        if (P.swingSide > 0) {
-          t.sLz = 1;
-          t.sLx = 0.6;
-          t.eL = -0.5;
-        } else {
-          t.sRz = -1;
-          t.sRx = 0.6;
-          t.eR = -0.5;
-        }
+        swingPose(t);
         break;
       case "wall": {
         const v = Math.abs(P.wallVy);
@@ -9569,7 +9599,21 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
         break;
       }
     }
-    if (P.flipT >= 0 || P.dodgeT > 0 || P.trickT > 0 && P.trickType < 2) tuckPose(t);
+    if (P.flipT >= 0 && P.flipRoll && P.dodgeT <= 0) {
+      t.sLz = 1.35;
+      t.sRz = -1.35;
+      t.sLx = 0.2;
+      t.sRx = 0.2;
+      t.eL = -0.2;
+      t.eR = -0.2;
+      t.hLx = 0.1;
+      t.hRx = 0.25;
+      t.kL = 0.5;
+      t.kR = 0.2;
+      t.hLz = 0.12;
+      t.hRz = -0.12;
+      t.bp = 0.25;
+    } else if (P.flipT >= 0 || P.dodgeT > 0 || P.trickT > 0 && P.trickType < 2) tuckPose(t);
     if (P.atk) attackPose(t, P.atk);
     if (P.lunge) {
       t.sRx = -1.4;
@@ -9584,6 +9628,55 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       t.bp -= 0.35;
       t.hx += 0.25;
     }
+  }
+  function swingPose(t) {
+    const ar = P.swingSide > 0 ? 1 : -1;
+    const rx = P.anchor.x - P.pos.x, ry = P.anchor.y - P.pos.y, rz = P.anchor.z - P.pos.z;
+    const low = smooth01((ry / (Math.hypot(rx, ry, rz) || 1) - 0.45) / 0.5);
+    const sp = clamp(P.vel.length() / 50, 0, 1), w = Math.sin(G.time * 7) * 0.04;
+    t.hLx = lerp(0.25, -1.05, low);
+    t.kL = lerp(0.12, 1.6, low);
+    t.hRx = lerp(0.5, -0.5, low);
+    t.kR = lerp(0.08, 1.15, low);
+    t.hLz = 0.08;
+    t.hRz = -0.1;
+    t.fL = lerp(0.5, 0.2, low);
+    t.fR = lerp(0.6, 0.1, low);
+    t.bp = 0.12 + sp * 0.38 + (1 - low) * 0.08;
+    t.br = ar * (0.1 + sp * 0.22);
+    t.spy = -ar * (0.15 + 0.12 * sp);
+    t.hx = -0.35 - sp * 0.2;
+    t.hy = ar * 0.1;
+    t.by = -0.04 * low;
+    const fx = ar > 0 ? "L" : "R", sg = ar > 0 ? 1 : -1;
+    t["s" + fx + "x"] = lerp(-0.35, 0.95, low) + w;
+    t["s" + fx + "z"] = sg * lerp(1, 0.55, low);
+    t["e" + fx] = lerp(-0.3, -0.9, low);
+    t["e" + (ar > 0 ? "R" : "L")] = -0.1;
+  }
+  function landPose(t, hs) {
+    const p = clamp(P.lvT / P.lvDur, 0, 1);
+    let amt;
+    if (P.lvHero) amt = p > 0.9 ? (1 - p) / 0.1 : p > 0.3 ? 1 : smooth01(p / 0.3);
+    else amt = Math.sin(clamp(1 - p, 0, 1) * Math.PI);
+    if (hs > 6) amt *= clamp(1 - (hs - 6) / 8, 0, 1);
+    zeroPose(_lp);
+    if (P.lvHero) heroLandPose(_lp);
+    else {
+      _lp.by = -0.22;
+      _lp.hLx = -0.7;
+      _lp.kL = 1.3;
+      _lp.hRx = -0.5;
+      _lp.kR = 1.1;
+      _lp.bp = 0.3;
+      _lp.sLz = 0.45;
+      _lp.sRz = -0.45;
+      _lp.sLx = -0.3;
+      _lp.sRx = -0.3;
+      _lp.hx = -0.3;
+    }
+    mixPose(t, _lp, amt);
+    t.by -= 0.12 * (P.lvHero ? 0.3 : 1) * amt * clamp(hs / 6, 0, 1);
   }
   function attackPose(t, a) {
     const k = Math.sin(clamp(a.t / a.dur, 0, 1) * Math.PI);
@@ -9645,12 +9738,22 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     }
   }
   function updatePlayerVisual(dt) {
+    var _a4, _b3;
     const H = P.H;
     H.root.position.copy(P.pos);
     const hs = Math.hypot(P.vel.x, P.vel.z);
+    let dh = P.heading - ((_a4 = P.prevH) != null ? _a4 : P.heading);
+    dh = Math.atan2(Math.sin(dh), Math.cos(dh));
+    P.prevH = P.heading;
+    if (dt > 0) {
+      P.turn = lerp(P.turn || 0, clamp(dh / dt, -12, 12), damp(9, dt));
+      P.brake = lerp(P.brake || 0, Math.max(0, (((_b3 = P.hsPrev) != null ? _b3 : hs) - hs) / dt), damp(10, dt));
+      P.hsPrev = hs;
+      if (P.lvT > 0) P.lvT = Math.max(0, P.lvT - dt);
+    }
     const up = _u2.set(0, 1, 0), fw = _f2.set(Math.sin(P.heading), 0, Math.cos(P.heading));
     if (P.state === "swing") {
-      up.subVectors(P.anchor, P.pos).normalize().lerp(UP, 0.2).normalize();
+      up.subVectors(P.anchor, P.pos).normalize().lerp(UP, 0.3).normalize();
       if (P.vel.lengthSq() > 4) fw.copy(P.vel).normalize();
     } else if (P.state === "wall") {
       up.copy(P.wallN);
@@ -9664,10 +9767,18 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     const t = P.pt;
     zeroPose(t);
     buildPose(t, dt, hs);
-    blendPose(P.pc, t, damp(P.atk ? 26 : 14, dt));
+    blendPose(P.pc, t, damp(P.atk ? 26 : P.lvT > 0 && P.lvHero && P.lvT > P.lvDur * 0.88 ? 30 : P.state === "swing" ? 10 : P.state === "air" ? 9 : 14, dt));
     if (P.fin) P.pc.bp = clamp(P.fin.t / P.fin.dur, 0, 1) * Math.PI * 2;
-    else if (P.flipT >= 0) P.pc.bp = clamp(P.flipT / P.flipDur, 0, 1) * Math.PI * 2 * (P.flipBack ? -1 : 1);
+    else if (P.flipT >= 0 && P.flipRoll) {
+      P.pc.br = clamp(P.flipT / P.flipDur, 0, 1) * Math.PI * 2 * (P.flipBack ? -1 : 1);
+      P.flipRolling = true;
+    } else if (P.flipT >= 0) P.pc.bp = clamp(P.flipT / P.flipDur, 0, 1) * Math.PI * 2 * (P.flipBack ? -1 : 1);
     else if (P.trickT > 0 && P.trickType === 1) P.pc.bp = (1 - P.trickT / 0.55) * Math.PI * 2;
+    if (P.flipT < 0 && P.flipRolling) {
+      P.flipRolling = false;
+      P.flipRoll = false;
+      P.pc.br = 0;
+    }
     if (P.dodgeT > 0) {
       P.pc.br = P.dodgeSide * (1 - P.dodgeT / 0.32) * Math.PI * 2;
       P.rolling = true;
@@ -9716,7 +9827,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     } else lineZ1.visible = lineZ2.visible = false;
     H.root.visible = !(P.hurtT > 0 && Math.floor(P.hurtT * 30) % 2 === 0);
   }
-  var GRAV, _t3, _h2, _f2, _u2, _q2, _cf2, GROUND, webGeo, webLineMat, lineMain, lineZ1, lineZ2, _cl, _res;
+  var GRAV, _t3, _h2, _f2, _u2, _q2, _cf2, GROUND, _lp, webGeo, webLineMat, lineMain, lineZ1, lineZ2, _cl, _res, smooth01;
   var init_gracz = __esm({
     "js/gracz.js"() {
       init_util();
@@ -9738,11 +9849,16 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       _q2 = new THREE.Quaternion();
       _cf2 = new V3();
       GROUND = { y1: 0, street: true };
+      _lp = newPose();
       webGeo = new THREE.CylinderGeometry(0.024, 0.024, 1, 5, 1, true);
       webGeo.translate(0, 0.5, 0);
       webLineMat = new THREE.MeshBasicMaterial({ color: 16185078 });
       _cl = [];
       _res = { top: null, wall: null };
+      smooth01 = (x) => {
+        x = clamp(x, 0, 1);
+        return x * x * (3 - 2 * x);
+      };
     }
   });
 
@@ -9904,6 +10020,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
   var _f3 = new V3();
   var _b2 = new V3();
   var _v2 = new V3();
+  var _r = new V3();
   function camLook(dt, I) {
     const lx = I.plx * 2.7 * dt + I.mdx * 24e-4, ly = I.ply * 1.9 * dt + I.mdy * 24e-4;
     cam.yaw -= lx;
@@ -9930,7 +10047,15 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     if (t < d + 0.3) d = Math.max(0.8, t - 0.4);
     camera.position.copy(cam.tgt).addScaledVector(_b2, d);
     if (camera.position.y < 0.4) camera.position.y = 0.4;
+    if (cam.kick > 1e-3) {
+      camera.position.y -= cam.kick * 0.5;
+      cam.kick = lerp(cam.kick, 0, damp(7, dt));
+    } else cam.kick = 0;
     camera.lookAt(cam.tgt);
+    _r.set(Math.cos(cam.yaw), 0, -Math.sin(cam.yaw));
+    const rollT = (P.state === "swing" || P.state === "air" ? clamp(P.vel.dot(_r) / 45, -1, 1) * (P.state === "swing" ? 0.085 : 0.045) : 0) * clamp(sp / 20, 0, 1);
+    cam.roll = lerp(cam.roll || 0, -rollT, damp(2.6, dt));
+    if (Math.abs(cam.roll) > 1e-4) camera.rotateZ(cam.roll);
     if (G.shake > 0) {
       G.shake = Math.max(0, G.shake - dt * 1.8);
       const s = G.shake * 0.35;
@@ -9938,7 +10063,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       camera.position.y += (Math.random() - 0.5) * s;
       camera.position.z += (Math.random() - 0.5) * s;
     }
-    const fov = 68 + clamp(sp / 60, 0, 1) * 16;
+    const fov = 68 + clamp(sp / 60, 0, 1) * 16 + (P.state === "swing" ? 2.5 : 0) + (P.state === "air" && P.vel.y < -25 ? 3 : 0) + (P.state === "ground" && P.sprint && sp > 12 ? 2.5 : 0);
     if (Math.abs(fov - camera.fov) > 0.05) {
       camera.fov = lerp(camera.fov, fov, damp(3, dt));
       camera.updateProjectionMatrix();

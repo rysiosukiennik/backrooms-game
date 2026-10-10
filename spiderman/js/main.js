@@ -104,7 +104,7 @@ addEventListener('resize', () => {
 });
 
 // ---------------------------------------------------------------- kamera
-const _f = new V3(), _b = new V3(), _v = new V3();
+const _f = new V3(), _b = new V3(), _v = new V3(), _r = new V3();
 function camLook(dt, I) {
   const lx = I.plx * 2.7 * dt + I.mdx * 0.0024, ly = I.ply * 1.9 * dt + I.mdy * 0.0024;
   cam.yaw -= lx; cam.pitch = clamp(cam.pitch - ly, -1.3, 0.9);
@@ -129,13 +129,19 @@ function camFollow(dt) {
   if (t < d + 0.3) d = Math.max(0.8, t - 0.4);
   camera.position.copy(cam.tgt).addScaledVector(_b, d);
   if (camera.position.y < 0.4) camera.position.y = 0.4;
+  // kopniak po ladowaniu (kamera na chwile opada) i przechyl horyzontu przy bujaniu/ostrych skretach
+  if (cam.kick > 0.001) { camera.position.y -= cam.kick * 0.5; cam.kick = lerp(cam.kick, 0, damp(7, dt)); } else cam.kick = 0;
   camera.lookAt(cam.tgt);
+  _r.set(Math.cos(cam.yaw), 0, -Math.sin(cam.yaw)); // prawo kamery
+  const rollT = (P.state === 'swing' || P.state === 'air' ? clamp(P.vel.dot(_r) / 45, -1, 1) * (P.state === 'swing' ? 0.085 : 0.045) : 0) * clamp(sp / 20, 0, 1);
+  cam.roll = lerp(cam.roll || 0, -rollT, damp(2.6, dt));
+  if (Math.abs(cam.roll) > 1e-4) camera.rotateZ(cam.roll);
   if (G.shake > 0) {
     G.shake = Math.max(0, G.shake - dt * 1.8);
     const s = G.shake * 0.35;
     camera.position.x += (Math.random() - 0.5) * s; camera.position.y += (Math.random() - 0.5) * s; camera.position.z += (Math.random() - 0.5) * s;
   }
-  const fov = 68 + clamp(sp / 60, 0, 1) * 16;
+  const fov = 68 + clamp(sp / 60, 0, 1) * 16 + (P.state === 'swing' ? 2.5 : 0) + (P.state === 'air' && P.vel.y < -25 ? 3 : 0) + (P.state === 'ground' && P.sprint && sp > 12 ? 2.5 : 0);
   if (Math.abs(fov - camera.fov) > 0.05) { camera.fov = lerp(camera.fov, fov, damp(3, dt)); camera.updateProjectionMatrix(); }
 }
 function menuCam(dt) {
