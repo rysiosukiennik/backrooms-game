@@ -15,14 +15,14 @@ export const isecPos = (i, j) => [X0 + i * CX, Z0 + j * CZ];
 
 export const DIST = {
   harlem: { name: 'HARLEM', h: [12, 32], tall: 0, st: [0, 1, 2, 0] },
-  uws: { name: 'UPPER WEST SIDE', h: [22, 50], tall: 0.08, st: [1, 5, 0, 2] },
-  ues: { name: 'UPPER EAST SIDE', h: [22, 55], tall: 0.1, st: [5, 1, 2, 0] },
+  uws: { name: 'UPPER WEST SIDE', h: [22, 50], tall: 0.08, st: [1, 5, 0, 2, 8] },
+  ues: { name: 'UPPER EAST SIDE', h: [22, 55], tall: 0.1, st: [5, 1, 2, 0, 8] },
   park: { name: 'CENTRAL PARK' },
-  hk: { name: "HELL'S KITCHEN", h: [18, 55], tall: 0.12, st: [0, 2, 1, 3] },
-  mid: { name: 'MIDTOWN', h: [45, 115], tall: 0.35, st: [3, 4, 2, 5, 1] },
+  hk: { name: "HELL'S KITCHEN", h: [18, 55], tall: 0.12, st: [0, 2, 1, 7, 0] },
+  mid: { name: 'MIDTOWN', h: [45, 115], tall: 0.35, st: [6, 8, 7, 3, 6, 8, 2, 5, 4, 1] },
   gv: { name: 'GREENWICH VILLAGE', h: [12, 35], tall: 0.03, st: [0, 1, 5] },
   ct: { name: 'CHINATOWN', h: [14, 40], tall: 0.05, st: [0, 2, 1] },
-  fin: { name: 'FINANCIAL DISTRICT', h: [45, 125], tall: 0.4, st: [4, 3, 2, 5] },
+  fin: { name: 'FINANCIAL DISTRICT', h: [45, 125], tall: 0.4, st: [6, 8, 7, 6, 4, 8, 5, 3] },
 };
 export function distKey(i, j) {
   if (j < 2) return 'harlem';
@@ -105,11 +105,17 @@ export function raycastCity(o, d, maxT) {
 // ktore widac (i tylko te blisko gracza do cieni), zamiast calego miasta naraz.
 const CHUNK = +(new URLSearchParams(location.search).get('chunk')) || 330;
 // parametry biezacego budynku: odcien, rozmiar kafla okien i jego przesuniecie (kazdy budynek wyglada inaczej)
-const cur = { tint: [1, 1, 1], us: 16, vs: 14, uo: 0, vo: 0 };
+const cur = { tint: [1, 1, 1], us: 16, vs: 14, uo: 0, vo: 0, tile: 1 };
 function randomBuildingLook() {
   const L = 0.58 + srand() * 0.42;
   cur.tint = [L * (1 + (srand() - 0.5) * 0.14), L * (1 + (srand() - 0.5) * 0.1), L * (1 + (srand() - 0.5) * 0.14)];
   cur.us = 13 + srand() * 5; cur.vs = 12 + srand() * 4; cur.uo = Math.floor(srand() * 4) / 4; cur.vo = Math.floor(srand() * 4) / 4;
+}
+// odcien szkla wiezowca: niebieskawy, zielonkawy, braz, srebrny, grafit (kolor wierzcholkow barwi tez odbicia)
+const GLASS_TINTS = [[0.72, 0.84, 1.0], [0.74, 0.95, 0.92], [1.0, 0.86, 0.7], [0.9, 0.93, 0.97], [0.6, 0.64, 0.7], [0.82, 0.9, 1.0]];
+function styleLook(st) {
+  cur.tile = STY[st].tile || 1;
+  if (STY[st].glassy) { const t = GLASS_TINTS[Math.floor(srand() * GLASS_TINTS.length)], L = 0.8 + srand() * 0.25; cur.tint = t.map(v => v * L); }
 }
 function newGeo() { return { chunks: new Map() }; }
 function quad(g, a, b, c, d, n, ua, ub, uc, ud) {
@@ -121,7 +127,7 @@ function quad(g, a, b, c, d, n, ua, ub, uc, ud) {
 }
 // sciany (n: z0, s: z1, w: x0, e: x1); UV liczone z bezwzglednych wspolrzednych. Elewacje (16 x 14) biora rozmiar i przesuniecie wzoru z cur.
 function wallsFaces(g, x0, x1, y0, y1, z0, z1, us, vs, faces) {
-  let uo = 0, vo = 0; if (us === 16 && vs === 14) { us = cur.us; vs = cur.vs; uo = cur.uo; vo = cur.vo; }
+  let uo = 0, vo = 0; if (us === 16 && vs === 14) { us = cur.us * cur.tile; vs = cur.vs * cur.tile; uo = cur.uo; vo = cur.vo; }
   const v0 = y0 / vs + vo, v1 = y1 / vs + vo, X0 = x0 / us + uo, X1 = x1 / us + uo, Z0 = z0 / us + uo, Z1 = z1 / us + uo;
   if (faces.includes('s')) quad(g, [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], [0, 0, 1], [X0, v0], [X1, v0], [X1, v1], [X0, v1]);
   if (faces.includes('n')) quad(g, [x1, y0, z0], [x0, y0, z0], [x0, y1, z0], [x1, y1, z0], [0, 0, -1], [-X1, v0], [-X0, v0], [-X0, v1], [-X1, v1]);
@@ -138,6 +144,32 @@ function bottom(g, x0, x1, y, z0, z1) {
 function fullBox(g, x0, x1, y0, y1, z0, z1, us = 4, under = false) {
   walls(g, x0, x1, y0, y1, z0, z1, us, us); top(g, x0, x1, y1, z0, z1, us); if (under) bottom(g, x0, x1, y0, z0, z1);
 }
+// dowolna sciana (czworokat albo trojkat, gdy C == D): normalna metoda Newella, UV z poziomego kierunku sciany i wysokosci.
+// us/vs = 16/14 -> wzor elewacji biezacego budynku (jak w wallsFaces)
+function polyQuad(g, A, B, C, D, us = 4, vs = 4) {
+  let nx = 0, ny = 0, nz = 0; const P = [A, B, C, D];
+  for (let i = 0; i < 4; i++) { const p = P[i], q = P[(i + 1) % 4]; nx += (p[1] - q[1]) * (p[2] + q[2]); ny += (p[2] - q[2]) * (p[0] + q[0]); nz += (p[0] - q[0]) * (p[1] + q[1]); }
+  const l = Math.hypot(nx, ny, nz) || 1; nx /= l; ny /= l; nz /= l;
+  let uo = 0, vo = 0; if (us === 16 && vs === 14) { us = cur.us * cur.tile; vs = cur.vs * cur.tile; uo = cur.uo; vo = cur.vo; }
+  let tx = nz, tz = -nx; const tl = Math.hypot(tx, tz); // kierunek "w prawo" na scianie (jak u w wallsFaces)
+  const flat = tl < 0.2; if (flat) { tx = 1; tz = 0; } else { tx /= tl; tz /= tl; }
+  const uv = p => flat ? [p[0] / us, p[2] / us] : [(p[0] * tx + p[2] * tz) / us + uo, p[1] / vs + vo];
+  quad(g, A, B, C, D, [nx, ny, nz], uv(A), uv(B), uv(C), uv(D));
+}
+// graniastoslup / ostroslup scity o podstawie wielokata (pkt [x,z] przeciwnie do wskazowek patrzac z gory, jak w top()).
+// pts1 = wielokat na gorze (ta sama liczba punktow); cap: przykrycie (do geometrii capG)
+function polyPrism(g, pts0, y0, y1, pts1, us, vs, capG) {
+  pts1 = pts1 || pts0; const n = pts0.length;
+  for (let i = 0; i < n; i++) {
+    const a = pts0[i], b = pts0[(i + 1) % n], c = pts1[(i + 1) % n], d = pts1[i];
+    polyQuad(g, [a[0], y0, a[1]], [b[0], y0, b[1]], [c[0], y1, c[1]], [d[0], y1, d[1]], us, vs);
+  }
+  if (capG) { let cx = 0, cz = 0; for (const p of pts1) { cx += p[0] / n; cz += p[1] / n; }
+    for (let i = 0; i < n; i++) { const a = pts1[i], b = pts1[(i + 1) % n]; polyQuad(capG, [cx, y1, cz], [a[0], y1, a[1]], [b[0], y1, b[1]], [b[0], y1, b[1]], 10, 10); } }
+}
+const ngon = (cx, cz, r, n, rot = 0) => Array.from({ length: n }, (_, i) => { const a = rot - i / n * Math.PI * 2; return [cx + Math.cos(a) * r, cz + Math.sin(a) * r]; });
+// prostokat ze scietymi narozami (osmiokat), punkty w kolejnosci jak w top()
+const chamferPts = (x0, x1, z0, z1, c) => [[x0 + c, z1], [x1 - c, z1], [x1, z1 - c], [x1, z0 + c], [x1 - c, z0], [x0 + c, z0], [x0, z0 + c], [x0, z1 - c]];
 function meshFrom(g, mat, cast = true) {
   for (const s of g.chunks.values()) {
     const geo = new THREE.BufferGeometry();
@@ -157,10 +189,87 @@ const STY = [
   { wall: '#7d3f2e', gTop: '#e8b68e', gBot: '#2d3440', inset: [26, 20, 26, 30], lit: 0.12, rough: 0.9, frame: '#d9d0c0', brick: true, fire: true },
   { wall: '#9c866a', gTop: '#f3c49a', gBot: '#3a4250', inset: [24, 20, 24, 30], lit: 0.1, rough: 0.85, frame: '#8a7a62' },
   { wall: '#76797e', gTop: '#e9b58f', gBot: '#34404d', inset: [20, 16, 20, 24], lit: 0.1, rough: 0.8, frame: '#5a5d62' },
-  { wall: '#4d6275', gTop: '#f5c9a0', gBot: '#27415a', inset: [4, 6, 4, 18], lit: 0.05, rough: 0.35, metal: 0.3, band: '#34495a' },
-  { wall: '#2a3340', gTop: '#d7a887', gBot: '#1b2430', inset: [4, 6, 4, 14], lit: 0.06, rough: 0.3, metal: 0.4, band: '#1c232d' },
+  { wall: '#4d6275', gTop: '#a7b2bb', gBot: '#22384e', inset: [4, 6, 4, 18], lit: 0.05, rough: 0.35, metal: 0.3, band: '#34495a', glassy: true },
+  { wall: '#2a3340', gTop: '#8f98a3', gBot: '#161e29', inset: [4, 6, 4, 14], lit: 0.06, rough: 0.3, metal: 0.4, band: '#1c232d', glassy: true },
   { wall: '#a69c8a', gTop: '#f2c6a0', gBot: '#3b4552', inset: [30, 24, 30, 28], lit: 0.1, rough: 0.9, frame: '#9d968a' },
+  // 6: ciemna sciana kurtynowa (kafel 2x wiekszy: 8 x 8 paneli, kazdy w innym odcieniu; kolor szkla daje odcien budynku)
+  { kind: 'curtain', wall: '#1d2530', rough: 0.25, metal: 0.5, glassy: true, tile: 2 },
+  // 7: biurowiec z poziomymi pasami okien (modernizm): jasne gzymsy betonu i ciagle wstegi szkla
+  { kind: 'ribbon', wall: '#b9b4aa', rough: 0.8, metal: 0.25, glassy: true },
+  // 8: art deco: pionowe filary z wapienia, waskie okna w parach, ciemne plyciny miedzy pietrami
+  { kind: 'deco', wall: '#c2b6a0', rough: 0.85, metal: 0.15 },
 ];
+const isGlassy = st => !!STY[st].glassy;
+const isOld = st => !STY[st].glassy && !STY[st].kind; // klasyczna siatka 4 x 4 okien (klimatyzatory, parapety, balkony)
+// nowe rodzaje elewacji: wlasny rytm okien zamiast jednakowej siatki 4 x 4
+function paintKind(s, S, x, ex, rx, bx, mx) {
+  const R = Math.random, hsl = (h, sa, l) => `hsl(${h},${sa}%,${l}%)`;
+  if (s.kind === 'curtain') {
+    const cols = 8, rows = 8, cw = S / cols, ch = S / rows;
+    for (let j = 0; j < rows; j++) {
+      const floorLit = R() < 0.3, warm = R() < 0.7;
+      for (let i = 0; i < cols; i++) {
+        const X = i * cw, Y = j * ch, sp = ch * 0.2;
+        // szyba: kazdy panel minimalnie inny (jasnosc, odcien) — z daleka szklo "faluje" zamiast byc jednolita plama
+        const l = 16 + R() * 4, g = x.createLinearGradient(0, Y, 0, Y + ch - sp);
+        g.addColorStop(0, hsl(205 + R() * 20, 18 + R() * 12, l + 8)); g.addColorStop(1, hsl(210, 22, l));
+        x.fillStyle = g; x.fillRect(X, Y, cw, ch - sp);
+        if (R() < 0.1) { x.fillStyle = 'rgba(210,205,190,.12)'; x.fillRect(X, Y, cw, (ch - sp) * (0.2 + R() * 0.6)); } // rolety
+        x.fillStyle = hsl(210, 12, 10 + R() * 4); x.fillRect(X, Y + ch - sp, cw, sp);                                        // plycina stropu
+        { const v = 14 + R() * 22 | 0; rx.fillStyle = `rgb(${v},${v},${v})`; rx.fillRect(X, Y, cw, ch - sp); } // szyby lekko rozne (odbicia nierowne)
+        rx.fillStyle = '#6a6a6a'; rx.fillRect(X, Y + ch - sp, cw, sp);
+        mx.fillStyle = '#e4e4e4'; mx.fillRect(X, Y, cw, ch - sp); mx.fillStyle = '#707070'; mx.fillRect(X, Y + ch - sp, cw, sp);
+        if (floorLit ? R() < 0.55 : R() < 0.05) { ex.fillStyle = warm ? `rgb(255,${200 + R() * 30 | 0},${140 + R() * 40 | 0})` : 'rgb(200,220,255)'; ex.fillRect(X + 1, Y + 1, cw - 2, ch - sp - 2); }
+      }
+    }
+    // szprosy (cienkie metalowe listwy) — wypukle
+    x.fillStyle = '#3a424c'; bx.fillStyle = '#c0c0c0'; mx.fillStyle = '#a0a0a0';
+    for (let i = 0; i <= cols; i++) { x.fillRect(i * cw - 1.5, 0, 3, S); bx.fillRect(i * cw - 1.5, 0, 3, S); mx.fillRect(i * cw - 1.5, 0, 3, S); }
+    for (let j = 0; j <= rows; j++) { x.fillRect(0, j * ch - 1, S, 2); bx.fillRect(0, j * ch - 1, S, 2); }
+    return;
+  }
+  if (s.kind === 'ribbon') {
+    const rows = 4, C = S / rows, mul = [S / 6, S / 8, S / 5][Math.floor(R() * 3)];
+    for (let j = 0; j < rows; j++) {
+      const Y = j * C + C * 0.12, H = C * 0.56, g = x.createLinearGradient(0, Y, 0, Y + H);
+      g.addColorStop(0, '#5d6c7a'); g.addColorStop(1, '#18222d'); x.fillStyle = g; x.fillRect(0, Y, S, H);
+      for (let a = 0; a < S; a += mul) { // rytm: w kazdym oknie inne wnetrze
+        const k = R();
+        if (k < 0.3) { x.fillStyle = 'rgba(215,210,195,.35)'; x.fillRect(a, Y, mul, H * (0.15 + R() * 0.6)); }
+        else if (k < 0.4) { x.fillStyle = 'rgba(255,255,255,.08)'; x.fillRect(a, Y, mul, H); }
+        if (R() < 0.3) { ex.fillStyle = `rgb(255,${205 + R() * 30 | 0},${150 + R() * 40 | 0})`; ex.fillRect(a + 2, Y + 2, mul - 4, H - 4); }
+      }
+      x.fillStyle = 'rgba(0,0,0,.45)'; x.fillRect(0, Y, S, 5);                         // cien pod gzymsem
+      x.fillStyle = '#2a3038'; for (let a = 0; a <= S; a += mul) x.fillRect(a - 2, Y, 4, H); // slupki
+      rx.fillStyle = '#141414'; rx.fillRect(0, Y, S, H); mx.fillStyle = '#d8d8d8'; mx.fillRect(0, Y, S, H);
+      bx.fillStyle = '#505050'; bx.fillRect(0, Y, S, H);
+      x.fillStyle = 'rgba(255,255,255,.12)'; x.fillRect(0, Y + H, S, 3);
+      { const sg = x.createLinearGradient(0, Y + H, 0, Y + H + 30); sg.addColorStop(0, 'rgba(30,26,22,.22)'); sg.addColorStop(1, 'rgba(30,26,22,0)'); x.fillStyle = sg; x.fillRect(0, Y + H, S, 30); }
+    }
+    return;
+  }
+  if (s.kind === 'deco') {
+    // 8 waskich okien w kaflu; co drugi filar szerszy (rytm A-B), okna w pionowych wnekach z ciemnymi plycinami
+    const rows = 4, C = S / rows, n = 8, cw = S / n;
+    for (let i = 0; i < n; i++) {
+      const wide = i % 2 === 0, pl = wide ? cw * 0.3 : cw * 0.16, X = i * cw + pl, W = cw - pl - cw * 0.12;
+      x.fillStyle = '#4a4239'; x.fillRect(X, 0, W, S); bx.fillStyle = '#5c5c5c'; bx.fillRect(X, 0, W, S); // wneka na cala wysokosc
+      x.fillStyle = 'rgba(0,0,0,.35)'; x.fillRect(X, 0, 3, S); x.fillStyle = 'rgba(255,255,255,.12)'; x.fillRect(X + W - 2, 0, 2, S);
+      for (let j = 0; j < rows; j++) {
+        const Y = j * C + C * 0.12, H = C * 0.62, g = x.createLinearGradient(0, Y, 0, Y + H);
+        g.addColorStop(0, '#6c7480'); g.addColorStop(1, '#1d232b'); x.fillStyle = g; x.fillRect(X + 2, Y, W - 4, H);
+        x.fillStyle = 'rgba(18,22,30,.45)'; x.fillRect(X + 2, Y, W - 4, H);
+        if (R() < 0.3) { x.fillStyle = 'rgba(215,205,180,.45)'; x.fillRect(X + 2, Y, W - 4, H * (0.2 + R() * 0.6)); }
+        x.fillStyle = '#2b2a28'; x.fillRect(X + W / 2 - 1, Y, 2, H); x.fillRect(X + 2, Y + H * 0.5, W - 4, 2); // szprosy
+        x.fillStyle = '#3b342d'; for (let k = 0; k < 3; k++) x.fillRect(X + 4, Y + H + 6 + k * 7, W - 8, 3);  // ornament plyciny
+        rx.fillStyle = '#181818'; rx.fillRect(X + 2, Y, W - 4, H); mx.fillStyle = '#b0b0b0'; mx.fillRect(X + 2, Y, W - 4, H);
+        bx.fillStyle = '#4a4a4a'; bx.fillRect(X + 2, Y, W - 4, H);
+        if (R() < 0.38) { ex.fillStyle = `rgb(255,${190 + R() * 40 | 0},${110 + R() * 50 | 0})`; ex.fillRect(X + 2, Y, W - 4, H); }
+      }
+    }
+    x.fillStyle = 'rgba(0,0,0,.18)'; for (let j = 0; j < rows; j++) x.fillRect(0, j * C, S, 2);
+  }
+}
 const CURT = ['rgba(200,60,50,.55)', 'rgba(230,210,160,.55)', 'rgba(60,90,150,.5)', 'rgba(240,240,230,.5)', 'rgba(120,160,90,.5)'];
 function facadeTex(s) {
   const S = 512, C = 128, c = cv(2 * S, 2 * S), x = c.getContext('2d'), e = cv(2 * S, 2 * S), ex = e.getContext('2d');
@@ -182,7 +291,8 @@ function facadeTex(s) {
     bx.fillStyle = '#7a7a7a'; for (let y = 0; y < S; y += 6) bx.fillRect(0, y, S, 1); for (let y = 0; y < S; y += 6) for (let xx = (y / 6 % 2) * 7; xx < S; xx += 14) bx.fillRect(xx, y, 1, 6);
   }
   for (let i = 0; i < 26; i++) { const px = Math.random() * S, py = Math.random() * S, rr = 30 + Math.random() * 70, gg = x.createRadialGradient(px, py, 0, px, py, rr); gg.addColorStop(0, `rgba(30,25,20,${0.05 + Math.random() * 0.05})`); gg.addColorStop(1, 'rgba(30,25,20,0)'); x.fillStyle = gg; x.fillRect(px - rr, py - rr, rr * 2, rr * 2); }
-  const [l, t, r, b] = s.inset;
+  if (s.kind) paintKind(s, S, x, ex, rx, bx, mx);
+  else { const [l, t, r, b] = s.inset;
   for (let j = 0; j < 4; j++) {
     if (s.band) { x.fillStyle = s.band; x.fillRect(0, j * C + C - b, S, b); }
     else { x.fillStyle = 'rgba(0,0,0,.14)'; x.fillRect(0, j * C + C - 8, S, 4); }
@@ -234,7 +344,7 @@ function facadeTex(s) {
       x.beginPath(); x.moveTo(fx, fy - 26); x.lineTo(fx + fw, fy - 26); x.stroke();
       x.beginPath(); x.moveTo(fx + 30, fy); x.lineTo(fx + 110, fy - C + 16); x.stroke();
     }
-  }
+  } }
   const map = canvasTex(c, true), emi = canvasTex(e, true), rough = canvasTex(rc, true), bump = canvasTex(bc, true), metal = canvasTex(mc, true);
   return { map, emi, rough, bump, metal };
 }
@@ -562,7 +672,7 @@ export function updateEnv() {
 }
 
 // ---------------------------------------------------------------- budowanie miasta
-let facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo, ironGeo, pitchGeo;
+let facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo, ironGeo, pitchGeo, metalGeo, slateGeo;
 export const SW = 0.15; // wysokosc chodnika
 const tanks = [], awnings = [], masts = [], boards = [];
 // sciany budynku z otworem drzwiowym: trzy sciany w calosci, czwarta w trzech kawalkach (po bokach i nad drzwiami)
@@ -583,11 +693,20 @@ function carveBoxes(d, x0, x1, y0, y1, z0, z1) {
   P(r.cu0, r.cu1, r.cv0, r.cv1, SW + r.ch, y1);
   return { x0, x1, y0, y1, z0, z1 };
 }
-function solid(x0, x1, y0, y1, z0, z1, st, door) {
+function solid(x0, x1, y0, y1, z0, z1, st, door, plain) {
+  cur.tile = STY[st].tile || 1;
   if (door) carveWalls(facGeo[st], x0, x1, y0, y1, z0, z1, door); else walls(facGeo[st], x0, x1, y0, y1, z0, z1, 16, 14);
   top(roofGeo, x0, x1, y1, z0, z1, 10);
+  if (plain) return addBox({ x0, x1, y0, y1, z0, z1 }); // bez gzymsow i pilastrow (szklane wieze, korony)
+  if (STY[st].kind === 'curtain') { // sciana kurtynowa: tylko cienkie metalowe narozniki, bez kamiennych pasow
+    const pw = 0.45, po = 0.12;
+    for (const [px, pz] of [[x0, z0], [x1 - pw, z0], [x0, z1 - pw], [x1 - pw, z1 - pw]])
+      fullBox(metalGeo, px - (px === x0 ? po : 0), px + pw + (px === x0 ? 0 : po), y0, y1, pz - (pz === z0 ? po : 0), pz + pw + (pz === z0 ? 0 : po), 4);
+    fullBox(metalGeo, x0 - 0.15, x1 + 0.15, y1 - 0.5, y1 + 0.25, z0 - 0.15, z1 + 0.15, 4);
+    return door ? carveBoxes(door, x0, x1, y0, y1, z0, z1) : addBox({ x0, x1, y0, y1, z0, z1 });
+  }
   if (x1 - x0 > 5 && z1 - z0 > 5 && y1 - y0 > 6) { // gzyms
-    const o = st >= 3 && st <= 4 ? 0.2 : 0.4, h = 0.7;
+    const o = isGlassy(st) ? 0.2 : 0.4, h = 0.7;
     fullBox(trimGeo, x0 - o, x1 + o, y1 - h, y1 - 0.05, z0 - o, z0 + 0.02, 4, true);
     fullBox(trimGeo, x0 - o, x1 + o, y1 - h, y1 - 0.05, z1 - 0.02, z1 + o, 4, true);
     fullBox(trimGeo, x0 - o, x0 + 0.02, y1 - h, y1 - 0.05, z0, z1, 4, true);
@@ -597,7 +716,7 @@ function solid(x0, x1, y0, y1, z0, z1, st, door) {
     const pw = 0.7, po = 0.18;
     for (const [px, pz] of [[x0, z0], [x1 - pw, z0], [x0, z1 - pw], [x1 - pw, z1 - pw]]) // pilastry w narozach
       fullBox(trimGeo, px - (px === x0 ? po : 0), px + pw + (px === x0 ? 0 : po), y0, y1 - 0.7, pz - (pz === z0 ? po : 0), pz + pw + (pz === z0 ? 0 : po), 4);
-    for (let y = y0 + 13.5; y < y1 - 4; y += 13.5) { // pasy miedzy kondygnacjami
+    if (!STY[st].kind) for (let y = y0 + 13.5; y < y1 - 4; y += 13.5) { // pasy miedzy kondygnacjami
       const o = 0.22, h = 0.4;
       fullBox(trimGeo, x0 - o, x1 + o, y, y + h, z0 - o, z0 + 0.02, 4, true); fullBox(trimGeo, x0 - o, x1 + o, y, y + h, z1 - 0.02, z1 + o, 4, true);
       fullBox(trimGeo, x0 - o, x0 + 0.02, y, y + h, z0, z1, 4, true); fullBox(trimGeo, x1 - 0.02, x1 + o, y, y + h, z0, z1, 4, true);
@@ -786,18 +905,146 @@ function addBase(x0, x1, z0, z1, h, st) {
     fullBox(trimGeo, A[0], A[1], 5.05, h - 1.6, Bz[0], Bz[1], 4); fullBox(trimGeo, Cx[0], Cx[1], 5.05, h - 1.6, Dz[0], Dz[1], 4);
   }
 }
+// ---------------------------------------------------------------- wiezowce o roznych bryłach
+// iglica: osmiokatny, zwezajacy sie ostroslup w scalonej geometrii metalu (zamiast osobnego obiektu)
+function spire(x, z, y0, y1, r) {
+  polyPrism(metalGeo, ngon(x, z, r, 8), y0, y1, ngon(x, z, r * 0.12, 8), 4, 4);
+  for (let y = y0 + (y1 - y0) * 0.25; y < y1 - (y1 - y0) * 0.3; y += (y1 - y0) * 0.22) { const q = r * (1 - (y - y0) / (y1 - y0)) + 0.35; polyPrism(metalGeo, ngon(x, z, q, 8), y, y + 0.6, null, 4, 4, metalGeo); } // pierscienie
+  addBox({ x0: x - r * 0.7, x1: x + r * 0.7, y0, y1, z0: z - r * 0.7, z1: z + r * 0.7 });
+  masts.push({ x, y: y1, z, h: 0.01 });
+}
+// pionowe zebra (lamele) na czterech scianach
+function fins(x0, x1, z0, z1, y0, y1, sp, dep) {
+  const w = 0.13;
+  for (const ns of [true, false]) {
+    const a0 = ns ? x0 : z0, a1 = ns ? x1 : z1, n = Math.max(2, Math.round((a1 - a0) / sp)), s = (a1 - a0) / n;
+    for (let k = 1; k < n; k++) {
+      const a = a0 + k * s;
+      if (ns) { fullBox(metalGeo, a - w, a + w, y0, y1, z0 - dep, z0, 4); fullBox(metalGeo, a - w, a + w, y0, y1, z1, z1 + dep, 4); }
+      else { fullBox(metalGeo, x0 - dep, x0, y0, y1, a - w, a + w, 4); fullBox(metalGeo, x1, x1 + dep, y0, y1, a - w, a + w, 4); }
+    }
+  }
+}
+// wieza o scietych narozach (osmiokat): kolizja = trzy nachodzace prostopadlosciany
+function chamferTower(x0, x1, z0, z1, y0, y1, c, st, dk) {
+  cur.tile = STY[st].tile || 1;
+  polyPrism(facGeo[st], chamferPts(x0, x1, z0, z1, c), y0, y1, null, 16, 14, roofGeo);
+  polyPrism(metalGeo, chamferPts(x0 - 0.15, x1 + 0.15, z0 - 0.15, z1 + 0.15, c), y1 - 0.7, y1 + 0.05, null, 4, 4); // opaska pod dachem
+  addBox({ x0: x0 + c, x1: x1 - c, y0, y1, z0, z1 }); addBox({ x0, x1, y0, y1, z0: z0 + c, z1: z1 - c });
+  footprints.push({ x0, x1, z0, z1, h: y1, dk });
+  return addBox({ x0: x0 + c / 2, x1: x1 - c / 2, y0, y1, z0: z0 + c / 2, z1: z1 - c / 2 });
+}
+// ukosnie sciety dach (jak Citigroup Center): szklany klin; dir 0..3 = strona wysoka (z0, x1, z1, x0)
+function wedgeCrown(x0, x1, z0, z1, y, R, st, dir) {
+  cur.tile = STY[st].tile || 1;
+  const H = (x, z) => y + R * (dir === 0 ? (z1 - z) / (z1 - z0) : dir === 2 ? (z - z0) / (z1 - z0) : dir === 1 ? (x - x0) / (x1 - x0) : (x1 - x) / (x1 - x0));
+  const g = facGeo[st];
+  polyQuad(facGeo[6], [x0, H(x0, z1), z1], [x1, H(x1, z1), z1], [x1, H(x1, z0), z0], [x0, H(x0, z0), z0], 16, 14);         // skos
+  polyQuad(g, [x0, y, z1], [x1, y, z1], [x1, H(x1, z1), z1], [x0, H(x0, z1), z1], 16, 14);                           // s
+  polyQuad(g, [x1, y, z0], [x0, y, z0], [x0, H(x0, z0), z0], [x1, H(x1, z0), z0], 16, 14);                           // n
+  polyQuad(g, [x1, y, z1], [x1, y, z0], [x1, H(x1, z0), z0], [x1, H(x1, z1), z1], 16, 14);                           // e
+  polyQuad(g, [x0, y, z0], [x0, y, z1], [x0, H(x0, z1), z1], [x0, H(x0, z0), z0], 16, 14);                           // w
+  const N = 6;
+  for (let k = 0; k < N; k++) { // kolizja: schodki wzdluz skosu (wierzch w polowie wysokosci paska)
+    const f0 = k / N, f1 = (k + 1) / N;
+    const b = dir === 0 ? { x0, x1, z0, z1: z1 - (z1 - z0) * f0 } : dir === 2 ? { x0, x1, z0: z0 + (z1 - z0) * f0, z1 } : dir === 1 ? { x0: x0 + (x1 - x0) * f0, x1, z0, z1 } : { x0, x1: x1 - (x1 - x0) * f0, z0, z1 };
+    addBox({ ...b, y0: y, y1: y + R * (f0 + f1) / 2 });
+  }
+  // przysiadki na nizszej krawedzi
+  const ly = y + R / (2 * N), cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+  if (dir === 0) perches.push(new V3(x0 + 0.5, ly, z1 - 0.4), new V3(x1 - 0.5, ly, z1 - 0.4)); else if (dir === 2) perches.push(new V3(x0 + 0.5, ly, z0 + 0.4), new V3(x1 - 0.5, ly, z0 + 0.4));
+  else if (dir === 1) perches.push(new V3(x0 + 0.4, ly, z0 + 0.5), new V3(x0 + 0.4, ly, z1 - 0.5)); else perches.push(new V3(x1 - 0.4, ly, z0 + 0.5), new V3(x1 - 0.4, ly, z1 - 0.5));
+  return { x0, x1, z0, z1, y1: y + R, cx, cz };
+}
+// stopniowana korona art deco: kilka coraz mniejszych pieter, na szczycie iglica, piramida z miedzi albo nic
+function decoCrown(b, st, dk) {
+  let { x0, x1, z0, z1, y1: y } = b, last = b;
+  const steps = 2 + Math.floor(srand() * 3);
+  for (let k = 0; k < steps; k++) {
+    const ins = sr(1.3, 2.4); if (x1 - x0 - 2 * ins < 5 || z1 - z0 - 2 * ins < 5) break;
+    x0 += ins; x1 -= ins; z0 += ins; z1 -= ins; const hh = sr(3, 6.5);
+    last = solid(x0, x1, y, y + hh, z0, z1, k < 1 ? st : 8); footprints.push({ x0, x1, z0, z1, h: y + hh, dk }); y += hh;
+  }
+  const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, r = srand();
+  if (r < 0.45) spire(cx, cz, y, y + sr(14, 38), Math.min(1.6, (x1 - x0) / 5));
+  else if (r < 0.8) { // piramida z patynowanej miedzi
+    const t = cur.tint; cur.tint = [0.42, 0.72, 0.6]; const ph = Math.min(x1 - x0, z1 - z0) * sr(0.5, 0.9);
+    polyPrism(metalGeo, [[x0, z1], [x1, z1], [x1, z0], [x0, z0]], y, y + ph, [[cx - 0.4, cz + 0.4], [cx + 0.4, cz + 0.4], [cx + 0.4, cz - 0.4], [cx - 0.4, cz - 0.4]], 4, 4);
+    cur.tint = t; addBox({ x0: x0 + (x1 - x0) * 0.25, x1: x1 - (x1 - x0) * 0.25, y0: y, y1: y + ph * 0.5, z0: z0 + (z1 - z0) * 0.25, z1: z1 - (z1 - z0) * 0.25 });
+    if (srand() < 0.6) spire(cx, cz, y + ph * 0.9, y + ph + sr(6, 16), 0.5);
+  }
+  return last;
+}
+// dach mansardowy kamienicy: strome lupkowe polacie z lukarnami; kolizja = bryla do wysokosci kalenicy
+function mansard(x0, x1, z0, z1, h) {
+  const R = sr(2.8, 3.8), ins = Math.min(1.5, (x1 - x0) / 6, (z1 - z0) / 6), o = 0.12;
+  polyPrism(slateGeo, [[x0 - o, z1 + o], [x1 + o, z1 + o], [x1 + o, z0 - o], [x0 - o, z0 - o]], h, h + R, [[x0 + ins, z1 - ins], [x1 - ins, z1 - ins], [x1 - ins, z0 + ins], [x0 + ins, z0 + ins]], 5, 5);
+  fullBox(trimGeo, x0 + ins - 0.1, x1 - ins + 0.1, h + R - 0.05, h + R + 0.25, z0 + ins - 0.1, z1 - ins + 0.1, 4); // grzebien
+  const sp = sr(3.6, 5);
+  for (const face of ['n', 's', 'w', 'e']) { // lukarny
+    const ns = face === 'n' || face === 's', a0 = (ns ? x0 : z0) + 2.2, a1 = (ns ? x1 : z1) - 2.2;
+    for (let a = a0 + ((a1 - a0) % sp) / 2; a <= a1 + 0.01; a += sp) {
+      const w = 0.7, yb = h + 0.25, yt = h + Math.min(2.2, R - 0.4);
+      const box = (g, d0, d1, ya, yb2, ww) => face === 'n' ? fullBox(g, a - ww, a + ww, ya, yb2, z0 + d0, z0 + d1, 4) : face === 's' ? fullBox(g, a - ww, a + ww, ya, yb2, z1 - d1, z1 - d0, 4)
+        : face === 'w' ? fullBox(g, x0 + d0, x0 + d1, ya, yb2, a - ww, a + ww, 4) : fullBox(g, x1 - d1, x1 - d0, ya, yb2, a - ww, a + ww, 4);
+      box(trimGeo, 0.05, ins + 0.4, yb, yt, w);              // lukarna
+      box(slateGeo, 0.0, ins + 0.5, yt, yt + 0.3, w + 0.12); // daszek
+      box(ironGeo, -0.02, 0.06, yb + 0.25, yt - 0.25, w - 0.2); // szyba
+    }
+  }
+  return addBox({ x0: x0 + ins * 0.5, x1: x1 - ins * 0.5, y0: h, y1: h + R, z0: z0 + ins * 0.5, z1: z1 - ins * 0.5 });
+}
 function building(x0, x1, z0, z1, h, st, dk, bk, pitched) {
-  randomBuildingLook();
+  randomBuildingLook(); styleLook(st);
+  // rodzaj bryly: wysokie budynki dostaja ksztalt (art deco z uskokami, szklana wieza ze scietymi narozami, zebra)
+  const tall = bk && !pitched && h > 58 && x1 - x0 > 22 && z1 - z0 > 17;
+  let type = 'plain';
+  if (tall) { const r = srand(); type = isGlassy(st) ? (r < 0.4 ? 'chamfer' : r < 0.72 ? 'ribs' : 'plain') : (r < 0.8 ? 'deco' : 'plain'); }
+  const hb = type === 'chamfer' || type === 'ribs' ? Math.min(h * 0.3, sr(9, 26)) : type === 'deco' ? h * sr(0.26, 0.42) : h;
   let dr = null;
   if (bk && doors.length < 90 && srand() < 0.3) { const [t, n] = DOOR_TYPES[Math.floor(srand() * DOOR_TYPES.length)]; dr = makeDoor(x0, x1, z0, z1, bk, t, n); }
-  let b = solid(x0, x1, 0, h, z0, z1, st, dr);
-  footprints.push({ x0, x1, z0, z1, h, dk });
-  if (bk && h > 9) addAC(x0, x1, z0, z1, h, dr);
-  if (bk && h > 9 && st !== 3 && st !== 4) addSills(x0, x1, z0, z1, h, bk, dr);
-  if (bk && h > 14 && st === 0 && srand() < 0.6) addFireEscape(x0, x1, z0, z1, h, bk, dr);
-  if (bk && h > 14 && (st === 1 || st === 2 || st === 5) && srand() < 0.55) addBalconies(x0, x1, z0, z1, h, bk, dr);
-  if (bk && !pitched) { addBase(x0, x1, z0, z1, h, st); if (h < 140) addCornice(x0, x1, z0, z1, h, st); }
+  let b = solid(x0, x1, 0, hb, z0, z1, st, dr);
+  footprints.push({ x0, x1, z0, z1, h: hb, dk });
+  if (bk && hb > 9 && isOld(st)) addAC(x0, x1, z0, z1, hb, dr);
+  if (bk && hb > 9 && isOld(st)) addSills(x0, x1, z0, z1, hb, bk, dr);
+  if (bk && hb > 14 && st === 0 && srand() < 0.6) addFireEscape(x0, x1, z0, z1, hb, bk, dr);
+  if (bk && hb > 14 && (st === 1 || st === 2 || st === 5) && srand() < 0.55) addBalconies(x0, x1, z0, z1, hb, bk, dr);
+  if (bk && !pitched) { addBase(x0, x1, z0, z1, hb, st); if (hb < 140) addCornice(x0, x1, z0, z1, hb, st); }
   if (bk) storefront(x0, x1, z0, z1, bk, dr ? { face: dr.face, a0: dr.c - dr.gw / 2 - 0.3, a1: dr.c + dr.gw / 2 + 0.3 } : null);
+  if (type === 'deco') { // uskoki co kilkadziesiat metrow, potem korona
+    let ax0 = x0, ax1 = x1, az0 = z0, az1 = z1, y = hb;
+    const levels = [h * sr(0.6, 0.75), h];
+    for (const yt of levels) {
+      const ix = Math.min(sr(2.5, 5), (ax1 - ax0) * 0.18), iz = Math.min(sr(2.5, 5), (az1 - az0) * 0.18);
+      ax0 += ix; ax1 -= ix; az0 += iz; az1 -= iz;
+      b = solid(ax0, ax1, y, yt, az0, az1, st); addCornice(ax0, ax1, az0, az1, yt, st); footprints.push({ x0: ax0, x1: ax1, z0: az0, z1: az1, h: yt, dk }); y = yt;
+    }
+    b = decoCrown(b, st, dk); roofs.push(b); roofProps(b); return;
+  }
+  if (type === 'chamfer') {
+    const ix = sr(1.5, 5), iz = sr(1.5, 4), tx0 = x0 + ix, tx1 = x1 - ix, tz0 = z0 + iz, tz1 = z1 - iz, c = Math.min(tx1 - tx0, tz1 - tz0) * sr(0.13, 0.24);
+    b = chamferTower(tx0, tx1, tz0, tz1, hb, h, c, st, dk);
+    if (srand() < 0.55) { // wezszy szczyt wiezy, tez ze scietymi narozami
+      const k = sr(0.14, 0.24), w = tx1 - tx0, d = tz1 - tz0, h2 = h + sr(10, 26);
+      b = chamferTower(tx0 + w * k, tx1 - w * k, tz0 + d * k, tz1 - d * k, h, h2, c * (1 - k), st, dk);
+      if (srand() < 0.5) spire((tx0 + tx1) / 2, (tz0 + tz1) / 2, h2, h2 + sr(15, 45), 1.1);
+    }
+    roofs.push(b); roofProps(b); return;
+  }
+  if (type === 'ribs') {
+    const ix = sr(2, 5), iz = sr(1.5, 4), tx0 = x0 + ix, tx1 = x1 - ix, tz0 = z0 + iz, tz1 = z1 - iz, ext = srand() < 0.5 ? sr(3, 7) : 0;
+    b = solid(tx0, tx1, hb, h, tz0, tz1, st, null, true); footprints.push({ x0: tx0, x1: tx1, z0: tz0, z1: tz1, h, dk });
+    fins(tx0, tx1, tz0, tz1, hb, h + ext, sr(2.4, 4.2), sr(0.35, 0.7));
+    fullBox(metalGeo, tx0 - 0.2, tx1 + 0.2, h - 0.6, h + 0.1, tz0 - 0.2, tz1 + 0.2, 4);
+    if (!ext && srand() < 0.5) { wedgeCrown(tx0, tx1, tz0, tz1, h, sr(8, 18), st, Math.floor(srand() * 4)); return; }
+    roofs.push(b); roofProps(b); return;
+  }
+  if (bk && !pitched && h > 12 && h < 42 && isOld(st) && dk !== 'mid' && dk !== 'fin' && srand() < 0.3) { // kamienica z mansarda
+    b = mansard(x0, x1, z0, z1, h); footprints.push({ x0, x1, z0, z1, h: b.y1, dk }); roofs.push(b); roofProps(b); return;
+  }
+  if (isGlassy(st) && h > 55 && x1 - x0 > 16 && z1 - z0 > 14 && srand() < 0.3) { // szklany biurowiec z ukosnym dachem
+    const R = sr(6, 16); wedgeCrown(x0, x1, z0, z1, h, R, st, Math.floor(srand() * 4)); footprints.push({ x0, x1, z0, z1, h: h + R, dk }); return;
+  }
   if (h > 55 && srand() < 0.55) {
     const ix = Math.min(sr(3, 7), (x1 - x0) * 0.2), iz = Math.min(sr(3, 7), (z1 - z0) * 0.2), h2 = h + sr(12, h * 0.45);
     b = solid(x0 + ix, x1 - ix, h, h2, z0 + iz, z1 - iz, st);
@@ -828,27 +1075,77 @@ function tiers(cx, cz, T, st, dk, door) {
   }
   roofs.push(b); parapet(b); return b;
 }
-function spire(x, z, y0, y1, r) {
-  const m = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.2, r, y1 - y0, 8), new THREE.MeshStandardMaterial({ color: 0x9a9a9e, metalness: 0.7, roughness: 0.35 }));
-  m.position.set(x, (y0 + y1) / 2, z); m.castShadow = true; scene.add(m);
-  addBox({ x0: x - r, x1: x + r, y0, y1, z0: z - r, z1: z + r });
-  masts.push({ x, y: y1, z, h: 0.01 });
+// wysoki szklany obelisk jak One World Trade Center: kwadrat u dolu, kwadrat obrocony o 45 stopni u gory,
+// sciany z osmiu trojkatow. Kolizja: plastry, w kazdym trzy prostopadlosciany wpisane w osmiokatny przekroj.
+function obelisk(cx, cz, a, b, y0, y1, st, dk) {
+  cur.tile = STY[st].tile || 1;
+  const C = [[-a, a], [a, a], [a, -a], [-a, -a]].map(([x, z]) => [cx + x, y0, cz + z]); // naroza podstawy (kolejnosc jak w top())
+  const T = [[0, b], [b, 0], [0, -b], [-b, 0]].map(([x, z]) => [cx + x, y1, cz + z]);   // wierzcholki gory: s, e, n, w
+  const g = facGeo[st];
+  for (let i = 0; i < 4; i++) {
+    const c0 = C[i], c1 = C[(i + 1) % 4], t = T[i], tn = T[(i + 1) % 4];
+    polyQuad(g, c0, c1, t, t, 16, 14);    // trojkat stojacy na krawedzi podstawy
+    polyQuad(g, c1, c1, tn, t, 16, 14);   // trojkat zwisajacy z krawedzi szczytu
+  }
+  const N = 14;
+  for (let k = 0; k < N; k++) {
+    const t = (k + 1) / N, E = a + (b - a) * t, F = a * (1 - t), M = (E + F) / 2, ya = y0 + (y1 - y0) * k / N, yb = y0 + (y1 - y0) * t;
+    addBox({ x0: cx - E, x1: cx + E, y0: ya, y1: yb, z0: cz - F, z1: cz + F }); addBox({ x0: cx - F, x1: cx + F, y0: ya, y1: yb, z0: cz - E, z1: cz + E });
+    addBox({ x0: cx - M, x1: cx + M, y0: ya, y1: yb, z0: cz - M, z1: cz + M });
+    footprints.push({ x0: cx - E, x1: cx + E, z0: cz - E, z1: cz + E, h: yb, dk });
+  }
+  return T.map(p => [p[0], p[2]]);
 }
 export let FISK_DOOR = null;
 const LANDMARKS = {
   '4,10': (b, cx, cz) => { // wiezowiec w stylu Empire State — tu zaczyna sie gra
     const t = tiers(cx, cz, [[29, 19, 0, 28], [23, 15, 28, 90], [16, 11, 90, 172], [10, 7.5, 172, 196], [5, 4, 196, 206]], 5, 'mid');
-    spire(cx, cz, 206, 252, 1.4);
+    // maszt jak na Empire State: osmiokatne stopnie z metalu i szkla, potem iglica
+    polyPrism(metalGeo, ngon(cx, cz, 3.4, 8, Math.PI / 8), 206, 215, ngon(cx, cz, 3.0, 8, Math.PI / 8), 4, 4, metalGeo);
+    polyPrism(metalGeo, ngon(cx, cz, 2.5, 8, Math.PI / 8), 215, 223, ngon(cx, cz, 2.1, 8, Math.PI / 8), 4, 4, metalGeo);
+    polyPrism(metalGeo, ngon(cx, cz, 1.7, 8, Math.PI / 8), 223, 229, ngon(cx, cz, 1.3, 8, Math.PI / 8), 4, 4, metalGeo);
+    addBox({ x0: cx - 2.6, x1: cx + 2.6, y0: 206, y1: 215, z0: cz - 2.6, z1: cz + 2.6 }); addBox({ x0: cx - 1.8, x1: cx + 1.8, y0: 215, y1: 223, z0: cz - 1.8, z1: cz + 1.8 });
+    spire(cx, cz, 223, 262, 1.2);
     START.set(t.x0 + 0.5, 206, cz + 1.2);
+  },
+  '6,11': (b, cx, cz) => { // wiezowiec w stylu Chryslera: stalowa korona z lukow i dluga iglica
+    const t = tiers(cx, cz, [[27, 17, 0, 24, 8], [21, 14, 24, 62, 8], [15, 12.5, 62, 92, 8], [12, 12, 92, 196, 8]], 8, 'mid');
+    let y = 196;
+    for (let k = 0; k < 7; k++) { // coraz mniejsze "luki": kazdy pierscien zweza sie ku gorze
+      const s0 = 11.6 - k * 1.45, s1 = s0 * 0.86, hh = 5.2 - k * 0.25;
+      polyPrism(metalGeo, ngon(cx, cz, s0 * Math.SQRT2, 4, Math.PI / 4), y, y + hh, ngon(cx, cz, s1 * Math.SQRT2, 4, Math.PI / 4), 4, 4, metalGeo);
+      for (const [ux, uz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { // trojkatne okna w lukach
+        const r = q => s0 + (s1 - s0) * q / hh + 0.06, ya = y + 0.6, yb = y + hh - 0.4, w = s1 * 0.5, tx = uz, tz = -ux;
+        const pa = [cx + ux * r(0.6), cz + uz * r(0.6)], pb = [cx + ux * r(hh - 0.4), cz + uz * r(hh - 0.4)];
+        polyQuad(ironGeo, [pa[0] - tx * w, ya, pa[1] - tz * w], [pa[0] + tx * w, ya, pa[1] + tz * w], [pb[0], yb, pb[1]], [pb[0], yb, pb[1]], 4, 4);
+      }
+      addBox({ x0: cx - s1, x1: cx + s1, y0: y, y1: y + hh, z0: cz - s1, z1: cz + s1 });
+      footprints.push({ x0: cx - s0, x1: cx + s0, z0: cz - s0, z1: cz + s0, h: y + hh, dk: 'mid' }); y += hh;
+    }
+    spire(cx, cz, y, y + 62, 1.3);
+    perches.push(new V3(t.x0 + 0.5, 196, t.z0 + 0.5), new V3(t.x1 - 0.5, 196, t.z1 - 0.5));
+    for (const [x, z] of [[t.x0, t.z0], [t.x1, t.z0], [t.x0, t.z1], [t.x1, t.z1]]) // orly na narozach (stalowe wsporniki)
+      fullBox(metalGeo, Math.min(x, x + Math.sign(x - cx) * 3), Math.max(x, x + Math.sign(x - cx) * 3), 158, 159.2, Math.min(z, z + Math.sign(z - cz) * 1.2), Math.max(z, z + Math.sign(z - cz) * 1.2), 4);
   },
   '6,9': (b, cx, cz) => { // szklana wieza
     FISK_DOOR = makeDoor(cx - 13, cx + 13, cz - 13, cz + 13, b, 'fisk', 'FISK TOWER', 's', cx);
     tiers(cx, cz, [[13, 13, 0, 285, 3], [9, 9, 285, 300, 4], [2, 10, 300, 330, 4]], 3, 'mid', FISK_DOOR);
     building(b.x0 + 3, b.x0 + 16, b.z0 + 3, b.z1 - 3, 30, 2, 'mid', b);
   },
-  '2,16': (b, cx, cz) => { // wieza w dzielnicy finansowej
-    tiers(cx, cz, [[17, 17, 0, 300, 4]], 4, 'fin');
-    spire(cx, cz, 300, 380, 1);
+  '2,16': (b, cx, cz) => { // One World Trade Center: najwyzszy budynek miasta, szklany obelisk z iglica
+    randomBuildingLook(); cur.tint = [0.8, 0.9, 1.05];
+    const a = 19.5, bb = a * 0.8, y0 = 50, y1 = 402, st = 6;
+    solid(cx - a, cx + a, 0, y0, cz - a, cz + a, st, null, true); footprints.push({ x0: cx - a, x1: cx + a, z0: cz - a, z1: cz + a, h: y0, dk: 'fin' });
+    fins(cx - a, cx + a, cz - a, cz + a, 0.15, y0, 1.4, 0.45); // srebrne lamele cokolu
+    fullBox(metalGeo, cx - a - 0.3, cx + a + 0.3, y0 - 0.8, y0 + 0.2, cz - a - 0.3, cz + a + 0.3, 4);
+    const T = obelisk(cx, cz, a, bb, y0, y1, st, 'fin');
+    polyPrism(facGeo[st], T, y1, y1 + 8, null, 16, 14, roofGeo);                    // szklany parapet na szczycie
+    polyPrism(metalGeo, T.map(([x, z]) => [cx + (x - cx) * 1.02, cz + (z - cz) * 1.02]), y1 + 7.6, y1 + 8.3, null, 4, 4, metalGeo);
+    polyPrism(metalGeo, ngon(cx, cz, 6, 8), y1 + 8, y1 + 15, ngon(cx, cz, 5, 8), 4, 4, metalGeo); // podstawa iglicy
+    const top = addBox({ x0: cx - bb / 2, x1: cx + bb / 2, y0: y1, y1: y1 + 8, z0: cz - bb / 2, z1: cz + bb / 2 });
+    addBox({ x0: cx - 4, x1: cx + 4, y0: y1 + 8, y1: y1 + 15, z0: cz - 4, z1: cz + 4 });
+    spire(cx, cz, y1 + 15, y1 + 95, 1.5);
+    roofs.push(top); for (const [px, pz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) perches.push(new V3(cx + px * (bb / 2 - 0.4), y1 + 8, cz + pz * (bb / 2 - 0.4)));
   },
 };
 
@@ -1158,7 +1455,7 @@ export function nearestDoor(x, y, z, r = 2.6) {
 }
 export function buildCity() {
   buildSky();
-  facGeo = STY.map(() => newGeo()); roofGeo = newGeo(); farGeo = newGeo(); shopGeo = newGeo(); trimGeo = newGeo(); curbGeo = newGeo(); ironGeo = newGeo(); pitchGeo = newGeo();
+  facGeo = STY.map(() => newGeo()); roofGeo = newGeo(); farGeo = newGeo(); shopGeo = newGeo(); trimGeo = newGeo(); curbGeo = newGeo(); ironGeo = newGeo(); pitchGeo = newGeo(); metalGeo = newGeo(); slateGeo = newGeo();
   const trees = [], lamps = [], tlights = [], propBlocks = [], pocketParks = [];
   for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) {
     if (isPark(i, j)) continue;
@@ -1204,6 +1501,13 @@ export function buildCity() {
   const roofMat = new THREE.MeshStandardMaterial({ map: canvasTex(noiseCanvas('#8a8780', 7000, 0.14, 256, { n: 40, r: 5, c: ['rgba(60,60,60,.3)', 'rgba(120,110,100,.3)'] }), true), roughness: 1 });
   meshFrom(roofGeo, roofMat, false);
   meshFrom(ironGeo, new THREE.MeshStandardMaterial({ color: 0x23262a, roughness: 0.5, metalness: 0.55 }), false);
+  { // stal nierdzewna (iglice, korony, lamele) i lupek mansard
+    const mm = new THREE.MeshStandardMaterial({ color: 0xc4c8ce, roughness: 0.3, metalness: 0.9 }); mm.userData.env = 2.2;
+    meshFrom(metalGeo, mm, true);
+    const c = cv(128, 128), x = c.getContext('2d'); x.fillStyle = '#4b5058'; x.fillRect(0, 0, 128, 128);
+    for (let y = 0; y < 128; y += 8) for (let xx = (y / 8 % 2) * 8 - 8; xx < 128; xx += 16) { const k = 0.8 + Math.random() * 0.35; x.fillStyle = `rgb(${68 * k | 0},${73 * k | 0},${82 * k | 0})`; x.beginPath(); x.moveTo(xx + 1, y); x.lineTo(xx + 15, y); x.lineTo(xx + 15, y + 6); x.quadraticCurveTo(xx + 8, y + 9, xx + 1, y + 6); x.fill(); }
+    meshFrom(slateGeo, groundAO(new THREE.MeshStandardMaterial({ map: canvasTex(c, true), roughness: 0.75, metalness: 0.1 })), true);
+  }
   { // gonty
     const c = cv(256, 256), x = c.getContext('2d'); x.fillStyle = '#5b4a43'; x.fillRect(0, 0, 256, 256);
     for (let y = 0; y < 256; y += 16) for (let xx = (y / 16 % 2) * 16 - 16; xx < 256; xx += 32) { const k = 0.85 + Math.random() * 0.3; x.fillStyle = `rgb(${91 * k | 0},${74 * k | 0},${67 * k | 0})`; x.fillRect(xx + 1, y + 1, 30, 14); }
