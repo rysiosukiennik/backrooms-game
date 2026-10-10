@@ -24,21 +24,42 @@ export function applyPose(H, c) {
   H.hipR.rotation.set(c.hRx, 0, c.hRz); H.knR.rotation.set(c.kR, 0, 0);
   H.ftL.rotation.set(c.fL, 0, 0); H.ftR.rotation.set(c.fR, 0, 0);
 }
-export function idlePose(t, time) {
-  t.by = Math.sin(time * 2.2) * 0.008; t.chx = Math.sin(time * 2.2) * 0.02;
-  t.sLz = 0.14; t.sRz = -0.14; t.sLx = 0.05; t.sRx = 0.05; t.eL = -0.25; t.eR = -0.25;
+// hero = true: postawa Spider-Mana (lekko ugiete kolana, balans ciezaru, rozgladanie sie); reszta postaci ma spokojny stoj
+export function idlePose(t, time, hero) {
+  const br = Math.sin(time * 2.2), sw = Math.sin(time * 0.55), sw2 = Math.sin(time * 0.37 + 1.3);
+  t.by = br * 0.008 - (hero ? 0.04 : 0); t.chx = br * 0.025 + (hero ? 0.1 : 0);
+  t.sLz = 0.14 + br * 0.02; t.sRz = -0.14 - br * 0.02; t.sLx = 0.05; t.sRx = 0.05; t.eL = -0.25; t.eR = -0.25;
   t.hLz = 0.05; t.hRz = -0.05; t.kL = 0.04; t.kR = 0.04;
+  if (!hero) return;
+  // oddech (unosi sie klatka i barki), przenoszenie ciezaru z nogi na noge, lekkie rozgladanie sie glowa
+  t.spz = sw * 0.035; t.br = sw * 0.03; t.bw = sw2 * 0.05; t.hy = sw2 * 0.22 - t.bw; t.hx = 0.04 + Math.sin(time * 0.43) * 0.05;
+  t.hLz = 0.1 + Math.max(0, sw) * 0.05; t.hRz = -0.1 - Math.max(0, -sw) * 0.05;
+  t.hLx = -0.06; t.hRx = 0.05; t.kL = 0.2 + Math.max(0, sw) * 0.12; t.kR = 0.2 + Math.max(0, -sw) * 0.12;
+  t.sLz = 0.2 + br * 0.03; t.sRz = -0.2 - br * 0.03; t.sLx = -0.12 + sw * 0.05; t.sRx = -0.12 - sw * 0.05; t.eL = -0.5; t.eR = -0.5;
 }
 export function runPose(t, ph, a, sprint) {
   const s = Math.sin(ph), c = Math.cos(ph);
   t.hLx = -s * 0.85 * a; t.hRx = s * 0.85 * a;
   t.kL = 0.25 + Math.max(0, c) * 1.4 * a; t.kR = 0.25 + Math.max(0, -c) * 1.4 * a;
   t.by = (Math.abs(s) * 0.06 - 0.04) * a; t.bp = 0.12 * a;
-  if (sprint) { // bieg z rekami do tylu
-    t.sLx = 1.0; t.sRx = 1.0; t.sLz = 0.25; t.sRz = -0.25; t.eL = -0.2; t.eR = -0.2; t.bp = 0.5; t.hx = -0.4;
+  t.spy = -s * 0.16 * a; t.br = s * 0.035 * a; // skret tulowia przeciwny do kroku i kolysanie bioder
+  t.fL = Math.max(0, -c) * 0.5 * a; t.fR = Math.max(0, c) * 0.5 * a; // odbicie palcami
+  if (sprint) { // bieg z rekami do tylu, nisko nad ziemia
+    t.sLx = 0.95 + s * 0.35; t.sRx = 0.95 - s * 0.35; t.sLz = 0.25; t.sRz = -0.25; t.eL = -0.25 - Math.max(0, s) * 0.3; t.eR = -0.25 - Math.max(0, -s) * 0.3;
+    t.bp = 0.55; t.hx = -0.45; t.by = (Math.abs(s) * 0.08 - 0.12) * a; t.hLx = -s * 1.05; t.hRx = s * 1.05; t.kL += 0.2; t.kR += 0.2;
   } else {
-    t.sLx = s * 0.75 * a; t.sRx = -s * 0.75 * a; t.eL = -0.9; t.eR = -0.9; t.sLz = 0.1; t.sRz = -0.1;
+    t.sLx = s * 0.8 * a; t.sRx = -s * 0.8 * a; t.eL = -0.9 - Math.max(0, -s) * 0.4; t.eR = -0.9 - Math.max(0, s) * 0.4; t.sLz = 0.1; t.sRz = -0.1; t.hx = -0.08 * a;
   }
+}
+// mieszanie dwoch póz: t = t*(1-w) + o*w
+export function mixPose(t, o, w) { for (const q of POSEK) t[q] += (o[q] - t[q]) * w; }
+// ladowanie "superbohatera": przyklek na jednym kolanie, reka podparta o ziemie, glowa do gory
+export function heroLandPose(t) {
+  t.by = -0.7; t.bp = 0.55; t.spx = 0.2; t.hx = -0.8;
+  t.hLx = -1.55; t.kL = 1.95; t.hLz = 0.2; t.fL = 0.2; // noga z przodu: udo poziomo, stopa na ziemi
+  t.hRx = 0.55; t.kR = 2.3; t.hRz = -0.25; t.fR = 0.9; // noga z tylu: kolano przy ziemi
+  t.sRx = -0.95; t.sRz = -0.3; t.eR = -0.08; // reka podparta na ziemi (prosta w dol)
+  t.sLx = 0.9; t.sLz = 0.95; t.eL = -0.3; // druga reka odrzucona do tylu / w bok
 }
 export function crouchPose(t) {
   t.by = -0.5; t.hLx = -1.9; t.hRx = -1.9; t.kL = 2.3; t.kR = 2.3; t.hLz = 0.35; t.hRz = -0.35; t.bp = 0.55;
