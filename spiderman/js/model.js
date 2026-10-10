@@ -322,24 +322,173 @@ export function drawSpider(x, cx, cy, s, col, style, sxk = 0.85) {
 const tex = (c, rep) => canvasTex(c.c || c, rep);
 
 // ---------------------------------------------------------------- stroje Spider-Mana
+// Tekstury w podwojnej rozdzielczosci (rysujemy we wspolrzednych 512 px, canvas jest 2x wiekszy).
+// Kazda czesc ma: kolor (m), wysokosc (b — z niej liczymy mape normalnych z wypukla pajeczyna),
+// szorstkosc (r — linie sieci i logo sa gladsze, gumowe) i ewentualnie swiecenie (e).
+const SC = 2;
+function C2(w, h) { const c = cv(w * SC, h * SC), x = c.getContext('2d'); x.scale(SC, SC); return { c, x, w, h }; }
+// mapa normalnych z mapy wysokosci (pochodne Sobela, konwencja OpenGL: zielony = "w gore" tekstury)
+function normalFromHeight(hc, k) {
+  const w = hc.width, h = hc.height, src = hc.getContext('2d').getImageData(0, 0, w, h).data;
+  const out = cv(w, h), ox = out.getContext('2d'), img = ox.createImageData(w, h), d = img.data;
+  for (let y = 0; y < h; y++) {
+    const yu = Math.max(0, y - 1) * w, yd = Math.min(h - 1, y + 1) * w, yr = y * w;
+    for (let x = 0; x < w; x++) {
+      const xl = (x - 1 + w) % w, xr = (x + 1) % w;
+      const nx = -(src[(yr + xr) * 4] - src[(yr + xl) * 4]) / 255 * k, ny = (src[(yd + x) * 4] - src[(yu + x) * 4]) / 255 * k;
+      const l = 1 / Math.sqrt(nx * nx + ny * ny + 1), o = (yr + x) * 4;
+      d[o] = (nx * l * 0.5 + 0.5) * 255; d[o + 1] = (ny * l * 0.5 + 0.5) * 255; d[o + 2] = (l * 0.5 + 0.5) * 255; d[o + 3] = 255;
+    }
+  }
+  ox.putImageData(img, 0, 0); return out;
+}
+// zamknieta, gladka sciezka przez punkty (krzywe przez srodki bokow)
+function smoothPath(x, P) {
+  x.beginPath(); const n = P.length, mid = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  let m = mid(P[n - 1], P[0]); x.moveTo(m[0], m[1]);
+  for (let i = 0; i < n; i++) { const q = mid(P[i], P[(i + 1) % n]); x.quadraticCurveTo(P[i][0], P[i][1], q[0], q[1]); }
+  x.closePath();
+}
+// pajeczyna promienista (klatka piersiowa, plecy)
+function radialWeb(x, cx, cy, col, lw, R = 330, N = 26, step = 25) {
+  x.save(); x.strokeStyle = col; x.lineWidth = lw; x.lineCap = 'round';
+  for (let i = 0; i < N; i++) { const g = (i + 0.5) / N * TAU; x.beginPath(); x.moveTo(cx, cy); x.lineTo(cx + Math.cos(g) * R, cy + Math.sin(g) * R); x.stroke(); }
+  for (let r = step * 0.55; r < R; r += step * (1 + r / 900)) {
+    x.beginPath();
+    for (let i = 0; i < N; i++) {
+      const g0 = (i + 0.5) / N * TAU, g1 = (i + 1.5) / N * TAU, gm = (g0 + g1) / 2;
+      x.moveTo(cx + Math.cos(g0) * r, cy + Math.sin(g0) * r);
+      x.quadraticCurveTo(cx + Math.cos(gm) * r * 0.86, cy + Math.sin(gm) * r * 0.86, cx + Math.cos(g1) * r, cy + Math.sin(g1) * r);
+    }
+    x.stroke();
+  }
+  x.restore();
+}
+// pajak ze stroju z PS4: smukly odwlok w ksztalcie kropli, dlugie zalamane nogi (gorne siegaja barkow)
+function drawAdvSpider(x, cx, cy, s, col, sxk = 0.83) {
+  x.save(); x.translate(cx, cy); x.scale(sxk, 1); x.fillStyle = col; x.strokeStyle = col; x.lineCap = 'round'; x.lineJoin = 'round';
+  const L = [ // nasada, staw, koniec, grubosc
+    [[0.03, -0.2], [0.15, -0.37], [0.2, -0.68], 0.066],
+    [[0.05, -0.16], [0.31, -0.29], [0.58, -0.44], 0.066],
+    [[0.05, -0.1], [0.31, -0.05], [0.5, 0.14], 0.064],
+    [[0.035, -0.05], [0.17, 0.1], [0.21, 0.44], 0.06],
+  ];
+  for (const g of [-1, 1]) for (const [p0, p1, p2, w] of L) {
+    const l1 = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]), l2 = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]), N = 18;
+    let px = g * p0[0] * s, py = p0[1] * s;
+    for (let i = 1; i <= N * 2; i++) {
+      const seg = i <= N, t = seg ? i / N : (i - N) / N, A = seg ? p0 : p1, B = seg ? p1 : p2;
+      const qx = g * (A[0] + (B[0] - A[0]) * t) * s, qy = (A[1] + (B[1] - A[1]) * t) * s;
+      const along = seg ? t * l1 / (l1 + l2) : (l1 + t * l2) / (l1 + l2);
+      x.lineWidth = s * w * (1 - 0.75 * along); x.beginPath(); x.moveTo(px, py); x.lineTo(qx, qy); x.stroke(); px = qx; py = qy;
+    }
+  }
+  ell(x, 0, -0.165 * s, 0.058 * s, 0.065 * s);
+  x.beginPath(); x.moveTo(0, -0.12 * s);
+  x.bezierCurveTo(0.1 * s, -0.1 * s, 0.085 * s, 0.1 * s, 0, 0.36 * s); x.bezierCurveTo(-0.085 * s, 0.1 * s, -0.1 * s, -0.1 * s, 0, -0.12 * s); x.fill();
+  x.restore();
+}
+
+// stroj "Advanced" (PS4): czerwien z wypukla czarna siecia, granatowe boki, wewnetrzna strona rak, tyl ud i lydki
+function advCanvases(s) {
+  const mk = (w, h) => {
+    const T = { m: C2(w, h), b: C2(w, h), r: C2(w, h) };
+    T.m.x.fillStyle = s.prim; T.m.x.fillRect(0, 0, w, h);
+    T.b.x.fillStyle = '#808080'; T.b.x.fillRect(0, 0, w, h);
+    T.r.x.fillStyle = '#fff'; T.r.x.fillRect(0, 0, w, h);
+    return T;
+  };
+  // drobna faktura czerwonego materialu (heksy) — tylko na mapie wysokosci
+  const fabric = (T, step = 5) => { T.b.x.save(); T.b.x.globalAlpha = 0.3; T.b.x.filter = 'blur(0.8px)'; hexDots2(T.b.x, 0, 0, T.b.w, T.b.h, '#9a9a9a', step); T.b.x.restore(); };
+  // linie sieci: ciemne w kolorze, wypukle (miekki profil) w wysokosci, gladsze w szorstkosci
+  const web = (T, draw) => {
+    draw(T.m.x, s.web, 1.5);
+    T.b.x.save(); T.b.x.filter = 'blur(1.1px)'; draw(T.b.x, '#c4c4c4', 3.4); T.b.x.filter = 'none'; draw(T.b.x, '#dadada', 1.2); T.b.x.restore();
+    draw(T.r.x, '#a8a8a8', 2.6);
+  };
+  // granatowy panel: kolor + drobna faktura, lekki rant na krawedzi
+  const panel = (T, path) => {
+    const { m, b, r } = T;
+    m.x.save(); path(m.x); m.x.clip(); m.x.fillStyle = s.sec; m.x.fillRect(0, 0, m.w, m.h);
+    m.x.globalAlpha = 0.1; hexDots2(m.x, 0, 0, m.w, m.h, '#000', 3.2); m.x.restore();
+    b.x.save(); path(b.x); b.x.clip(); b.x.fillStyle = '#7a7a7a'; b.x.fillRect(0, 0, b.w, b.h); hexDots2(b.x, 0, 0, b.w, b.h, '#878787', 3.2); b.x.restore();
+    r.x.save(); path(r.x); r.x.clip(); r.x.fillStyle = '#f2f2f2'; r.x.fillRect(0, 0, r.w, r.h); r.x.restore();
+    m.x.save(); path(m.x); m.x.strokeStyle = 'rgba(0,0,0,.5)'; m.x.lineWidth = 1.4; m.x.stroke(); m.x.restore();
+    b.x.save(); path(b.x); b.x.filter = 'blur(1px)'; b.x.strokeStyle = '#b4b4b4'; b.x.lineWidth = 2.6; b.x.stroke(); b.x.restore();
+  };
+  const logo = (T, cx, cy, size) => {
+    drawAdvSpider(T.m.x, cx, cy, size, s.logo);
+    T.b.x.save(); T.b.x.filter = 'blur(2px)'; drawAdvSpider(T.b.x, cx, cy, size, '#b8b8b8'); T.b.x.filter = 'none'; drawAdvSpider(T.b.x, cx, cy, size * 0.985, '#c4c4c4'); T.b.x.restore();
+    drawAdvSpider(T.r.x, cx, cy, size, '#b4b4b4');
+  };
+  // tulow 512x512 (przod w 256, lewy bok 128, plecy na brzegach)
+  const T = mk(512, 512), CY = TY(1.33);
+  fabric(T);
+  web(T, (x, col, lw) => {
+    x.save(); x.beginPath(); x.rect(128, 0, 256, 512); x.clip(); radialWeb(x, 256, CY, col, lw); x.restore();
+    for (const bx of [0, 512]) { x.save(); x.beginPath(); x.rect(bx - 128, 0, 256, 512); x.clip(); radialWeb(x, bx, CY, col, lw); x.restore(); }
+  });
+  for (const cx of [128, 384]) {
+    const f = cx < 256 ? 1 : -1;
+    const P = [[14, 1.43], [56, 1.31], [76, 1.2], [84, 1.08], [87, 0.99], [92, 0.92], [102, 0.86], [112, 0.79],
+      [40, 0.77], [-60, 0.77], [-140, 0.77], [-140, 0.96], [-90, 0.99], [-84, 1.09], [-70, 1.21], [-42, 1.32], [-12, 1.43]].map(([dx, y]) => [cx + f * dx, TY(y)]);
+    panel(T, x => smoothPath(x, P));
+  }
+  logo(T, 256, CY, 176);
+  for (const bx of [0, 512]) logo(T, bx, TY(1.3), 182);
+  noise(T.m.x, 512, 512, 2500, 0.025);
+  // reka 256x512 (na zewnatrz 64, przod 128, wewnatrz 192)
+  const A = mk(256, 512);
+  fabric(A, 4.5);
+  web(A, (x, col, lw) => webLines(x, 0, 0, 256, 512, col, lw, 32, 30));
+  const armIn = x => smoothPath(x, [[148, AY(0.1)], [236, AY(0.1)], [228, AY(-0.27)], [214, AY(-0.47)], [192, AY(-0.53)], [170, AY(-0.47)], [156, AY(-0.27)]]);
+  panel(A, armIn);
+  A.m.x.fillStyle = 'rgba(0,0,0,.18)'; A.m.x.fillRect(0, AY(-0.5) - 1, 256, 2);
+  noise(A.m.x, 256, 512, 1200, 0.025);
+  // noga 256x512 (na zewnatrz 64, przod 128, wewnatrz 192, tyl na brzegach)
+  const G = mk(256, 512);
+  fabric(G, 5);
+  web(G, (x, col, lw) => webLines(x, 0, 0, 256, 512, col, lw, 32, 27));
+  const legBack = o => x => smoothPath(x, [[200 + o, LY(0.14)], [362 + o, LY(0.14)], [362 + o, LY(-0.2)], [366 + o, LY(-0.39)], [330 + o, LY(-0.44)], [290 + o, LY(-0.47)],
+    [270 + o, LY(-0.56)], [262 + o, LY(-0.7)], [256 + o, LY(-0.8)], [250 + o, LY(-0.7)], [242 + o, LY(-0.56)], [222 + o, LY(-0.46)], [204 + o, LY(-0.4)], [196 + o, LY(-0.2)]]);
+  panel(G, legBack(0)); panel(G, legBack(-256));
+  noise(G.m.x, 256, 512, 1200, 0.025);
+  // glowa 512x256: siec rozchodzi sie spomiedzy oczu
+  const Hd = mk(512, 256);
+  fabric(Hd, 4);
+  web(Hd, (x, col, lw) => headWeb(x, 512, 256, col, lw * 0.9));
+  // dlonie i stopy
+  const tile = () => { const t = mk(128, 128); fabric(t, 4); web(t, (x, col, lw) => webLines(x, 0, 0, 128, 128, col, lw)); return t; };
+  return { T, A, G, Hd, hand: tile(), foot: tile() };
+}
+function hexDots2(x, x0, y0, w, h, col, st) {
+  x.fillStyle = col; const d = st * 0.5;
+  for (let y = y0, k = 0; y < y0 + h; y += st, k++) for (let a = x0 + (k % 2) * st / 2; a < x0 + w; a += st) x.fillRect(a, y, d, d);
+}
+
 function suitCanvases(s) {
   if (s._cv) return s._cv;
+  if (s.layout === 'adv') return (s._cv = advCanvases(s));
   const key = k => k || 'p', colOf = k => k === 'p' ? s.prim : k === 's' ? s.sec : (s.acc || '#222');
   const webOn = k => k === 'p' && !!s.web;
-  const L = { map: [], bump: [], emi: [] };
-  const mk = (w, h) => { const m = C(w, h), b = C(w, h), e = C(w, h); b.x.fillStyle = '#808080'; b.x.fillRect(0, 0, w, h); e.x.fillStyle = '#000'; e.x.fillRect(0, 0, w, h); return { m, b, e }; };
+  const mk = (w, h) => {
+    const m = C2(w, h), b = C2(w, h), e = s.glow ? C2(w, h) : null;
+    b.x.fillStyle = '#808080'; b.x.fillRect(0, 0, w, h); if (e) { e.x.fillStyle = '#000'; e.x.fillRect(0, 0, w, h); }
+    return { m, b, e };
+  };
   const region = (T, y0, y1, k, x0 = 0, w) => {
     w = w ?? T.m.w; k = key(k);
     T.m.x.fillStyle = colOf(k); T.m.x.fillRect(x0, y0, w, y1 - y0);
     if (webOn(k)) {
-      webLines(T.m.x, x0, y0, w, y1 - y0, s.web, 2.2); webLines(T.b.x, x0, y0, w, y1 - y0, '#d8d8d8', 3);
+      webLines(T.m.x, x0, y0, w, y1 - y0, s.web, 2.2);
+      T.b.x.save(); T.b.x.filter = 'blur(1.2px)'; webLines(T.b.x, x0, y0, w, y1 - y0, '#cfcfcf', 3.6); T.b.x.restore();
       if (s.glow) webLines(T.e.x, x0, y0, w, y1 - y0, s.web, 2.4);
     } else hexDots(T.b.x, x0, y0, w, y1 - y0, '#949494');
   };
   const logo = (T, cx, cy, size, sxk) => {
     if (s.logoS === 'none') return;
     drawSpider(T.m.x, cx, cy, size, s.logo, s.logoS, sxk);
-    T.b.x.save(); T.b.x.shadowColor = '#fff'; T.b.x.shadowBlur = 4; drawSpider(T.b.x, cx, cy, size, '#c8c8c8', s.logoS, sxk); T.b.x.restore();
+    T.b.x.save(); T.b.x.filter = 'blur(2px)'; drawSpider(T.b.x, cx, cy, size, '#c8c8c8', s.logoS, sxk); T.b.x.restore();
     if (s.glow) drawSpider(T.e.x, cx, cy, size, s.logo, s.logoS, sxk);
   };
   // tulow 512x512
@@ -370,32 +519,52 @@ function suitCanvases(s) {
   // glowa 512x256
   const Hd = mk(512, 256), hk = key(s.parts.head);
   Hd.m.x.fillStyle = colOf(hk); Hd.m.x.fillRect(0, 0, 512, 256);
-  if (webOn(hk)) { headWeb(Hd.m.x, 512, 256, s.web, 2.2); headWeb(Hd.b.x, 512, 256, '#d8d8d8', 3); if (s.glow) headWeb(Hd.e.x, 512, 256, s.web, 2.4); }
-  else hexDots(Hd.b.x, 0, 0, 512, 256, '#949494');
+  if (webOn(hk)) {
+    headWeb(Hd.m.x, 512, 256, s.web, 2.2);
+    Hd.b.x.save(); Hd.b.x.filter = 'blur(1.2px)'; headWeb(Hd.b.x, 512, 256, '#cfcfcf', 3.4); Hd.b.x.restore();
+    if (s.glow) headWeb(Hd.e.x, 512, 256, s.web, 2.4);
+  } else hexDots(Hd.b.x, 0, 0, 512, 256, '#949494');
   // dlonie i stopy: male kafelki z siecia
   const tile = k => { const t = mk(128, 128); region(t, 0, 128, k); return t; };
   return (s._cv = { T, A, G, Hd, hand: tile(s.parts.hand), foot: tile(s.parts.foot) });
 }
+// soczewka oka: biala, z delikatna siateczka i ciemniejszym brzegiem
+let _lensTex = null;
+function lensTex() {
+  if (_lensTex) return _lensTex;
+  const c = C(256, 256), x = c.x, g = x.createRadialGradient(128, 128, 10, 128, 128, 128);
+  g.addColorStop(0, '#ffffff'); g.addColorStop(0.55, '#f4f4f4'); g.addColorStop(1, '#b9bcc0');
+  x.fillStyle = g; x.fillRect(0, 0, 256, 256);
+  x.strokeStyle = 'rgba(120,125,130,.28)'; x.lineWidth = 1;
+  for (let y = 0, k = 0; y < 256; y += 7, k++) for (let a = (k % 2) * 6; a < 256; a += 12) { x.beginPath(); x.arc(a, y, 3.6, 0, TAU); x.stroke(); }
+  _lensTex = tex(c); return _lensTex;
+}
 export function suitMats(s) {
   if (s._mats) return s._mats;
-  const cvs = suitCanvases(s), rough = s.gloss ? 0.32 : 0.55, metal = s.metal ? 0.45 : 0.05;
-  const mat = (t, rep) => {
-    const m = new THREE.MeshStandardMaterial({ map: tex(t.m, rep), bumpMap: tex(t.b, rep), bumpScale: 0.035, roughness: rough, metalness: metal });
-    if (s.glow) { m.emissive = new THREE.Color(0xffffff); m.emissiveMap = tex(t.e, rep); }
+  const cvs = suitCanvases(s), adv = s.layout === 'adv';
+  const rough = adv ? 0.45 : s.gloss ? 0.32 : 0.55, metal = s.metal ? 0.45 : 0.05, env = adv ? 1.5 : s.metal ? 1.6 : 1.2;
+  const lin = t => { t.encoding = THREE.LinearEncoding; return t; };
+  const mat = (t, rep, ns = 1) => {
+    const m = new THREE.MeshStandardMaterial({ map: tex(t.m, rep), normalMap: lin(tex(normalFromHeight(t.b.c, adv ? 5 : 4), rep)), roughness: rough, metalness: metal });
+    m.normalScale.set(ns, ns);
+    if (t.r) m.roughnessMap = lin(tex(t.r, rep));
+    if (s.glow && t.e) { m.emissive = new THREE.Color(0xffffff); m.emissiveMap = tex(t.e, rep); }
+    m.envMapIntensity = env; m.userData.env = env; // polysk materialu (odbicie nieba), miasto mnozy to przez pore dnia
     return m;
   };
   const hand = mat(cvs.hand, true), foot = mat(cvs.foot, true);
-  hand.map.repeat.set(2, 1); hand.bumpMap.repeat.set(2, 1); foot.map.repeat.set(3, 1); foot.bumpMap.repeat.set(3, 1);
+  for (const [m, r] of [[hand, 2], [foot, 3]]) for (const k of ['map', 'normalMap', 'roughnessMap', 'emissiveMap']) if (m[k]) m[k].repeat.set(r, 1);
+  const eye = new THREE.MeshStandardMaterial({ color: s.eye, map: lensTex(), emissive: s.eye, emissiveIntensity: 0.25, roughness: 0.18, metalness: 0.05, side: THREE.DoubleSide });
+  eye.envMapIntensity = 1.8; eye.userData.env = 1.8;
   return (s._mats = {
-    torso: mat(cvs.T), arm: mat(cvs.A), leg: mat(cvs.G), head: mat(cvs.Hd), hand, foot,
-    eye: new THREE.MeshStandardMaterial({ color: s.eye, emissive: s.eye, emissiveIntensity: 0.4, roughness: 0.2, side: THREE.DoubleSide }),
-    rim: new THREE.MeshStandardMaterial({ color: s.rim, roughness: 0.4, side: THREE.DoubleSide }),
+    torso: mat(cvs.T), arm: mat(cvs.A), leg: mat(cvs.G), head: mat(cvs.Hd), hand, foot, eye,
+    rim: new THREE.MeshStandardMaterial({ color: s.rim, roughness: 0.38, side: THREE.DoubleSide }),
   });
 }
 export function suitThumb(s) {
   if (s._thumb) return s._thumb;
   const c = cv(180, 120), x = c.getContext('2d'), T = suitCanvases(s).T.m.c;
-  x.drawImage(T, 256 - 120, TY(1.56), 240, TY(1.12) - TY(1.56), 0, 0, 180, 120);
+  x.drawImage(T, (256 - 120) * SC, TY(1.56) * SC, 240 * SC, (TY(1.12) - TY(1.56)) * SC, 0, 0, 180, 120);
   const g = x.createLinearGradient(0, 0, 180, 0); g.addColorStop(0, 'rgba(0,0,0,.5)'); g.addColorStop(0.5, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.5)');
   x.fillStyle = g; x.fillRect(0, 0, 180, 120);
   return (s._thumb = c.toDataURL());
@@ -555,17 +724,182 @@ function build(kind, M, opt = {}) {
   return H;
 }
 
+// ---------------------------------------------------------------- Spider-Man: atletyczna sylwetka z miesniami
+// Wlasne pierscienie (szersze barki, waska talia, mocne uda) + "rzezba": wierzcholki przesuwane
+// na zewnatrz/do srodka wedlug mapy miesni (piersi, brzuch, lopatki, naramienne, czworoglowe, lydki).
+const gs = (v, m, w) => Math.exp(-(((v - m) / w) ** 2));
+function spTorsoRings() {
+  return [
+    { y: 0.79, rx: 0.03, rz: 0.03 },
+    { y: 0.815, rx: 0.1, rz: 0.08 },
+    { y: 0.86, rx: 0.148, rz: 0.108, bb: 0.15, cz: -0.006, n: 2.3 },
+    { y: 0.93, rx: 0.152, rz: 0.106, bb: 0.1, cz: -0.005, n: 2.4 },
+    { y: 1.0, rx: 0.138, rz: 0.097, n: 2.35 },
+    { y: 1.08, rx: 0.134, rz: 0.096, fb: 0.04, n: 2.35 },
+    { y: 1.16, rx: 0.15, rz: 0.102, fb: 0.06, n: 2.4 },
+    { y: 1.24, rx: 0.178, rz: 0.113, fb: 0.07, pec: 0.04, n: 2.5, cz: 0.005 },
+    { y: 1.32, rx: 0.2, rz: 0.121, fb: 0.06, pec: 0.1, n: 2.6, cz: 0.01 },
+    { y: 1.39, rx: 0.214, rz: 0.119, fb: 0.04, pec: 0.06, n: 2.6, cz: 0.01 },
+    { y: 1.445, rx: 0.226, rz: 0.106, n: 2.4 },
+    { y: 1.49, rx: 0.178, rz: 0.094, n: 2.3, cz: -0.006 },
+    { y: 1.525, rx: 0.122, rz: 0.084, n: 2.2, cz: -0.006 },
+    { y: 1.56, rx: 0.08, rz: 0.074, cz: 0.002 },
+    { y: 1.6, rx: 0.071, rz: 0.069, cz: 0.01 },
+    { y: 1.68, rx: 0.05, rz: 0.05, cz: 0.015 },
+  ];
+}
+function spArmRings() {
+  const X = 0.215;
+  return [
+    [-0.56, 0.012, 0.012], [-0.545, 0.029, 0.026], [-0.52, 0.033, 0.029], [-0.46, 0.036, 0.031], [-0.41, 0.043, 0.037],
+    [-0.35, 0.05, 0.044], [-0.3, 0.046, 0.043], [-0.25, 0.049, 0.047, 0, 0, 0.06], [-0.18, 0.055, 0.053, 0, 0.16, 0.1],
+    [-0.1, 0.06, 0.057, 0.003, 0.1, 0.12], [-0.035, 0.066, 0.061, 0.008], [-0.005, 0.063, 0.059, 0.007], [0.018, 0.054, 0.051, 0.005], [0.034, 0.036, 0.035, 0.003], [0.045, 0.012, 0.012],
+  ].map(([t, rx, rz, cx = 0, fb = 0, bb = 0]) => ({ y: SHY + t, rx, rz, cx: X + cx, fb, bb }));
+}
+function spLegRings() {
+  const X = 0.09;
+  return [
+    [-0.87, 0.02, 0.02], [-0.85, 0.036, 0.04], [-0.82, 0.04, 0.045], [-0.76, 0.044, 0.05, 0, 0, 0.1], [-0.67, 0.052, 0.058, 0, 0, 0.24],
+    [-0.58, 0.059, 0.066, 0, 0, 0.3], [-0.5, 0.058, 0.062], [-0.44, 0.06, 0.064, 0, 0.08], [-0.36, 0.071, 0.075, 0, 0.12],
+    [-0.26, 0.083, 0.087, 0.004, 0.13], [-0.15, 0.093, 0.096, 0.008, 0.1], [-0.04, 0.099, 0.1, 0.01, 0, 0.06], [0.05, 0.097, 0.097, 0.01], [0.12, 0.05, 0.05],
+  ].map(([t, rx, rz, cx = 0, fb = 0, bb = 0]) => ({ y: HIPY + t, rx, rz, cx: X + cx, fb, bb }));
+}
+// c: bok (+1 = na zewnatrz / lewy bok tulowia), s: przod (+1)
+function torsoSculpt(c, s, y) {
+  const ac = Math.abs(c), fr = Math.max(0, s), bk = Math.max(0, -s);
+  let d = 0.013 * fr * gs(ac, 0.42, 0.24) * sm(1.235, 1.285, y) * (1 - sm(1.37, 1.44, y)); // piersi z wyrazna dolna krawedzia
+  d -= 0.005 * fr * gs(c, 0, 0.07) * sm(1.17, 1.24, y) * (1 - sm(1.4, 1.46, y));             // rowek mostka
+  for (const yr of [1.03, 1.09, 1.15]) d += 0.0045 * fr * gs(ac, 0.2, 0.1) * gs(y, yr, 0.024); // "kaloryfer"
+  d -= 0.003 * fr * gs(c, 0, 0.05) * sm(0.97, 1.03, y) * (1 - sm(1.19, 1.24, y));            // kresa biala
+  d += 0.004 * gs(ac, 0.8, 0.14) * gs(y, 0.99, 0.04) * (0.5 + 0.5 * fr);                     // skosne brzucha
+  d += 0.011 * bk * gs(ac, 0.62, 0.22) * gs(y, 1.27, 0.075);                                  // najszersze grzbietu
+  d += 0.006 * bk * gs(ac, 0.36, 0.15) * gs(y, 1.38, 0.045);                                  // lopatki
+  d -= 0.006 * bk * gs(c, 0, 0.08) * sm(0.95, 1.05, y) * (1 - sm(1.44, 1.5, y));             // rowek kregoslupa
+  d += 0.006 * bk * gs(ac, 0.45, 0.28) * gs(y, 0.88, 0.045);                                 // posladki
+  d += 0.007 * bk * gs(ac, 0.4, 0.3) * gs(y, 1.5, 0.03);                                      // czworoboczny
+  d += 0.007 * gs(ac, 0.93, 0.12) * gs(y, 1.42, 0.04);                                        // przod barku
+  return d;
+}
+function armSculpt(c, s, y) {
+  const t = y - SHY, fr = Math.max(0, s), bk = Math.max(0, -s);
+  let d = 0.01 * gs(t, -0.04, 0.07) * Math.max(0, c * 0.8 + 0.35);  // naramienny
+  d += 0.007 * fr * gs(t, -0.19, 0.055) * gs(c, 0, 0.6);            // biceps
+  d += 0.007 * bk * gs(t, -0.15, 0.06);                              // triceps
+  d += 0.006 * gs(t, -0.36, 0.035) * Math.max(0, c * 0.5 + s * 0.7); // przedramie
+  d -= 0.003 * fr * gs(t, -0.27, 0.02);                              // zgiecie lokcia
+  return d;
+}
+function legSculpt(c, s, y) {
+  const t = y - HIPY, fr = Math.max(0, s), bk = Math.max(0, -s);
+  let d = 0.008 * fr * gs(t, -0.17, 0.1) * gs(c, 0.1, 0.7);          // prosty uda
+  d += 0.008 * gs(t, -0.36, 0.04) * Math.max(0, -c * 0.8 + s * 0.4); // obszerny przysrodkowy ("kropla" nad kolanem)
+  d += 0.005 * gs(t, -0.22, 0.09) * Math.max(0, c);                  // obszerny boczny
+  d += 0.004 * fr * gs(c, 0, 0.3) * gs(t, -0.445, 0.02);             // rzepka
+  d += 0.006 * bk * gs(t, -0.2, 0.1);                                // tyl uda
+  d += 0.008 * bk * gs(t, -0.6, 0.05) * gs(Math.abs(c), 0.35, 0.35); // lydki (dwie glowy)
+  return d;
+}
+function sculpt(d, rings, segs, fn) {
+  const S = segs + 1;
+  for (let k = 0; k < rings.length; k++) for (let i = 0; i <= segs; i++) {
+    const a = (i / segs - 0.5) * TAU + Math.PI / 2, c = Math.cos(a), s = Math.sin(a), v = fn(c, s, rings[k].y);
+    if (v) { const o = (k * S + i) * 3; d.pos[o] += c * v; d.pos[o + 2] += s * v; }
+  }
+  return d;
+}
+// glowa w masce: delikatnie widoczny nos, luki brwiowe, kosci policzkowe i broda
+function spHeadPoint(a, phi, b, out) {
+  headPoint(a, phi, b, false, out);
+  const sp = Math.sin(phi), da = a - Math.PI / 2, ad = Math.abs(da);
+  let z = 0.009 * gs(da, 0, 0.16) * gs(sp, -0.02, 0.12);
+  z += 0.005 * gs(da, 0, 0.6) * gs(sp, 0.25, 0.07);
+  z += 0.007 * gs(da, 0, 0.3) * gs(sp, -0.6, 0.12);
+  z += 0.004 * gs(ad, 0.55, 0.2) * gs(sp, -0.06, 0.1);
+  if (sp < -0.2) { const j = sm(-0.2, -0.75, sp) * sm(0.35, 1.0, ad) * sm(0, 1, Math.sin(a)); out.x *= 1 - 0.07 * j; } // zwezona zuchwa
+  out.z += z * Math.max(0, Math.sin(a));
+  return out;
+}
+function spHeadData(b, segs = 48, rings = 34) {
+  const pos = [], uv = [], idx = [], P = new V3();
+  for (let k = 0; k <= rings; k++) {
+    const phi = -Math.PI / 2 + k / rings * Math.PI;
+    for (let i = 0; i <= segs; i++) { const u = i / segs; spHeadPoint((u - 0.5) * TAU + Math.PI / 2, phi, b, P); pos.push(P.x, P.y, P.z); uv.push(u, k / rings); }
+  }
+  const S = segs + 1;
+  for (let k = 0; k < rings; k++) for (let i = 0; i < segs; i++) { const a = k * S + i, bb = a + 1, d = a + S, c = d + 1; idx.push(a, c, bb, a, d, c); }
+  return { pos, uv, idx, sk: [], sw: [], seams: [{ start: 0, S, R: rings + 1 }] };
+}
+// duze soczewki jak w PS4: szeroki kat na zewnatrz-w gore, ostrzejszy kacik przy nosie
+function spLensData(b, s, scale, lift) {
+  const pos = [], uv = [], idx = [], RN = 7, SN = 40, P = new V3(), C0 = new V3(0, HC, 0.012), n = new V3();
+  for (let j = 0; j <= RN; j++) {
+    const r = j / RN;
+    for (let i = 0; i <= SN; i++) {
+      const th = i / SN * TAU, c = Math.cos(th), sn = Math.sin(th);
+      const R = (1 + 0.55 * Math.pow(Math.max(0, Math.cos(th - 0.5)), 3) + 0.3 * Math.pow(Math.max(0, Math.cos(th - 3.75)), 8)) / Math.pow(Math.pow(Math.abs(c), 2.6) + Math.pow(Math.abs(sn), 2.6), 1 / 2.6);
+      const X = c * 0.27 * R * r * scale, Y = sn * 0.165 * R * r * scale, tl = 0.36;
+      const Xr = X * Math.cos(tl) - Y * Math.sin(tl), Yr = X * Math.sin(tl) + Y * Math.cos(tl);
+      spHeadPoint(Math.PI / 2 - s * 0.4 - s * Xr, 0.1 + Yr, b, P);
+      n.copy(P).sub(C0).normalize(); P.addScaledVector(n, lift * (1 - 0.35 * r * r));
+      pos.push(P.x, P.y, P.z); uv.push(0.5 + X * 0.9, 0.5 + Y * 1.3);
+    }
+  }
+  for (let j = 0; j < RN; j++) for (let i = 0; i < SN; i++) { const a = j * (SN + 1) + i, bb = a + 1, d = a + SN + 1, c = d + 1; idx.push(a, bb, c, a, c, d); }
+  return { pos, uv, idx, sk: [], sw: [], seams: [] };
+}
+
 export function buildSpider(s) {
-  const M = suitMats(s), H = build('spider', M, { thwip: true, shoe: 'spider' });
+  const M = suitMats(s), b = BODY.spider, H = makeRig(b);
+  H.root.updateMatrixWorld(true);
+  const skel = new THREE.Skeleton(H.bones);
+  const skinned = (d, mat) => {
+    mat.skinning = true; // w three r128 bez tego skora nie podaza za koscmi
+    const m = new THREE.SkinnedMesh(toGeo(d), mat); m.frustumCulled = false; m.castShadow = true; m.receiveShadow = true;
+    H.root.add(m); m.updateMatrixWorld(true); m.bind(skel); return m;
+  };
+  const tr = smooth(spTorsoRings(), 5);
+  skinned(sculpt(tubeData(tr, 56, r => (r.y - 0.79) / 0.91, wTorso), tr, 56, torsoSculpt), M.torso);
+  const ar = smooth(spArmRings(), 4);
+  const arm = sculpt(tubeData(ar, 32, r => (r.y - (SHY - 0.56)) / 0.655, wArm), ar, 32, armSculpt);
+  skinned(merge([arm, mirror(arm)]), M.arm);
+  const lr = smooth(spLegRings(), 4);
+  const leg = sculpt(tubeData(lr, 32, r => (r.y - (HIPY - 0.87)) / 0.99, wLeg), lr, 32, legSculpt);
+  skinned(merge([leg, mirror(leg)]), M.leg);
+  const head = new THREE.Mesh(toGeo(spHeadData(b)), M.head); head.castShadow = true; H.neck.add(head); H.headM = head;
+  // dlonie w rekawicach (troche wieksze niz u przechodniow) i stopy
+  const HB = { arm: 1.08 };
+  H.hands = {};
+  for (const sd of [1, -1]) {
+    const L = sd > 0 ? 'L' : 'R', set = {};
+    for (const v of ['open', 'fist', 'thwip']) {
+      const m = new THREE.Mesh(toGeo(handData(v, sd, HB)), M.hand); m.castShadow = true; m.visible = v === 'open';
+      H['hand' + L].add(m); set[v] = m;
+    }
+    H.hands[L] = set;
+    const f = new THREE.Mesh(toGeo(shoeData('spider', 1.03)), M.foot); f.castShadow = true;
+    H['ft' + L].add(f);
+  }
+  H.handPose = { L: 'open', R: 'open' };
+  H.setHands = (l, r) => {
+    for (const [side, v] of [['L', l], ['R', r]]) {
+      if (H.handPose[side] === v || !H.hands[side][v]) continue;
+      for (const k in H.hands[side]) H.hands[side][k].visible = k === v;
+      H.handPose[side] = v;
+    }
+  };
+  H.b = b;
+  // oczy: czarna oprawa i biale soczewki
   for (const side of [1, -1]) {
-    const rim = new THREE.Mesh(toGeo(lensData(H.b, side, 1.22, 0.004)), M.rim);
-    const lens = new THREE.Mesh(toGeo(lensData(H.b, side, 1, 0.007)), M.eye);
+    const rim = new THREE.Mesh(toGeo(spLensData(b, side, 1.36, 0.0035)), M.rim);
+    const lens = new THREE.Mesh(toGeo(spLensData(b, side, 1.1, 0.0062)), M.eye);
     H.neck.add(rim, lens);
   }
-  // wyrzutnie sieci na nadgarstkach
+  // wyrzutnie sieci na nadgarstkach (w stroju z PS4 schowane pod rekawica)
+  if (s.layout === 'adv') return H;
+  const wm = new THREE.MeshStandardMaterial({ color: 0x8d9399, metalness: 0.8, roughness: 0.32 });
   for (const L of ['L', 'R']) {
-    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.036, 0.028, 16), new THREE.MeshStandardMaterial({ color: 0x9aa0a6, metalness: 0.8, roughness: 0.3 }));
-    w.position.y = -0.24; H['el' + L].add(w);
+    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.0335, 0.035, 0.022, 20), wm);
+    w.position.y = -0.245; w.scale.z = 0.92; H['el' + L].add(w);
   }
   return H;
 }
