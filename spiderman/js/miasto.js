@@ -1,8 +1,8 @@
 // Miasto: siatka ulic Manhattanu, wiezowce ze sklepami i gzymsami, billboardy, Central Park,
 // rzeki, niebo (zachod / dzien / noc), samochody, przechodnie. Tu sa tez kolizje i promienie.
-import { V3, clamp, srand, sr, cv, canvasTex, rnd, linHex, linearize, dbg } from './util.js';
+import { V3, clamp, srand, sr, cv, canvasTex, rnd, linHex, linearize, dbg, angLerp, damp } from './util.js';
 import { scene, camera, renderer, P, G, canvas } from './stan.js';
-import { pedGeometries, pedFaceTexture } from './model.js';
+import { pedGeometries, pedMaterial, pedLook, pedU } from './model.js';
 
 export const BW = 64, BD = 44, ST = 18, NX = 8, NZ = 18;
 export const CX = BW + ST, CZ = BD + ST, CW = NX * CX, CD = NZ * CZ, X0 = -CW / 2, Z0 = -CD / 2;
@@ -1279,8 +1279,8 @@ export function buildCity() {
 }
 
 // ---------------------------------------------------------------- ruch uliczny
-const cars = [], peds = [];
-let carBody, carGlass, carWheel, carSign, carParts = [], carRims, headL, tailL, pedMesh = [];
+const cars = [];
+let carBody, carGlass, carWheel, carSign, carParts = [], carRims, headL, tailL;
 const _o = new THREE.Object3D(), _c = new THREE.Color();
 
 // ksztalt wzdluz osi Z z pierscieni (przekroj prostokat z zaokragleniami)
@@ -1367,29 +1367,7 @@ function initTraffic() {
   headL = glowPoints(new Array(cars.length * 3).fill(0), 0xfff2d0, 2.6);
   tailL = glowPoints(new Array(cars.length * 3).fill(0), 0xff2020, 1.8);
 
-  // przechodnie: prawdziwe sylwetki, dwie klatki kroku; kolory ubran i skory na osobe
-  const skins = [0xe0b394, 0xc68e6a, 0x8d5a3b, 0xf1c9a5, 0x5e3a24, 0xb07a55];
-  const tops = [0xc0392b, 0x2e86de, 0xf5f5f5, 0x222222, 0x27ae60, 0xf1c40f, 0x8e44ad, 0x7f8c8d, 0xd35400, 0x3b4b5c, 0xe8d8c0];
-  const bots = [0x27344f, 0x1e2533, 0x3b3f4a, 0x2b2b2b, 0x4a4032, 0x5c4a3a, 0x1c1c1c];
-  const lin = hex => new THREE.Color(hex).convertSRGBToLinear();
-  for (let n = 0; n < 260; n++) {
-    let i, j; do { i = Math.floor(srand() * NX); j = Math.floor(srand() * NZ); } while (isPark(i, j));
-    const b = blk(i, j), side = Math.floor(srand() * 4);
-    const p = side < 2
-      ? { ax: 'x', c: side ? b.z1 - 2 : b.z0 + 2, s0: b.x0 + 1, s1: b.x1 - 1 }
-      : { ax: 'z', c: side === 3 ? b.x1 - 2 : b.x0 + 2, s0: b.z0 + 1, s1: b.z1 - 1 };
-    p.s = sr(p.s0, p.s1); p.sp = sr(1, 1.6) * (srand() < 0.5 ? 1 : -1); p.ph = sr(0, 6); p.flee = 0;
-    p.cols = [lin(tops[Math.floor(srand() * tops.length)]), lin(bots[Math.floor(srand() * bots.length)]), lin(skins[Math.floor(srand() * skins.length)])];
-    p.sc = sr(0.92, 1.06);
-    peds.push(p);
-  }
-  const frames = pedGeometries(), face = pedFaceTexture(), mats = [0.85, 0.8, 0.6, 0.65].map((r, q) => new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: r, map: q === 3 ? face : null }));
-  mats.forEach(m => { m.userData.lin = true; });
-  pedMesh = frames.map(f => ['top', 'bot', 'hand', 'head'].map((k, q) => {
-    const m = new THREE.InstancedMesh(f[k], mats[q], peds.length);
-    m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false; m.castShadow = false; m.receiveShadow = true;
-    m.setColorAt(0, _c.setRGB(1, 1, 1)); m.userData.linIC = true; m.count = 0; scene.add(m); return m;
-  }));
+  initPeds();
 }
 // ---------------------------------------------------------------- para z kominow i golebie
 let steam = null, birds = null;
@@ -1427,14 +1405,114 @@ function updateLife(dt) {
   });
   birds.instanceMatrix.needsUpdate = true;
 }
+// ---------------------------------------------------------------- przechodnie
+// Tlum zyje tylko wokol kamery: kto oddali sie za PED_R, pojawia sie na innym chodniku w poblizu
+// (poza kadrem albo dalej przed kamera). Ludzie obchodza kwartaly dookola trzymajac sie prawej strony
+// chodnika, czesc stoi przy scianach z telefonem. Chod i pozy liczy shader (model.js).
+const PED_N = 340, PED_R = 125, PED_HI = 30;
+const peds = [];
+let pedSets = [];
+const _fw = new V3();
+function pedPos(p) {
+  const b = p.b, d = p.d, W = b.x1 - b.x0 - 2 * d, D = b.z1 - b.z0 - 2 * d, Pm = 2 * (W + D);
+  let s = ((p.s % Pm) + Pm) % Pm; p.s = s;
+  if (s < W) { p.x = b.x0 + d + s; p.z = b.z0 + d; p.tx = 1; p.tz = 0; }
+  else if (s < W + D) { p.x = b.x1 - d; p.z = b.z0 + d + s - W; p.tx = 0; p.tz = 1; }
+  else if (s < 2 * W + D) { p.x = b.x1 - d - (s - W - D); p.z = b.z1 - d; p.tx = -1; p.tz = 0; }
+  else { p.x = b.x0 + d; p.z = b.z1 - d - (s - 2 * W - D); p.tx = 0; p.tz = -1; }
+}
+function pedWalkParams(p) {
+  p.A = clamp(p.sp / 1.4, 0.8, 1.12); p.rate = p.sp * Math.PI * 2 / (1.25 + 0.3 * p.A);
+}
+// avoid: nie wstawiaj nikogo blisko przed kamera (zeby nie wyskakiwal na oczach gracza)
+function spawnPed(p, cx, cz, fx, fz, avoid) {
+  const ci = Math.floor((cx - X0) / CX), cj = Math.floor((cz - Z0) / CZ);
+  for (let t = 0; t < 12; t++) {
+    const i = clamp(ci + Math.floor(Math.random() * 5) - 2, 0, NX - 1), j = clamp(cj + Math.floor(Math.random() * 5) - 2, 0, NZ - 1);
+    if (isPark(i, j)) continue;
+    p.b = blk(i, j);
+    const idle = Math.random() < 0.17;
+    p.idle = idle; p.idleT = idle ? 8 + Math.random() * 25 : 0;
+    p.dir = Math.random() < 0.5 ? 1 : -1;
+    p.d = idle ? (Math.random() < 0.7 ? 3.15 : 1.3) : (p.dir > 0 ? 2.5 : 3.05) + (Math.random() - 0.5) * 0.2;
+    p.s = Math.random() * 400; pedPos(p);
+    const dx = p.x - cx, dz = p.z - cz, dd = Math.hypot(dx, dz);
+    if (dd > PED_R - 5) continue;
+    if (avoid && dd < 60 && (dx * fx + dz * fz) > -0.2 * dd) continue;
+    p.look = pedLook(Math.random, p.body === 2); p.flags = p.look.flags;
+    p.flee = 0; p.sp = 1.1 + Math.random() * 0.55; pedWalkParams(p);
+    if (idle) { p.A = 0; p.yaw = Math.atan2(p.tz, -p.tx) + (Math.random() - 0.5) * 1.6; }
+    else p.yaw = Math.atan2(p.tx * p.dir, p.tz * p.dir);
+    return true;
+  }
+  return false;
+}
+function initPeds() {
+  const G3 = pedGeometries();
+  pedSets = [];
+  G3.forEach(B => {
+    const mat = pedMaterial(B.abd);
+    for (const lod of ['hi', 'lo']) {
+      const g = B[lod], iA = new Float32Array(PED_N * 4), iC0 = new Float32Array(PED_N * 4), iC1 = new Float32Array(PED_N * 4);
+      for (const [k, a] of [['iA', iA], ['iC0', iC0], ['iC1', iC1]]) { const at = new THREE.InstancedBufferAttribute(a, 4); at.setUsage(THREE.DynamicDrawUsage); g.setAttribute(k, at); }
+      const m = new THREE.InstancedMesh(g, mat, PED_N);
+      m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false; m.castShadow = false; m.receiveShadow = lod === 'hi'; m.count = 0; m.name = 'ped';
+      scene.add(m); pedSets.push({ m, g, iA, iC0, iC1, n: 0 });
+    }
+  });
+  const rr = () => Math.random();
+  for (let n = 0; n < PED_N; n++) {
+    const r = Math.random(), body = r < 0.47 ? 2 : r < 0.62 ? 1 : 0, look = pedLook(rr, body === 2);
+    const p = { body, look, flags: look.flags, seed: Math.random() * 6.28, ph: Math.random() * 6.28, sc: body === 2 ? sr(0.92, 1.0) : sr(0.95, 1.08), wx: sr(0.94, 1.06), x: 0, z: 0, yaw: 0 };
+    peds.push(p);
+  }
+  pedsFresh = true;
+}
+let pedsFresh = true;
 // przechodnie uciekaja przed strzalami
 export function scarePeds(x, z, r = 45) {
   for (const p of peds) {
-    const px = p.ax === 'x' ? p.s : p.c, pz = p.ax === 'x' ? p.c : p.s;
-    if (Math.abs(px - x) < r && Math.abs(pz - z) < r) {
-      p.flee = 6; const away = p.ax === 'x' ? Math.sign(px - x) : Math.sign(pz - z);
-      p.sp = (away || 1) * 4.5;
+    if (!p.b || Math.abs(p.x - x) > r || Math.abs(p.z - z) > r) continue;
+    p.flee = 6; p.idle = false; p.sp = 3.8 + Math.random() * 0.8; p.A = 1.35; p.rate = p.sp * Math.PI * 2 / 1.75;
+    p.dir = (p.tx * (p.x - x) + p.tz * (p.z - z)) >= 0 ? 1 : -1;
+    p.flags = p.look.flags & ~16; // telefon do kieszeni
+  }
+}
+function updatePeds(dt) {
+  pedU.uTime.value = G.time;
+  for (const S of pedSets) S.n = 0;
+  if (dbg('noped')) { for (const S of pedSets) S.m.count = 0; return; }
+  const cx = camera.position.x, cz = camera.position.z;
+  camera.getWorldDirection(_fw); let fl = Math.hypot(_fw.x, _fw.z); const cull = fl > 0.35; const fx = _fw.x / (fl || 1), fz = _fw.z / (fl || 1);
+  // ilu trzeba przeniesc? jesli wiekszosc (teleport, start gry) — wstawiamy wszedzie, takze przed kamera
+  let out = 0; for (const p of peds) if (!p.b || Math.hypot(p.x - cx, p.z - cz) > PED_R) out++;
+  const avoid = !pedsFresh && out < PED_N * 0.3; pedsFresh = false;
+  for (const p of peds) {
+    if (!p.b || Math.hypot(p.x - cx, p.z - cz) > PED_R) { if (!spawnPed(p, cx, cz, fx, fz, avoid)) continue; }
+    if (p.flee > 0) { p.flee -= dt; if (p.flee <= 0) { p.sp = 1.1 + Math.random() * 0.55; pedWalkParams(p); p.flags = p.look.flags; } }
+    if (p.idle) {
+      p.idleT -= dt;
+      if (p.idleT <= 0) { p.idle = false; pedWalkParams(p); }
+      p.ph += dt * 0.5;
+    } else {
+      p.s += p.sp * p.dir * dt; pedPos(p);
+      p.yaw = angLerp(p.yaw, Math.atan2(p.tx * p.dir, p.tz * p.dir), damp(7, dt));
+      p.ph += dt * p.rate;
+      if (p.ph > 1e4) p.ph -= Math.PI * 2 * 1000;
     }
+    const dx = p.x - cx, dz = p.z - cz, d = Math.hypot(dx, dz);
+    if (cull && d > 6 && (dx * fx + dz * fz) < 0.25 * d) continue;
+    const S = pedSets[p.body * 2 + (d < PED_HI ? 0 : 1)], k = S.n++;
+    _o.position.set(p.x, SW, p.z); _o.rotation.set(0, p.yaw, 0); _o.scale.set(p.sc * p.wx, p.sc, p.sc * p.wx); _o.updateMatrix();
+    S.m.setMatrixAt(k, _o.matrix);
+    const L = p.look, k4 = k * 4;
+    S.iA[k4] = p.ph; S.iA[k4 + 1] = p.idle ? 0 : p.A; S.iA[k4 + 2] = p.flags; S.iA[k4 + 3] = p.seed;
+    for (let q = 0; q < 4; q++) { S.iC0[k4 + q] = L.c0[q]; S.iC1[k4 + q] = L.c1[q]; }
+  }
+  for (const S of pedSets) {
+    S.m.count = S.n; if (!S.n) continue;
+    S.m.instanceMatrix.needsUpdate = true;
+    for (const k of ['iA', 'iC0', 'iC1']) S.g.attributes[k].needsUpdate = true;
   }
 }
 export function updateTraffic(dt) {
@@ -1461,18 +1539,5 @@ export function updateTraffic(dt) {
   carRims.instanceMatrix.needsUpdate = true;
   carBody.instanceMatrix.needsUpdate = carGlass.instanceMatrix.needsUpdate = carWheel.instanceMatrix.needsUpdate = carSign.instanceMatrix.needsUpdate = true;
   hp.needsUpdate = tp.needsUpdate = true;
-  // przechodnie blisko kamery; kazdy w jednej z dwoch klatek kroku
-  const cnt = [0, 0], cxp = camera.position.x, czp = camera.position.z;
-  for (const p of peds) {
-    if (p.flee > 0) { p.flee -= dt; if (p.flee <= 0) p.sp = Math.sign(p.sp) * sr(1, 1.6); }
-    p.s += p.sp * dt; if (p.s > p.s1 || p.s < p.s0) { p.sp = -p.sp; p.s = clamp(p.s, p.s0, p.s1); }
-    p.ph += dt * Math.abs(p.sp) * 3.2;
-    const x = p.ax === 'x' ? p.s : p.c, z = p.ax === 'x' ? p.c : p.s;
-    if (dbg('noped') || Math.abs(x - cxp) > 120 || Math.abs(z - czp) > 120 || cnt[0] + cnt[1] >= 80) continue;
-    const f = Math.floor(p.ph / Math.PI) % 2, k = cnt[f]++;
-    const yaw = p.ax === 'x' ? (p.sp > 0 ? Math.PI / 2 : -Math.PI / 2) : (p.sp > 0 ? 0 : Math.PI);
-    _o.position.set(x, SW + Math.abs(Math.sin(p.ph)) * 0.03, z); _o.rotation.set(0, yaw, 0); _o.scale.setScalar(p.sc); _o.updateMatrix();
-    for (let q = 0; q < 4; q++) { pedMesh[f][q].setMatrixAt(k, _o.matrix); pedMesh[f][q].setColorAt(k, p.cols[Math.min(q, 2)]); }
-  }
-  for (let f = 0; f < 2; f++) for (const m of pedMesh[f]) { m.count = cnt[f]; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
+  updatePeds(dt);
 }
