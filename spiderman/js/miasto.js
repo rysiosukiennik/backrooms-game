@@ -3,6 +3,7 @@
 import { V3, clamp, srand, sr, cv, canvasTex, rnd, linHex, linearize, dbg, angLerp, damp } from './util.js';
 import { scene, camera, renderer, P, G, canvas } from './stan.js';
 import { pedGeometries, pedMaterial, pedLook, pedU } from './model.js';
+import { makeShopAtlas } from './sklepy_okna.js';
 import { buildStreet, buildLampHeads, initCars, updateCars, inShed, awningGeo } from './ulica.js';
 
 export const BW = 64, BD = 44, ST = 18, NX = 8, NZ = 18;
@@ -371,19 +372,92 @@ function waterNormals() {
   const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
 }
 // sklepy na parterze: 4 rzedy po 4 witryny, szerokosc tekstury = 16 m
-const SHOPS = ['PIZZA', 'DELI', 'KAWA', 'BANK', 'APTEKA', 'HOT DOG', 'KWIATY', 'BAR', 'SUSHI', 'SKLEP 24h', 'PIEKARNIA', 'KINO', 'KSIĘGARNIA', 'BURGER', 'LODY', 'FRYZJER'];
+const SHOPS = ['PIZZA', 'DELI', 'KAWA', 'BANK', 'APTEKA', 'BIURO', 'KWIATY', 'BAR', 'SUSHI', 'SKLEP 24h', 'PIEKARNIA', 'KINO', 'KSIĘGARNIA', 'BURGER', 'LODY', 'FRYZJER'];
 const SIGNC = ['#b8141c', '#1a5e2c', '#15306e', '#d49a16', '#6a1b7a', '#0d6b73', '#222222', '#b0480f'];
+const SHOP_DECL = 'uniform sampler2D uSA; uniform sampler2D uSE; uniform float uSI; uniform float uSEm;\n';
+// interior mapping: promien z kamery w ukladzie (u,v,glebokosc) komorki witryny; pokoj 4 x 3.06 x 7 m, plan srodkowy (lada, ludzie) w 2.6 m
+const SHOP_BLOCK = `
+  float shopK = 0.0; vec3 shopRGB = vec3(0.0); vec3 shopEM = vec3(0.0);
+  {
+    vec3 Pv = -vViewPosition; vec3 dp1 = dFdx(Pv), dp2 = dFdy(Pv); vec2 du1 = dFdx(vUv), du2 = dFdy(vUv);
+    float mgk = min(diffuseColor.r, diffuseColor.b) - diffuseColor.g;
+    if (mgk > 0.004) {
+      shopK = clamp(mgk, 0.0, 1.0);
+      diffuseColor.rgb = max(diffuseColor.rgb - shopK * vec3(1.0, 0.0, 1.0), 0.0) + shopK * vec3(0.012, 0.014, 0.016);
+      vec3 N0 = normalize(cross(dp1, dp2));
+      vec3 T = cross(dp2, N0) * du1.x + cross(N0, dp1) * du2.x, B = cross(dp2, N0) * du1.y + cross(N0, dp1) * du2.y;
+      vec3 d = normalize(Pv);
+      float dt = dot(d, normalize(T)), db = dot(d, normalize(B)), ds = max(abs(dot(d, N0)), 0.0001);
+      float gx = vUv.x * 4.0, gy = vUv.y * 8.0;
+      float cu = fract(gx), cell = mod(floor(gx), 4.0), rv = floor(gy - 0.002), cvv = gy - rv, rt = 7.0 - rv;
+      bool lob = rt > 3.5;
+      float kk = lob ? 16.0 + cell : rt * 4.0 + cell;
+      vec2 blk = vec2(mod(kk, 4.0), floor(kk / 4.0)) * 512.0;
+      float yf = lob ? 0.72 : 0.225, yc = yf + 3.06;
+      float ox = cu * 4.0, oy = clamp(cvv * 4.5, yf + 0.01, yc - 0.01);
+      float inv = 1.0 / ds;
+      float tz = 7.0 * inv;
+      float tx = dt > 0.0 ? (4.0 - ox) / dt : (dt < 0.0 ? -ox / dt : 1e5);
+      float ty = db > 0.0 ? (yc - oy) / db : (db < 0.0 ? (yf - oy) / db : 1e5);
+      float tm = min(tz, min(tx, ty));
+      vec3 h = vec3(ox + dt * tm, oy + db * tm - yf, ds * tm);
+      vec2 pp;
+      if (tm == tz) pp = blk + vec2(h.x / 4.0 * 256.0, (1.0 - h.y / 3.06) * 256.0);
+      else if (tm == tx) pp = blk + vec2(256.0 + h.z / 7.0 * 256.0, (1.0 - h.y / 3.06) * 256.0);
+      else if (db > 0.0) pp = blk + vec2(256.0 + h.x / 4.0 * 256.0, 256.0 + (1.0 - h.z / 7.0) * 128.0);
+      else pp = blk + vec2(h.x / 4.0 * 256.0, 256.0 + (1.0 - h.z / 7.0) * 256.0);
+      pp = clamp(pp, blk + 0.5, blk + 511.5);
+      vec2 uvA = vec2(pp.x / 2048.0, 1.0 - pp.y / 2560.0);
+      vec3 col = sRGBToLinear(texture2D(uSA, uvA)).rgb;
+      vec3 em = sRGBToLinear(texture2D(uSE, uvA)).rgb;
+      float tsp = 2.6 * inv;
+      if (tsp < tm) {
+        float hy = oy + db * tsp - yf;
+        if (hy > 0.0 && hy < 2.1) {
+          vec2 ps = blk + vec2(256.0 + (ox + dt * tsp) / 4.0 * 256.0, 384.0 + (1.0 - hy / 2.1) * 128.0);
+          ps = clamp(ps, vec2(blk.x + 257.0, blk.y + 385.0), vec2(blk.x + 510.5, blk.y + 510.5));
+          vec4 sp = texture2D(uSA, vec2(ps.x / 2048.0, 1.0 - ps.y / 2560.0));
+          vec3 sc = sRGBToLinear(vec4(sp.rgb, 1.0)).rgb;
+          col = mix(col, sc, sp.a); em *= 1.0 - sp.a;
+        }
+      }
+      float fd = 1.0 - smoothstep(70.0, 120.0, length(vViewPosition));
+      shopRGB = mix(vec3(0.05, 0.04, 0.035), col, fd); shopEM = em * fd;
+    }
+  }`;
+const LOBBY_NAMES = ['PLAZA', 'TOWER', 'CAFÉ NOIR', 'TRUST BANK'];
+// tekstura witryn: 8 rzedow po 4 komorki (256x128 px = 4 m x 4.5 m); rzedy 0-3 to sklepy kamienic, 4-7 to lobby nowych wiez.
+// Szyba jest wypelniona kolorem klucza (magenta #ff00ff) - shader (interior mapping) w tych miejscach rysuje wnetrze z atlasu.
 function shopTex() {
-  const W = 1024, H = 512, c = cv(W, H), x = c.getContext('2d'), e = cv(W, H), ex = e.getContext('2d');
+  const W = 1024, H = 1024, c = cv(W, H), x = c.getContext('2d'), e = cv(W, H), ex = e.getContext('2d');
   ex.fillStyle = '#000'; ex.fillRect(0, 0, W, H);
+  const KEY = '#ff00ff';
   const FONTS = ['bold 21px Arial', 'bold 22px Georgia', 'italic bold 22px Georgia', 'bold 20px Verdana', '900 22px Impact'];
-  for (let row = 0; row < 4; row++) for (let u = 0; u < 4; u++) {
-    const X = u * 256, Y = row * 128, col = SIGNC[Math.floor(Math.random() * SIGNC.length)], name = SHOPS[Math.floor(Math.random() * SHOPS.length)];
-    // kamienna okladzina parteru (granit z drobinkami)
+  for (let row = 0; row < 8; row++) for (let u = 0; u < 4; u++) {
+    const X = u * 256, Y = row * 128;
+    if (row >= 4) { // lobby wiezy: ciemny granit, mosiezny szyld, wielka szyba, marmurowy cokol, drzwi obrotowe w kolumnie 1
+      const stone = ['#2b2c2e', '#34322f', '#262a30', '#302d2a'][row - 4];
+      x.fillStyle = stone; x.fillRect(X, Y, 256, 128);
+      for (let i = 0; i < 700; i++) { x.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.18)'; x.fillRect(X + Math.random() * 256, Y + Math.random() * 128, 1.5, 1.5); }
+      x.fillStyle = '#121315'; x.fillRect(X + 6, Y + 3, 244, 17); x.fillStyle = '#b8924a'; x.fillRect(X + 6, Y + 3, 244, 1); x.fillRect(X + 6, Y + 19, 244, 1);
+      const nm = LOBBY_NAMES[u]; x.font = 'bold 15px Georgia'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillStyle = '#d9b46a'; x.fillText(nm, X + 128, Y + 12);
+      ex.font = x.font; ex.textAlign = 'center'; ex.textBaseline = 'middle'; ex.fillStyle = '#c89a4a'; ex.fillText(nm, X + 128, Y + 12);
+      x.fillStyle = '#16171a'; x.fillRect(X + 3, Y + 21, 250, 87); x.fillStyle = KEY; x.fillRect(X + 8, Y + 23, 240, 83);
+      x.fillStyle = '#16171a'; x.fillRect(X + 126, Y + 23, 4, 83); x.fillRect(X + 8, Y + 38, 240, 2);
+      if (u === 1) { // drzwi obrotowe: mosiezne slupki i daszek
+        x.fillStyle = '#16171a'; x.fillRect(X + 92, Y + 23, 72, 4);
+        x.fillStyle = '#b8924a'; x.fillRect(X + 94, Y + 27, 3, 79); x.fillRect(X + 159, Y + 27, 3, 79); x.fillRect(X + 126, Y + 27, 4, 79);
+        x.fillStyle = 'rgba(184,146,74,.5)'; x.fillRect(X + 97, Y + 70, 29, 2); x.fillRect(X + 130, Y + 70, 29, 2);
+      }
+      const mg = x.createLinearGradient(0, Y + 106, 0, Y + 128); mg.addColorStop(0, '#d8d3c8'); mg.addColorStop(1, '#a8a296'); x.fillStyle = mg; x.fillRect(X + 3, Y + 108, 250, 20);
+      for (let i = 0; i < 9; i++) { x.strokeStyle = 'rgba(90,85,80,.35)'; x.lineWidth = 0.7; x.beginPath(); const sx = X + Math.random() * 250, sy = Y + 108; x.moveTo(sx, sy); x.lineTo(sx + (Math.random() - 0.5) * 40, sy + 20); x.stroke(); }
+      x.fillStyle = '#b8924a'; x.fillRect(X + 3, Y + 107, 250, 2);
+      continue;
+    }
+    const col = SIGNC[Math.floor(Math.random() * SIGNC.length)], name = SHOPS[row * 4 + u];
     const stone = ['#3b3633', '#4a4440', '#2c2b2d', '#5a534b'][Math.floor(Math.random() * 4)];
     x.fillStyle = stone; x.fillRect(X, Y, 256, 128);
     for (let i = 0; i < 700; i++) { x.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.15)'; x.fillRect(X + Math.random() * 256, Y + Math.random() * 128, 1.5, 1.5); }
-    // szyld: kolorowy z cieniem albo ciemny panel ze zlotymi literami
     const dark = Math.random() < 0.35, sy = Y + 5, sh = 25;
     const sg = x.createLinearGradient(0, sy, 0, sy + sh); sg.addColorStop(0, dark ? '#1d1d1f' : col); sg.addColorStop(1, dark ? '#0f0f10' : 'rgba(0,0,0,.35)');
     x.fillStyle = dark ? '#1d1d1f' : col; x.fillRect(X + 14, sy, 228, sh); x.fillStyle = sg; x.fillRect(X + 14, sy, 228, sh);
@@ -391,31 +465,19 @@ function shopTex() {
     x.font = FONTS[Math.floor(Math.random() * FONTS.length)]; x.textAlign = 'center'; x.textBaseline = 'middle';
     x.fillStyle = 'rgba(0,0,0,.5)'; x.fillText(name, X + 129, sy + sh / 2 + 2); x.fillStyle = dark ? '#e0b860' : '#fff'; x.fillText(name, X + 128, sy + sh / 2 + 1);
     ex.font = x.font; ex.textAlign = 'center'; ex.textBaseline = 'middle'; ex.fillStyle = dark ? '#c09040' : '#ddd'; ex.fillText(name, X + 128, sy + sh / 2 + 1);
-    for (const lx of [X + 50, X + 128, X + 206]) { x.fillStyle = '#111'; x.fillRect(lx - 3, sy - 4, 6, 4); } // lampki nad szyldem
-    // witryna: ciemne szklo, w srodku polki z towarem, cieple swiatlo u gory, odbicie ulicy
+    for (const lx of [X + 50, X + 128, X + 206]) { x.fillStyle = '#111'; x.fillRect(lx - 3, sy - 4, 6, 4); }
+    // witryna: szyba (klucz), rama, slupek, cokol z blachy
     const gx = X + 16, gy = Y + 38, gw = 164, gh = 80;
-    const wg = x.createLinearGradient(0, gy, 0, gy + gh); wg.addColorStop(0, '#5b4a36'); wg.addColorStop(0.5, '#2a241f'); wg.addColorStop(1, '#141414');
-    x.fillStyle = wg; x.fillRect(gx, gy, gw, gh);
-    const shelfC = ['#c0392b', '#e9c46a', '#2a9d8f', '#f4f1de', '#e76f51', '#457b9d', '#8d99ae', '#6a994e'];
-    for (let r = 0; r < 3; r++) {
-      const yy = gy + 22 + r * 20; x.fillStyle = 'rgba(200,190,170,.35)'; x.fillRect(gx + 6, yy, gw - 12, 2);
-      for (let k = gx + 8; k < gx + gw - 10; k += 4 + Math.random() * 6) { x.fillStyle = shelfC[Math.floor(Math.random() * shelfC.length)]; const ph = 5 + Math.random() * 9; x.globalAlpha = 0.55; x.fillRect(k, yy - ph, 3 + Math.random() * 3, ph); x.globalAlpha = 1; }
-    }
-    if (Math.random() < 0.6) { x.fillStyle = 'rgba(15,12,10,.75)'; const px = gx + 20 + Math.random() * (gw - 40); x.beginPath(); x.arc(px, gy + 34, 5, 0, 7); x.fill(); x.fillRect(px - 6, gy + 39, 12, 30); } // klient w srodku
-    const lg = x.createLinearGradient(0, gy, 0, gy + 30); lg.addColorStop(0, 'rgba(255,220,160,.35)'); lg.addColorStop(1, 'rgba(255,220,160,0)'); x.fillStyle = lg; x.fillRect(gx, gy, gw, 30);
-    x.fillStyle = 'rgba(190,210,235,.13)'; x.beginPath(); x.moveTo(gx + 20, gy + gh); x.lineTo(gx + 80, gy); x.lineTo(gx + 115, gy); x.lineTo(gx + 55, gy + gh); x.fill(); // odbicie
-    x.fillStyle = 'rgba(190,210,235,.07)'; x.fillRect(gx, gy + gh - 18, gw, 18);
-    if (Math.random() < 0.5) { x.fillStyle = 'rgba(255,255,255,.75)'; x.font = 'bold 9px Arial'; x.fillText(Math.random() < 0.5 ? 'OTWARTE' : '-30%', gx + gw - 26, gy + 12); }
-    x.strokeStyle = '#1a1b1d'; x.lineWidth = 3; x.strokeRect(gx, gy, gw, gh); x.fillStyle = '#1a1b1d'; x.fillRect(gx + gw / 2 - 1, gy, 3, gh); // rama i slupek
-    x.fillStyle = '#6b6e72'; x.fillRect(gx, gy + gh, gw, 8); // cokol z blachy
-    ex.fillStyle = 'rgba(150,110,60,.9)'; ex.fillRect(gx, gy, gw, gh * 0.7);
+    x.fillStyle = '#1a1b1d'; x.fillRect(gx - 3, gy - 3, gw + 6, gh + 6);
+    x.fillStyle = KEY; x.fillRect(gx, gy, gw, gh);
+    x.fillStyle = '#1a1b1d'; x.fillRect(gx + gw / 2 - 1, gy, 3, gh);
+    if (Math.random() < 0.5) { x.fillStyle = 'rgba(255,255,255,.85)'; x.font = 'bold 9px Arial'; x.fillText(Math.random() < 0.5 ? 'OTWARTE' : '-30%', gx + gw - 26, gy + 12); }
+    x.fillStyle = '#6b6e72'; x.fillRect(gx, gy + gh, gw, 8);
     // szklane drzwi z klamka
     const dx = X + 190, dy = Y + 40, dw = 48, dh = 86;
     x.fillStyle = '#1a1b1d'; x.fillRect(dx - 3, dy - 3, dw + 6, dh + 3);
-    const dg = x.createLinearGradient(0, dy, 0, dy + dh); dg.addColorStop(0, '#4a3c2c'); dg.addColorStop(1, '#151515'); x.fillStyle = dg; x.fillRect(dx, dy, dw, dh);
-    x.fillStyle = 'rgba(190,210,235,.12)'; x.fillRect(dx + 6, dy, 10, dh);
+    x.fillStyle = KEY; x.fillRect(dx, dy, dw, dh);
     x.fillStyle = '#b8bcc2'; x.fillRect(dx + dw - 9, dy + 38, 3, 16);
-    ex.fillStyle = 'rgba(120,90,50,.9)'; ex.fillRect(dx, dy, dw, dh * 0.6);
   }
   const map = canvasTex(c, true), emi = canvasTex(e, true);
   map.wrapT = emi.wrapT = THREE.ClampToEdgeWrapping;
@@ -644,6 +706,7 @@ function updateEnvMap(T) {
   } catch (e) { scene.environment = null; }
   scene.traverse(o => { const m = o.material; if (m && m.isMeshStandardMaterial) m.envMapIntensity = (m.userData.env ?? 1) * T.env; });
 }
+const shopU = { uSI: { value: 0.7 }, uSEm: { value: 0.8 } };
 let facMats = [], shopMat = null, lampMat = null, boardMats = [], glowPts = [];
 export let todName = 'sunset';
 export function setTOD(name) {
@@ -657,7 +720,7 @@ export function setTOD(name) {
   linHex(water.material.color, T.water); linHex(pondM.material.color, T.water).multiplyScalar(0.45); pondM.material.color.g *= 1.15;
   stars.visible = T.stars > 0; moon.visible = name === 'night';
   for (const m of facMats) m.emissiveIntensity = T.win;
-  shopMat.emissiveIntensity = T.shop;
+  shopMat.emissiveIntensity = T.shop; shopU.uSI.value = 0.45 + 0.6 * T.shop; shopU.uSEm.value = T.shop * 1.6;
   lampMat.emissiveIntensity = 0.2 + T.lamps * 2;
   for (const m of boardMats) m.emissiveIntensity = 0.8 + T.lamps * 1.2;
   for (const g of glowPts) { g.visible = T.lamps > 0; g.material.opacity = T.lamps; }
@@ -750,8 +813,8 @@ function parapet(b) {
   for (const [px, pz] of [[x0 + 0.5, z0 + 0.5], [x1 - 0.5, z0 + 0.5], [x0 + 0.5, z1 - 0.5], [x1 - 0.5, z1 - 0.5]]) perches.push(new V3(px, y1, pz));
 }
 // witryny sklepow na scianach od ulicy
-function storefront(X0, X1, Z0, Z1, bk, gap) {
-  const H = 4.6, o = 0.06, row = () => Math.floor(srand() * 4), v = r => [r / 4, (r + 1) / 4];
+function storefront(X0, X1, Z0, Z1, bk, gap, lobby) {
+  const H = 4.6, o = 0.06, row = () => Math.floor(srand() * 4) + (lobby ? 4 : 0), v = r => [r / 8, (r + 1) / 8];
   const side = (face, x0, x1, z0, z1) => {
     const [va, vb] = v(row()); const g = shopGeo;
     if (face === 'n') quad(g, [x1, 0.1, z0 - o], [x0, 0.1, z0 - o], [x0, H, z0 - o], [x1, H, z0 - o], [0, 0, -1], [-x1 / 16, 1 - vb], [-x0 / 16, 1 - vb], [-x0 / 16, 1 - va], [-x1 / 16, 1 - va]);
@@ -1024,7 +1087,7 @@ function building(x0, x1, z0, z1, h, st, dk, bk, pitched) {
   if (bk && hb > 14 && st === 0 && srand() < 0.6) addFireEscape(x0, x1, z0, z1, hb, bk, dr);
   if (bk && hb > 14 && (st === 1 || st === 2 || st === 5) && srand() < 0.55) addBalconies(x0, x1, z0, z1, hb, bk, dr);
   if (bk && !pitched) { addBase(x0, x1, z0, z1, hb, st); if (hb < 140) addCornice(x0, x1, z0, z1, hb, st); }
-  if (bk) storefront(x0, x1, z0, z1, bk, dr ? { face: dr.face, a0: dr.c - dr.gw / 2 - 0.3, a1: dr.c + dr.gw / 2 + 0.3 } : null);
+  if (bk) storefront(x0, x1, z0, z1, bk, dr ? { face: dr.face, a0: dr.c - dr.gw / 2 - 0.3, a1: dr.c + dr.gw / 2 + 0.3 } : null, tall || isGlassy(st) || h > 58);
   if (type === 'deco') { // uskoki co kilkadziesiat metrow, potem korona
     let ax0 = x0, ax1 = x1, az0 = z0, az1 = z1, y = hb;
     const levels = [h * sr(0.6, 0.75), h];
@@ -1463,6 +1526,16 @@ export function buildCity() {
   meshFrom(trimGeo, groundAO(new THREE.MeshStandardMaterial({ map: canvasTex(stoneCanvas(), true), roughness: 0.85 })));
   const st = shopTex();
   shopMat = groundAO(new THREE.MeshStandardMaterial({ map: st.map, emissiveMap: st.emi, emissive: 0xffffff, emissiveIntensity: 0.8, roughness: 0.35, metalness: 0.1 }), 0.75, 6);
+  // interior mapping w witrynach: za szyba (klucz magenta w teksturze) wirtualny pokoj z atlasu sklepy_okna.js
+  const atl = makeShopAtlas(), baseCompile = shopMat.onBeforeCompile;
+  shopMat.onBeforeCompile = sh => {
+    baseCompile(sh);
+    sh.uniforms.uSA = { value: atl.map }; sh.uniforms.uSE = { value: atl.emi }; sh.uniforms.uSI = shopU.uSI; sh.uniforms.uSEm = shopU.uSEm;
+    sh.fragmentShader = sh.fragmentShader.replace('void main() {', SHOP_DECL + 'void main() {')
+      .replace('#include <map_fragment>', '#include <map_fragment>\n' + SHOP_BLOCK)
+      .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\n  roughnessFactor = mix(roughnessFactor, 0.07, shopK); metalnessFactor = mix(metalnessFactor, 0.0, shopK);')
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance = totalEmissiveRadiance * (1.0 - shopK) + (shopRGB * uSI + shopEM * uSEm) * shopK;');
+  };
   meshFrom(shopGeo, shopMat, false);
   meshFrom(farGeo, facMats[2], false);
   // podniesione chodniki z kraweznikami
