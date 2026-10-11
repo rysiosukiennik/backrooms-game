@@ -65,7 +65,7 @@
     });
   }
   function resetProgress() {
-    const keep = { gfx: save.gfx, tod: save.tod, music: save.music };
+    const keep = { gfx: save.gfx, tod: save.tod, music: save.music, voice: save.voice };
     Object.assign(save, { lvl: 1, xp: 0, suit: "adv", bags: [], crimes: 0, skills: [], races: {}, bossWins: 0, chases: 0, fisk: 0, pos: null, hd: 0, hasGame: false, savedAt: 0, colas: 0 }, keep);
     doSave();
   }
@@ -107,7 +107,8 @@
         hasGame: false,
         savedAt: 0,
         tod: "sunset",
-        music: true
+        music: true,
+        voice: true
       };
       try {
         Object.assign(save, JSON.parse(localStorage.getItem(KEY) || "{}"));
@@ -149,10 +150,10 @@
           localStorage.setItem("spiderman_nyc_v1", JSON.stringify(save));
         } catch (er) {
         }
-        const el2 = document.createElement("div");
-        el2.style.cssText = "position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#05090f;color:#fff;font:20px Arial;text-align:center;padding:20px";
-        el2.innerHTML = '<b style="font-size:40px">SPIDER-MAN</b><p>Karta graficzna si\u0119 przeci\u0105\u017Cy\u0142a.<br>W\u0142\u0105czam nisk\u0105 grafik\u0119 i uruchamiam gr\u0119 ponownie\u2026</p><p style="color:#9fd8ea;font-size:17px">Je\u015Bli to si\u0119 powtarza: zamknij inne karty z grami (np. drug\u0105 kart\u0119 ze Spider-Manem, Narew) i Robloxa.</p>';
-        document.body.appendChild(el2);
+        const el3 = document.createElement("div");
+        el3.style.cssText = "position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#05090f;color:#fff;font:20px Arial;text-align:center;padding:20px";
+        el3.innerHTML = '<b style="font-size:40px">SPIDER-MAN</b><p>Karta graficzna si\u0119 przeci\u0105\u017Cy\u0142a.<br>W\u0142\u0105czam nisk\u0105 grafik\u0119 i uruchamiam gr\u0119 ponownie\u2026</p><p style="color:#9fd8ea;font-size:17px">Je\u015Bli to si\u0119 powtarza: zamknij inne karty z grami (np. drug\u0105 kart\u0119 ze Spider-Manem, Narew) i Robloxa.</p>';
+        document.body.appendChild(el3);
         setTimeout(() => location.reload(), 2500);
       }, false);
       renderer.setSize(innerWidth, innerHeight);
@@ -294,13 +295,13 @@
       sh.position.set(0.215 * b.w * s, 0.2, 0);
       H.chest.add(sh);
       H["sh" + L] = sh;
-      const el2 = B2();
-      el2.position.y = -0.28;
-      sh.add(el2);
-      H["el" + L] = el2;
+      const el3 = B2();
+      el3.position.y = -0.28;
+      sh.add(el3);
+      H["el" + L] = el3;
       const hand = new THREE.Group();
       hand.position.y = -0.3;
-      el2.add(hand);
+      el3.add(hand);
       H["hand" + L] = hand;
       const hp = B2();
       hp.position.set(0.09 * b.hips * s, -0.04, 0);
@@ -3166,6 +3167,360 @@ vec3 pedP = position;
     }
   });
 
+  // js/dzwiek.js
+  function initAudio() {
+    if (AC) {
+      if (AC.state === "suspended") AC.resume();
+      return;
+    }
+    try {
+      AC = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) {
+      return;
+    }
+    master = AC.createGain();
+    master.gain.value = 0.55;
+    master.connect(AC.destination);
+    noise2 = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate);
+    const d = noise2.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const src = AC.createBufferSource();
+    src.buffer = noise2;
+    src.loop = true;
+    windF = AC.createBiquadFilter();
+    windF.type = "bandpass";
+    windF.frequency.value = 500;
+    windF.Q.value = 0.6;
+    windG = AC.createGain();
+    windG.gain.value = 0;
+    src.connect(windF).connect(windG).connect(master);
+    src.start();
+    startMusic();
+  }
+  function setWind(speed) {
+    if (!AC) return;
+    const v = Math.min(1, Math.max(0, (speed - 8) / 50));
+    windG.gain.setTargetAtTime(v * 0.45, AC.currentTime, 0.1);
+    windF.frequency.setTargetAtTime(300 + v * 900, AC.currentTime, 0.1);
+  }
+  function nz(dur, type, f, vol, f2, dest = master, t = AC.currentTime) {
+    const s = AC.createBufferSource();
+    s.buffer = noise2;
+    const fl = AC.createBiquadFilter();
+    fl.type = type;
+    fl.frequency.value = f;
+    const g = AC.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(1e-3, t + dur);
+    if (f2) fl.frequency.exponentialRampToValueAtTime(f2, t + dur);
+    s.connect(fl).connect(g).connect(dest);
+    s.start(t, Math.random() * 1.5);
+    s.stop(t + dur + 0.05);
+  }
+  function tone(type, f1, f2, dur, vol, delay = 0, dest = master, t0 = AC.currentTime, attack = 0) {
+    const o = AC.createOscillator();
+    o.type = type;
+    const g = AC.createGain();
+    const t = t0 + delay;
+    o.frequency.setValueAtTime(f1, t);
+    o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+    if (attack) {
+      g.gain.setValueAtTime(1e-4, t);
+      g.gain.exponentialRampToValueAtTime(vol, t + attack);
+    } else g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(1e-3, t + dur);
+    o.connect(g).connect(dest);
+    o.start(t);
+    o.stop(t + dur + 0.05);
+  }
+  function sfx(n, v = 1) {
+    if (!audioOK()) return;
+    v = Math.max(0.01, v);
+    switch (n) {
+      case "thwip":
+        nz(0.13, "highpass", 2500, 0.35 * v, 6e3);
+        tone("triangle", 1400, 400, 0.07, 0.08 * v);
+        break;
+      case "punch":
+        tone("sine", 160, 45, 0.16, 0.7 * v);
+        nz(0.06, "lowpass", 1200, 0.4 * v);
+        break;
+      case "block":
+        tone("square", 900, 700, 0.08, 0.12 * v);
+        nz(0.1, "highpass", 3e3, 0.25 * v);
+        break;
+      case "shot":
+        nz(0.28, "lowpass", 2600, 0.55 * v, 300);
+        tone("square", 180, 60, 0.08, 0.12 * v);
+        break;
+      case "whoosh":
+        nz(0.3, "bandpass", 400, 0.3 * v, 2e3);
+        break;
+      case "land":
+        tone("sine", 100, 35, 0.25, 0.6 * v);
+        nz(0.15, "lowpass", 500, 0.3 * v);
+        break;
+      case "slam":
+        tone("sine", 70, 25, 0.6, 0.9 * v);
+        nz(0.5, "lowpass", 300, 0.6 * v);
+        break;
+      case "hurt":
+        tone("square", 220, 80, 0.2, 0.18 * v);
+        break;
+      case "splat":
+        nz(0.12, "bandpass", 900, 0.3 * v, 300);
+        break;
+      case "crash":
+        nz(0.7, "lowpass", 1800, 0.7 * v, 200);
+        tone("sawtooth", 120, 40, 0.5, 0.2 * v);
+        break;
+      case "ring":
+        tone("sine", 880, 1320, 0.15, 0.2 * v);
+        tone("sine", 1320, 1760, 0.15, 0.12 * v, 0.06);
+        break;
+      case "fin":
+        tone("sawtooth", 200, 800, 0.35, 0.12 * v);
+        nz(0.4, "bandpass", 800, 0.3 * v, 3e3);
+        break;
+      case "cola":
+        nz(0.06, "highpass", 2500, 0.6 * v, 8e3);
+        nz(0.9, "highpass", 5e3, 0.18 * v, 9e3);
+        tone("sine", 300, 120, 0.25, 0.15 * v, 0.9);
+        break;
+      // syk otwieranej puszki i lyk
+      case "horn":
+        tone("sawtooth", 392, 392, 0.3, 0.12 * v);
+        tone("sawtooth", 494, 494, 0.3, 0.1 * v);
+        break;
+      // klakson
+      case "pickup":
+        [660, 880, 1320].forEach((f, i) => tone("triangle", f, f, 0.18, 0.18, i * 0.08));
+        break;
+      case "level":
+        [523, 659, 784, 1046].forEach((f, i) => tone("triangle", f, f * 1.01, 0.3, 0.2, i * 0.1));
+        break;
+      case "win":
+        [392, 523, 659, 784].forEach((f, i) => tone("triangle", f, f, 0.25, 0.18, i * 0.09));
+        break;
+      case "alarm":
+        [0, 0.25].forEach((d) => tone("square", 700, 950, 0.22, 0.08, d));
+        break;
+      case "ui":
+        tone("sine", 900, 700, 0.05, 0.08);
+        break;
+    }
+  }
+  function startMusic() {
+    if (!AC || timer) return;
+    musicG = AC.createGain();
+    musicG.gain.value = musOn ? 0.5 : 0;
+    musicG.connect(master);
+    nextT = AC.currentTime + 0.1;
+    timer = setInterval(sched, 25);
+  }
+  function setMusic(on) {
+    musOn = on;
+    if (musicG) musicG.gain.setTargetAtTime(on ? 0.5 : 0, AC.currentTime, 0.3);
+  }
+  function setMusicMode(m) {
+    mode = m;
+  }
+  function sched() {
+    if (!AC || AC.state !== "running" || !musOn) {
+      if (AC) nextT = AC.currentTime + 0.1;
+      return;
+    }
+    while (nextT < AC.currentTime + 0.15) {
+      playStep(stepN, nextT);
+      stepN++;
+      nextT += S16;
+    }
+  }
+  function playStep(s, t) {
+    const bar2 = Math.floor(s / 16) % 4, st = s % 16, ch = PROG[bar2];
+    const fight = mode !== "calm", boss2 = mode === "boss";
+    if (st === 0) for (const n of ch) tone("triangle", mf(n), mf(n), S16 * 16, 0.035, 0, musicG, t, 0.4);
+    if (fight ? st % 2 === 0 : st % 4 === 0) {
+      const n = ch[0] - 24 + (st % 8 === 6 ? 12 : 0);
+      tone("sawtooth", mf(n), mf(n), S16 * 1.8, boss2 ? 0.09 : 0.07, 0, musicG, t);
+    }
+    if (fight || st % 2 === 0) {
+      const idx = fight ? st : st / 2, n = ch[idx % 3] + (Math.floor(idx / 3) % 2 ? 24 : 12);
+      tone("square", mf(n), mf(n), S16 * 0.9, fight ? 0.022 : 0.015, 0, musicG, t);
+    }
+    if (fight ? st % 4 === 0 : st === 0 || st === 8) tone("sine", 120, 40, 0.2, fight ? 0.45 : 0.25, 0, musicG, t);
+    if (fight && (st === 4 || st === 12)) nz(0.14, "highpass", 1500, 0.22, 0, musicG, t);
+    if (fight ? st % 2 === 0 : st % 4 === 2) nz(0.04, "highpass", 7e3, fight ? 0.08 : 0.04, 0, musicG, t);
+    if (boss2 && st % 8 === 7) tone("sine", 220, 80, 0.15, 0.25, 0, musicG, t);
+  }
+  function cityAmbience(dt, nearStreet) {
+    if (!audioOK()) return;
+    hornT -= dt;
+    sirenT -= dt;
+    if (hornT <= 0) {
+      hornT = 6 + Math.random() * 14;
+      if (nearStreet) {
+        const f = 330 + Math.random() * 120;
+        tone("square", f, f, 0.25, 0.035);
+        tone("square", f * 1.26, f * 1.26, 0.25, 0.025);
+      }
+    }
+    if (sirenT <= 0) {
+      sirenT = 30 + Math.random() * 40;
+      for (let i = 0; i < 6; i++) tone("sine", i % 2 ? 900 : 650, i % 2 ? 650 : 900, 0.5, 0.02, i * 0.5);
+    }
+  }
+  var AC, master, noise2, windG, windF, audioOK, musicG, musOn, mode, stepN, nextT, timer, BPM, S16, PROG, mf, hornT, sirenT;
+  var init_dzwiek = __esm({
+    "js/dzwiek.js"() {
+      AC = null;
+      master = null;
+      noise2 = null;
+      windG = null;
+      windF = null;
+      audioOK = () => AC && AC.state === "running";
+      musicG = null;
+      musOn = true;
+      mode = "calm";
+      stepN = 0;
+      nextT = 0;
+      timer = null;
+      BPM = 118;
+      S16 = 60 / BPM / 4;
+      PROG = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]];
+      mf = (m) => 440 * Math.pow(2, (m - 69) / 12);
+      hornT = 6;
+      sirenT = 25;
+    }
+  });
+
+  // js/docinki.js
+  function bar() {
+    const st = document.createElement("style");
+    st.textContent = "#quip{position:fixed;left:50%;bottom:190px;transform:translateX(-50%);z-index:6;max-width:720px;padding:9px 20px 10px;background:rgba(5,16,26,.82);border-left:4px solid #e8232b;font:600 20px/1.3 Rajdhani,Arial,sans-serif;color:#fff;opacity:0;transition:opacity .35s;pointer-events:none;text-shadow:0 1px 6px rgba(0,0,0,.6)}#quip b{display:block;font-size:12px;letter-spacing:3px;color:#ff5a5f;margin-bottom:1px}";
+    document.head.appendChild(st);
+    el = document.createElement("div");
+    el.id = "quip";
+    el.innerHTML = "<b>SPIDER-MAN</b><span></span>";
+    document.body.appendChild(el);
+  }
+  function speak(t) {
+    try {
+      const ss = window.speechSynthesis;
+      if (!save.voice || !ss) return;
+      const v = ss.getVoices().find((x) => /^pl/i.test(x.lang));
+      if (!v) return;
+      ss.cancel();
+      const u = new SpeechSynthesisUtterance(t);
+      u.voice = v;
+      u.lang = v.lang;
+      u.rate = 1.06;
+      u.pitch = 1.25;
+      u.volume = 0.9;
+      ss.speak(u);
+    } catch (e) {
+    }
+  }
+  function show(t) {
+    if (!el) bar();
+    el.querySelector("span").textContent = t;
+    el.style.opacity = 1;
+    hideT = 3.2 + t.length * 0.045;
+    speak(t);
+  }
+  function say(kind, force) {
+    const q = Q[kind];
+    if (!q || G.state !== "play" || G.cine) return false;
+    if (!force && (gcd > 0 || (kcd[kind] || 0) > 0 || Math.random() > q.p)) return false;
+    let i = Math.floor(Math.random() * q.l.length);
+    if (q.l.length > 1 && i === lastIdx[kind]) i = (i + 1) % q.l.length;
+    lastIdx[kind] = i;
+    show(q.l[i]);
+    kcd[kind] = q.cd;
+    gcd = 6;
+    return true;
+  }
+  function updateQuips(dt) {
+    gcd -= dt;
+    for (const k in kcd) kcd[k] -= dt;
+    if (hideT > 0) {
+      hideT -= dt;
+      if (hideT <= 0 && el) el.style.opacity = 0;
+    }
+    if (G.state !== "play" || G.cine) {
+      prevState = "";
+      return;
+    }
+    if (startT > 0) {
+      startT -= dt;
+      if (startT <= 0) say(save.tod === "night" ? "night" : save.tod === "day" ? "day" : "sunset", true);
+    }
+    const st = P.state;
+    if (st === "swing" && prevState !== "swing") say("swing");
+    prevState = st;
+    const hs = Math.hypot(P.vel.x, P.vel.z);
+    if (st === "ground" && hs < 0.5 && !P.atk && !P.dead) {
+      idleT += dt;
+      if (idleT > (P.perchT > 0 ? 6 : 14)) {
+        idleT = 0;
+        say(P.perchT > 0 ? "perch" : "idle", true);
+      }
+    } else idleT = 0;
+    if (P.combo >= 6) {
+      if (!comboSaid) {
+        comboSaid = true;
+        say("combo");
+      }
+    } else if (P.combo < 2) comboSaid = false;
+    if (!P.dead && P.hp <= 30) {
+      if (!lowSaid) {
+        lowSaid = true;
+        say("lowhp");
+      }
+    } else if (P.hp > 60) lowSaid = false;
+  }
+  var Q, el, hideT, gcd, startT, prevState, idleT, comboSaid, lowSaid, kcd, lastIdx, quipStart;
+  var init_docinki = __esm({
+    "js/docinki.js"() {
+      init_stan();
+      init_util();
+      Q = {
+        hit: { p: 0.1, cd: 12, l: ["Zostaw to, wygl\u0105dasz na zm\u0119czonego.", "Bez urazy, to tylko przyjacielska pi\u0119\u015B\u0107!", "Przepraszam, \u017Ce przerywam napad.", "Au\u0107, to musia\u0142o bole\u0107. Mnie te\u017C. Troch\u0119.", "Dasz rad\u0119 wsta\u0107? Bo zaraz powt\xF3rka.", "Ej, ja tu tylko przechodzi\u0142em!"] },
+        finisher: { p: 0.55, cd: 8, l: ["I po zawodach!", "Zapakowany na prezent!", "Efektowne, prawda? Nie klaszcz, nie trzeba.", "Teraz mo\u017Cesz sobie odpocz\u0105\u0107 w sieci.", "Dobranoc, panie bandyto!"] },
+        web: { p: 0.08, cd: 14, l: ["Sie\u0107 paj\u0105ka \u2014 lepsza ni\u017C kajdanki!", "Zosta\u0144 tu, zaraz wracam!", "Mam ich ca\u0142\u0105 kolekcj\u0119. Sieci, nie bandyt\xF3w."] },
+        combo: { p: 0.6, cd: 25, l: ["Rozgrzewka zaliczona!", "Czuj\u0119 si\u0119 dzi\u015B w formie!", "Kto\u015B tu zas\u0142u\u017Cy\u0142 na ocen\u0119 dziesi\u0119\u0107!"] },
+        swing: { p: 0.07, cd: 30, l: ["Uwielbiam to bujanie!", "Tarzan m\xF3g\u0142by si\u0119 czego\u015B nauczy\u0107.", "Wiatr we w\u0142osach... gdyby nie maska.", "Pi\u0119kne miasto. Szkoda, \u017Ce nie da si\u0119 go zaparkowa\u0107.", "Kto potrzebuje metra?"] },
+        hero: { p: 0.5, cd: 20, l: ["L\u0105dowanie na dziesi\u0105tk\u0119! No, mo\u017Ce na \xF3semk\u0119.", "Tak mia\u0142o by\u0107. Zaplanowa\u0142em to.", "Nic si\u0119 nie sta\u0142o! Naprawd\u0119!"] },
+        hurt: { p: 0.18, cd: 10, l: ["Au! To mia\u0142o by\u0107 na niby!", "Ej! Mam kruchy kr\u0119gos\u0142up... teoretycznie.", "To bola\u0142o bardziej ni\u017C kolejka do kasy.", "Dobra, teraz ju\u017C si\u0119 zdenerwowa\u0142em."] },
+        lowhp: { p: 0.9, cd: 40, l: ["Dobra, mo\u017Ce jednak trzeba by\u0142o zosta\u0107 w \u0142\xF3\u017Cku.", "Czy kto\u015B ma jeszcze col\u0119?", "Jeszcze tylko chwilk\u0119... wytrzyma\u0107."] },
+        cola: { p: 1, cd: 5, l: ["Zimna cola \u2014 najlepsza bro\u0144 w arsenale!", "Cola za darmo? Kocham to miasto!", "To si\u0119 nazywa pe\u0142ne zdrowie. Dzi\u0119ki, szefie!"] },
+        room: { p: 0.45, cd: 30, l: ["Dzie\u0144 dobry, tylko ogl\u0105dam!", "Spokojnie, niczego nie b\u0119d\u0119 \u0142apa\u0142... sieciami.", "Czy tu mo\u017Cna zaparkowa\u0107 sie\u0107?", "Przepraszam za naj\u015Bcie. Jestem z s\u0105siedztwa."] },
+        crime: { p: 0.7, cd: 15, l: ["Kolejny dzie\u0144, kolejny z\u0142odziej.", "Nie dzi\u0119kuj, to moja praca. Niezap\u0142acona.", "Wszystko pod kontrol\u0105. Mniej wi\u0119cej.", "Przyjazny paj\u0105k z s\u0105siedztwa na posterunku!"] },
+        carstop: { p: 0.8, cd: 35, l: ["Dzi\u0119ki, \u017Ce si\u0119 zatrzyma\u0142e\u015B! Zazwyczaj tylko mnie tr\u0105bi\u0105.", "Nowy Jork i kierowcy, kt\xF3rzy hamuj\u0105? Cud!", "Spokojnie, panie taks\xF3wkarzu, nie rzucam si\u0119 pod ko\u0142a. Dzi\u015B.", "Mi\u0142o, \u017Ce kto\u015B tu przestrzega przepis\xF3w."] },
+        rhino: { p: 1, cd: 60, l: ["Rogaty kolega! Kto\u015B tu potrzebuje urlopu.", "Nosoro\u017Cec? Dawno nie widzia\u0142em takiej g\xF3ry mi\u0119\u015Bni.", "Spokojnie, wielkoludzie, rozmawiajmy jak cywilizowani... no dobra, nie."] },
+        fisk: { p: 1, cd: 60, l: ["Panie Fisk, \u0142adna wie\u017Ca. Szkoda by\u0142oby jej nie zburzy\u0107.", "Kingpin? Wola\u0142em pana, kiedy pan jad\u0142 obiad.", "Niez\u0142a laska. Szkoda, \u017Ce tylko do chodzenia."] },
+        idle: { p: 1, cd: 40, l: ["Wiesz, \u017Ce nic nie robi\u0119? To te\u017C praca.", "Czy kto\u015B widzia\u0142 moj\u0105 kaw\u0119?", "Tak sobie my\u015Bl\u0119... mo\u017Ce zmieni\u0107 kostium na \u017C\xF3\u0142ty?", "To miasto nigdy nie \u015Bpi. Ja te\u017C nie. Niestety."] },
+        perch: { p: 0.5, cd: 40, l: ["Z tej wysoko\u015Bci wszystko wygl\u0105da lepiej.", "Chwila oddechu... i znowu do roboty.", "\u0141adny widok, prawda?"] },
+        sunset: { p: 1, cd: 999, l: ["Z\u0142ota godzina nad Nowym Jorkiem. Mo\u017Cna si\u0119 zakocha\u0107.", "Taki zach\xF3d s\u0142o\u0144ca i jeszcze mam prac\u0119. \u017Bycie jest pi\u0119kne."] },
+        night: { p: 1, cd: 999, l: ["Noc w mie\u015Bcie. Idealny czas na k\u0142opoty.", "\u015Awiat\u0142a, kamera... paj\u0105k!"] },
+        day: { p: 1, cd: 999, l: ["Pi\u0119kny dzie\u0144 na ratowanie miasta.", "S\u0142o\u0144ce \u015Bwieci, ptaki \u015Bpiewaj\u0105, a ja bujam si\u0119 na sieci."] }
+      };
+      el = null;
+      hideT = 0;
+      gcd = 4;
+      startT = 0;
+      prevState = "";
+      idleT = 0;
+      comboSaid = false;
+      lowSaid = false;
+      kcd = {};
+      lastIdx = {};
+      quipStart = () => {
+        startT = 5;
+      };
+    }
+  });
+
   // js/ulica.js
   function streetMat(veh) {
     const m = new THREE.MeshStandardMaterial({ color: 16777215, vertexColors: true, roughness: 1, metalness: 0 });
@@ -3196,8 +3551,13 @@ vec3 pedP = position;
     return m;
   }
   function tpl(parts) {
-    const P2 = [], N = [], Cc = [], V = [], I = [];
+    const P2 = [], N = [], Cc = [], V = [], I = [], lamps = { head: [], tail: [] };
     for (const [g, hex, k = "m", paint = 0] of parts) {
+      if (k === "head" || k === "tail") {
+        g.computeBoundingBox();
+        const c2 = g.boundingBox.getCenter(new THREE.Vector3());
+        lamps[k].push([c2.x, c2.y, c2.z]);
+      }
       const off = P2.length / 3, p = g.attributes.position, n = g.attributes.normal, M = MT[k], c = lin(hex);
       for (let i = 0; i < p.count; i++) {
         P2.push(p.getX(i), p.getY(i), p.getZ(i));
@@ -3208,7 +3568,7 @@ vec3 pedP = position;
       if (g.index) for (let i = 0; i < g.index.count; i++) I.push(g.index.getX(i) + off);
       else for (let i = 0; i < p.count; i++) I.push(i + off);
     }
-    return { p: new Float32Array(P2), n: new Float32Array(N), c: new Float32Array(Cc), v: new Float32Array(V), i: new Uint32Array(I), cnt: P2.length / 3 };
+    return { p: new Float32Array(P2), n: new Float32Array(N), c: new Float32Array(Cc), v: new Float32Array(V), i: new Uint32Array(I), cnt: P2.length / 3, lamps };
   }
   function tplGeo(T) {
     const g = new THREE.BufferGeometry();
@@ -3938,6 +4298,7 @@ vec3 pedP = position;
           v.z = z + rb(-0.12, 0.12);
           v.yaw = side > 0 ? Math.PI / 2 : -Math.PI / 2;
           parked.push(v);
+          addBox({ x0: v.x - v.hl, x1: v.x + v.hl, y0: 0, y1: 1.5, z0: v.z - v.sc[0], z1: v.z + v.sc[0] });
         }
         x += 2 * v.hl + rb(0.9, 2.6);
       }
@@ -3964,19 +4325,27 @@ vec3 pedP = position;
       scene.add(m);
       VT[k].mesh = m;
     }
-    headL = glowPoints(new Array(nMoving * 3).fill(0), 16773840, 2.6);
-    tailL = glowPoints(new Array(nMoving * 3).fill(0), 16719904, 1.8);
+    headL = glowPoints(new Array(nMoving * 4 * 3).fill(0), 16773840, 1.5);
+    tailL = glowPoints(new Array(nMoving * 4 * 3).fill(0), 16719904, 1.1);
   }
   function stepLane(L, dt) {
-    const n = L.list.length, Q0 = L.ax === "z" ? Z0 : X0, Q = L.ax === "z" ? CZ : CX, NQ = L.ax === "z" ? NZ : NX;
+    const n = L.list.length, Q0 = L.ax === "z" ? Z0 : X0, Q2 = L.ax === "z" ? CZ : CX, NQ = L.ax === "z" ? NZ : NX;
     for (let k = 0; k < n; k++) {
       const c = L.list[k], ld = L.list[(k + 1) % n];
-      const gap = n > 1 ? ((ld.s - c.s) % L.len + L.len) % L.len - ld.hl - c.hl : 1e9;
+      let gap = n > 1 ? ((ld.s - c.s) % L.len + L.len) % L.len - ld.hl - c.hl : 1e9;
       const p = L.dir > 0 ? L.st + c.s : L.st + L.len - c.s, front = p + L.dir * c.hl;
+      let blockP = false;
+      if (P.pos.y < 3.2 && P.state !== "car" && !P.dead) {
+        const along = L.ax === "z" ? P.pos.z : P.pos.x, lat = (L.ax === "z" ? P.pos.x : P.pos.z) - L.c, dP = (along - front) * L.dir;
+        if (Math.abs(lat) < 1.2 * c.sc[0] + 0.55 && dP > -2 * c.hl - 0.6 && dP < 40 && dP - 0.45 < gap) {
+          gap = dP - 0.45;
+          blockP = true;
+        }
+      }
       let vt = c.vmax;
-      const k2 = L.dir > 0 ? Math.ceil((front - 0.5 + 13.5 - Q0) / Q) : Math.floor((front + 0.5 - 13.5 - Q0) / Q);
+      const k2 = L.dir > 0 ? Math.ceil((front - 0.5 + 13.5 - Q0) / Q2) : Math.floor((front + 0.5 - 13.5 - Q0) / Q2);
       if (k2 >= 0 && k2 <= NQ) {
-        const q = Q0 + k2 * Q, dS = L.dir > 0 ? q - 13.5 - front : front - (q + 13.5);
+        const q = Q0 + k2 * Q2, dS = L.dir > 0 ? q - 13.5 - front : front - (q + 13.5);
         const ii = L.ax === "z" ? L.i : k2, jj = L.ax === "z" ? k2 : L.j;
         if (dS < 70 && !parkIsec(ii, jj)) {
           const st = sigState(ii, jj, L.ax);
@@ -3987,6 +4356,11 @@ vec3 pedP = position;
       const was = c.v;
       c.v = vt > c.v ? Math.min(vt, c.v + 2.8 * dt) : Math.max(vt, c.v - 9 * dt);
       c.v = Math.max(0, Math.min(c.v, (gap - 1.2) / Math.max(dt, 1e-3)));
+      if (blockP && c.v < 0.8 && hornT2 <= 0) {
+        hornT2 = 3 + Math.random() * 3;
+        sfx("horn", 0.5);
+        say("carstop");
+      }
       const br = c.v < was - 0.01 || c.v < 0.4 ? 1 : 0;
       c.brake += (br - c.brake) * Math.min(1, dt * 8);
       c.s += c.v * dt;
@@ -4031,6 +4405,7 @@ vec3 pedP = position;
     var _a4;
     if (!VT) return;
     dt = Math.min(dt, 0.1);
+    hornT2 -= dt;
     U.lamp.value = (_a4 = LAMPS[todName]) != null ? _a4 : 0.6;
     if (bladeMat) bladeMat.emissiveIntensity = 0.12 + U.lamp.value * 1.3;
     updateSignals(false);
@@ -4041,7 +4416,8 @@ vec3 pedP = position;
     const R1 = hiCam ? 600 : 420, R2 = hiCam ? 320 : 230;
     for (const k in VT) VT[k].mesh.count = 0;
     const hp = headL.geometry.attributes.position, tp = tailL.geometry.attributes.position;
-    let nl = 0;
+    let nh = 0, nt = 0;
+    const hMax = nMoving * 4;
     const vis = (v, R3) => {
       const dx = v.x - cx, dz = v.z - cz, d2 = dx * dx + dz * dz;
       return d2 < R3 * R3 && (d2 < 400 || dx * fx + dz * fz > -15);
@@ -4050,10 +4426,17 @@ vec3 pedP = position;
       if (inPark(v.x, v.z) || !vis(v, R1)) continue;
       const m = VT[v.type].mesh;
       writeInst(m, m.count++, v);
-      const sx = Math.sin(v.yaw), sz = Math.cos(v.yaw), hy = v.type === "bus" ? 0.75 : v.type === "truck" ? 0.92 : 0.74;
-      hp.setXYZ(nl, v.x + sx * (v.hl + 0.05), hy, v.z + sz * (v.hl + 0.05));
-      tp.setXYZ(nl, v.x - sx * (v.hl + 0.05), hy + 0.08, v.z - sz * (v.hl + 0.05));
-      nl++;
+      const c = Math.cos(v.yaw), sn = Math.sin(v.yaw), kx = v.sc[0], ky = v.sc[1], kz = v.sc[2], LP = VT[v.type].t.lamps;
+      for (const [lx, ly, lz] of LP.head) {
+        if (nh >= hMax) break;
+        const z0 = lz + 0.1;
+        hp.setXYZ(nh++, v.x + c * kx * lx + sn * kz * z0, ly * ky, v.z - sn * kx * lx + c * kz * z0);
+      }
+      for (const [lx, ly, lz] of LP.tail) {
+        if (nt >= hMax) break;
+        const z0 = lz - 0.1;
+        tp.setXYZ(nt++, v.x + c * kx * lx + sn * kz * z0, ly * ky, v.z - sn * kx * lx + c * kz * z0);
+      }
     }
     for (const v of parked) {
       if (!vis(v, R2)) continue;
@@ -4066,14 +4449,16 @@ vec3 pedP = position;
       m.instanceColor.needsUpdate = true;
       m.geometry.attributes.aBrake.needsUpdate = true;
     }
-    headL.geometry.setDrawRange(0, nl);
-    tailL.geometry.setDrawRange(0, nl);
+    headL.geometry.setDrawRange(0, nh);
+    tailL.geometry.setDrawRange(0, nt);
     hp.needsUpdate = tp.needsUpdate = true;
   }
-  var rs, rr, rb, pick2, LC, lin, U, LAMPS, MT, B, C3, Sph, SCH, chunks, grow, boxAt, PT, lampList, poles, lensMesh, lensGlow, CYC, sigOff, SIGC, GLOWC, BLADES, bladeMat, sheds, inShed, capped, shadowQ, lanes, parked, VT, vehMat, headL, tailL, nMoving, TAXI, CARC, SUVC, TRKC, parkIsec, _f;
+  var rs, rr, rb, pick2, LC, lin, U, LAMPS, MT, B, C3, Sph, SCH, chunks, grow, boxAt, PT, lampList, poles, lensMesh, lensGlow, CYC, sigOff, SIGC, GLOWC, BLADES, bladeMat, sheds, inShed, capped, shadowQ, lanes, parked, hornT2, VT, vehMat, headL, tailL, nMoving, TAXI, CARC, SUVC, TRKC, parkIsec, _f;
   var init_ulica = __esm({
     "js/ulica.js"() {
       init_stan();
+      init_dzwiek();
+      init_docinki();
       init_miasto();
       rs = 91733;
       rr = () => {
@@ -4142,6 +4527,7 @@ vec3 pedP = position;
       shadowQ = (w, l, z = 0) => [new THREE.PlaneGeometry(w, l).rotateX(-Math.PI / 2).translate(0, 0.035, z), 0, "r"];
       lanes = [];
       parked = [];
+      hornT2 = 0;
       VT = null;
       vehMat = null;
       headL = null;
@@ -4288,8 +4674,8 @@ vec3 pedP = position;
       s = { p: [], n: [], u: [], c: [] };
       g.chunks.set(key2, s);
     }
-    for (const [Q, U2] of [[a, ua], [b, ub], [c, uc], [a, ua], [c, uc], [d, ud]]) {
-      s.p.push(Q[0], Q[1], Q[2]);
+    for (const [Q2, U2] of [[a, ua], [b, ub], [c, uc], [a, ua], [c, uc], [d, ud]]) {
+      s.p.push(Q2[0], Q2[1], Q2[2]);
       s.n.push(n[0], n[1], n[2]);
       s.u.push(U2[0], U2[1]);
       s.c.push(cur.tint[0], cur.tint[1], cur.tint[2]);
@@ -7001,7 +7387,7 @@ vec3 pedP = position;
   });
 
   // js/postac.js
-  function el(mat, sx, sy, sz, x = 0, y = 0, z = 0, geo = SG) {
+  function el2(mat, sx, sy, sz, x = 0, y = 0, z = 0, geo = SG) {
     const m = new THREE.Mesh(geo, mat);
     m.scale.set(sx, sy, sz);
     m.position.set(x, y, z);
@@ -7243,228 +7629,6 @@ vec3 pedP = position;
       ];
       suitById = (id) => SUITS.find((s) => s.id === id);
       _webMat = null;
-    }
-  });
-
-  // js/dzwiek.js
-  function initAudio() {
-    if (AC) {
-      if (AC.state === "suspended") AC.resume();
-      return;
-    }
-    try {
-      AC = new (window.AudioContext || window.webkitAudioContext)();
-    } catch (e) {
-      return;
-    }
-    master = AC.createGain();
-    master.gain.value = 0.55;
-    master.connect(AC.destination);
-    noise2 = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate);
-    const d = noise2.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-    const src = AC.createBufferSource();
-    src.buffer = noise2;
-    src.loop = true;
-    windF = AC.createBiquadFilter();
-    windF.type = "bandpass";
-    windF.frequency.value = 500;
-    windF.Q.value = 0.6;
-    windG = AC.createGain();
-    windG.gain.value = 0;
-    src.connect(windF).connect(windG).connect(master);
-    src.start();
-    startMusic();
-  }
-  function setWind(speed) {
-    if (!AC) return;
-    const v = Math.min(1, Math.max(0, (speed - 8) / 50));
-    windG.gain.setTargetAtTime(v * 0.45, AC.currentTime, 0.1);
-    windF.frequency.setTargetAtTime(300 + v * 900, AC.currentTime, 0.1);
-  }
-  function nz(dur, type, f, vol, f2, dest = master, t = AC.currentTime) {
-    const s = AC.createBufferSource();
-    s.buffer = noise2;
-    const fl = AC.createBiquadFilter();
-    fl.type = type;
-    fl.frequency.value = f;
-    const g = AC.createGain();
-    g.gain.setValueAtTime(vol, t);
-    g.gain.exponentialRampToValueAtTime(1e-3, t + dur);
-    if (f2) fl.frequency.exponentialRampToValueAtTime(f2, t + dur);
-    s.connect(fl).connect(g).connect(dest);
-    s.start(t, Math.random() * 1.5);
-    s.stop(t + dur + 0.05);
-  }
-  function tone(type, f1, f2, dur, vol, delay = 0, dest = master, t0 = AC.currentTime, attack = 0) {
-    const o = AC.createOscillator();
-    o.type = type;
-    const g = AC.createGain();
-    const t = t0 + delay;
-    o.frequency.setValueAtTime(f1, t);
-    o.frequency.exponentialRampToValueAtTime(f2, t + dur);
-    if (attack) {
-      g.gain.setValueAtTime(1e-4, t);
-      g.gain.exponentialRampToValueAtTime(vol, t + attack);
-    } else g.gain.setValueAtTime(vol, t);
-    g.gain.exponentialRampToValueAtTime(1e-3, t + dur);
-    o.connect(g).connect(dest);
-    o.start(t);
-    o.stop(t + dur + 0.05);
-  }
-  function sfx(n, v = 1) {
-    if (!audioOK()) return;
-    v = Math.max(0.01, v);
-    switch (n) {
-      case "thwip":
-        nz(0.13, "highpass", 2500, 0.35 * v, 6e3);
-        tone("triangle", 1400, 400, 0.07, 0.08 * v);
-        break;
-      case "punch":
-        tone("sine", 160, 45, 0.16, 0.7 * v);
-        nz(0.06, "lowpass", 1200, 0.4 * v);
-        break;
-      case "block":
-        tone("square", 900, 700, 0.08, 0.12 * v);
-        nz(0.1, "highpass", 3e3, 0.25 * v);
-        break;
-      case "shot":
-        nz(0.28, "lowpass", 2600, 0.55 * v, 300);
-        tone("square", 180, 60, 0.08, 0.12 * v);
-        break;
-      case "whoosh":
-        nz(0.3, "bandpass", 400, 0.3 * v, 2e3);
-        break;
-      case "land":
-        tone("sine", 100, 35, 0.25, 0.6 * v);
-        nz(0.15, "lowpass", 500, 0.3 * v);
-        break;
-      case "slam":
-        tone("sine", 70, 25, 0.6, 0.9 * v);
-        nz(0.5, "lowpass", 300, 0.6 * v);
-        break;
-      case "hurt":
-        tone("square", 220, 80, 0.2, 0.18 * v);
-        break;
-      case "splat":
-        nz(0.12, "bandpass", 900, 0.3 * v, 300);
-        break;
-      case "crash":
-        nz(0.7, "lowpass", 1800, 0.7 * v, 200);
-        tone("sawtooth", 120, 40, 0.5, 0.2 * v);
-        break;
-      case "ring":
-        tone("sine", 880, 1320, 0.15, 0.2 * v);
-        tone("sine", 1320, 1760, 0.15, 0.12 * v, 0.06);
-        break;
-      case "fin":
-        tone("sawtooth", 200, 800, 0.35, 0.12 * v);
-        nz(0.4, "bandpass", 800, 0.3 * v, 3e3);
-        break;
-      case "cola":
-        nz(0.06, "highpass", 2500, 0.6 * v, 8e3);
-        nz(0.9, "highpass", 5e3, 0.18 * v, 9e3);
-        tone("sine", 300, 120, 0.25, 0.15 * v, 0.9);
-        break;
-      // syk otwieranej puszki i lyk
-      case "pickup":
-        [660, 880, 1320].forEach((f, i) => tone("triangle", f, f, 0.18, 0.18, i * 0.08));
-        break;
-      case "level":
-        [523, 659, 784, 1046].forEach((f, i) => tone("triangle", f, f * 1.01, 0.3, 0.2, i * 0.1));
-        break;
-      case "win":
-        [392, 523, 659, 784].forEach((f, i) => tone("triangle", f, f, 0.25, 0.18, i * 0.09));
-        break;
-      case "alarm":
-        [0, 0.25].forEach((d) => tone("square", 700, 950, 0.22, 0.08, d));
-        break;
-      case "ui":
-        tone("sine", 900, 700, 0.05, 0.08);
-        break;
-    }
-  }
-  function startMusic() {
-    if (!AC || timer) return;
-    musicG = AC.createGain();
-    musicG.gain.value = musOn ? 0.5 : 0;
-    musicG.connect(master);
-    nextT = AC.currentTime + 0.1;
-    timer = setInterval(sched, 25);
-  }
-  function setMusic(on) {
-    musOn = on;
-    if (musicG) musicG.gain.setTargetAtTime(on ? 0.5 : 0, AC.currentTime, 0.3);
-  }
-  function setMusicMode(m) {
-    mode = m;
-  }
-  function sched() {
-    if (!AC || AC.state !== "running" || !musOn) {
-      if (AC) nextT = AC.currentTime + 0.1;
-      return;
-    }
-    while (nextT < AC.currentTime + 0.15) {
-      playStep(stepN, nextT);
-      stepN++;
-      nextT += S16;
-    }
-  }
-  function playStep(s, t) {
-    const bar = Math.floor(s / 16) % 4, st = s % 16, ch = PROG[bar];
-    const fight = mode !== "calm", boss2 = mode === "boss";
-    if (st === 0) for (const n of ch) tone("triangle", mf(n), mf(n), S16 * 16, 0.035, 0, musicG, t, 0.4);
-    if (fight ? st % 2 === 0 : st % 4 === 0) {
-      const n = ch[0] - 24 + (st % 8 === 6 ? 12 : 0);
-      tone("sawtooth", mf(n), mf(n), S16 * 1.8, boss2 ? 0.09 : 0.07, 0, musicG, t);
-    }
-    if (fight || st % 2 === 0) {
-      const idx = fight ? st : st / 2, n = ch[idx % 3] + (Math.floor(idx / 3) % 2 ? 24 : 12);
-      tone("square", mf(n), mf(n), S16 * 0.9, fight ? 0.022 : 0.015, 0, musicG, t);
-    }
-    if (fight ? st % 4 === 0 : st === 0 || st === 8) tone("sine", 120, 40, 0.2, fight ? 0.45 : 0.25, 0, musicG, t);
-    if (fight && (st === 4 || st === 12)) nz(0.14, "highpass", 1500, 0.22, 0, musicG, t);
-    if (fight ? st % 2 === 0 : st % 4 === 2) nz(0.04, "highpass", 7e3, fight ? 0.08 : 0.04, 0, musicG, t);
-    if (boss2 && st % 8 === 7) tone("sine", 220, 80, 0.15, 0.25, 0, musicG, t);
-  }
-  function cityAmbience(dt, nearStreet) {
-    if (!audioOK()) return;
-    hornT -= dt;
-    sirenT -= dt;
-    if (hornT <= 0) {
-      hornT = 6 + Math.random() * 14;
-      if (nearStreet) {
-        const f = 330 + Math.random() * 120;
-        tone("square", f, f, 0.25, 0.035);
-        tone("square", f * 1.26, f * 1.26, 0.25, 0.025);
-      }
-    }
-    if (sirenT <= 0) {
-      sirenT = 30 + Math.random() * 40;
-      for (let i = 0; i < 6; i++) tone("sine", i % 2 ? 900 : 650, i % 2 ? 650 : 900, 0.5, 0.02, i * 0.5);
-    }
-  }
-  var AC, master, noise2, windG, windF, audioOK, musicG, musOn, mode, stepN, nextT, timer, BPM, S16, PROG, mf, hornT, sirenT;
-  var init_dzwiek = __esm({
-    "js/dzwiek.js"() {
-      AC = null;
-      master = null;
-      noise2 = null;
-      windG = null;
-      windF = null;
-      audioOK = () => AC && AC.state === "running";
-      musicG = null;
-      musOn = true;
-      mode = "calm";
-      stepN = 0;
-      nextT = 0;
-      timer = null;
-      BPM = 118;
-      S16 = 60 / BPM / 4;
-      PROG = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]];
-      mf = (m) => 440 * Math.pow(2, (m - 69) / 12);
-      hornT = 6;
-      sirenT = 25;
     }
   });
 
@@ -9124,6 +9288,7 @@ vec3 pedP = position;
     return best;
   }
   function shootWeb() {
+    say("web");
     const best = webTarget();
     P.H.handR.getWorldPosition(_h);
     const pt = new V3();
@@ -9209,6 +9374,7 @@ vec3 pedP = position;
   }
   function finishEnemy(e) {
     if (e.dead || e.gone) return;
+    say("finisher");
     burst(e.pos.x, e.pos.y + 1, e.pos.z, 30, 16777215, 6);
     if (e.type === "boss") {
       (e.finFn || bossFinish)(e);
@@ -9258,10 +9424,10 @@ vec3 pedP = position;
       H.elR.add(wpn);
       H.setHands("open", "fist");
     }
-    const cocoon = el(webMaterial(), 0.34, 0.98, 0.32, 0, 0.9, 0);
+    const cocoon = el2(webMaterial(), 0.34, 0.98, 0.32, 0, 0.9, 0);
     cocoon.visible = false;
     H.root.add(cocoon);
-    const blob = el(webMaterial(), 0.14, 0.12, 0.08, 0, 0.12, 0.12);
+    const blob = el2(webMaterial(), 0.14, 0.12, 0.08, 0, 0.12, 0.12);
     blob.visible = false;
     H.chest.add(blob);
     scene.add(H.root);
@@ -9333,6 +9499,7 @@ vec3 pedP = position;
   }
   function hitEnemy(e, dmg, kx, ky, kz, launch, fromAir) {
     if (e.dead || e.gone) return false;
+    say("hit");
     if (e.type === "boss") return (e.hit || bossHit)(e, dmg * dmgMul(), launch);
     if (e.type === "brute" && e.stunT <= 0 && !fromAir && e.state !== "hurt") {
       burst(e.pos.x, e.pos.y + 1.6, e.pos.z, 8, 10475775, 3);
@@ -9705,6 +9872,7 @@ vec3 pedP = position;
           doSave();
           sfx("win");
           showMsg("PRZEST\u0118PSTWO UDAREMNIONE", "+300 PD", 3);
+          say("crime");
         }
       } else {
         cr2.clearT += dt;
@@ -9773,6 +9941,7 @@ vec3 pedP = position;
       init_misje();
       init_umiejetnosci();
       init_dzwiek();
+      init_docinki();
       init_wejscie();
       init_ui();
       _t2 = new V3();
@@ -10162,8 +10331,8 @@ vec3 pedP = position;
     updateFlare();
   }
   function updateFlare() {
-    const el2 = $("flare");
-    if (!el2) return;
+    const el3 = $("flare");
+    if (!el3) return;
     let want = 0;
     if (G.state === "play" && !G.cine && !G.interior && save.tod !== "night") {
       _sf.copy(camera.position).addScaledVector(sunDir, 1500).project(camera);
@@ -10172,12 +10341,12 @@ vec3 pedP = position;
         const blocked = raycastCity(camera.position, _so, 700) < 699;
         if (!blocked) {
           want = Math.max(0, 1 - Math.hypot(_sf.x, _sf.y) * 0.55) * (save.tod === "day" ? 0.55 : 1);
-          el2.style.transform = `translate(${(_sf.x * 0.5 + 0.5) * innerWidth}px,${(-_sf.y * 0.5 + 0.5) * innerHeight}px)`;
+          el3.style.transform = `translate(${(_sf.x * 0.5 + 0.5) * innerWidth}px,${(-_sf.y * 0.5 + 0.5) * innerHeight}px)`;
         }
       }
     }
     flareK += (want - flareK) * 0.12;
-    el2.style.opacity = flareK.toFixed(3);
+    el3.style.opacity = flareK.toFixed(3);
   }
   function menuItems() {
     return [
@@ -10190,6 +10359,7 @@ vec3 pedP = position;
       ["moves", "STEROWANIE"],
       ["tod", todLabel()],
       ["music", musLabel()],
+      ["voice", voiceLabel()],
       ["gfx", gfxLabel()]
     ];
   }
@@ -10238,7 +10408,7 @@ vec3 pedP = position;
       showMsg("SLOT " + n + " JEST PUSTY", "Najpierw zapisz gr\u0119: Pauza \u2192 Gra \u2192 Zapisz w slocie", 3);
       return;
     }
-    const keep = { gfx: save.gfx, tod: save.tod, music: save.music };
+    const keep = { gfx: save.gfx, tod: save.tod, music: save.music, voice: save.voice };
     delete sl.pct;
     Object.assign(save, sl, keep, { hasGame: true });
     doSave();
@@ -10287,6 +10457,9 @@ vec3 pedP = position;
       renderMenu();
     } else if (a === "music") {
       hooks.music();
+      renderMenu();
+    } else if (a === "voice") {
+      hooks.voice();
       renderMenu();
     }
   }
@@ -10684,7 +10857,7 @@ vec3 pedP = position;
     $("movesT").innerHTML = `<tr><th>RUCH</th><th>PAD</th><th>KLAWIATURA + MYSZ</th></tr>` + R2.map((r) => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join("");
   }
   function gameItems() {
-    const base = [["tod", todLabel()], ["music", musLabel()], ["gfx", gfxLabel()]];
+    const base = [["tod", todLabel()], ["music", musLabel()], ["voice", voiceLabel()], ["gfx", gfxLabel()]];
     return G.pauseFrom === "menu" ? [["back", "WR\xD3\u0106"], ...base] : [["resume", "WZN\xD3W GR\u0118"], ...SLOTS.map((n) => ["sv" + n, slotLabel(n, "ZAPISZ W SLOCIE")]), ...SLOTS.map((n) => ["ld" + n, slotLabel(n, "WCZYTAJ ZAPIS")]), ...base, ["new", newLabel()], ["menu", "MENU G\u0141\xD3WNE"]];
   }
   function renderGame() {
@@ -10730,6 +10903,9 @@ vec3 pedP = position;
       renderGame();
     } else if (a === "music") {
       hooks.music();
+      renderGame();
+    } else if (a === "voice") {
+      hooks.voice();
       renderGame();
     } else if (a === "menu") {
       $("pause").classList.add("hidden");
@@ -10809,7 +10985,7 @@ vec3 pedP = position;
     $("menu").classList.toggle("hidden", on);
     if (!on) renderMenu();
   }
-  var CSS, HTML, GLY, kk, msgT, dmgT, distT, distChk, promptT, lastPrompt, lastDist, popT, hintT, hintsShown, icoCrime, icoWP, progress, miniBase, MM, LN, _p, set, _sf, _so, flareK, gfxLabel, todLabel, musLabel, SLOTS, slotKey, fmtT, askNew, newLabel, footTxt, TABS, mapV, SV;
+  var CSS, HTML, GLY, kk, msgT, dmgT, distT, distChk, promptT, lastPrompt, lastDist, popT, hintT, hintsShown, icoCrime, icoWP, progress, miniBase, MM, LN, _p, set, _sf, _so, flareK, gfxLabel, todLabel, voiceLabel, musLabel, SLOTS, slotKey, fmtT, askNew, newLabel, footTxt, TABS, mapV, SV;
   var init_ui = __esm({
     "js/ui.js"() {
       init_util();
@@ -11031,6 +11207,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       flareK = 0;
       gfxLabel = () => "GRAFIKA: " + (save.gfx === "high" ? "WYSOKA" : "NISKA");
       todLabel = () => "PORA DNIA: " + TOD_NAMES[save.tod];
+      voiceLabel = () => "G\u0141OS SPIDER-MANA: " + (save.voice ? "W\u0141\u0104CZONY" : "WY\u0141\u0104CZONY");
       musLabel = () => "MUZYKA: " + (save.music ? "W\u0141\u0104CZONA" : "WY\u0141\u0104CZONA");
       SLOTS = [1, 2, 3];
       slotKey = (n) => "spiderman_nyc_slot" + n;
@@ -11469,6 +11646,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     save.colas = (save.colas || 0) + 1;
     doSave();
     sfx("cola");
+    say("cola", true);
     popText("+ ZDROWIE");
     showMsg("ZIMNA COLA", save.colas === 1 ? "Pe\u0142ne zdrowie! Sprzedawca macha r\u0119k\u0105: \u201ENa koszt firmy!\u201D" : `Pe\u0142ne zdrowie \xB7 wypite cole: ${save.colas}`, 2.6);
     if (!canMesh) {
@@ -11520,6 +11698,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
         d.rm.entered = true;
         const [t, s] = INTRO[d.type];
         showMsg(t, s, 3.2);
+        say("room");
         if (d.type !== "fisk") {
           popText("+20 PD");
           Promise.resolve().then(() => (init_wrogowie(), wrogowie_exports)).then((m) => m.addXP(20));
@@ -11543,6 +11722,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       init_model();
       init_ui();
       init_dzwiek();
+      init_docinki();
       init_umiejetnosci();
       init_util();
       init_fisk();
@@ -13319,6 +13499,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       G.shake = Math.max(G.shake, 0.45);
       rumble(0.25, 0.8, 0.5);
       sfx("land");
+      say("hero");
       burst(P.pos.x, P.pos.y + 0.1, P.pos.z, 26, 13616824, 6);
     } else if (imp > 12) {
       P.landT = 0.22;
@@ -13634,14 +13815,14 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     P.swingSide = -P.swingSide;
     const o = _h2.set(P.pos.x, P.pos.y + 1.5, P.pos.z), base = Math.atan2(dx, dz);
     let best = null, bs = -1e9;
-    for (const el2 of [0.95, 0.8, 1.1, 0.65, 1.25]) for (const az of [0, 0.3, -0.3, 0.6, -0.6]) {
+    for (const el3 of [0.95, 0.8, 1.1, 0.65, 1.25]) for (const az of [0, 0.3, -0.3, 0.6, -0.6]) {
       const a = base - az * P.swingSide;
-      const d = _t3.set(Math.sin(a) * Math.cos(el2), Math.sin(el2), Math.cos(a) * Math.cos(el2));
+      const d = _t3.set(Math.sin(a) * Math.cos(el3), Math.sin(el3), Math.cos(a) * Math.cos(el3));
       const t = raycastCity(o, d, 80);
       if (t < 80 && t > 9) {
         const y = o.y + d.y * t;
         if (y < P.pos.y + 5) continue;
-        const sc = -Math.abs(t - 34) - Math.abs(el2 - 0.9) * 25 - Math.abs(az) * 12;
+        const sc = -Math.abs(t - 34) - Math.abs(el3 - 0.9) * 25 - Math.abs(az) * 12;
         if (sc > bs) {
           bs = sc;
           best = (best || new V3()).copy(o).addScaledVector(d, t);
@@ -13710,6 +13891,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     flashDamage();
     rumble(0.25, 0.7, 0.5);
     sfx("hurt");
+    say("hurt");
     G.shake = Math.max(G.shake, 0.25 + knock / 60);
     if (P.state === "car") {
       carLeave();
@@ -14150,6 +14332,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       init_misje();
       init_umiejetnosci();
       init_dzwiek();
+      init_docinki();
       init_wejscie();
       init_ui();
       GRAV = 27;
@@ -14185,6 +14368,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
   init_wejscie();
   init_dzwiek();
   init_wnetrza();
+  init_docinki();
   try {
     buildCity();
     setTOD(save.tod);
@@ -14239,6 +14423,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
   hooks.start = (mode2) => {
     G.mode = mode2;
     initAudio();
+    quipStart();
     showHUD(true);
     G.state = "play";
     if (!G.started && save.pos && save.hasGame) {
@@ -14318,6 +14503,14 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     save.music = !save.music;
     doSave();
     setMusic(save.music);
+  };
+  hooks.voice = () => {
+    save.voice = !save.voice;
+    doSave();
+    try {
+      if (!save.voice) window.speechSynthesis.cancel();
+    } catch (e) {
+    }
   };
   document.addEventListener("pointerlockchange", () => {
     if (document.pointerLockElement !== canvas && G.state === "play" && G.mode === "kb") openPause("game", false);
@@ -14466,6 +14659,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       updatePause(rdt);
       setWind(0);
     }
+    updateQuips(rdt);
     if (G.state === "play") updateRooms(dt);
     if (G.state !== "pause") {
       updateTraffic(dt);

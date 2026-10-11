@@ -9,6 +9,7 @@ import { hitEnemy, shootWeb, burst, finishEnemy, addXP } from './wrogowie.js';
 import { carPunch, carLeave } from './misje.js';
 import { has, maxHp, swingMul, zipMax, perchRange } from './umiejetnosci.js';
 import { sfx } from './dzwiek.js';
+import { say } from './docinki.js';
 import { rumble } from './wejscie.js';
 import { showMsg, flashDamage, popText } from './ui.js';
 
@@ -290,7 +291,7 @@ function land(imp) {
   P.lvT = imp > 32 ? 0.85 : imp > 12 ? 0.34 : 0; P.lvDur = P.lvT; P.lvHero = imp > 32; cam.kick = Math.max(cam.kick || 0, Math.min(0.5, imp / 90));
   if (imp > 32) {
     P.landT = 0.45; P.landHard = true; G.shake = Math.max(G.shake, 0.45);
-    rumble(0.25, 0.8, 0.5); sfx('land'); burst(P.pos.x, P.pos.y + 0.1, P.pos.z, 26, 0xcfc6b8, 6);
+    rumble(0.25, 0.8, 0.5); sfx('land'); say('hero'); burst(P.pos.x, P.pos.y + 0.1, P.pos.z, 26, 0xcfc6b8, 6);
   } else if (imp > 12) { P.landT = 0.22; P.landHard = false; sfx('land', 0.35); }
 }
 function wallContact(w) {
@@ -474,7 +475,7 @@ function release(jump) {
 export function hurtPlayer(dmg, from, knock = 6) {
   if (P.invT > 0 || P.dead || P.dodgeT > 0 || P.fin || G.state !== 'play') return false;
   P.hp -= dmg; P.invT = 0.6; P.hurtT = 0.3; P.regenT = 4; P.combo = 0; P.atk = null; P.lunge = null;
-  flashDamage(); rumble(0.25, 0.7, 0.5); sfx('hurt'); G.shake = Math.max(G.shake, 0.25 + knock / 60);
+  flashDamage(); rumble(0.25, 0.7, 0.5); sfx('hurt'); say('hurt'); G.shake = Math.max(G.shake, 0.25 + knock / 60);
   if (P.state === 'car') { carLeave(); P.state = 'air'; P.car = null; }
   if (from) {
     _t.subVectors(P.pos, from.pos); _t.y = 0; _t.normalize(); P.vel.x += _t.x * knock; P.vel.z += _t.z * knock;

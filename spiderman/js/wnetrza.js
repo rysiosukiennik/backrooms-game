@@ -11,6 +11,7 @@ import { buildThug, newPose, applyPose, idlePose } from './postac.js';
 import { randomOutfit } from './model.js';
 import { showMsg, popText } from './ui.js';
 import { sfx } from './dzwiek.js';
+import { say } from './docinki.js';
 import { maxHp } from './umiejetnosci.js';
 import { save, doSave } from './util.js';
 import { startFisk } from './fisk.js';
@@ -945,7 +946,7 @@ let canMesh = null, canT = 0;
 export function takeCola() {
   const d = P.colaNear; if (!d || !d.rm) return;
   d.rm.colaT = 15; P.hp = maxHp(); save.colas = (save.colas || 0) + 1; doSave();
-  sfx('cola'); popText('+ ZDROWIE'); showMsg('ZIMNA COLA', save.colas === 1 ? 'Pełne zdrowie! Sprzedawca macha ręką: „Na koszt firmy!”' : `Pełne zdrowie · wypite cole: ${save.colas}`, 2.6);
+  sfx('cola'); say('cola', true); popText('+ ZDROWIE'); showMsg('ZIMNA COLA', save.colas === 1 ? 'Pełne zdrowie! Sprzedawca macha ręką: „Na koszt firmy!”' : `Pełne zdrowie · wypite cole: ${save.colas}`, 2.6);
   if (!canMesh) { canMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.033, 0.033, 0.12, 12), new THREE.MeshStandardMaterial({ color: 0xc8102e, roughness: 0.3, metalness: 0.6 })); }
   if (P.H && P.H.handR) { P.H.handR.add(canMesh); canMesh.position.set(0, -0.05, 0.03); canMesh.rotation.set(0, 0, 0); canT = 3; }
 }
@@ -967,7 +968,7 @@ export function updateRooms(dt) {
     if (Math.hypot(P.pos.x - d.x, P.pos.z - d.z) < 32) { for (const n of d.rm.npcs) { n.t += dt; for (const k in n.p) n.p[k] = 0; idlePose(n.p, n.t); applyPose(n.H, n.p); } }
     const inside = playerInRoom(d, 0);
     if (d.rm.cola) { d.rm.colaT = Math.max(0, d.rm.colaT - dt); if (inside && d.rm.colaT <= 0 && Math.hypot(P.pos.x - d.rm.cola[0], P.pos.z - d.rm.cola[1]) < 2.4) P.colaNear = d; }
-    if (inside && !d.rm.entered) { d.rm.entered = true; const [t, s] = INTRO[d.type]; showMsg(t, s, 3.2); if (d.type !== 'fisk') { popText('+20 PD'); import('./wrogowie.js').then(m => m.addXP(20)); } }
+    if (inside && !d.rm.entered) { d.rm.entered = true; const [t, s] = INTRO[d.type]; showMsg(t, s, 3.2); say('room'); if (d.type !== 'fisk') { popText('+20 PD'); import('./wrogowie.js').then(m => m.addXP(20)); } }
   }
   const fd = doors.find(d => d.type === 'fisk');
   if (fd && fd.rm) { const inF = playerInRoom(fd, -0.5); if (inF && !wasInFisk && !G.cine && !P.dead) startFisk(fd); wasInFisk = inF; }

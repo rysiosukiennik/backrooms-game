@@ -417,6 +417,7 @@ function updateFlare() {
 // ---------------------------------------------------------------- menu glowne
 const gfxLabel = () => 'GRAFIKA: ' + (save.gfx === 'high' ? 'WYSOKA' : 'NISKA');
 const todLabel = () => 'PORA DNIA: ' + TOD_NAMES[save.tod];
+const voiceLabel = () => 'GŁOS SPIDER-MANA: ' + (save.voice ? 'WŁĄCZONY' : 'WYŁĄCZONY');
 const musLabel = () => 'MUZYKA: ' + (save.music ? 'WŁĄCZONA' : 'WYŁĄCZONA');
 function menuItems() {
   return [
@@ -425,7 +426,7 @@ function menuItems() {
     ...SLOTS.map(n => ['ld' + n, slotLabel(n, 'WCZYTAJ ZAPIS')]),
     ['new', newLabel()],
     ['suits', 'STROJE'], ['skills', 'UMIEJĘTNOŚCI'], ['moves', 'STEROWANIE'],
-    ['tod', todLabel()], ['music', musLabel()], ['gfx', gfxLabel()],
+    ['tod', todLabel()], ['music', musLabel()], ['voice', voiceLabel()], ['gfx', gfxLabel()],
   ];
 }
 // elementy tworzymy raz, a przy najechaniu tylko zmieniamy podswietlenie —
@@ -461,7 +462,7 @@ function slotSave(n) {
 }
 function slotLoad(n) {
   const sl = slotRead(n); if (!sl) { showMsg('SLOT ' + n + ' JEST PUSTY', 'Najpierw zapisz grę: Pauza → Gra → Zapisz w slocie', 3); return; }
-  const keep = { gfx: save.gfx, tod: save.tod, music: save.music };
+  const keep = { gfx: save.gfx, tod: save.tod, music: save.music, voice: save.voice };
   delete sl.pct; Object.assign(save, sl, keep, { hasGame: true }); doSave();
   try { sessionStorage.setItem('sp_skip', '1'); sessionStorage.setItem('sp_load', G.mode || (pad.connected ? 'pad' : 'kb')); } catch (e) {}
   location.reload(); // po przeladowaniu gra od razu startuje w zapisanym miejscu (main.js)
@@ -485,6 +486,7 @@ function menuAct(a) {
   else if (a === 'gfx') { hooks.gfx(); renderMenu(); }
   else if (a === 'tod') { hooks.tod(); renderMenu(); }
   else if (a === 'music') { hooks.music(); renderMenu(); }
+  else if (a === 'voice') { hooks.voice(); renderMenu(); }
 }
 let footTxt = '';
 export function updateMenu(dt) {
@@ -747,7 +749,7 @@ function renderMoves() {
 
 // ---- gra
 function gameItems() {
-  const base = [['tod', todLabel()], ['music', musLabel()], ['gfx', gfxLabel()]];
+  const base = [['tod', todLabel()], ['music', musLabel()], ['voice', voiceLabel()], ['gfx', gfxLabel()]];
   return G.pauseFrom === 'menu' ? [['back', 'WRÓĆ'], ...base] : [['resume', 'WZNÓW GRĘ'], ...SLOTS.map(n => ['sv' + n, slotLabel(n, 'ZAPISZ W SLOCIE')]), ...SLOTS.map(n => ['ld' + n, slotLabel(n, 'WCZYTAJ ZAPIS')]), ...base, ['new', newLabel()], ['menu', 'MENU GŁÓWNE']];
 }
 function renderGame() {
@@ -771,6 +773,7 @@ function gameAct(a) {
   else if (a === 'gfx') { hooks.gfx(); renderGame(); }
   else if (a === 'tod') { hooks.tod(); renderGame(); }
   else if (a === 'music') { hooks.music(); renderGame(); }
+  else if (a === 'voice') { hooks.voice(); renderGame(); }
   else if (a === 'menu') { $('pause').classList.add('hidden'); hooks.toMenu(); }
 }
 function updateGame(N) {

@@ -10,6 +10,7 @@ import { initUI, updateHUD, updateMenu, updatePause, openPause, showHUD, showMsg
 import { pollPads, gameInput, endFrame, lockMouse, pad, KP, MP } from './wejscie.js';
 import { initAudio, setWind, setMusic, cityAmbience, sfx } from './dzwiek.js';
 import { updateRooms } from './wnetrza.js';
+import { updateQuips, quipStart } from './docinki.js';
 
 try {
   buildCity();
@@ -55,7 +56,7 @@ const beacon = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 600, 16, 1, t
 beacon.visible = false; scene.add(beacon);
 
 hooks.start = mode => {
-  G.mode = mode; initAudio();
+  G.mode = mode; initAudio(); quipStart();
   showHUD(true); G.state = 'play';
   if (!G.started && save.pos && save.hasGame) { // kontynuacja: wracamy dokladnie tam, gdzie zapisano
     G.started = true; P.perch = false; P.pos.set(save.pos[0], save.pos[1] + 0.2, save.pos[2]); P.vel.set(0, 0, 0); P.state = 'air'; P.airT = 0.2; P.heading = save.hd || 0;
@@ -93,6 +94,7 @@ hooks.tod = () => {
   setTOD(save.tod); setupComposer();
 };
 hooks.music = () => { save.music = !save.music; doSave(); setMusic(save.music); };
+hooks.voice = () => { save.voice = !save.voice; doSave(); try { if (!save.voice) window.speechSynthesis.cancel(); } catch (e) {} };
 
 document.addEventListener('pointerlockchange', () => {
   if (document.pointerLockElement !== canvas && G.state === 'play' && G.mode === 'kb') openPause('game', false);
@@ -205,6 +207,7 @@ function step(now) {
   }
   else if (G.state === 'pause') { updatePause(rdt); setWind(0); }
 
+  updateQuips(rdt);
   if (G.state === 'play') updateRooms(dt);
   if (G.state !== 'pause') { updateTraffic(dt); updateFX(dt); updatePlayerVisual(dt); }
   if (G.wp) { beacon.visible = true; beacon.position.set(G.wp.x, 300, G.wp.z); } else beacon.visible = false;

@@ -61,6 +61,7 @@ export function sfx(n, v = 1) {
     case 'ring': tone('sine', 880, 1320, 0.15, 0.2 * v); tone('sine', 1320, 1760, 0.15, 0.12 * v, 0.06); break;
     case 'fin': tone('sawtooth', 200, 800, 0.35, 0.12 * v); nz(0.4, 'bandpass', 800, 0.3 * v, 3000); break;
     case 'cola': nz(0.06, 'highpass', 2500, 0.6 * v, 8000); nz(0.9, 'highpass', 5000, 0.18 * v, 9000); tone('sine', 300, 120, 0.25, 0.15 * v, 0.9); break; // syk otwieranej puszki i lyk
+    case 'horn': tone('sawtooth', 392, 392, 0.3, 0.12 * v); tone('sawtooth', 494, 494, 0.3, 0.1 * v); break; // klakson
     case 'pickup': [660, 880, 1320].forEach((f, i) => tone('triangle', f, f, 0.18, 0.18, i * 0.08)); break;
     case 'level': [523, 659, 784, 1046].forEach((f, i) => tone('triangle', f, f * 1.01, 0.3, 0.2, i * 0.1)); break;
     case 'win': [392, 523, 659, 784].forEach((f, i) => tone('triangle', f, f, 0.25, 0.18, i * 0.09)); break;

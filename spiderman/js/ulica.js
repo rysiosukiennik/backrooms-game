@@ -3,7 +3,9 @@
 // autobusy MTA) zatrzymujacy sie na czerwonym swietle.
 // Wszystkie nieruchome detale sa scalane w kawalki 128 x 128 m (jedno rysowanie na kawalek, z cieniami),
 // pojazdy to instancje (jedno rysowanie na typ pojazdu) rysowane tylko blisko kamery.
-import { G, scene, camera } from './stan.js';
+import { G, P, scene, camera } from './stan.js';
+import { sfx } from './dzwiek.js';
+import { say } from './docinki.js';
 import { SW, NX, NZ, CX, CZ, CW, CD, X0, Z0, ST, BW, BD, inPark, isPark, doors, footprints, addBox, ventList, glowPoints, todName, distKey, PK } from './miasto.js';
 
 // wlasne losowanie z ziarnem (nie zmienia ukladu budynkow, ktory zalezy od srand)
@@ -62,13 +64,14 @@ const C = (r0, r1, h, x = 0, y = 0, z = 0, seg = 8) => new THREE.CylinderGeometr
 const Sph = (r, x, y, z, sx = 1, sy = 1, sz = 1, ws = 8, hs = 6) => new THREE.SphereGeometry(r, ws, hs).scale(sx, sy, sz).translate(x, y, z);
 // szablon: lista [geometria, kolor sRGB, rodzaj, lakier?] -> plaskie tablice
 function tpl(parts) {
-  const P = [], N = [], Cc = [], V = [], I = [];
+  const P = [], N = [], Cc = [], V = [], I = [], lamps = { head: [], tail: [] };
   for (const [g, hex, k = 'm', paint = 0] of parts) {
+    if (k === 'head' || k === 'tail') { g.computeBoundingBox(); const c = g.boundingBox.getCenter(new THREE.Vector3()); lamps[k].push([c.x, c.y, c.z]); } // srodek kazdej lampy: tu rysujemy poswiate
     const off = P.length / 3, p = g.attributes.position, n = g.attributes.normal, M = MT[k], c = lin(hex);
     for (let i = 0; i < p.count; i++) { P.push(p.getX(i), p.getY(i), p.getZ(i)); N.push(n.getX(i), n.getY(i), n.getZ(i)); Cc.push(c.r, c.g, c.b); V.push(paint, M[0], M[1], M[2]); }
     if (g.index) for (let i = 0; i < g.index.count; i++) I.push(g.index.getX(i) + off); else for (let i = 0; i < p.count; i++) I.push(i + off);
   }
-  return { p: new Float32Array(P), n: new Float32Array(N), c: new Float32Array(Cc), v: new Float32Array(V), i: new Uint32Array(I), cnt: P.length / 3 };
+  return { p: new Float32Array(P), n: new Float32Array(N), c: new Float32Array(Cc), v: new Float32Array(V), i: new Uint32Array(I), cnt: P.length / 3, lamps };
 }
 function tplGeo(T) {
   const g = new THREE.BufferGeometry();
@@ -559,6 +562,7 @@ function vehTemplates() {
 }
 
 const lanes = [], parked = [];
+let hornT = 0;
 let VT = null, vehMat = null, headL = null, tailL = null, nMoving = 0;
 const TAXI = [0xf7b500, 0xf2b10a, 0xf5b800];
 const CARC = [0x1d1f24, 0x1d1f24, 0xe9e9e9, 0xe9e9e9, 0x8a1a1a, 0x2a4d8a, 0x6c6f75, 0x234a2f, 0xb0b3b8, 0x3a3d42, 0x5a1d24, 0xc9c3b4, 0x0f2440];
@@ -595,7 +599,7 @@ export function initCars() {
     for (let x = xa + rb(0, 3); x < xb - 2.5;) {
       const q = rr(), t = q < 0.06 ? 'taxi' : q < 0.4 ? 'sedan' : q < 0.6 ? 'crown' : q < 0.96 ? 'suv' : 'truck', v = mkVeh(t);
       if (x + 2 * v.hl > xb) break;
-      if (rr() < 0.72) { v.x = x + v.hl; v.z = z + rb(-0.12, 0.12); v.yaw = side > 0 ? Math.PI / 2 : -Math.PI / 2; parked.push(v); }
+      if (rr() < 0.72) { v.x = x + v.hl; v.z = z + rb(-0.12, 0.12); v.yaw = side > 0 ? Math.PI / 2 : -Math.PI / 2; parked.push(v); addBox({ x0: v.x - v.hl, x1: v.x + v.hl, y0: 0, y1: 1.5, z0: v.z - v.sc[0], z1: v.z + v.sc[0] }); }
       x += 2 * v.hl + rb(0.9, 2.6);
     }
   }
@@ -612,8 +616,8 @@ export function initCars() {
     m.userData.linIC = true; m.frustumCulled = false; m.castShadow = false; m.receiveShadow = true; m.count = 0; scene.add(m);
     VT[k].mesh = m;
   }
-  headL = glowPoints(new Array(nMoving * 3).fill(0), 0xfff2d0, 2.6);
-  tailL = glowPoints(new Array(nMoving * 3).fill(0), 0xff2020, 1.8);
+  headL = glowPoints(new Array(nMoving * 4 * 3).fill(0), 0xfff2d0, 1.5); // poswiata na kazdej lampie (do 4 na auto), nie jeden punkt na srodku
+  tailL = glowPoints(new Array(nMoving * 4 * 3).fill(0), 0xff2020, 1.1);
 }
 // ruch na jednym pasie: trzymanie odstepu i zatrzymywanie przed linia na czerwonym
 const parkIsec = (i, j) => inPark(X0 + i * CX, Z0 + j * CZ);
@@ -621,8 +625,14 @@ function stepLane(L, dt) {
   const n = L.list.length, Q0 = L.ax === 'z' ? Z0 : X0, Q = L.ax === 'z' ? CZ : CX, NQ = L.ax === 'z' ? NZ : NX;
   for (let k = 0; k < n; k++) {
     const c = L.list[k], ld = L.list[(k + 1) % n];
-    const gap = n > 1 ? ((ld.s - c.s) % L.len + L.len) % L.len - ld.hl - c.hl : 1e9;
+    let gap = n > 1 ? ((ld.s - c.s) % L.len + L.len) % L.len - ld.hl - c.hl : 1e9;
     const p = L.dir > 0 ? L.st + c.s : L.st + L.len - c.s, front = p + L.dir * c.hl;
+    // gracz na jezdni przed autem (albo w nim): auto hamuje jak przed innym pojazdem
+    let blockP = false;
+    if (P.pos.y < 3.2 && P.state !== 'car' && !P.dead) {
+      const along = L.ax === 'z' ? P.pos.z : P.pos.x, lat = (L.ax === 'z' ? P.pos.x : P.pos.z) - L.c, dP = (along - front) * L.dir;
+      if (Math.abs(lat) < 1.2 * c.sc[0] + 0.55 && dP > -2 * c.hl - 0.6 && dP < 40 && dP - 0.45 < gap) { gap = dP - 0.45; blockP = true; }
+    }
     let vt = c.vmax;
     const k2 = L.dir > 0 ? Math.ceil((front - 0.5 + 13.5 - Q0) / Q) : Math.floor((front + 0.5 - 13.5 - Q0) / Q);
     if (k2 >= 0 && k2 <= NQ) {
@@ -637,6 +647,7 @@ function stepLane(L, dt) {
     const was = c.v;
     c.v = vt > c.v ? Math.min(vt, c.v + 2.8 * dt) : Math.max(vt, c.v - 9 * dt);
     c.v = Math.max(0, Math.min(c.v, (gap - 1.2) / Math.max(dt, 1e-3)));
+    if (blockP && c.v < 0.8 && hornT <= 0) { hornT = 3 + Math.random() * 3; sfx('horn', 0.5); say('carstop'); }
     const br = c.v < was - 0.01 || c.v < 0.4 ? 1 : 0; c.brake += (br - c.brake) * Math.min(1, dt * 8);
     c.s += c.v * dt; if (c.s >= L.len) c.s -= L.len;
     const pp = L.dir > 0 ? L.st + c.s : L.st + L.len - c.s;
@@ -654,7 +665,7 @@ function writeInst(m, k, v) {
 const _f = new THREE.Vector3();
 export function updateCars(dt) {
   if (!VT) return;
-  dt = Math.min(dt, 0.1);
+  dt = Math.min(dt, 0.1); hornT -= dt;
   U.lamp.value = LAMPS[todName] ?? 0.6;
   if (bladeMat) bladeMat.emissiveIntensity = 0.12 + U.lamp.value * 1.3;
   updateSignals(false);
@@ -664,17 +675,19 @@ export function updateCars(dt) {
   const cx = camera.position.x, cz = camera.position.z, hiCam = camera.position.y > 60;
   const R1 = hiCam ? 600 : 420, R2 = hiCam ? 320 : 230;
   for (const k in VT) VT[k].mesh.count = 0;
-  const hp = headL.geometry.attributes.position, tp = tailL.geometry.attributes.position; let nl = 0;
+  const hp = headL.geometry.attributes.position, tp = tailL.geometry.attributes.position; let nh = 0, nt = 0; const hMax = nMoving * 4;
   const vis = (v, R) => { const dx = v.x - cx, dz = v.z - cz, d2 = dx * dx + dz * dz; return d2 < R * R && (d2 < 400 || dx * fx + dz * fz > -15); };
   for (const L of lanes) for (const v of L.list) {
     if (inPark(v.x, v.z) || !vis(v, R1)) continue;
     const m = VT[v.type].mesh; writeInst(m, m.count++, v);
-    const sx = Math.sin(v.yaw), sz = Math.cos(v.yaw), hy = v.type === 'bus' ? 0.75 : v.type === 'truck' ? 0.92 : 0.74;
-    hp.setXYZ(nl, v.x + sx * (v.hl + 0.05), hy, v.z + sz * (v.hl + 0.05)); tp.setXYZ(nl, v.x - sx * (v.hl + 0.05), hy + 0.08, v.z - sz * (v.hl + 0.05)); nl++;
+    // poswiata przyklejona do prawdziwych lamp auta: pozycja lampy w ukladzie auta -> swiat (obrot i skala), kawalek przed szybka
+    const c = Math.cos(v.yaw), sn = Math.sin(v.yaw), kx = v.sc[0], ky = v.sc[1], kz = v.sc[2], LP = VT[v.type].t.lamps;
+    for (const [lx, ly, lz] of LP.head) { if (nh >= hMax) break; const z0 = lz + 0.1; hp.setXYZ(nh++, v.x + c * kx * lx + sn * kz * z0, ly * ky, v.z - sn * kx * lx + c * kz * z0); }
+    for (const [lx, ly, lz] of LP.tail) { if (nt >= hMax) break; const z0 = lz - 0.1; tp.setXYZ(nt++, v.x + c * kx * lx + sn * kz * z0, ly * ky, v.z - sn * kx * lx + c * kz * z0); }
   }
   for (const v of parked) { if (!vis(v, R2)) continue; const m = VT[v.type].mesh; writeInst(m, m.count++, v); }
   for (const k in VT) { const m = VT[k].mesh; m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true; m.geometry.attributes.aBrake.needsUpdate = true; }
-  headL.geometry.setDrawRange(0, nl); tailL.geometry.setDrawRange(0, nl); hp.needsUpdate = tp.needsUpdate = true;
+  headL.geometry.setDrawRange(0, nh); tailL.geometry.setDrawRange(0, nt); hp.needsUpdate = tp.needsUpdate = true;
 }
 // stan swiatla dla innych modulow (np. przechodnie na pasach)
 export const signalAt = sigState;

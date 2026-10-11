@@ -7,6 +7,7 @@ import { hurtPlayer, mkLine, setLine } from './gracz.js';
 import { bossHit, bossWeb, bossFinish } from './misje.js';
 import { websToWrap, dmgMul, skillPoints } from './umiejetnosci.js';
 import { sfx } from './dzwiek.js';
+import { say } from './docinki.js';
 import { rumble } from './wejscie.js';
 import { showMsg, popText, hint } from './ui.js';
 
@@ -101,6 +102,7 @@ export function webTarget() {
   return best;
 }
 export function shootWeb() {
+  say('web');
   const best = webTarget();
   P.H.handR.getWorldPosition(_h);
   const pt = new V3(); let n = null;
@@ -150,6 +152,7 @@ function webHit(e) {
 // wykonczenie: natychmiastowe zawiniecie w kokon (boss dostaje duze obrazenia)
 export function finishEnemy(e) {
   if (e.dead || e.gone) return;
+  say('finisher');
   burst(e.pos.x, e.pos.y + 1, e.pos.z, 30, 0xffffff, 6);
   if (e.type === 'boss') { (e.finFn || bossFinish)(e); return; }
   e.webs = 9; e.webbed = true; killEnemy(e); e.air = false; e.state = 'down'; e.pos.y = supportAt(e.pos.x, e.pos.z, e.pos.y + 0.5, 0.1);
@@ -219,6 +222,7 @@ export function spawnStreetThugs(x, z, n) {
 // trafienie. Zwraca 'block', gdy cios zostal zablokowany.
 export function hitEnemy(e, dmg, kx, ky, kz, launch, fromAir) {
   if (e.dead || e.gone) return false;
+  say('hit');
   if (e.type === 'boss') return (e.hit || bossHit)(e, dmg * dmgMul(), launch);
   if (e.type === 'brute' && e.stunT <= 0 && !fromAir && e.state !== 'hurt') {
     burst(e.pos.x, e.pos.y + 1.6, e.pos.z, 8, 0x9fd8ff, 3); sfx('block'); rumble(0.06, 0.2, 0.2);
@@ -384,7 +388,7 @@ export function updateCrimes(dt) {
     if (cr.active) {
       if (cr.list.every(e => e.dead)) {
         cr.active = false; cr.clearT = 0; save.crimes++; addXP(300); doSave();
-        sfx('win'); showMsg('PRZESTĘPSTWO UDAREMNIONE', '+300 PD', 3);
+        sfx('win'); showMsg('PRZESTĘPSTWO UDAREMNIONE', '+300 PD', 3); say('crime');
       }
     } else {
       cr.clearT += dt;
