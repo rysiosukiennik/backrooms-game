@@ -1,0 +1,59 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>test pokoi</title>
+<script src="lib/three-r128.js"></script></head>
+<body style="margin:0;background:#222;color:#fff;font:12px monospace">
+<div id="info"></div>
+<canvas id="atlas" width="1024" height="1024" style="display:none"></canvas>
+<script type="module">
+import { makeRoomAtlas, ROOM_INFO } from './js/pokoje.js';
+const q = new URLSearchParams(location.search);
+const t0 = performance.now();
+const A = makeRoomAtlas();
+const dt = performance.now() - t0;
+document.getElementById('info').textContent = 'atlas ms: ' + dt.toFixed(1);
+window.DONE = false;
+const mode = q.get('mode') || 'atlas';
+if (mode === 'atlas') {
+  const c = document.getElementById('atlas'); c.style.display = 'block';
+  const x = c.getContext('2d'); x.drawImage(q.get('emi') ? A.canvasEmi : A.canvas, 0, 0);
+} else {
+  const first = +(q.get('from') || 0), n = +(q.get('n') || 8), W = 1600, Hh = 800;
+  const cols = 4, cw = W / cols, ch = Hh / Math.ceil(n / cols);
+  const r = new THREE.WebGLRenderer({ preserveDrawingBuffer: true, antialias: true });
+  r.setSize(W, Hh); r.setScissorTest(true); r.outputEncoding = THREE.sRGBEncoding; document.body.appendChild(r.domElement);
+  const night = !!q.get('night');
+  const ox = +(q.get('ox') || 0.35), oy = +(q.get('oy') || 0);
+  const scene = new THREE.Scene(); scene.background = new THREE.Color(0x181c26);
+  const mat = new THREE.MeshBasicMaterial({ map: night ? A.emi : A.map, side: THREE.DoubleSide });
+  function quad(P, room, tx, ty) {
+    const cx = room % 4, cy = (room / 4) | 0, S = 1024;
+    const u0 = (cx * 256 + tx * 128) / S, u1 = u0 + 128 / S, v1 = 1 - (cy * 256 + ty * 128) / S, v0 = v1 - 128 / S;
+    const pos = [], uv = [];
+    const idx = [0, 1, 2, 0, 2, 3];
+    const uvs = [[u0, v1], [u1, v1], [u1, v0], [u0, v0]];
+    for (const i of idx) { pos.push(...P[i]); uv.push(...uvs[i]); }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    return new THREE.Mesh(geo, mat);
+  }
+  function box(room) {
+    const g = new THREE.Group();
+    g.add(quad([[-.5, 1, -1], [.5, 1, -1], [.5, 0, -1], [-.5, 0, -1]], room, 0, 0));
+    g.add(quad([[-.5, 1, 0], [-.5, 1, -1], [-.5, 0, -1], [-.5, 0, 0]], room, 1, 0));
+    g.add(quad([[.5, 1, 0], [.5, 1, -1], [.5, 0, -1], [.5, 0, 0]], room, 1, 0));
+    g.add(quad([[-.5, 0, -1], [.5, 0, -1], [.5, 0, 0], [-.5, 0, 0]], room, 0, 1));
+    g.add(quad([[-.5, 1, -1], [.5, 1, -1], [.5, 1, 0], [-.5, 1, 0]], room, 1, 1));
+    return g;
+  }
+  const rooms = []; for (let i = 0; i < n; i++) rooms.push(box(first + i));
+  const cam = new THREE.PerspectiveCamera(40, cw / ch, .1, 20);
+  for (let i = 0; i < n; i++) {
+    const col = i % cols, row = Math.floor(i / cols);
+    r.setViewport(col * cw, Hh - (row + 1) * ch, cw, ch); r.setScissor(col * cw, Hh - (row + 1) * ch, cw, ch);
+    scene.clear(); scene.add(rooms[i]);
+    cam.position.set(ox, .5 + oy, 1.9); cam.lookAt(0, .5, -.5);
+    cam.fov = 2 * Math.atan2(.6, 1.9) * 180 / Math.PI * (+(q.get('fov') || 1)); cam.updateProjectionMatrix();
+    r.render(scene, cam);
+  }
+}
+window.DONE = true;
+</script></body></html>
