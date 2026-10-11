@@ -691,3 +691,6 @@ export function updateCars(dt) {
 }
 // stan swiatla dla innych modulow (np. przechodnie na pasach)
 export const signalAt = sigState;
+
+// diagnostyka testow: dostep do pasow ruchu
+export const debugLanes = () => lanes;
