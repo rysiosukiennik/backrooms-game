@@ -3,6 +3,7 @@
 import { V3, clamp, srand, sr, cv, canvasTex, rnd, linHex, linearize, dbg, angLerp, damp } from './util.js';
 import { scene, camera, renderer, P, G, canvas } from './stan.js';
 import { pedGeometries, pedMaterial, pedLook, pedU } from './model.js';
+import { makeRoomAtlas, ROOM_INFO } from './pokoje.js';
 import { buildStreet, buildLampHeads, initCars, updateCars, inShed, awningGeo } from './ulica.js';
 
 export const BW = 64, BD = 44, ST = 18, NX = 8, NZ = 18;
@@ -357,6 +358,108 @@ function groundAO(m, k = 0.5, h = 18) {
   };
   return m;
 }
+// ---------------------------------------------------------------- interior mapping (wnetrza widoczne przez okna pieter)
+// Kazde okno to wirtualny pokoj-pudelko: promien z kamery w przestrzeni stycznej sciany trafia w tyl/bok/podloge/sufit
+// i probkuje atlas pokoi (pokoje.js). Tylko w fragmentach szyb, bez petli; za ~140 m wygasa do zwyklej szyby.
+const RM = {
+  uRmMap: { value: null }, uRmEmi: { value: null },
+  uRmAmb: { value: 0.5 }, uRmLit: { value: 0.9 }, uRmLitP: { value: 0.2 }, uRmEmiK: { value: 1 }, uRmTint: { value: new THREE.Vector3(1, 1, 1) },
+  uRmFlat: { value: new Array(16).fill(0) }, uRmOff: { value: new Array(16).fill(0) }, uRmNF: { value: 1 }, uRmNO: { value: 1 },
+};
+const RM_TOD = { // jasnosc pokoi bez/ze swiatlem, szansa zapalonego swiatla, wklad mapy emisji, barwa swiatla dziennego
+  day: { amb: 0.28, lit: 0.4, litP: 0.08, emi: 0.1, tint: [0.95, 0.97, 1.0] },
+  sunset: { amb: 0.4, lit: 0.6, litP: 0.3, emi: 0.5, tint: [1.0, 0.78, 0.55] },
+  night: { amb: 0.02, lit: 0.4, litP: 0.4, emi: 0.6, tint: [0.7, 0.8, 1.0] },
+};
+function setRoomTOD(name) {
+  const t = RM_TOD[name] || RM_TOD.sunset;
+  RM.uRmAmb.value = t.amb; RM.uRmLit.value = t.lit; RM.uRmLitP.value = t.litP; RM.uRmEmiK.value = t.emi; RM.uRmTint.value.set(...t.tint);
+}
+function initRoomAtlas() {
+  const at = makeRoomAtlas();
+  RM.uRmMap.value = at.map; RM.uRmEmi.value = at.emi;
+  at.map.anisotropy = 1; at.emi.anisotropy = 1;
+  const flat = [], off = [];
+  for (let i = 0; i < 16; i++) { const inf = (ROOM_INFO && ROOM_INFO[i]) || null, ty = inf ? String(inf.type || inf.kind || inf.name || '') : (i < 8 ? 'flat' : 'office'); (/office|biur/i.test(ty) ? off : flat).push(i); }
+  if (!flat.length) flat.push(...off);
+  if (!off.length) off.push(...flat);
+  const pad = a => Array.from({ length: 16 }, (_, i) => a[i % a.length]);
+  RM.uRmFlat.value = pad(flat); RM.uRmOff.value = pad(off); RM.uRmNF.value = flat.length; RM.uRmNO.value = off.length;
+}
+// parametry okna w komorce kafla: [kolumny, wiersze, x0, x1, y0, y1, biuro, art deco]
+function roomParams(st) {
+  const s = STY[st];
+  if (s.kind === 'curtain') return [8, 8, 0.04, 0.96, 0.24, 0.97, 1, 0];
+  if (s.kind === 'ribbon') return [6, 4, 0.05, 0.95, 0.34, 0.86, 1, 0];
+  if (s.kind === 'deco') return [8, 4, 0, 0, 0.28, 0.86, 1, 1];
+  const [l, t, r, b] = s.inset, m = s.frame ? 3 : 1;
+  return [4, 4, (l + m) / 128, 1 - (r + m) / 128, (b + m) / 128, 1 - (t + m) / 128, s.glassy ? 1 : 0, 0];
+}
+function interiorMapping(m, st) {
+  const [NX, NY, X0, X1, Y0, Y1, OFC, DECO] = roomParams(st), f = v => v.toFixed(4), prev = m.onBeforeCompile;
+  const lodFn = renderer.capabilities.isWebGL2 ? 'textureLod' : 'texture2D';
+  m.onBeforeCompile = sh => {
+    prev(sh);
+    Object.assign(sh.uniforms, RM);
+    sh.vertexShader = 'varying vec3 vRmP;\nvarying vec3 vRmN;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vRmP = (modelMatrix * vec4(transformed, 1.0)).xyz; vRmN = mat3(modelMatrix) * objectNormal;');
+    const win = DECO ? 'float x0 = (mod(ci.x, 2.0) < 0.5 ? 0.33 : 0.19), x1 = 0.85;' : `float x0 = ${f(X0)}, x1 = ${f(X1)};`;
+    sh.fragmentShader = `varying vec3 vRmP;
+varying vec3 vRmN;
+uniform sampler2D uRmMap; uniform sampler2D uRmEmi; uniform float uRmAmb, uRmLit, uRmLitP, uRmEmiK; uniform vec3 uRmTint;
+uniform float uRmFlat[16]; uniform float uRmOff[16]; uniform float uRmNF, uRmNO;
+float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz + 33.33); return fract((p.x + p.y) * p.z); }
+` + sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+  {
+    vec3 Nw = normalize(vRmN);
+    float rmD = length(vRmP - cameraPosition), rmFade = 1.0 - smoothstep(90.0, 140.0, rmD);
+    if (rmFade > 0.002 && abs(Nw.y) < 0.5) {
+      vec3 Tw = normalize(cross(vec3(0.0, 1.0, 0.0), Nw));
+      vec2 g = vUv * vec2(${f(NX)}, ${f(NY)}), ci = floor(g), fc = g - ci, aa = max(fwidth(g), vec2(1e-5));
+      ${win}
+      float y0 = ${f(Y0)}, y1 = ${f(Y1)};
+      float wm = smoothstep(x0 - aa.x, x0 + aa.x, fc.x) * (1.0 - smoothstep(x1 - aa.x, x1 + aa.x, fc.x)) * smoothstep(y0 - aa.y, y0 + aa.y, fc.y) * (1.0 - smoothstep(y1 - aa.y, y1 + aa.y, fc.y));
+      float sd = dot(floor(vColor.rgb * 24.0 + 0.5), vec3(1.0, 7.3, 13.1)) + Nw.x * 3.0 + Nw.z * 5.0;
+      vec3 hs = vec3(ci, sd);
+      float hv = rmH(hs), hr = rmH(hs + 11.1), hl = rmH(hs + 23.7), hb = rmH(hs + 37.3), hd = rmH(hs + 51.9), hm = rmH(hs + 67.7);
+      wm *= step(0.2, hv) * rmFade;   // ~20% okien: zaslonieta stara szyba
+      if (wm > 0.002) {
+        vec3 dp = vRmP - cameraPosition;
+        vec3 dX = dFdx(vRmP), dY = dFdy(vRmP);
+        vec2 gx = vec2(dFdx(g.x), dFdy(g.x)), gy = vec2(dFdx(g.y), dFdy(g.y));
+        float cw = clamp(length(vec2(dot(dX, Tw), dot(dY, Tw))) / max(length(gx), 1e-6), 1.5, 9.0);
+        float chh = clamp(length(vec2(dX.y, dY.y)) / max(length(gy), 1e-6), 1.8, 6.0);
+        float W = (x1 - x0) * cw, H = (y1 - y0) * chh, Dp = 3.0 + hd * 1.4;
+        vec3 p = vec3(clamp((fc.x - x0) * cw, 0.0, W), clamp((fc.y - y0) * chh, 0.0, H), 0.0);
+        vec3 dr = vec3(dot(dp, Tw), dp.y, -dot(dp, Nw));
+        dr.z = max(dr.z, 0.02);
+        if (hm > 0.5) { p.x = W - p.x; dr.x = -dr.x; }
+        if (abs(dr.x) < 1e-4) dr.x = 1e-4;
+        if (abs(dr.y) < 1e-4) dr.y = 1e-4;
+        float tx = dr.x > 0.0 ? (W - p.x) / dr.x : -p.x / dr.x, ty = dr.y > 0.0 ? (H - p.y) / dr.y : -p.y / dr.y, tz = (Dp - p.z) / dr.z;
+        float t = min(min(tx, ty), tz); vec3 ht = p + dr * t;
+        vec2 tile, ab;
+        if (t == tz) { tile = vec2(0.0, 0.0); ab = vec2(ht.x / W, ht.y / H); }
+        else if (t == tx) { tile = vec2(1.0, 0.0); ab = vec2(dr.x < 0.0 ? ht.z / Dp : 1.0 - ht.z / Dp, ht.y / H); }
+        else { tile = vec2(dr.y < 0.0 ? 0.0 : 1.0, 1.0); ab = vec2(ht.x / W, ht.z / Dp); }
+        ab = clamp(ab, 0.006, 0.994);
+        float idx = ${OFC ? 'uRmOff[int(hr * uRmNO)]' : 'uRmFlat[int(hr * uRmNF)]'};
+        vec2 blk = vec2(mod(idx, 4.0), floor(idx / 4.0)) * 2.0 + tile;
+        vec2 auv = vec2((blk.x + ab.x) / 8.0, 1.0 - (blk.y + 1.0 - ab.y) / 8.0);
+        float lod = clamp(log2(max(128.0 * max(aa.x / (x1 - x0), aa.y / (y1 - y0)), 1.0)), 0.0, 3.5);
+        vec3 rc = ${lodFn}(uRmMap, auv, lod).rgb, re = ${lodFn}(uRmEmi, auv, lod).rgb;
+        float lit = step(hl, uRmLitP);
+        vec3 room = rc * mix(uRmAmb * uRmTint, vec3(uRmLit, uRmLit * 0.96, uRmLit * 0.86), lit) + re * lit * uRmEmiK;
+        room *= 1.0 - 0.45 * clamp(t / 7.0, 0.0, 1.0);
+        float wy = (fc.y - y0) / (y1 - y0);
+        if (hb < 0.22 && wy > 1.0 - (0.25 + 0.55 * hd)) room = vec3(0.7, 0.64, 0.52) * mix(uRmAmb * uRmTint, vec3(uRmLit * 0.9), lit * 0.8);
+        totalEmissiveRadiance = totalEmissiveRadiance * (1.0 - wm) + room * wm;
+        diffuseColor.rgb *= 1.0 - 0.5 * wm;
+      }
+    }
+  }`);
+  };
+  return m;
+}
 // normalne fal na wodzie (z sumy fal), przesuwane w czasie
 function waterNormals() {
   const N = 256, hgt = new Float32Array(N * N), c = cv(N, N), x = c.getContext('2d'), img = x.createImageData(N, N);
@@ -657,6 +760,7 @@ export function setTOD(name) {
   linHex(water.material.color, T.water); linHex(pondM.material.color, T.water).multiplyScalar(0.45); pondM.material.color.g *= 1.15;
   stars.visible = T.stars > 0; moon.visible = name === 'night';
   for (const m of facMats) m.emissiveIntensity = T.win;
+  setRoomTOD(name);
   shopMat.emissiveIntensity = T.shop;
   lampMat.emissiveIntensity = 0.2 + T.lamps * 2;
   for (const m of boardMats) m.emissiveIntensity = 0.8 + T.lamps * 1.2;
@@ -1432,12 +1536,13 @@ export function buildCity() {
   buildStreet(propBlocks, trees); // po drzwiach: nie stawiamy niczego w wejsciach; dosadza drzewa w kratach
   buildTrees(trees);
 
-  facMats = STY.map(s => {
+  initRoomAtlas();
+  facMats = STY.map((s, si) => {
     const t = facadeTex(s);
-    return groundAO(new THREE.MeshStandardMaterial({
+    return interiorMapping(groundAO(new THREE.MeshStandardMaterial({
       map: t.map, emissiveMap: t.emi, emissive: 0xffffff, emissiveIntensity: 0.3,
       roughness: 1, roughnessMap: t.rough, bumpMap: dbg('nobump') ? null : t.bump, bumpScale: 0.07, metalness: 1, metalnessMap: t.metal,
-    }));
+    })), si);
   });
   facMats.forEach((m, i) => { m.userData.env = STY[i].metal ? 3.6 : 1.6; });
   facGeo.forEach((g, i) => meshFrom(g, facMats[i]));
