@@ -1064,14 +1064,14 @@
     if (s._mats) return s._mats;
     const cvs = suitCanvases(s), adv = s.layout === "adv";
     const rough = adv ? 0.45 : s.gloss ? 0.32 : 0.55, metal = s.metal ? 0.45 : 0.05, env = adv ? 1.5 : s.metal ? 1.6 : 1.2;
-    const lin2 = (t) => {
+    const lin4 = (t) => {
       t.encoding = THREE.LinearEncoding;
       return t;
     };
     const mat = (t, rep, ns = 1) => {
-      const m = new THREE.MeshStandardMaterial({ map: tex(t.m, rep), normalMap: lin2(tex(normalFromHeight(t.b.c, adv ? 5 : 4), rep)), roughness: rough, metalness: metal });
+      const m = new THREE.MeshStandardMaterial({ map: tex(t.m, rep), normalMap: lin4(tex(normalFromHeight(t.b.c, adv ? 5 : 4), rep)), roughness: rough, metalness: metal });
       m.normalScale.set(ns, ns);
-      if (t.r) m.roughnessMap = lin2(tex(t.r, rep));
+      if (t.r) m.roughnessMap = lin4(tex(t.r, rep));
       if (s.glow && t.e) {
         m.emissive = new THREE.Color(16777215);
         m.emissiveMap = tex(t.e, rep);
@@ -2357,29 +2357,29 @@
       return new THREE.MeshStandardMaterial({ map: tex(m), bumpMap: tex(b), bumpScale: 0.06, metalness: 0.55, roughness: 0.42 });
     };
     const armor = plate();
-    const face = C(512, 256), fx = face.x, emi = C(512, 256);
-    drawFace(fx, { skin: "#9a7258", hair: "bald", angry: true, beard: 0.6, browCol: "rgba(30,20,12,.9)", eyeCol: "#2a0a04" });
-    fx.fillStyle = "#5c5f65";
-    fx.beginPath();
-    fx.rect(0, 0, 512, 256);
-    fx.ellipse(256, 142, 62, 58, 0, 0, TAU);
-    fx.fill("evenodd");
-    fx.strokeStyle = "#2a2c30";
-    fx.lineWidth = 6;
-    fx.beginPath();
-    fx.ellipse(256, 142, 62, 58, 0, 0, TAU);
-    fx.stroke();
-    fx.strokeStyle = "rgba(255,255,255,.2)";
-    fx.lineWidth = 2;
-    fx.beginPath();
-    fx.ellipse(256, 139, 66, 62, 0, Math.PI * 1.1, Math.PI * 1.9);
-    fx.stroke();
-    noise(fx, 512, 256, 3e3, 0.05);
+    const face = C(512, 256), fx2 = face.x, emi = C(512, 256);
+    drawFace(fx2, { skin: "#9a7258", hair: "bald", angry: true, beard: 0.6, browCol: "rgba(30,20,12,.9)", eyeCol: "#2a0a04" });
+    fx2.fillStyle = "#5c5f65";
+    fx2.beginPath();
+    fx2.rect(0, 0, 512, 256);
+    fx2.ellipse(256, 142, 62, 58, 0, 0, TAU);
+    fx2.fill("evenodd");
+    fx2.strokeStyle = "#2a2c30";
+    fx2.lineWidth = 6;
+    fx2.beginPath();
+    fx2.ellipse(256, 142, 62, 58, 0, 0, TAU);
+    fx2.stroke();
+    fx2.strokeStyle = "rgba(255,255,255,.2)";
+    fx2.lineWidth = 2;
+    fx2.beginPath();
+    fx2.ellipse(256, 139, 66, 62, 0, Math.PI * 1.1, Math.PI * 1.9);
+    fx2.stroke();
+    noise(fx2, 512, 256, 3e3, 0.05);
     emi.x.fillStyle = "#000";
     emi.x.fillRect(0, 0, 512, 256);
     for (const X of [226, 286]) {
-      fx.fillStyle = "#ff5a2a";
-      ell(fx, X, 121, 9, 4);
+      fx2.fillStyle = "#ff5a2a";
+      ell(fx2, X, 121, 9, 4);
       emi.x.fillStyle = "#ff4a1a";
       ell(emi.x, X, 121, 9, 4.5);
     }
@@ -5661,6 +5661,409 @@ vec3 pedP = position;
     }
   });
 
+  // js/niebo.js
+  function makeNoiseTex() {
+    const N = 512, data = new Uint8Array(N * N * 4);
+    const lat = (fx2, fy, seed2) => {
+      const a = new Float32Array(fx2 * fy);
+      let s = seed2 >>> 0;
+      for (let i = 0; i < a.length; i++) {
+        s = Math.imul(s, 1664525) + 1013904223 >>> 0;
+        a[i] = s / 4294967296;
+      }
+      return a;
+    };
+    const sm2 = (a, fx2, fy, x, y) => {
+      const X = x * fx2, Y = y * fy, x0 = Math.floor(X), y0 = Math.floor(Y);
+      let tx = X - x0, ty = Y - y0;
+      tx = tx * tx * (3 - 2 * tx);
+      ty = ty * ty * (3 - 2 * ty);
+      const xa = x0 % fx2, xb = (x0 + 1) % fx2, ya = y0 % fy, yb = (y0 + 1) % fy;
+      const a0 = a[ya * fx2 + xa], a1 = a[ya * fx2 + xb], b0 = a[yb * fx2 + xa], b1 = a[yb * fx2 + xb];
+      return a0 + (a1 - a0) * tx + (b0 + (b1 - b0) * tx - (a0 + (a1 - a0) * tx)) * ty;
+    };
+    const oct = (bx, by, n, seed2) => {
+      const L = [];
+      for (let k = 0; k < n; k++) L.push([lat(bx << k, by << k, seed2 + k * 977), bx << k, by << k, Math.pow(0.5, k)]);
+      return L;
+    };
+    const run = (L, x, y) => {
+      let v = 0, t2 = 0;
+      for (const [a, fx2, fy, w] of L) {
+        v += sm2(a, fx2, fy, x, y) * w;
+        t2 += w;
+      }
+      return v / t2;
+    };
+    const R3 = oct(5, 5, 5, 11), G2 = oct(4, 9, 5, 53), B2 = oct(2, 2, 5, 97);
+    const ct = (v, k) => Math.max(0, Math.min(1, (v - 0.5) * k + 0.5));
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const x = i / N, y = j / N, o = (j * N + i) * 4;
+      data[o] = ct(run(R3, x, y), 2.3) * 255;
+      data[o + 1] = ct(run(G2, x, y), 1.7) * 255;
+      data[o + 2] = ct(run(B2, x, y), 2.4) * 255;
+      data[o + 3] = 255;
+    }
+    const t = new THREE.DataTexture(data, N, N, THREE.RGBAFormat);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.magFilter = THREE.LinearFilter;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.generateMipmaps = true;
+    t.anisotropy = 4;
+    t.needsUpdate = true;
+    return t;
+  }
+  function skyUniforms(sunDir2) {
+    return {
+      sunDir: { value: sunDir2 },
+      top: { value: new V3() },
+      mid: { value: new V3() },
+      hor: { value: new V3() },
+      glowC: { value: new V3() },
+      disk: { value: 2.5 },
+      tCloud: { value: null },
+      wind: { value: new THREE.Vector2() },
+      tm: { value: 0 },
+      cover: { value: 0.5 },
+      cK: { value: 1 },
+      cirr: { value: 0.5 },
+      nightK: { value: 0 },
+      starK: { value: 0 },
+      belt: { value: 0 },
+      cityG: { value: 0 },
+      cLit: { value: new V3(1, 1, 1) },
+      cShade: { value: new V3(0.5, 0.5, 0.6) },
+      cirrCol: { value: new V3(1, 1, 1) }
+    };
+  }
+  function skyMaterial(U2) {
+    U2.tCloud.value = makeNoiseTex();
+    return new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      depthWrite: false,
+      fog: false,
+      uniforms: U2,
+      vertexShader: "varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }",
+      fragmentShader: `uniform vec3 sunDir, top, mid, hor, glowC, cLit, cShade, cirrCol; uniform float disk, cover, cK, cirr, nightK, starK, belt, cityG, tm;
+      uniform sampler2D tCloud; uniform vec2 wind; varying vec3 vP;
+      float h13(vec3 p){ p = fract(p*.1031); p += dot(p, p.zyx+31.32); return fract((p.x+p.y)*p.z); }
+      // gestosc chmury kopiastej: duzy ksztalt + erozja drobnym szumem
+      float cumD(vec2 uv, float th){
+        float b = texture2D(tCloud, uv).r, e = texture2D(tCloud, uv*3.3+vec2(.37,.11)).r;
+        return smoothstep(th, th+.2, b + .3*(e-.5));
+      }
+      void main(){
+        vec3 d = normalize(vP); float h = d.y;
+        float s = max(dot(d, sunDir), 0.);
+        vec2 sdir = normalize(sunDir.xz + vec2(1e-4));
+        vec2 ddir = normalize(d.xz + vec2(1e-4));
+        vec3 c = mix(hor, mid, smoothstep(0.,.2,h)); c = mix(c, top, smoothstep(.14,.72,h));
+        if(h<0.) c = mix(hor, hor*.7, smoothstep(0.,-.3,h));
+        // rozpraszanie: ciepla poswiata przy slonca i rozowy pas Wenus po przeciwnej stronie
+        c += glowC*pow(s,5.)*.7 + glowC*(pow(s,200.)*.8 + pow(s,40.)*.3);
+        c += glowC*pow(max(dot(ddir,sdir),0.),4.)*exp(-h*7.)*.22*(1.-nightK);
+        c += vec3(.85,.42,.5)*pow(max(dot(ddir,-sdir),0.),2.)*exp(-h*9.)*belt;
+        // poswiata miasta na horyzoncie w nocy
+        float az = texture2D(tCloud, vec2(atan(d.z,d.x)*.3183, .5)).g;
+        c += vec3(.9,.45,.2)*exp(-max(h,0.)*10.)*cityG*(.05+.1*az);
+        vec3 fogC = hor*.97 + glowC*pow(s,4.)*.45; // przy horyzoncie niebo przechodzi w mgle (bez ostrego pasa)
+        // gwiazdy (w shaderze, wiec chmury je zaslaniaja)
+        if(starK > .01){
+          float sv = 0.;
+          for(int i=0;i<2;i++){
+            float sc = i==0 ? 170. : 95.; vec3 p = d*sc, id = floor(p), f = p-id;
+            float r = h13(id+float(i)*7.3);
+            vec3 cp = vec3(h13(id+1.7), h13(id+9.1), h13(id+4.3))*.6+.2;
+            float thr = i==0 ? .94 : .975;
+            sv += step(thr, r)*smoothstep(.3,.0,length(f-cp))*(.25+(r-thr)/(1.-thr)*1.6)*(.7+.3*sin(tm*2.3+r*80.));
+          }
+          vec3 sc3 = mix(vec3(.75,.82,1.), vec3(1.,.9,.8), h13(floor(d*40.)));
+          c += sc3*sv*starK*smoothstep(.03,.3,h);
+          // slaba Droga Mleczna
+          float mw = exp(-pow(dot(d, normalize(vec3(.35,.75,.55)))*5.,2.))*texture2D(tCloud, d.xz*1.3+.2).b;
+          c += vec3(.5,.55,.8)*mw*.07*starK*smoothstep(.05,.3,h);
+        }
+        // Ksiezyc (w nocy sunDir to kierunek Ksiezyca): tarcza z plamami, faza i poswiata
+        if(nightK > .01 && s > .9){
+          vec3 tx = normalize(cross(vec3(0.,1.,0.), sunDir)), ty = cross(sunDir, tx);
+          vec2 q = vec2(dot(d,tx), dot(d,ty))/.034; float r2 = dot(q,q);
+          if(r2 < 1.2){
+            vec3 nrm = vec3(q, sqrt(max(1.-r2,0.)));
+            float ph = clamp(dot(nrm, normalize(vec3(.62,.28,.74)))*3.2+.3, .05, 1.);
+            float alb = .62 + .75*(texture2D(tCloud, q*.3+.5).b-.5);
+            vec3 mc = vec3(1.,.96,.86)*alb*ph*1.9;
+            c = mix(c, mc, 1.-smoothstep(.9,1.,r2));
+          }
+          c += vec3(.4,.48,.8)*(pow(s,180.)*.55 + pow(s,30.)*.12 + pow(s,6.)*.03)*nightK;
+        }
+        // tarcza slonca: ostry rdzen z miekkim brzegiem
+        float sd = 1. - s;
+        float sundisk = smoothstep(3.4e-4, 1.8e-4, sd)*(1.-nightK);
+        float cloudA = 0., cloudAny = 0.;
+        // --- chmury: cirrus (najwyzej), altocumulus (srodek), cumulus (najnizej, najblizej)
+        float fadeH = smoothstep(0., .13, h);
+        if(h > 0.){
+          vec2 uvC = vec2(d.x*.8 - d.z*.6, d.x*.6 + d.z*.8)/(h+.2)*vec2(.4,.9);
+          float ci = texture2D(tCloud, uvC + wind*1.8).g*.65 + texture2D(tCloud, uvC*vec2(2.3,5.1) + wind*2.4 + .3).g*.35;
+          float aC = smoothstep(.42,1.05,ci)*cirr*smoothstep(.01,.22,h)*.42;
+          c = mix(c, cirrCol*cK*(.8+.5*pow(s,6.)), aC);
+          cloudAny = aC*.5;
+
+          vec2 uvB = d.xz/(h+.24)*.6 + wind*1.5 + .31;
+          float thB = mix(.8,.5,cover) + (1.-smoothstep(0.,.3,h))*.1;
+          float dB = cumD(uvB, thB), lB = cumD(uvB+sdir*.03, thB);
+          vec3 colB = mix(cShade*1.15, cLit, exp(-2.2*(lB+.3*dB)));
+          colB += cLit*pow(s,8.)*(1.-dB)*dB*2.2*(1.-.5*nightK);
+          float aB = dB*.75*fadeH;
+          c = mix(c, colB*cK, aB); cloudAny = max(cloudAny, aB);
+
+          vec2 uvA = d.xz/(h+.1)*.34 + wind;
+          float thA = mix(.72,.4,cover) + (1.-smoothstep(0.,.3,h))*.08;
+          float dA = cumD(uvA, thA);
+          float lA = .5*(cumD(uvA+sdir*.016,thA) + cumD(uvA+sdir*.042,thA));
+          float TA = exp(-1.7*(lA + .35*dA));
+          vec3 colA = mix(cShade, cLit, TA);
+          colA += cLit*pow(s,9.)*(1.-dA)*dA*3.2*(1.-.5*nightK);          // podswietlony brzeg
+          colA *= 1. - .3*smoothstep(.3,1.,dA)*(1.-TA);                    // ciemniejsze spody
+          cloudA = dA*.96*fadeH;
+          c = mix(c, colA*cK, cloudA); cloudAny = max(cloudAny, cloudA);
+          // swiatlo slonca przebijajace przez cienkie chmury
+          c += glowC*(pow(s,40.)*.5 + pow(s,12.)*.1)*cloudAny*(1.-nightK);
+        }
+        // tarcza slonca (przysloniete chmura) i jej poswiata
+        c += vec3(1.,.95,.85)*(sundisk + pow(s,900.)*.12*(1.-nightK))*disk*(1.-cloudA*.9);
+        c = mix(fogC, c, smoothstep(-.01,.12,h));
+        gl_FragColor = vec4(c,1.);
+        #include <tonemapping_fragment>
+        #include <encodings_fragment>
+      }`
+    });
+  }
+  function setSkyTOD(U2, name) {
+    const T = SKY_TOD[name] || SKY_TOD.sunset;
+    U2.cover.value = T.cover;
+    U2.cK.value = T.cK;
+    U2.cirr.value = T.cirr;
+    U2.nightK.value = T.nightK;
+    U2.starK.value = T.starK;
+    U2.belt.value = T.belt;
+    U2.cityG.value = T.cityG;
+    U2.cLit.value.set(...lin(T.cLit));
+    U2.cShade.value.set(...lin(T.cShade));
+    U2.cirrCol.value.set(...lin(T.cirrCol));
+  }
+  function updateSky(U2, time) {
+    U2.tm.value = time;
+    U2.wind.value.set(time * 34e-4, time * 13e-4);
+  }
+  function createSkyFX(scene2) {
+    const out = new THREE.Group();
+    out.frustumCulled = false;
+    scene2.add(out);
+    const NR = 22, pos = [], uvs = [], par = [], bas = [], idx = [];
+    for (let i = 0; i < NR; i++) {
+      const w = 7 + Math.random() * 26, len = 600 + Math.random() * 300, seed2 = Math.random();
+      const bu = Math.random() * 600, bv = Math.random() * 600;
+      for (const [ux, uy] of [[-1, 0], [1, 0], [-1, 1], [1, 1]]) {
+        pos.push(0, 0, 0);
+        uvs.push(ux, uy);
+        par.push(w, len, seed2);
+        bas.push(bu, bv);
+      }
+      const o = i * 4;
+      idx.push(o, o + 1, o + 2, o + 1, o + 3, o + 2);
+    }
+    const rg = new THREE.BufferGeometry();
+    rg.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    rg.setAttribute("aUV", new THREE.Float32BufferAttribute(uvs, 2));
+    rg.setAttribute("aP", new THREE.Float32BufferAttribute(par, 3));
+    rg.setAttribute("aB", new THREE.Float32BufferAttribute(bas, 2));
+    rg.setIndex(idx);
+    const RU = { uSun: { value: new V3() }, uCam: { value: new V3() }, uK: { value: 0 }, uCol: { value: new V3(1, 0.8, 0.55) }, uTime: { value: 0 } };
+    const rays = new THREE.Mesh(rg, new THREE.ShaderMaterial({
+      uniforms: RU,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+      fog: false,
+      vertexShader: `attribute vec2 aUV, aB; attribute vec3 aP; uniform vec3 uSun, uCam; varying vec2 vUV; varying vec3 vWP; varying float vS, vE;
+      void main(){
+        const float R = 300.;
+        vec3 U = normalize(cross(uSun, vec3(0.,1.,0.))), V = cross(U, uSun);
+        vec2 q = mod(aB - vec2(dot(uCam,U), dot(uCam,V)) + R, 2.*R) - R;
+        vec3 ctr = uCam + U*q.x + V*q.y;
+        vec3 p0 = ctr + uSun*(aUV.y-.5)*aP.y;
+        vec3 rt = normalize(cross(uSun, uCam - p0));
+        vec3 wp = p0 + rt*aUV.x*aP.x;
+        vUV = aUV; vWP = wp; vS = aP.z; vE = 1. - smoothstep(.7*R, R, max(abs(q.x), abs(q.y)));
+        gl_Position = projectionMatrix*viewMatrix*vec4(wp,1.);
+      }`,
+      fragmentShader: `uniform vec3 uSun, uCam, uCol; uniform float uK, uTime; varying vec2 vUV; varying vec3 vWP; varying float vS, vE;
+      void main(){
+        float across = 1. - abs(vUV.x), prof = across*across*(3.-2.*across);
+        float along = smoothstep(0.,.2,vUV.y)*smoothstep(1.,.55,vUV.y);
+        vec3 vd = normalize(vWP - uCam); float dd = length(vWP - uCam);
+        float ph = pow(max(dot(vd,uSun),0.), 3.)*.9 + .08;
+        float fade = smoothstep(18.,110.,dd)*smoothstep(1100.,350.,dd)*smoothstep(1.,22.,vWP.y)*vE;
+        float sh = .65 + .35*sin(uTime*.3 + vS*40. + vUV.y*3.);
+        float a = prof*along*ph*fade*sh*uK;
+        gl_FragColor = vec4(uCol, a);
+        ${common}
+      }`
+    }));
+    rays.frustumCulled = false;
+    rays.renderOrder = 4;
+    out.add(rays);
+    const NB = 42, bp = new Float32Array(NB * 3), bph = new Float32Array(NB), flocks = [];
+    for (let f = 0; f < 3; f++) flocks.push({ cx: (Math.random() - 0.5) * 700, cz: (Math.random() - 0.5) * 700, cy: 140 + Math.random() * 160, R: 120 + Math.random() * 160, w: (0.06 + Math.random() * 0.05) * (Math.random() < 0.5 ? -1 : 1), ph: Math.random() * 6.28 });
+    const bo = [];
+    for (let i = 0; i < NB; i++) {
+      bo.push([(Math.random() - 0.5) * 46, (Math.random() - 0.5) * 18, (Math.random() - 0.5) * 46, Math.random() * 6.28]);
+      bph[i] = Math.random() * 6.28;
+    }
+    const bg = new THREE.BufferGeometry();
+    bg.setAttribute("position", new THREE.BufferAttribute(bp, 3));
+    bg.setAttribute("aPh", new THREE.BufferAttribute(bph, 1));
+    const BU = { uT: { value: 0 }, uCol: { value: new V3(0.1, 0.08, 0.08) }, uVis: { value: 1 }, uSz: { value: 520 } };
+    const birds2 = new THREE.Points(bg, new THREE.ShaderMaterial({
+      uniforms: BU,
+      transparent: true,
+      depthWrite: false,
+      fog: false,
+      vertexShader: `attribute float aPh; uniform float uT, uSz; varying float vF;
+      void main(){ vec4 mv = modelViewMatrix*vec4(position,1.); vF = sin(uT*8. + aPh*3.);
+        gl_PointSize = clamp(uSz/max(-mv.z,1.), 2.5, 12.); gl_Position = projectionMatrix*mv; }`,
+      fragmentShader: `uniform vec3 uCol; uniform float uVis; varying float vF;
+      void main(){ vec2 p = gl_PointCoord*2.-1.; float x = abs(p.x); float yl = -p.y - (x*vF*.8 - .1);
+        float a = smoothstep(.32,.12,abs(yl))*step(x,.95); if(a < .05) discard;
+        gl_FragColor = vec4(uCol, a*uVis); ${common} }`
+    }));
+    birds2.frustumCulled = false;
+    out.add(birds2);
+    const PP = new Float32Array(3), pg = new THREE.BufferGeometry();
+    pg.setAttribute("position", new THREE.BufferAttribute(PP, 3));
+    const pm = new THREE.PointsMaterial({ color: 16777215, size: 2.6, sizeAttenuation: false, fog: false, transparent: true, depthWrite: false });
+    const planeDot = new THREE.Points(pg, pm);
+    planeDot.frustumCulled = false;
+    planeDot.visible = false;
+    out.add(planeDot);
+    const cg = new THREE.BufferGeometry();
+    cg.setAttribute("position", new THREE.Float32BufferAttribute(new Array(12).fill(0), 3));
+    cg.setAttribute("aT", new THREE.Float32BufferAttribute([0, 0, 1, 1], 1));
+    cg.setAttribute("aS", new THREE.Float32BufferAttribute([-1, 1, -1, 1], 1));
+    cg.setIndex([0, 1, 2, 1, 3, 2]);
+    const CU = { uHead: { value: new V3() }, uTail: { value: new V3() }, uCam: { value: new V3() }, uCol: { value: new V3(1, 1, 1) }, uA: { value: 0 } };
+    const trail = new THREE.Mesh(cg, new THREE.ShaderMaterial({
+      uniforms: CU,
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      fog: false,
+      vertexShader: `attribute float aT, aS; uniform vec3 uHead, uTail, uCam; varying float vT; varying float vS;
+      void main(){ vec3 p = mix(uTail, uHead, aT); vec3 ax = normalize(uHead-uTail); vec3 rt = normalize(cross(ax, uCam-p));
+        float wd = 9. + 22.*(1.-aT); vT = aT; vS = aS;
+        gl_Position = projectionMatrix*viewMatrix*vec4(p + rt*aS*wd, 1.); }`,
+      fragmentShader: `uniform vec3 uCol; uniform float uA; varying float vT; varying float vS;
+      void main(){ float across = 1. - abs(vS); float lump = .75 + .25*sin(vT*140.) * sin(vT*53.+1.);
+        float a = pow(vT, 1.6)*across*lump*uA; gl_FragColor = vec4(uCol, a); ${common} }`
+    }));
+    trail.frustumCulled = false;
+    trail.visible = false;
+    trail.renderOrder = 3;
+    out.add(trail);
+    const pl = { on: false, t: 0, next: 12 + Math.random() * 30, o: new V3(), dir: new V3(), speed: 110, T: 0 };
+    function spawnPlane(t0 = 0, thF = null) {
+      const th = thF != null ? thF : Math.random() * 6.283, off = (900 + Math.random() * 500) * (thF == null && Math.random() < 0.5 ? -1 : 1), alt = 1300 + Math.random() * 400;
+      pl.dir.set(Math.cos(th), 0, Math.sin(th));
+      pl.o.set(-Math.sin(th) * off, alt, Math.cos(th) * off).addScaledVector(pl.dir, -1900);
+      pl.on = true;
+      pl.t = t0;
+      pl.T = (3800 + 1800) / pl.speed;
+    }
+    const hp = new V3(), tp = new V3();
+    let curName = "sunset", curSky = SKY_TOD.sunset;
+    return fx = {
+      spawnPlane,
+      setTOD(name) {
+        curName = name;
+        curSky = SKY_TOD[name] || SKY_TOD.sunset;
+        RU.uK.value = curSky.rays;
+        rays.visible = curSky.rays > 0;
+        birds2.visible = curSky.birds > 0;
+        BU.uCol.value.set(...lin(curSky.birdCol));
+        CU.uCol.value.set(...lin(curSky.plane));
+        CU.uA.value = curSky.planeA;
+        pm.color.setRGB(...lin(name === "night" ? [1, 0.3, 0.25] : curSky.plane).map((v) => v * (name === "night" ? 1 : 1.2)));
+      },
+      update(cam2, sunDir2, time, dt, inside) {
+        out.visible = !inside;
+        if (inside) return;
+        RU.uSun.value.copy(sunDir2);
+        RU.uCam.value.copy(cam2.position);
+        RU.uTime.value = time;
+        if (birds2.visible) {
+          BU.uT.value = time;
+          for (let i = 0; i < NB; i++) {
+            const f = flocks[i % 3], o = bo[i], a = f.ph + f.w * time;
+            bp[i * 3] = f.cx + Math.cos(a) * f.R + o[0] + Math.sin(time * 0.5 + o[3]) * 3;
+            bp[i * 3 + 1] = f.cy + o[1] + Math.sin(time * 0.3 + o[3]) * 4;
+            bp[i * 3 + 2] = f.cz + Math.sin(a) * f.R + o[2] + Math.cos(time * 0.5 + o[3]) * 3;
+          }
+          bg.attributes.position.needsUpdate = true;
+        }
+        if (!pl.on) {
+          pl.next -= dt;
+          if (pl.next <= 0) {
+            spawnPlane();
+            pl.next = 70 + Math.random() * 80;
+          }
+        }
+        if (pl.on) {
+          pl.t += dt;
+          const trav = pl.t * pl.speed, tl = Math.min(trav, 1800);
+          hp.copy(pl.o).addScaledVector(pl.dir, trav);
+          tp.copy(pl.o).addScaledVector(pl.dir, trav - tl);
+          const vis = curName !== "night";
+          trail.visible = vis && trav > 60;
+          CU.uHead.value.copy(hp);
+          CU.uTail.value.copy(tp);
+          CU.uCam.value.copy(cam2.position);
+          CU.uA.value = curSky.planeA * Math.min(1, Math.max(0, (pl.T - pl.t) / 12));
+          PP[0] = hp.x;
+          PP[1] = hp.y;
+          PP[2] = hp.z;
+          pg.attributes.position.needsUpdate = true;
+          const blink = curName === "night" ? Math.sin(time * 6) > 0.3 ? 1 : 0.15 : 1;
+          planeDot.visible = trav < 3800;
+          pm.opacity = blink;
+          if (pl.t > pl.T) {
+            pl.on = false;
+            trail.visible = false;
+            planeDot.visible = false;
+          }
+        } else {
+          trail.visible = false;
+          planeDot.visible = false;
+        }
+      }
+    };
+  }
+  var SKY_TOD, lin, common, fx;
+  var init_niebo = __esm({
+    "js/niebo.js"() {
+      init_util();
+      SKY_TOD = {
+        sunset: { cover: 0.72, cK: 1.6, cLit: [1, 0.82, 0.6], cShade: [0.8, 0.54, 0.52], cirr: 0.85, cirrCol: [1, 0.8, 0.66], nightK: 0, starK: 0, belt: 0.16, cityG: 0, rays: 0.45, birds: 1, birdCol: [0.1, 0.07, 0.07], plane: [1, 0.82, 0.62], planeA: 0.75 },
+        day: { cover: 0.8, cK: 1.05, cLit: [1, 1, 1], cShade: [0.58, 0.66, 0.82], cirr: 0.7, cirrCol: [1, 1, 1], nightK: 0, starK: 0, belt: 0, cityG: 0, rays: 0.12, birds: 1, birdCol: [0.08, 0.09, 0.1], plane: [1, 1, 1], planeA: 0.9 },
+        night: { cover: 0.42, cK: 0.7, cLit: [0.38, 0.45, 0.68], cShade: [0.07, 0.09, 0.17], cirr: 0.4, cirrCol: [0.42, 0.5, 0.75], nightK: 1, starK: 1, belt: 0, cityG: 1, rays: 0, birds: 0, birdCol: [0.02, 0.02, 0.03], plane: [0.3, 0.35, 0.5], planeA: 0 }
+      };
+      lin = (a) => a.map((v) => Math.pow(v, 2.2));
+      common = "\n#include <tonemapping_fragment>\n#include <encodings_fragment>";
+      fx = null;
+    }
+  });
+
   // js/dzwiek.js
   function initAudio() {
     if (AC) {
@@ -6052,7 +6455,7 @@ vec3 pedP = position;
         const c2 = g.boundingBox.getCenter(new THREE.Vector3());
         lamps[k].push([c2.x, c2.y, c2.z]);
       }
-      const off = P2.length / 3, p = g.attributes.position, n = g.attributes.normal, M = MT[k], c = lin(hex);
+      const off = P2.length / 3, p = g.attributes.position, n = g.attributes.normal, M = MT[k], c = lin2(hex);
       for (let i = 0; i < p.count; i++) {
         P2.push(p.getX(i), p.getY(i), p.getZ(i));
         N.push(n.getX(i), n.getY(i), n.getZ(i));
@@ -6101,7 +6504,7 @@ vec3 pedP = position;
       b.v = grow(b.v, cap * 4);
     }
     if (b.ni + T.i.length > b.i.length) b.i = grow(b.i, Math.max((b.ni + T.i.length) * 2, 32768));
-    const cs = Math.cos(yaw), sn = Math.sin(yaw), o = b.n, tc = tint ? lin(tint) : null;
+    const cs = Math.cos(yaw), sn = Math.sin(yaw), o = b.n, tc = tint ? lin2(tint) : null;
     for (let i = 0; i < T.cnt; i++) {
       const i3 = i * 3, j = (o + i) * 3, px = T.p[i3], pz = T.p[i3 + 2], nx = T.n[i3], nz2 = T.n[i3 + 2];
       b.p[j] = x + px * cs + pz * sn;
@@ -6905,7 +7308,7 @@ vec3 pedP = position;
     updateSignals(false);
     for (const L of lanes) stepLane(L, dt);
     camera.getWorldDirection(_f);
-    const fl = Math.hypot(_f.x, _f.z) || 1, fx = _f.x / fl, fz = _f.z / fl;
+    const fl = Math.hypot(_f.x, _f.z) || 1, fx2 = _f.x / fl, fz = _f.z / fl;
     const cx = camera.position.x, cz = camera.position.z, hiCam = camera.position.y > 60;
     const R1 = hiCam ? 600 : 420, R22 = hiCam ? 320 : 230;
     for (const k in VT) VT[k].mesh.count = 0;
@@ -6914,7 +7317,7 @@ vec3 pedP = position;
     const hMax = nMoving * 4;
     const vis = (v, R3) => {
       const dx = v.x - cx, dz = v.z - cz, d2 = dx * dx + dz * dz;
-      return d2 < R3 * R3 && (d2 < 400 || dx * fx + dz * fz > -15);
+      return d2 < R3 * R3 && (d2 < 400 || dx * fx2 + dz * fz > -15);
     };
     for (const L of lanes) for (const v of L.list) {
       if (inPark(v.x, v.z) || !vis(v, R1)) continue;
@@ -6947,7 +7350,7 @@ vec3 pedP = position;
     tailL.geometry.setDrawRange(0, nt);
     hp.needsUpdate = tp.needsUpdate = true;
   }
-  var rs2, rr, rb, pick3, LC, lin, U, LAMPS, MT, B, C3, Sph, SCH, chunks, grow, boxAt, PT, lampList, poles, lensMesh, lensGlow, CYC, sigOff, SIGC, GLOWC, BLADES, bladeMat, sheds, inShed, capped, shadowQ, lanes, parked, hornT2, VT, vehMat, headL, tailL, nMoving, TAXI, CARC, SUVC, TRKC, parkIsec, _f;
+  var rs2, rr, rb, pick3, LC, lin2, U, LAMPS, MT, B, C3, Sph, SCH, chunks, grow, boxAt, PT, lampList, poles, lensMesh, lensGlow, CYC, sigOff, SIGC, GLOWC, BLADES, bladeMat, sheds, inShed, capped, shadowQ, lanes, parked, hornT2, VT, vehMat, headL, tailL, nMoving, TAXI, CARC, SUVC, TRKC, parkIsec, _f;
   var init_ulica = __esm({
     "js/ulica.js"() {
       init_stan();
@@ -6962,7 +7365,7 @@ vec3 pedP = position;
       rb = (a, b) => a + rr() * (b - a);
       pick3 = (a) => a[Math.floor(rr() * a.length)];
       LC = /* @__PURE__ */ new Map();
-      lin = (hex) => {
+      lin2 = (hex) => {
         let c = LC.get(hex);
         if (!c) {
           c = new THREE.Color(hex).convertSRGBToLinear();
@@ -7580,22 +7983,22 @@ vec3 pedP = position;
         if (false) {
           x.strokeStyle = "#161616";
           x.lineWidth = 3;
-          const fx = 128 + 10, fw = 236, fy = j * C4 + C4 - 16;
+          const fx2 = 128 + 10, fw = 236, fy = j * C4 + C4 - 16;
           x.fillStyle = "rgba(20,20,20,.9)";
-          x.fillRect(fx, fy, fw, 5);
-          for (let k = fx; k <= fx + fw; k += 12) {
+          x.fillRect(fx2, fy, fw, 5);
+          for (let k = fx2; k <= fx2 + fw; k += 12) {
             x.beginPath();
             x.moveTo(k, fy);
             x.lineTo(k, fy - 26);
             x.stroke();
           }
           x.beginPath();
-          x.moveTo(fx, fy - 26);
-          x.lineTo(fx + fw, fy - 26);
+          x.moveTo(fx2, fy - 26);
+          x.lineTo(fx2 + fw, fy - 26);
           x.stroke();
           x.beginPath();
-          x.moveTo(fx + 30, fy);
-          x.lineTo(fx + 110, fy - C4 + 16);
+          x.moveTo(fx2 + 30, fy);
+          x.lineTo(fx2 + 110, fy - C4 + 16);
           x.stroke();
         }
       }
@@ -8030,9 +8433,9 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
       x.fillStyle = "#5b5d60";
       for (let k = 0; k < 5; k++) vert ? x.fillRect(px - w / 2, py - h / 2 + (k + 0.5) * h / 5, w, 1) : x.fillRect(px - w / 2 + (k + 0.5) * w / 5, py - h / 2, 1, h);
     };
-    for (const fx of [0.25, 0.75]) {
-      drain(s0 + BW * S * fx, s0 - 0.5 * S, false);
-      drain(s0 + BW * S * fx, s0 + BD * S + 0.5 * S, false);
+    for (const fx2 of [0.25, 0.75]) {
+      drain(s0 + BW * S * fx2, s0 - 0.5 * S, false);
+      drain(s0 + BW * S * fx2, s0 + BD * S + 0.5 * S, false);
     }
     for (const fz of [0.3, 0.7]) {
       drain(s0 - 0.5 * S, s0 + BD * S * fz, true);
@@ -8110,8 +8513,8 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
       rx.fillStyle = `rgb(${k},${k},${k})`;
       rx.fillRect(Math.random() * W2, Math.random() * H3, 3, 3);
     }
-    const road = (fx) => {
-      for (let n = 0; n < fx; n++) {
+    const road = (fx2) => {
+      for (let n = 0; n < fx2; n++) {
         const alongX = Math.random() < 0.5, px = alongX ? Math.random() * W2 : Math.random() * s0 * 0.9, py = alongX ? Math.random() * s0 * 0.9 : Math.random() * H3;
         const r = 4 + Math.random() * 9;
         for (let q = 0, nq = 3 + Math.random() * 4 | 0; q < nq; q++) {
@@ -8220,77 +8623,13 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     sun.shadow.normalBias = 0.05;
     scene.add(sun);
     scene.add(sun.target);
-    skyU = {
-      sunDir: { value: sunDir },
-      top: { value: new V3() },
-      mid: { value: new V3() },
-      hor: { value: new V3() },
-      glowC: { value: new V3() },
-      disk: { value: 2.5 }
-    };
-    const mat = new THREE.ShaderMaterial({
-      side: THREE.BackSide,
-      depthWrite: false,
-      fog: false,
-      uniforms: skyU,
-      vertexShader: "varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }",
-      fragmentShader: `uniform vec3 sunDir, top, mid, hor, glowC; uniform float disk; varying vec3 vP;
-      void main(){
-        float h = vP.y;
-        vec3 c = mix(hor, mid, smoothstep(0.,.18,h)); c = mix(c, top, smoothstep(.14,.7,h));
-        if(h<0.) c = mix(hor, hor*.7, smoothstep(0.,-.3,h));
-        float s = max(dot(vP, sunDir), 0.);
-        c += glowC*pow(s,5.)*.7 + glowC*pow(s,60.)*1.5 + vec3(1.,.95,.85)*pow(s,900.)*disk;
-        vec3 fogC = hor*.97 + glowC*pow(s,4.)*.45; // przy horyzoncie niebo przechodzi w mgle (bez ostrego pasa)
-        c = mix(fogC, c, smoothstep(-.01,.16,h));
-        gl_FragColor = vec4(c,1.);
-        #include <tonemapping_fragment>
-        #include <encodings_fragment>
-      }`
-    });
+    skyU = skyUniforms(sunDir);
+    const mat = skyMaterial(skyU);
     sky = new THREE.Mesh(new THREE.SphereGeometry(3e3, 32, 16), mat);
     sky.renderOrder = -2;
     sky.frustumCulled = false;
     scene.add(sky);
-    const c = cv(1024, 1024), x = c.getContext("2d");
-    for (let i = 0; i < 90; i++) {
-      const px = Math.random() * 1024, py = Math.random() * 1024, rw = 60 + Math.random() * 220, rh = 10 + Math.random() * 30;
-      const g = x.createRadialGradient(0, 0, 0, 0, 0, 1);
-      const col = Math.random() < 0.5 ? "255,200,200" : "255,225,195";
-      g.addColorStop(0, `rgba(${col},.55)`);
-      g.addColorStop(1, `rgba(${col},0)`);
-      x.save();
-      x.translate(px, py);
-      x.scale(rw, rh);
-      x.fillStyle = g;
-      x.beginPath();
-      x.arc(0, 0, 1, 0, 7);
-      x.fill();
-      x.restore();
-    }
-    clouds = new THREE.Mesh(
-      new THREE.PlaneGeometry(7e3, 7e3),
-      new THREE.MeshBasicMaterial({ map: canvasTex(c), transparent: true, opacity: 0.85, depthWrite: false, fog: false, side: THREE.DoubleSide })
-    );
-    clouds.rotation.x = Math.PI / 2;
-    clouds.frustumCulled = false;
-    clouds.renderOrder = -1;
-    scene.add(clouds);
-    const sp = [];
-    for (let i = 0; i < 1800; i++) {
-      const u = Math.random() * 2 - 1, a = Math.random() * 6.283, y = Math.abs(u) * 0.95 + 0.05, r = Math.sqrt(1 - y * y);
-      sp.push(Math.cos(a) * r * 2800, y * 2800, Math.sin(a) * r * 2800);
-    }
-    const sg = new THREE.BufferGeometry();
-    sg.setAttribute("position", new THREE.Float32BufferAttribute(sp, 3));
-    stars = new THREE.Points(sg, new THREE.PointsMaterial({ color: 16777215, size: 2.2, sizeAttenuation: false, fog: false, transparent: true, depthWrite: false }));
-    stars.frustumCulled = false;
-    stars.renderOrder = -1;
-    scene.add(stars);
-    moon = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture("rgba(235,240,255,1)", "rgba(150,170,255,0)"), fog: false, depthWrite: false, transparent: true }));
-    moon.scale.set(240, 240, 1);
-    moon.renderOrder = -1;
-    scene.add(moon);
+    skyFX = createSkyFX(scene);
   }
   function updateEnvMap(T) {
     try {
@@ -8335,13 +8674,11 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     linHex(hemi.groundColor, T.hemi[1]);
     hemi.intensity = T.hemi[2];
     amb.intensity = T.amb;
-    clouds.material.opacity = T.cloud;
-    linHex(clouds.material.color, T.cloudCol);
+    setSkyTOD(skyU, todName);
+    skyFX.setTOD(todName);
     linHex(water.material.color, T.water);
     linHex(pondM.material.color, T.water).multiplyScalar(0.45);
     pondM.material.color.g *= 1.15;
-    stars.visible = T.stars > 0;
-    moon.visible = name === "night";
     for (const m of facMats) m.emissiveIntensity = T.win;
     setRoomTOD(name);
     shopMat.emissiveIntensity = T.shop;
@@ -8358,10 +8695,11 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     updateEnvMap(T);
   }
   function updateEnv() {
+    var _a4;
     sky.position.copy(camera.position);
-    clouds.position.set(camera.position.x, 700, camera.position.z);
-    stars.position.copy(camera.position);
-    moon.position.copy(camera.position).addScaledVector(sunDir, 2500);
+    updateSky(skyU, G.time);
+    skyFX.update(camera, sunDir, G.time, Math.min(0.1, Math.max(0, G.time - ((_a4 = updateEnv._t) != null ? _a4 : G.time))), !!G.interior);
+    updateEnv._t = G.time;
     sun.position.copy(P.pos).addScaledVector(sunDir, 450);
     sun.target.position.copy(P.pos);
     sun.target.updateMatrixWorld();
@@ -9594,7 +9932,7 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     p.A = clamp(p.sp / 1.4, 0.8, 1.12);
     p.rate = p.sp * Math.PI * 2 / (1.25 + 0.3 * p.A);
   }
-  function spawnPed(p, cx, cz, fx, fz, avoid) {
+  function spawnPed(p, cx, cz, fx2, fz, avoid) {
     const ci = Math.floor((cx - X0) / CX), cj = Math.floor((cz - Z0) / CZ);
     for (let t = 0; t < 12; t++) {
       const i = clamp(ci + Math.floor(Math.random() * 5) - 2, 0, NX - 1), j = clamp(cj + Math.floor(Math.random() * 5) - 2, 0, NZ - 1);
@@ -9609,7 +9947,7 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
       pedPos(p);
       const dx = p.x - cx, dz = p.z - cz, dd = Math.hypot(dx, dz);
       if (dd > PED_R - 5) continue;
-      if (avoid && dd < 60 && dx * fx + dz * fz > -0.2 * dd) continue;
+      if (avoid && dd < 60 && dx * fx2 + dz * fz > -0.2 * dd) continue;
       p.look = pedLook(Math.random, p.body === 2);
       p.flags = p.look.flags;
       p.flee = 0;
@@ -9677,14 +10015,14 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     camera.getWorldDirection(_fw);
     let fl = Math.hypot(_fw.x, _fw.z);
     const cull = fl > 0.35;
-    const fx = _fw.x / (fl || 1), fz = _fw.z / (fl || 1);
+    const fx2 = _fw.x / (fl || 1), fz = _fw.z / (fl || 1);
     let out = 0;
     for (const p of peds) if (!p.b || Math.hypot(p.x - cx, p.z - cz) > PED_R) out++;
     const avoid = !pedsFresh && out < PED_N * 0.3;
     pedsFresh = false;
     for (const p of peds) {
       if (!p.b || Math.hypot(p.x - cx, p.z - cz) > PED_R) {
-        if (!spawnPed(p, cx, cz, fx, fz, avoid)) continue;
+        if (!spawnPed(p, cx, cz, fx2, fz, avoid)) continue;
       }
       if (p.flee > 0) {
         p.flee -= dt;
@@ -9709,7 +10047,7 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
         if (p.ph > 1e4) p.ph -= Math.PI * 2 * 1e3;
       }
       const dx = p.x - cx, dz = p.z - cz, d = Math.hypot(dx, dz);
-      if (cull && d > 6 && dx * fx + dz * fz < 0.25 * d) continue;
+      if (cull && d > 6 && dx * fx2 + dz * fz < 0.25 * d) continue;
       const S = pedSets[p.body * 2 + (d < PED_HI ? 0 : 1)], k = S.n++;
       _o.position.set(p.x, SW, p.z);
       _o.rotation.set(0, p.yaw, 0);
@@ -9738,7 +10076,7 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     updateCars(dt);
     updatePeds(dt);
   }
-  var BW, BD, ST, NX, NZ, CX, CZ, CW, CD, X0, Z0, LAND, PK, POND, isPark, inPark, isecPos, DIST, doors, boxes, roofs, footprints, spots, perches, START, START_H, HC2, hash, stamp, hk, _s1, _s2, _rl, rayN, _rbN, CHUNK, cur, GLASS_TINTS, ngon, chamferPts, STY, isGlassy, isOld, CURT2, RM, RM_TOD, SHOPS, SIGNC, SHOP_DECL, SHOP_BLOCK, LOBBY_NAMES, sunDir, sun, sky, clouds, stars, moon, hemi, amb, water, pondM, waterNormal, TOD, TOD_NAMES, skyU, fogEnc, lastTOD, lin3, pmrem, envRT, skyScene, shopU, facMats, shopMat, lampMat, boardMats, glowPts, todName, facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo, ironGeo, pitchGeo, metalGeo, slateGeo, SW, tanks, awnings, masts, boards, DOOR_TYPES, ROOMSPEC, acUnits, balconyCount, streetFaces, FISK_DOOR, LANDMARKS, export_arena, ARENA, ventList, _o, _c, steam, birds, BIRD_N, birdData, _bo, PED_N, PED_R, PED_HI, peds, pedSets, _fw, pedsFresh;
+  var BW, BD, ST, NX, NZ, CX, CZ, CW, CD, X0, Z0, LAND, PK, POND, isPark, inPark, isecPos, DIST, doors, boxes, roofs, footprints, spots, perches, START, START_H, HC2, hash, stamp, hk, _s1, _s2, _rl, rayN, _rbN, CHUNK, cur, GLASS_TINTS, ngon, chamferPts, STY, isGlassy, isOld, CURT2, RM, RM_TOD, SHOPS, SIGNC, SHOP_DECL, SHOP_BLOCK, LOBBY_NAMES, sunDir, sun, sky, skyFX, hemi, amb, water, pondM, waterNormal, TOD, TOD_NAMES, skyU, fogEnc, lastTOD, lin3, pmrem, envRT, skyScene, shopU, facMats, shopMat, lampMat, boardMats, glowPts, todName, facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo, ironGeo, pitchGeo, metalGeo, slateGeo, SW, tanks, awnings, masts, boards, DOOR_TYPES, ROOMSPEC, acUnits, balconyCount, streetFaces, FISK_DOOR, LANDMARKS, export_arena, ARENA, ventList, _o, _c, steam, birds, BIRD_N, birdData, _bo, PED_N, PED_R, PED_HI, peds, pedSets, _fw, pedsFresh;
   var init_miasto = __esm({
     "js/miasto.js"() {
       init_util();
@@ -9746,6 +10084,7 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
       init_model();
       init_pokoje();
       init_sklepy_okna();
+      init_niebo();
       init_ulica();
       BW = 64;
       BD = 44;
@@ -9892,9 +10231,7 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
       sunDir = new V3(-0.82, 0.26, 0.3).normalize();
       sun = null;
       sky = null;
-      clouds = null;
-      stars = null;
-      moon = null;
+      skyFX = null;
       hemi = null;
       amb = null;
       water = null;
@@ -13040,6 +13377,17 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     }
     flareK += (want - flareK) * 0.12;
     el3.style.opacity = flareK.toFixed(3);
+    const e2 = $("flare2");
+    if (e2) {
+      if (want > 0) {
+        const cx = innerWidth / 2, cy = innerHeight / 2, dx = _sf.x * 0.5 * innerWidth, dy = -_sf.y * 0.5 * innerHeight;
+        e2.style.transform = `translate(${cx}px,${cy}px)`;
+        [-0.45, -0.9, -1.5].forEach((k, i) => {
+          e2.children[i].style.transform = `translate(${dx * k}px,${dy * k}px)`;
+        });
+      }
+      e2.style.opacity = (flareK * Math.min(1, Math.hypot(_sf.x, _sf.y) * 1.1)).toFixed(3);
+    }
   }
   function menuItems() {
     return [
@@ -13747,6 +14095,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
 #grain{position:fixed;inset:-50%;z-index:5;pointer-events:none;opacity:.07;mix-blend-mode:overlay;animation:grain .5s steps(4) infinite}
 @keyframes grain{0%{transform:translate(0,0)}25%{transform:translate(-7%,4%)}50%{transform:translate(5%,-6%)}75%{transform:translate(-3%,8%)}100%{transform:translate(0,0)}}
 #vig{position:fixed;inset:0;z-index:4;pointer-events:none;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 58%,rgba(8,6,14,.42) 100%)}
+#flare2{position:fixed;left:0;top:0;width:0;height:0;z-index:4;pointer-events:none;opacity:0}#flare2 i{position:absolute;border-radius:50%;display:block}#flare2 i:nth-child(1){width:90px;height:90px;margin:-45px;background:radial-gradient(circle,rgba(255,190,120,0) 55%,rgba(255,200,140,.16) 78%,rgba(255,200,140,0) 100%)}#flare2 i:nth-child(2){width:46px;height:46px;margin:-23px;background:radial-gradient(circle,rgba(150,210,255,.22),rgba(150,210,255,0) 70%)}#flare2 i:nth-child(3){width:150px;height:150px;margin:-75px;background:radial-gradient(circle,rgba(255,170,90,0) 60%,rgba(255,170,100,.1) 82%,rgba(255,170,100,0) 100%)}
 #flare{position:fixed;left:0;top:0;width:520px;height:520px;margin:-260px 0 0 -260px;z-index:4;pointer-events:none;opacity:0;background:radial-gradient(circle,rgba(255,236,200,.55) 0%,rgba(255,200,130,.22) 18%,rgba(255,170,90,.08) 40%,rgba(255,170,90,0) 62%),radial-gradient(circle at 70% 70%,rgba(160,200,255,.14) 0,rgba(160,200,255,0) 8%)}
 #tytul{position:fixed;inset:0;z-index:40;background:#05090f radial-gradient(ellipse at 50% 40%,#2a1a3a,#05090f 70%);transition:opacity .9s;cursor:pointer}
 #tytul.off{opacity:0;pointer-events:none}
@@ -13865,7 +14214,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
   <div class="page" id="pg-game"><div id="gameList"></div><div id="gameStats"></div></div>
   <div id="pauseFoot"></div>
 </div>
-<div id="vig"></div><div id="flare"></div>
+<div id="vig"></div><div id="flare"></div><div id="flare2"><i></i><i></i><i></i></div>
 <div id="tytul"><img src="tytul.jpg" alt="" onerror="this.style.display='none'"><div class="tt"><b>SPIDER<i>-</i>MAN</b><span>NOWY JORK</span></div><div class="tp">NACI\u015ANIJ DOWOLNY PRZYCISK</div></div>
 <div id="fade"></div>`;
       GLY = {
@@ -16834,10 +17183,10 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     t.hx = -0.35 - sp * 0.2;
     t.hy = ar * 0.1;
     t.by = -0.04 * low;
-    const fx = ar > 0 ? "L" : "R", sg = ar > 0 ? 1 : -1;
-    t["s" + fx + "x"] = lerp(-0.35, 0.95, low) + w;
-    t["s" + fx + "z"] = sg * lerp(1, 0.55, low);
-    t["e" + fx] = lerp(-0.3, -0.9, low);
+    const fx2 = ar > 0 ? "L" : "R", sg = ar > 0 ? 1 : -1;
+    t["s" + fx2 + "x"] = lerp(-0.35, 0.95, low) + w;
+    t["s" + fx2 + "z"] = sg * lerp(1, 0.55, low);
+    t["e" + fx2] = lerp(-0.3, -0.9, low);
     t["e" + (ar > 0 ? "R" : "L")] = -0.1;
   }
   function landPose(t, hs) {

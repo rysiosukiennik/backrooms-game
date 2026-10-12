@@ -66,6 +66,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
 #grain{position:fixed;inset:-50%;z-index:5;pointer-events:none;opacity:.07;mix-blend-mode:overlay;animation:grain .5s steps(4) infinite}
 @keyframes grain{0%{transform:translate(0,0)}25%{transform:translate(-7%,4%)}50%{transform:translate(5%,-6%)}75%{transform:translate(-3%,8%)}100%{transform:translate(0,0)}}
 #vig{position:fixed;inset:0;z-index:4;pointer-events:none;background:radial-gradient(ellipse at center,rgba(0,0,0,0) 58%,rgba(8,6,14,.42) 100%)}
+#flare2{position:fixed;left:0;top:0;width:0;height:0;z-index:4;pointer-events:none;opacity:0}#flare2 i{position:absolute;border-radius:50%;display:block}#flare2 i:nth-child(1){width:90px;height:90px;margin:-45px;background:radial-gradient(circle,rgba(255,190,120,0) 55%,rgba(255,200,140,.16) 78%,rgba(255,200,140,0) 100%)}#flare2 i:nth-child(2){width:46px;height:46px;margin:-23px;background:radial-gradient(circle,rgba(150,210,255,.22),rgba(150,210,255,0) 70%)}#flare2 i:nth-child(3){width:150px;height:150px;margin:-75px;background:radial-gradient(circle,rgba(255,170,90,0) 60%,rgba(255,170,100,.1) 82%,rgba(255,170,100,0) 100%)}
 #flare{position:fixed;left:0;top:0;width:520px;height:520px;margin:-260px 0 0 -260px;z-index:4;pointer-events:none;opacity:0;background:radial-gradient(circle,rgba(255,236,200,.55) 0%,rgba(255,200,130,.22) 18%,rgba(255,170,90,.08) 40%,rgba(255,170,90,0) 62%),radial-gradient(circle at 70% 70%,rgba(160,200,255,.14) 0,rgba(160,200,255,0) 8%)}
 #tytul{position:fixed;inset:0;z-index:40;background:#05090f radial-gradient(ellipse at 50% 40%,#2a1a3a,#05090f 70%);transition:opacity .9s;cursor:pointer}
 #tytul.off{opacity:0;pointer-events:none}
@@ -185,7 +186,7 @@ const HTML = `
   <div class="page" id="pg-game"><div id="gameList"></div><div id="gameStats"></div></div>
   <div id="pauseFoot"></div>
 </div>
-<div id="vig"></div><div id="flare"></div>
+<div id="vig"></div><div id="flare"></div><div id="flare2"><i></i><i></i><i></i></div>
 <div id="tytul"><img src="tytul.jpg" alt="" onerror="this.style.display='none'"><div class="tt"><b>SPIDER<i>-</i>MAN</b><span>NOWY JORK</span></div><div class="tp">NACIŚNIJ DOWOLNY PRZYCISK</div></div>
 <div id="fade"></div>`;
 
@@ -412,6 +413,16 @@ function updateFlare() {
     }
   }
   flareK += (want - flareK) * 0.12; el.style.opacity = flareK.toFixed(3);
+  // slabe "duchy" soczewki po przeciwnej stronie srodka kadru (pierscien, niebieskie kolko, duzy halo)
+  const e2 = $('flare2');
+  if (e2) {
+    if (want > 0) {
+      const cx = innerWidth / 2, cy = innerHeight / 2, dx = (_sf.x * 0.5) * innerWidth, dy = (-_sf.y * 0.5) * innerHeight;
+      e2.style.transform = `translate(${cx}px,${cy}px)`;
+      [-0.45, -0.9, -1.5].forEach((k, i) => { e2.children[i].style.transform = `translate(${dx * k}px,${dy * k}px)`; });
+    }
+    e2.style.opacity = (flareK * Math.min(1, Math.hypot(_sf.x, _sf.y) * 1.1)).toFixed(3);
+  }
 }
 
 // ---------------------------------------------------------------- menu glowne

@@ -5,6 +5,7 @@ import { scene, camera, renderer, P, G, canvas } from './stan.js';
 import { pedGeometries, pedMaterial, pedLook, pedU } from './model.js';
 import { makeRoomAtlas, ROOM_INFO } from './pokoje.js';
 import { makeShopAtlas } from './sklepy_okna.js';
+import { skyUniforms, skyMaterial, setSkyTOD, updateSky, createSkyFX } from './niebo.js';
 import { buildStreet, buildLampHeads, initCars, updateCars, inShed, awningGeo } from './ulica.js';
 
 export const BW = 64, BD = 44, ST = 18, NX = 8, NZ = 18;
@@ -703,7 +704,7 @@ export function glowTexture(inner = 'rgba(255,255,255,1)', outer = 'rgba(255,255
 // ---------------------------------------------------------------- niebo, swiatlo i pory dnia
 export const sunDir = new V3(-0.82, 0.26, 0.3).normalize();
 export let sun = null;
-let sky = null, clouds = null, stars = null, moon = null, hemi = null, amb = null, water = null, pondM = null, waterNormal = null;
+let sky = null, skyFX = null, hemi = null, amb = null, water = null, pondM = null, waterNormal = null;
 // kolory nieba jak na ekranie (sRGB); natezenia dobrane pod filmowa tonacje (ACES)
 const TOD = {
   sunset: {
@@ -749,53 +750,13 @@ function buildSky() {
   sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.05;
   scene.add(sun); scene.add(sun.target);
 
-  skyU = {
-    sunDir: { value: sunDir }, top: { value: new V3() }, mid: { value: new V3() }, hor: { value: new V3() },
-    glowC: { value: new V3() }, disk: { value: 2.5 },
-  };
-  // niebo liczone liniowo i puszczone przez ta sama tonacje co miasto — mgla na horyzoncie pasuje do nieba
-  const mat = new THREE.ShaderMaterial({
-    side: THREE.BackSide, depthWrite: false, fog: false, uniforms: skyU,
-    vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }',
-    fragmentShader: `uniform vec3 sunDir, top, mid, hor, glowC; uniform float disk; varying vec3 vP;
-      void main(){
-        float h = vP.y;
-        vec3 c = mix(hor, mid, smoothstep(0.,.18,h)); c = mix(c, top, smoothstep(.14,.7,h));
-        if(h<0.) c = mix(hor, hor*.7, smoothstep(0.,-.3,h));
-        float s = max(dot(vP, sunDir), 0.);
-        c += glowC*pow(s,5.)*.7 + glowC*pow(s,60.)*1.5 + vec3(1.,.95,.85)*pow(s,900.)*disk;
-        vec3 fogC = hor*.97 + glowC*pow(s,4.)*.45; // przy horyzoncie niebo przechodzi w mgle (bez ostrego pasa)
-        c = mix(fogC, c, smoothstep(-.01,.16,h));
-        gl_FragColor = vec4(c,1.);
-        #include <tonemapping_fragment>
-        #include <encodings_fragment>
-      }`,
-  });
+  skyU = skyUniforms(sunDir);
+  // niebo liczone liniowo i puszczone przez ta sama tonacje co miasto; chmury, gwiazdy, Ksiezyc i tarcza slonca w shaderze (niebo.js)
+  const mat = skyMaterial(skyU);
   sky = new THREE.Mesh(new THREE.SphereGeometry(3000, 32, 16), mat);
   sky.renderOrder = -2; sky.frustumCulled = false; scene.add(sky);
 
-  const c = cv(1024, 1024), x = c.getContext('2d');
-  for (let i = 0; i < 90; i++) {
-    const px = Math.random() * 1024, py = Math.random() * 1024, rw = 60 + Math.random() * 220, rh = 10 + Math.random() * 30;
-    const g = x.createRadialGradient(0, 0, 0, 0, 0, 1);
-    const col = Math.random() < 0.5 ? '255,200,200' : '255,225,195';
-    g.addColorStop(0, `rgba(${col},.55)`); g.addColorStop(1, `rgba(${col},0)`);
-    x.save(); x.translate(px, py); x.scale(rw, rh); x.fillStyle = g; x.beginPath(); x.arc(0, 0, 1, 0, 7); x.fill(); x.restore();
-  }
-  clouds = new THREE.Mesh(new THREE.PlaneGeometry(7000, 7000),
-    new THREE.MeshBasicMaterial({ map: canvasTex(c), transparent: true, opacity: 0.85, depthWrite: false, fog: false, side: THREE.DoubleSide }));
-  clouds.rotation.x = Math.PI / 2; clouds.frustumCulled = false; clouds.renderOrder = -1; scene.add(clouds);
-
-  const sp = [];
-  for (let i = 0; i < 1800; i++) {
-    const u = Math.random() * 2 - 1, a = Math.random() * 6.283, y = Math.abs(u) * 0.95 + 0.05, r = Math.sqrt(1 - y * y);
-    sp.push(Math.cos(a) * r * 2800, y * 2800, Math.sin(a) * r * 2800);
-  }
-  const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3));
-  stars = new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xffffff, size: 2.2, sizeAttenuation: false, fog: false, transparent: true, depthWrite: false }));
-  stars.frustumCulled = false; stars.renderOrder = -1; scene.add(stars);
-  moon = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture('rgba(235,240,255,1)', 'rgba(150,170,255,0)'), fog: false, depthWrite: false, transparent: true }));
-  moon.scale.set(240, 240, 1); moon.renderOrder = -1; scene.add(moon);
+  skyFX = createSkyFX(scene); // smugi swiatla, ptaki, samolot ze smuga
 }
 // odbicia nieba w szybach, autach i wodzie: mapa otoczenia liczona z samego nieba
 let pmrem = null, envRT = null, skyScene = null;
@@ -819,9 +780,8 @@ export function setTOD(name) {
   lastTOD = T; applyFog(T); scene.fog.near = T.fogN; scene.fog.far = T.fogF;
   linHex(sun.color, T.sunCol); sun.intensity = T.sunI;
   linHex(hemi.color, T.hemi[0]); linHex(hemi.groundColor, T.hemi[1]); hemi.intensity = T.hemi[2]; amb.intensity = T.amb;
-  clouds.material.opacity = T.cloud; linHex(clouds.material.color, T.cloudCol);
+  setSkyTOD(skyU, todName); skyFX.setTOD(todName);
   linHex(water.material.color, T.water); linHex(pondM.material.color, T.water).multiplyScalar(0.45); pondM.material.color.g *= 1.15;
-  stars.visible = T.stars > 0; moon.visible = name === 'night';
   for (const m of facMats) m.emissiveIntensity = T.win;
   setRoomTOD(name);
   shopMat.emissiveIntensity = T.shop; shopU.uSI.value = 0.45 + 0.6 * T.shop; shopU.uSEm.value = T.shop * 1.6;
@@ -844,9 +804,7 @@ export function setInteriorLight(on) {
 }
 export function updateEnv() {
   sky.position.copy(camera.position);
-  clouds.position.set(camera.position.x, 700, camera.position.z);
-  stars.position.copy(camera.position);
-  moon.position.copy(camera.position).addScaledVector(sunDir, 2500);
+  updateSky(skyU, G.time); skyFX.update(camera, sunDir, G.time, Math.min(0.1, Math.max(0, G.time - (updateEnv._t ?? G.time))), !!G.interior); updateEnv._t = G.time;
   sun.position.copy(P.pos).addScaledVector(sunDir, 450);
   sun.target.position.copy(P.pos); sun.target.updateMatrixWorld();
   if (waterNormal) { waterNormal.offset.x = G.time * 0.004; waterNormal.offset.y = G.time * 0.006; }
