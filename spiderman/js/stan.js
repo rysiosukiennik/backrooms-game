@@ -37,7 +37,7 @@ canvas.addEventListener('webglcontextlost', e => {
 }, false);
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = save.gfx === 'high' && !dbg('noshadow');
-renderer.shadowMap.type = THREE.PCFShadowMap; // tansze niz PCFSoft, a na laptopie liczy sie kazda klatka
+renderer.shadowMap.type = THREE.PCFSoftShadowMap; // miekkie krawedzie cieni slonca
 // realistyczne kolory: liczenie swiatla liniowo + filmowa tonacja (jak w aparacie)
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.toneMapping = dbg('notm') ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;
