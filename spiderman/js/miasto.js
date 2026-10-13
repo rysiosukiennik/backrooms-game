@@ -7,6 +7,7 @@ import { makeRoomAtlas, ROOM_INFO } from './pokoje.js';
 import { makeShopAtlas } from './sklepy_okna.js';
 import { skyUniforms, skyMaterial, setSkyTOD, updateSky, createSkyFX } from './niebo.js';
 import { dachyCollect, buildDachy, updateDachy, setDachyTOD } from './dachy.js';
+import { buildRivers, dressBridge, updateWater } from './woda.js';
 import { buildStreet, buildLampHeads, initCars, updateCars, inShed, awningGeo } from './ulica.js';
 
 export const BW = 64, BD = 44, ST = 18, NX = 8, NZ = 18;
@@ -1308,16 +1309,12 @@ function buildGround() {
   waterNormal = waterNormals(); waterNormal.repeat.set(9000 / 30, 9000 / 30);
   water = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), new THREE.MeshStandardMaterial({ color: 0x5d6f86, roughness: 0.16, metalness: 0.55, normalMap: waterNormal, normalScale: new THREE.Vector2(0.7, 0.7) }));
   water.rotation.x = -Math.PI / 2; water.position.y = -1.2; water.receiveShadow = true; scene.add(water);
-  const shoreMat = new THREE.MeshStandardMaterial({ color: 0x5d5f52, roughness: 1 });
-  const shore = (x0, x1, z0, z1) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, 4, z1 - z0), shoreMat);
-    m.position.set((x0 + x1) / 2, -1.5, (z0 + z1) / 2); scene.add(m);
-  };
+  // rzeki, nabrzeza, port, statki, Statua Wolnosci i dalekie brzegi: woda.js
   const W0 = LAND.x0 - 270, E0 = LAND.x1 + 230, N0 = LAND.z0 - 90;
-  shore(-5000, W0, -5000, 5000); shore(E0, 5000, -5000, 5000); shore(W0, E0, -5000, N0);
-  bridge(LAND.x1 - 6, E0 + 30, Z0 + CD * 0.86, 'stone');
-  bridge(LAND.x1 - 6, E0 + 30, Z0 + CD * 0.62, 'steel');
-  bridge(W0 - 30, LAND.x0 + 6, Z0 + CD * 0.08, 'steel');
+  buildRivers({ scene, water, LAND, W0, E0, N0, addBox, glowPoints, glowTexture, getTOD: () => todName, sunDir });
+  bridge(LAND.x1 - 6, E0 + 30, Z0 + CD * 0.86, 'stone'); dressBridge(LAND.x1 - 6, E0 + 30, Z0 + CD * 0.86, 'stone');
+  bridge(LAND.x1 - 6, E0 + 30, Z0 + CD * 0.62, 'steel'); dressBridge(LAND.x1 - 6, E0 + 30, Z0 + CD * 0.62, 'steel');
+  bridge(W0 - 30, LAND.x0 + 6, Z0 + CD * 0.08, 'steel'); dressBridge(W0 - 30, LAND.x0 + 6, Z0 + CD * 0.08, 'steel');
   for (let i = 0; i < 760; i++) {
     const side = srand(); let x, z, h = sr(6, 38), w = sr(12, 40), d = sr(12, 40);
     if (side < 0.42) { x = sr(W0 - 420, W0 - 20); z = sr(-1500, 1500); if ((z > 150 || z < -700) && srand() < 0.3) { h = sr(60, 190); w = sr(16, 30); d = sr(16, 30); } }
@@ -1601,7 +1598,7 @@ export function buildCity() {
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance = totalEmissiveRadiance * (1.0 - shopK) + (shopRGB * uSI + shopEM * uSEm) * shopK;');
   };
   meshFrom(shopGeo, shopMat, false);
-  meshFrom(farGeo, facMats[2], false);
+  // farGeo (stary daleki brzeg) zastapiony panorama z woda.js — petla w buildGround zostaje tylko dla ziarna losowego
   // podniesione chodniki z kraweznikami
   const cm = new THREE.MeshStandardMaterial({ map: canvasTex(sidewalkCanvas(), true), roughness: 0.95 });
   meshFrom(curbGeo, cm, false);
@@ -1806,6 +1803,7 @@ function updatePeds(dt) {
 }
 export function updateTraffic(dt) {
   updateLife(dt);
+  updateWater(dt);
   updateCars(dt);
   updatePeds(dt);
 }
