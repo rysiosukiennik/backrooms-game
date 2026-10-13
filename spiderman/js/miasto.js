@@ -5,7 +5,8 @@ import { scene, camera, renderer, P, G, canvas } from './stan.js';
 import { pedGeometries, pedMaterial, pedLook, pedU } from './model.js';
 import { makeRoomAtlas, ROOM_INFO } from './pokoje.js';
 import { makeShopAtlas } from './sklepy_okna.js';
-import { buildStreet, buildLampHeads, initCars, updateCars, inShed, awningGeo } from './ulica.js';
+import { buildStreet, buildLampHeads, initCars, updateCars, inShed, awningGeo, lampList } from './ulica.js';
+import { swInit, swTOD, swUpdate, swBuildStatic, aoGLSL, AOU, pedBlobBegin, pedBlobAdd, pedBlobEnd } from './swiatlo.js';
 
 export const BW = 64, BD = 44, ST = 18, NX = 8, NZ = 18;
 export const CX = BW + ST, CZ = BD + ST, CW = NX * CX, CD = NZ * CZ, X0 = -CW / 2, Z0 = -CD / 2;
@@ -354,8 +355,9 @@ function facadeTex(s) {
 // ciemniej przy ziemi miedzy budynkami (jak w prawdziwych ulicach, gdzie malo swiatla dochodzi na dol)
 function groundAO(m, k = 0.5, h = 18) {
   m.onBeforeCompile = sh => {
+    sh.uniforms.uAoTint = AOU.uAoTint;
     sh.vertexShader = 'varying float vWY;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vWY = (modelMatrix * vec4(transformed, 1.0)).y;');
-    sh.fragmentShader = 'varying float vWY;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>\n  diffuseColor.rgb *= mix(${k.toFixed(2)}, 1.0, smoothstep(0.0, ${h.toFixed(1)}, vWY));`);
+    sh.fragmentShader = 'varying float vWY;\nuniform vec3 uAoTint;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>\n  ${aoGLSL(k, h)}`);
   };
   return m;
 }
@@ -743,10 +745,7 @@ function buildSky() {
   hemi = new THREE.HemisphereLight(0xffd9b8, 0x4d4458, 0.35); scene.add(hemi);
   amb = new THREE.AmbientLight(0x8080a0, 0.03); scene.add(amb);
   sun = new THREE.DirectionalLight(0xffc28a, 2.6);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
-  const sc = sun.shadow.camera; sc.left = -70; sc.right = 70; sc.top = 70; sc.bottom = -70; sc.near = 150; sc.far = 750;
-  sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.05;
+  swInit(sun); // cienie slonca: okno sledzace gracza (swiatlo.js)
   scene.add(sun); scene.add(sun.target);
 
   skyU = {
@@ -830,6 +829,7 @@ export function setTOD(name) {
   for (const g of glowPts) { g.visible = T.lamps > 0; g.material.opacity = T.lamps; }
   renderer.toneMappingExposure = T.exp;
   canvas.style.filter = { sunset: 'sepia(.12) saturate(1.15) contrast(1.12) brightness(.96)', day: 'saturate(1.12) contrast(1.06)', night: 'saturate(1.08) contrast(1.1)' }[name] || '';
+  swTOD(name, sun, hemi, T.lamps);
   updateEnvMap(T);
 }
 // swiatlo we wnetrzach: slonce wylaczone, cieple swiatlo otoczenia (bez przeliczania mapy nieba)
@@ -847,8 +847,7 @@ export function updateEnv() {
   clouds.position.set(camera.position.x, 700, camera.position.z);
   stars.position.copy(camera.position);
   moon.position.copy(camera.position).addScaledVector(sunDir, 2500);
-  sun.position.copy(P.pos).addScaledVector(sunDir, 450);
-  sun.target.position.copy(P.pos); sun.target.updateMatrixWorld();
+  swUpdate(sun, sunDir, hemi, savedL !== null);
   if (waterNormal) { waterNormal.offset.x = G.time * 0.004; waterNormal.offset.y = G.time * 0.006; }
 }
 
@@ -1693,6 +1692,7 @@ export function buildCity() {
   // glowice latarni + poswiata (slupy sa w ulica.js)
   lampMat = new THREE.MeshStandardMaterial({ color: 0xffd9a0, emissive: 0xffb860, emissiveIntensity: 0.9 });
   buildLampHeads(lampMat);
+  swBuildStatic(lampList); // plamy swiatla latarni na ziemi + cienie przy slupach
 
   for (const r of roofs) if (r.x1 - r.x0 >= 14 && r.z1 - r.z0 >= 14 && r.y1 >= 15 && r.y1 <= 100) spots.push({ x0: r.x0, x1: r.x1, z0: r.z0, z1: r.z1, y1: r.y1, cx: (r.x0 + r.x1) / 2, cz: (r.z0 + r.z1) / 2, busy: false });
   footprints.sort((a, b) => a.h - b.h);
@@ -1819,6 +1819,7 @@ export function scarePeds(x, z, r = 45) {
 }
 function updatePeds(dt) {
   pedU.uTime.value = G.time;
+  pedBlobBegin();
   for (const S of pedSets) S.n = 0;
   if (dbg('noped')) { for (const S of pedSets) S.m.count = 0; return; }
   const cx = camera.position.x, cz = camera.position.z;
@@ -1844,6 +1845,7 @@ function updatePeds(dt) {
     const S = pedSets[p.body * 2 + (d < PED_HI ? 0 : 1)], k = S.n++;
     _o.position.set(p.x, SW, p.z); _o.rotation.set(0, p.yaw, 0); _o.scale.set(p.sc * p.wx, p.sc, p.sc * p.wx); _o.updateMatrix();
     S.m.setMatrixAt(k, _o.matrix);
+    if (d < 70) pedBlobAdd(p.x, p.z, p.yaw, p.sc);
     const L = p.look, k4 = k * 4;
     S.iA[k4] = p.ph; S.iA[k4 + 1] = p.idle ? 0 : p.A; S.iA[k4 + 2] = p.flags; S.iA[k4 + 3] = p.seed;
     for (let q = 0; q < 4; q++) { S.iC0[k4 + q] = L.c0[q]; S.iC1[k4 + q] = L.c1[q]; }
@@ -1853,6 +1855,7 @@ function updatePeds(dt) {
     S.m.instanceMatrix.needsUpdate = true;
     for (const k of ['iA', 'iC0', 'iC1']) S.g.attributes[k].needsUpdate = true;
   }
+  pedBlobEnd();
 }
 export function updateTraffic(dt) {
   updateLife(dt);

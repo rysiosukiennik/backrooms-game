@@ -251,7 +251,7 @@ function propTemplates() {
 }
 
 // ---------------------------------------------------------------- latarnie i sygnalizacja
-const lampList = [];          // [x, z, yaw] - glowice rysowane osobno (material lampy z miasto.js)
+export const lampList = [];          // [x, z, yaw] - glowice rysowane osobno (material lampy z miasto.js)
 const poles = [];             // slupy z sygnalizacja: { x, z, i, j, st }
 let lensMesh = null, lensGlow = null;
 const CYC = 27;
