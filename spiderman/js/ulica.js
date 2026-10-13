@@ -6,6 +6,7 @@
 import { G, P, scene, camera } from './stan.js';
 import { sfx } from './dzwiek.js';
 import { say } from './docinki.js';
+import { vehParts } from './auta.js';
 import { SW, NX, NZ, CX, CZ, CW, CD, X0, Z0, ST, BW, BD, inPark, isPark, doors, footprints, addBox, ventList, glowPoints, todName, distKey, PK } from './miasto.js';
 
 // wlasne losowanie z ziarnem (nie zmienia ukladu budynkow, ktory zalezy od srand)
@@ -19,24 +20,34 @@ const lin = hex => { let c = LC.get(hex); if (!c) { c = new THREE.Color(hex).con
 // ---------------------------------------------------------------- material z parametrami w wierzcholkach
 // vp = (maska lakieru, szorstkosc, metalicznosc, rodzaj swiecenia). Swiecenie zalezy od pory dnia (uLamp)
 // i - dla pojazdow - od hamowania (aBrake, osobno dla kazdej instancji).
-const U = { lamp: { value: 0.6 } };
+const U = { lamp: { value: 0.6 }, time: { value: 0 } };
 const LAMPS = { sunset: 0.6, day: 0, night: 1 };
 function streetMat(veh) {
   const m = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: 1, metalness: 0 });
   m.userData.lin = true; // kolory wierzcholkow sa juz liniowe
   m.customProgramCacheKey = () => veh ? 'ulica-veh' : 'ulica-st';
   m.onBeforeCompile = sh => {
-    sh.uniforms.uLamp = U.lamp;
-    sh.vertexShader = 'attribute vec4 vp;\nvarying vec4 vVp;\n' + (veh ? 'attribute float aBrake;\nvarying float vBrake;\n' : '') + sh.vertexShader
+    sh.uniforms.uLamp = U.lamp; sh.uniforms.uTime = U.time;
+    sh.vertexShader = 'attribute vec4 vp;\nvarying vec4 vVp;\n' + (veh ? 'attribute float aBrake;\nvarying float vBrake;\nvarying float vLy;\n' : '') + sh.vertexShader
       .replace('#include <color_vertex>', `vColor = color;
         #ifdef USE_INSTANCING_COLOR
           vColor = mix(vColor, vColor * instanceColor, vp.x);
         #endif
-        vVp = vp;${veh ? ' vBrake = aBrake;' : ''}`);
-    sh.fragmentShader = 'uniform float uLamp;\nvarying vec4 vVp;\n' + (veh ? 'varying float vBrake;\n' : 'const float vBrake = 0.0;\n') + sh.fragmentShader
+        vVp = vp;${veh ? ' vBrake = aBrake; vLy = position.y;' : ''}`);
+    sh.fragmentShader = 'uniform float uLamp;\nuniform float uTime;\nvarying vec4 vVp;\n' + (veh ? 'varying float vBrake;\nvarying float vLy;\n' : 'const float vBrake = 0.0;\n') + sh.fragmentShader
+      .replace('#include <color_fragment>', veh ? `#include <color_fragment>
+        if (vVp.x > 0.5) diffuseColor.rgb *= mix(0.4, 1.0, smoothstep(0.3, 0.78, vLy));   // zabrudzenie przy progach` : '#include <color_fragment>')
       .replace('#include <roughnessmap_fragment>', 'float roughnessFactor = vVp.y;')
       .replace('#include <metalnessmap_fragment>', 'float metalnessFactor = vVp.z;')
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        ${veh ? `{
+          // lekkie odbicie nieba: szyby (mocne), lakier (polysk), chrom (udawany)
+          float fr = pow(1.0 - clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0), 3.0);
+          vec3 sk = uLamp < 0.6 ? mix(vec3(0.55, 0.64, 0.78), vec3(0.62, 0.42, 0.26), uLamp / 0.6) : mix(vec3(0.62, 0.42, 0.26), vec3(0.05, 0.06, 0.1), (uLamp - 0.6) / 0.4);
+          if (vVp.y < 0.1) totalEmissiveRadiance += sk * (0.1 + fr * 0.9);
+          else if (vVp.z > 0.9) totalEmissiveRadiance += sk * (0.3 + fr * 0.5);
+          else if (vVp.x > 0.5) totalEmissiveRadiance += sk * fr * 0.28;
+        }` : ''}
         float ek = floor(vVp.w + 0.5);
         if (ek > 0.5) {
           vec3 ec;
@@ -47,7 +58,10 @@ function streetMat(veh) {
           else if (ek < 5.5) ec = vec3(1.0, 0.05, 0.02) * (0.2 + uLamp * 1.0 + vBrake * 2.6);      // swiatla tylne / stop
           else if (ek < 6.5) ec = vec3(1.0, 0.9, 0.62) * (0.45 + uLamp * 1.6);                     // kogut taksowki
           else if (ek < 7.5) ec = vec3(1.0, 0.55, 0.08) * (0.9 + uLamp * 1.4);                     // tablica autobusu
-          else ec = vec3(1.0, 0.42, 0.08) * (0.6 + uLamp * 1.4);                                  // pomaranczowa reka
+          else if (ek < 8.5) ec = vec3(1.0, 0.42, 0.08) * (0.6 + uLamp * 1.4);                    // pomaranczowa reka
+          else if (ek < 9.5) ec = vec3(1.0, 0.06, 0.03) * (0.5 + 3.4 * step(0.5, fract(uTime * 2.6)));          // koguty: czerwony
+          else if (ek < 10.5) ec = vec3(0.12, 0.3, 1.0) * (0.5 + 3.4 * (1.0 - step(0.5, fract(uTime * 2.6)))); // koguty: niebieski
+          else ec = vec3(1.0, 0.95, 0.85) * (0.6 + 3.0 * (1.0 - step(0.5, fract(uTime * 2.6))));                // koguty: bialy
           totalEmissiveRadiance += ec;
         }`);
   };
@@ -56,7 +70,7 @@ function streetMat(veh) {
 // rodzaje powierzchni: [szorstkosc, metalicznosc, swiecenie]
 const MT = {
   m: [0.88, 0, 0], r: [1, 0, 0], p: [0.45, 0.1, 0], car: [0.24, 0.5, 0], mt: [0.42, 0.7, 0], ch: [0.18, 1, 0], gl: [0.04, 0.8, 0], pl: [0.32, 0, 0],
-  lamp: [0.4, 0, 1], globe: [0.3, 0, 2], light: [0.5, 0, 3], head: [0.1, 0.3, 4], tail: [0.3, 0.2, 5], taxi: [0.5, 0, 6], dest: [0.5, 0, 7], hand: [0.5, 0, 8],
+  lamp: [0.4, 0, 1], globe: [0.3, 0, 2], light: [0.5, 0, 3], head: [0.1, 0.3, 4], tail: [0.3, 0.2, 5], taxi: [0.5, 0, 6], dest: [0.5, 0, 7], hand: [0.5, 0, 8], sirR: [0.3, 0, 9], sirB: [0.3, 0, 10], sirW: [0.3, 0, 11],
 };
 // ksztalty pomocnicze
 const B = (w, h, d, x = 0, y = 0, z = 0) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
@@ -464,115 +478,36 @@ export function buildStreet(blocks, trees) {
   buildSignals();
 }
 
-// ---------------------------------------------------------------- pojazdy
-function loft(rings, segs, n) {
-  const pos = [], idx = [];
-  for (const r of rings) for (let i = 0; i <= segs; i++) {
-    const a = i / segs * Math.PI * 2, c = Math.cos(a), s = Math.sin(a);
-    const ex = Math.sign(c) * Math.pow(Math.abs(c), 2 / n), ey = Math.sign(s) * Math.pow(Math.abs(s), 2 / n);
-    pos.push(r[1] * ex, (r[2] + r[3]) / 2 + (r[3] - r[2]) / 2 * ey, r[0]);
-  }
-  const S = segs + 1;
-  for (let k = 0; k < rings.length - 1; k++) for (let i = 0; i < segs; i++) { const a = k * S + i, b = a + 1, c = b + S, d = a + S; idx.push(a, b, c, a, c, d); }
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
-  return g;
-}
-// zamyka konce bryly (pierscien o zerowej szerokosci)
-const capped = R => { const a = R[0], z = R[R.length - 1], m = r => (r[2] + r[3]) / 2; return [[a[0], 0.001, m(a), m(a)], ...R, [z[0], 0.001, m(z), m(z)]]; };
-function wheels(parts, list, r, w, rim = 0xa0a5ab) {
-  for (const [x, z] of list) {
-    parts.push([C(r, r, w, 0, 0, 0, 12).rotateZ(Math.PI / 2).translate(x, r, z), 0x141414, 'r']);
-    const s = Math.sign(x);
-    parts.push([C(r * 0.62, r * 0.62, 0.02, 0, 0, 0, 10).rotateZ(Math.PI / 2).translate(x + s * (w / 2 + 0.006), r, z), rim, 'ch'], [C(r * 0.2, r * 0.2, 0.03, 0, 0, 0, 6).rotateZ(Math.PI / 2).translate(x + s * (w / 2 + 0.015), r, z), 0x55595e, 'mt']);
-  }
-}
-const shadowQ = (w, l, z = 0) => [new THREE.PlaneGeometry(w, l).rotateX(-Math.PI / 2).translate(0, 0.035, z), 0x000000, 'r'];
+// ---------------------------------------------------------------- pojazdy (modele w auta.js)
+// konfiguracja klas: udzialy w ruchu (mv) i wsrod zaparkowanych (pk), palety lakieru, szerokosc (hw) do kolizji zaparkowanych
+const TAXI = [0xf7b500, 0xf2b10a, 0xf5b800];
+const CARC = [0x1d1f24, 0x1d1f24, 0xe9e9e9, 0xe9e9e9, 0x8a1a1a, 0x2a4d8a, 0x6c6f75, 0x234a2f, 0xb0b3b8, 0x3a3d42, 0x5a1d24, 0xc9c3b4, 0x0f2440, 0x7b3a1c, 0x4b6a8c, 0xa99572];
+const SUVC = [0x16181c, 0x16181c, 0x2a2c30, 0xe5e5e5, 0x3b4048, 0x1c2a40, 0x5b5e63, 0x6e1f22, 0x2d3b2f];
+const TRKC = [0xb8261f, 0x1f4f9c, 0x2f7a4a, 0x4a3222, 0xe2e2e2, 0xf2c00f];
+const VCFG = {
+  taxi: { mv: 0.30, pk: 0.05, cols: TAXI, hw: 1.0 }, sedan: { mv: 0.13, pk: 0.2, cols: CARC, hw: 0.92 }, hatch: { mv: 0.07, pk: 0.12, cols: CARC, hw: 0.9 },
+  crown: { mv: 0.05, pk: 0.11, cols: CARC, hw: 1.0 }, cross: { mv: 0.08, pk: 0.13, cols: SUVC, hw: 0.95 }, suv: { mv: 0.12, pk: 0.2, cols: SUVC, hw: 1.02 },
+  van: { mv: 0.05, pk: 0.04, cols: [0x5b3a22, 0x5b3a22, 0x5b3a22, 0xe9e9e9, 0x1f3a5c, 0x6c6f75], hw: 1.04 }, truck: { mv: 0.035, pk: 0.02, cols: TRKC, hw: 1.2 },
+  police: { mv: 0.035, pk: 0.02, cols: [0xffffff], hw: 1.0 }, ambulance: { mv: 0.008, pk: 0, cols: [0xf6f6f6, 0xf0f0ea], hw: 1.04 }, fire: { mv: 0.004, pk: 0, cols: [0xb8141c, 0xa8120f], hw: 1.25 },
+  garbage: { mv: 0.014, pk: 0.005, cols: [0x2f7a4a, 0x3d8a55, 0x1f5e8a, 0xe2e2e2], hw: 1.22 }, pizza: { mv: 0.014, pk: 0.02, cols: CARC, hw: 0.9 }, limo: { mv: 0.012, pk: 0.006, cols: [0x0e0e10, 0x1b1b1f, 0xf0f0f0], hw: 1.0 },
+  moto: { mv: 0.02, pk: 0.04, cols: [0xc9281f, 0x1f4f9c, 0x16181c, 0xe9e9e9, 0xe0a11a], hw: 0.4 }, bus: { mv: 0, pk: 0, cols: [0x1f57a8], hw: 1.32 },
+};
+const PASS = ['sedan', 'hatch', 'crown', 'cross', 'suv', 'taxi', 'police', 'pizza', 'limo', 'van']; // lekka zmiennosc wymiarow
 function vehTemplates() {
   const T = {};
-  // Ford Crown Victoria: dluga maska, wyrazny bagaznik (taksowka i zwykly sedan)
-  const crown = (taxi) => {
-    const p = [shadowQ(2.25, 5.9)];
-    p.push([loft(capped([[-2.72, 0.8, 0.42, 0.74], [-2.66, 0.95, 0.35, 0.97], [-2.45, 0.99, 0.32, 1.0], [-2.02, 0.99, 0.32, 1.0], [-1.94, 0.99, 0.75, 1.0], [-0.9, 0.99, 0.75, 1.0], [-0.82, 0.99, 0.28, 1.0], [1.0, 0.99, 0.28, 0.99], [1.08, 0.99, 0.75, 0.98], [1.92, 0.99, 0.75, 0.95], [2.0, 0.99, 0.32, 0.94], [2.45, 0.97, 0.33, 0.9], [2.66, 0.92, 0.36, 0.83], [2.74, 0.78, 0.42, 0.72]]), 16, 6), 0xffffff, 'car', 1]);
-    p.push([B(1.76, 0.5, 4.9, 0, 0.55, 0), 0x0d0d0d, 'r']);
-    p.push([loft(capped([[-1.62, 0.88, 0.96, 1.0], [-1.05, 0.84, 0.96, 1.42], [0.3, 0.84, 0.96, 1.44], [1.18, 0.89, 0.96, 1.0]]), 16, 4), 0x0b0f14, 'gl']);
-    p.push([loft(capped([[-1.0, 0.79, 1.4, 1.46], [-0.93, 0.82, 1.41, 1.49], [0.24, 0.82, 1.42, 1.5], [0.31, 0.79, 1.41, 1.46]]), 16, 5), 0xffffff, 'car', 1]);
-    for (const s of [-1, 1]) p.push([B(0.05, 0.44, 0.13, s * 0.84, 1.2, -0.33), 0xffffff, 'car', 1], [B(0.16, 0.11, 0.1, s * 1.03, 1.05, 1.02), 0xffffff, 'car', 1], [B(0.03, 0.03, 0.18, s * 1.0, 0.86, 0.3), 0xb0b4b8, 'ch'], [B(0.03, 0.03, 0.18, s * 1.0, 0.86, -0.75), 0xb0b4b8, 'ch']);
-    p.push([B(1.9, 0.2, 0.16, 0, 0.44, 2.7), 0x2a2b2e, 'pl'], [B(1.9, 0.2, 0.16, 0, 0.46, -2.68), 0x2a2b2e, 'pl'], [B(0.9, 0.18, 0.04, 0, 0.68, 2.74), 0x15171a, 'ch'], [B(0.95, 0.03, 0.05, 0, 0.78, 2.735), 0xb8bcc0, 'ch']);
-    p.push([B(0.36, 0.14, 0.05, 0.6, 0.73, 2.72), 0xf5f5f0, 'head'], [B(0.36, 0.14, 0.05, -0.6, 0.73, 2.72), 0xf5f5f0, 'head'], [B(0.2, 0.08, 0.04, 0.88, 0.68, 2.62), 0xffa040, 'pl'], [B(0.2, 0.08, 0.04, -0.88, 0.68, 2.62), 0xffa040, 'pl']);
-    p.push([B(0.5, 0.17, 0.05, 0.6, 0.84, -2.7), 0x8a0c0c, 'tail'], [B(0.5, 0.17, 0.05, -0.6, 0.84, -2.7), 0x8a0c0c, 'tail'], [B(0.5, 0.13, 0.02, 0, 0.47, 2.79), 0xf0eee4, 'm'], [B(0.5, 0.13, 0.02, 0, 0.72, -2.73), 0xf0eee4, 'm']);
-    wheels(p, [[0.84, 1.5], [-0.84, 1.5], [0.84, -1.42], [-0.84, -1.42]], 0.36, 0.25);
-    if (taxi) { // kogut TAXI, szachownica na bokach, numer na drzwiach
-      p.push([B(0.7, 0.05, 0.32, 0, 1.53, -0.3), 0x111111, 'pl'], [B(0.62, 0.22, 0.26, 0, 1.66, -0.3), 0xfff3c0, 'taxi'], [B(0.64, 0.04, 0.28, 0, 1.78, -0.3), 0x222222, 'pl']);
-      for (const s of [-1, 1]) for (let k = 0; k < 14; k++) p.push([B(0.03, 0.065, 0.16, s * 1.0, 0.8 + (k % 2) * 0.065, -1.3 + k * 0.16), k % 2 ? 0x111111 : 0xf2f2f2, 'pl'], [B(0.03, 0.065, 0.16, s * 1.0, 0.8 + ((k + 1) % 2) * 0.065, -1.3 + k * 0.16), k % 2 ? 0xf2f2f2 : 0x111111, 'pl']);
-      for (const s of [-1, 1]) p.push([B(0.02, 0.12, 0.7, s * 1.0, 0.62, 0.05), 0x111111, 'pl']);
-    }
-    return tpl(p);
-  };
-  T.taxi = { t: crown(true), hl: 2.75 };
-  T.crown = { t: crown(false), hl: 2.75 };
-  // nowoczesny sedan (Camry): krotszy, obly, opadajacy dach
-  { const p = [shadowQ(2.1, 5.2)];
-    p.push([loft(capped([[-2.42, 0.72, 0.42, 0.74], [-2.36, 0.86, 0.34, 0.95], [-2.15, 0.9, 0.32, 0.98], [-1.78, 0.9, 0.32, 0.98], [-1.7, 0.9, 0.7, 0.98], [-0.95, 0.9, 0.7, 0.97], [-0.87, 0.9, 0.28, 0.97], [0.95, 0.9, 0.28, 0.94], [1.03, 0.9, 0.7, 0.92], [1.78, 0.9, 0.7, 0.86], [1.86, 0.89, 0.32, 0.84], [2.25, 0.86, 0.34, 0.76], [2.42, 0.72, 0.42, 0.62]]), 16, 4), 0xffffff, 'car', 1]);
-    p.push([B(1.6, 0.45, 4.4, 0, 0.52, 0), 0x0d0d0d, 'r']);
-    p.push([loft(capped([[-1.85, 0.8, 0.92, 0.96], [-1.05, 0.75, 0.92, 1.4], [0.2, 0.75, 0.92, 1.42], [1.25, 0.82, 0.92, 0.94]]), 16, 4), 0x0b0f14, 'gl']);
-    p.push([loft(capped([[-1.0, 0.7, 1.36, 1.42], [-0.9, 0.73, 1.37, 1.45], [0.15, 0.73, 1.38, 1.46], [0.25, 0.7, 1.37, 1.42]]), 14, 4), 0xffffff, 'car', 1]);
-    for (const s of [-1, 1]) p.push([B(0.05, 0.42, 0.12, s * 0.76, 1.17, -0.4), 0x111111, 'pl'], [B(0.15, 0.1, 0.1, s * 0.94, 1.0, 0.95), 0xffffff, 'car', 1]);
-    p.push([B(1.6, 0.16, 0.12, 0, 0.45, 2.38), 0x1b1c1f, 'pl'], [B(1.66, 0.16, 0.12, 0, 0.47, -2.36), 0xffffff, 'car', 1], [B(0.8, 0.14, 0.04, 0, 0.6, 2.42), 0x111111, 'pl']);
-    p.push([B(0.42, 0.1, 0.05, 0.56, 0.72, 2.32).rotateY(0.25), 0xf5f5f0, 'head'], [B(0.42, 0.1, 0.05, -0.56, 0.72, 2.32).rotateY(-0.25), 0xf5f5f0, 'head']);
-    p.push([B(0.42, 0.11, 0.05, 0.58, 0.85, -2.38), 0x8a0c0c, 'tail'], [B(0.42, 0.11, 0.05, -0.58, 0.85, -2.38), 0x8a0c0c, 'tail'], [B(0.5, 0.13, 0.02, 0, 0.62, -2.43), 0xf0eee4, 'm'], [B(0.5, 0.13, 0.02, 0, 0.44, 2.45), 0xf0eee4, 'm']);
-    wheels(p, [[0.78, 1.4], [-0.78, 1.4], [0.78, -1.33], [-0.78, -1.33]], 0.33, 0.23);
-    T.sedan = { t: tpl(p), hl: 2.45 }; }
-  // SUV (Tahoe/Explorer): wysoki, kanciasty, pionowa klapa
-  { const p = [shadowQ(2.3, 5.6)];
-    p.push([loft(capped([[-2.6, 0.85, 0.5, 1.05], [-2.55, 0.98, 0.45, 1.15], [-2.0, 1.0, 0.45, 1.15], [-1.96, 1.0, 0.9, 1.15], [-1.04, 1.0, 0.9, 1.15], [-1.0, 1.0, 0.42, 1.15], [1.05, 1.0, 0.42, 1.12], [1.09, 1.0, 0.9, 1.1], [1.96, 1.0, 0.9, 1.08], [2.0, 0.99, 0.45, 1.06], [2.5, 0.95, 0.48, 1.0], [2.62, 0.85, 0.55, 0.9]]), 16, 7), 0xffffff, 'car', 1]);
-    p.push([B(1.8, 0.55, 4.9, 0, 0.66, 0), 0x0d0d0d, 'r']);
-    p.push([loft(capped([[-2.52, 0.9, 1.1, 1.76], [-2.4, 0.9, 1.1, 1.82], [0.55, 0.9, 1.1, 1.84], [1.4, 0.94, 1.1, 1.14]]), 16, 6), 0x0b0f14, 'gl']);
-    p.push([loft(capped([[-2.46, 0.86, 1.8, 1.86], [-2.38, 0.88, 1.81, 1.9], [0.5, 0.88, 1.82, 1.9], [0.6, 0.86, 1.82, 1.87]]), 14, 6), 0xffffff, 'car', 1]);
-    for (const s of [-1, 1]) p.push([B(0.05, 0.05, 2.6, s * 0.72, 1.94, -0.95), 0x1b1c1f, 'pl'], [B(0.05, 0.6, 0.14, s * 0.92, 1.45, -0.35), 0x111111, 'pl'], [B(0.05, 0.6, 0.14, s * 0.92, 1.45, -1.65), 0x111111, 'pl'], [B(0.18, 0.13, 0.1, s * 1.06, 1.22, 1.05), 0x1b1c1f, 'pl']);
-    p.push([B(1.96, 0.26, 0.18, 0, 0.6, 2.62), 0x1b1c1f, 'pl'], [B(1.96, 0.26, 0.18, 0, 0.62, -2.58), 0x1b1c1f, 'pl'], [B(1.2, 0.3, 0.05, 0, 0.88, 2.63), 0x9a9ea3, 'ch']);
-    p.push([B(0.32, 0.18, 0.05, 0.72, 0.9, 2.6), 0xf5f5f0, 'head'], [B(0.32, 0.18, 0.05, -0.72, 0.9, 2.6), 0xf5f5f0, 'head']);
-    p.push([B(0.16, 0.42, 0.05, 0.86, 1.05, -2.6), 0x8a0c0c, 'tail'], [B(0.16, 0.42, 0.05, -0.86, 1.05, -2.6), 0x8a0c0c, 'tail'], [B(0.5, 0.13, 0.02, 0, 0.88, -2.62), 0xf0eee4, 'm']);
-    wheels(p, [[0.86, 1.52], [-0.86, 1.52], [0.86, -1.5], [-0.86, -1.5]], 0.42, 0.27, 0x7d8288);
-    T.suv = { t: tpl(p), hl: 2.65 }; }
-  // ciezarowka dostawcza: biala kabina, skrzynia z kolorowym pasem, podwojne kola z tylu
-  { const p = [shadowQ(2.6, 7.6)];
-    p.push([loft(capped([[1.35, 1.02, 0.65, 2.55], [2.0, 1.02, 0.65, 2.55], [2.08, 1.02, 1.0, 2.55], [3.1, 1.02, 1.0, 2.5], [3.18, 1.02, 0.6, 2.45], [3.45, 1.0, 0.6, 2.25], [3.56, 0.97, 0.62, 1.3], [3.6, 0.6, 0.7, 1.0]]), 16, 8), 0xe9e9e6, 'p']);
-    p.push([B(1.9, 0.9, 0.05, 0, 0, 0).rotateX(-0.22).translate(0, 1.82, 3.52), 0x0b0f14, 'gl']);
-    for (const s of [-1, 1]) p.push([B(0.04, 0.7, 0.95, s * 1.02, 1.95, 2.55), 0x0b0f14, 'gl'], [B(0.08, 0.5, 0.1, s * 1.15, 2.0, 3.3), 0x111111, 'pl']);
-    p.push([B(2.38, 2.45, 4.9, 0, 2.23, -1.15), 0xf2f2f0, 'p'], [B(2.4, 0.85, 3.4, 0, 2.3, -1.15), 0xffffff, 'p', 1], [B(2.4, 0.1, 4.92, 0, 1.06, -1.15), 0x777777, 'mt']);
-    p.push([B(2.2, 2.3, 0.03, 0, 2.2, -3.61), 0xd6d6d4, 'mt'], [B(1.1, 0.4, 7.1, 0, 0.7, -0.05), 0x161616, 'r'], [B(2.0, 0.24, 0.16, 0, 0.62, 3.62), 0x9a9ea3, 'ch'], [B(2.2, 0.15, 0.2, 0, 0.75, -3.62), 0x222222, 'pl']);
-    p.push([B(0.3, 0.16, 0.05, 0.7, 0.92, 3.6), 0xf5f5f0, 'head'], [B(0.3, 0.16, 0.05, -0.7, 0.92, 3.6), 0xf5f5f0, 'head'], [B(0.18, 0.3, 0.05, 1.0, 1.2, -3.64), 0x8a0c0c, 'tail'], [B(0.18, 0.3, 0.05, -1.0, 1.2, -3.64), 0x8a0c0c, 'tail']);
-    wheels(p, [[0.88, 2.6], [-0.88, 2.6], [0.76, -2.2], [-0.76, -2.2], [1.0, -2.2], [-1.0, -2.2]], 0.45, 0.22, 0x8a8f94);
-    T.truck = { t: tpl(p), hl: 3.65 }; }
-  // autobus MTA (New Flyer): bialy z niebieskim pasem, ciemne okna, pomaranczowa tablica kierunkowa
-  { const p = [shadowQ(2.9, 12.6)];
-    p.push([loft(capped([[-6.1, 1.15, 0.38, 3.0], [-6.05, 1.28, 0.33, 3.12], [-5.9, 1.3, 0.32, 3.2], [-3.2, 1.3, 0.32, 3.2], [-3.1, 1.3, 1.02, 3.2], [-2.1, 1.3, 1.02, 3.2], [-2.0, 1.3, 0.32, 3.2], [3.2, 1.3, 0.32, 3.2], [3.3, 1.3, 1.02, 3.2], [4.3, 1.3, 1.02, 3.2], [4.4, 1.3, 0.32, 3.2], [5.9, 1.3, 0.32, 3.2], [6.05, 1.28, 0.33, 3.12], [6.1, 1.15, 0.38, 3.0]]), 16, 10), 0xeef0f0, 'p']);
-    p.push([B(2.4, 0.7, 11.6, 0, 0.66, 0), 0x0d0d0d, 'r']);
-    for (const [a, b] of [[-5.95, -3.15], [-2.05, 3.25], [4.35, 5.95]]) p.push([B(2.62, 0.26, b - a, 0, 1.16, (a + b) / 2), 0xffffff, 'p', 1]);
-    p.push([B(2.62, 1.1, 11.0, 0, 2.15, -0.2), 0x0b0f14, 'gl'], [B(2.63, 0.08, 11.0, 0, 2.74, -0.2), 0xffffff, 'p', 1]);
-    p.push([B(0.03, 2.1, 1.0, -1.31, 1.55, 5.0), 0x0b0f14, 'gl'], [B(0.03, 2.1, 1.0, -1.31, 1.55, 0.2), 0x0b0f14, 'gl']);
-    p.push([B(2.3, 1.55, 0.05, 0, 1.95, 6.11), 0x0b0f14, 'gl'], [B(1.9, 0.26, 0.05, 0, 2.93, 6.1), 0xffa500, 'dest'], [B(1.9, 0.6, 0.04, 0, 2.5, -6.12), 0x0b0f14, 'gl']);
-    p.push([B(0.32, 0.16, 0.04, 0.95, 0.72, 6.13), 0xf5f5f0, 'head'], [B(0.32, 0.16, 0.04, -0.95, 0.72, 6.13), 0xf5f5f0, 'head'], [B(0.2, 0.5, 0.04, 1.05, 1.0, -6.12), 0x8a0c0c, 'tail'], [B(0.2, 0.5, 0.04, -1.05, 1.0, -6.12), 0x8a0c0c, 'tail']);
-    p.push([B(2.5, 0.3, 0.2, 0, 0.5, 6.15), 0x1b1c1f, 'pl'], [B(2.5, 0.3, 0.2, 0, 0.5, -6.15), 0x1b1c1f, 'pl'], [B(1.7, 0.3, 3.2, 0, 3.33, -3.6), 0xd8dadb, 'p'], [B(1.2, 0.2, 1.6, 0, 3.28, 2.5), 0xd8dadb, 'p']);
-    for (const s of [-1, 1]) p.push([B(0.08, 0.38, 0.1, s * 1.48, 2.55, 5.95), 0x111111, 'pl'], [B(0.2, 0.04, 0.04, s * 1.38, 2.75, 6.0), 0x111111, 'pl']);
-    p.push([B(0.9, 0.5, 0.25, 0, 0.75, 6.32), 0x2a2a2a, 'mt']); // stojak na rowery z przodu
-    wheels(p, [[1.05, 3.8], [-1.05, 3.8], [1.05, -2.55], [-1.05, -2.55]], 0.5, 0.34, 0x9a9fa5);
-    T.bus = { t: tpl(p), hl: 6.15 }; }
+  for (const k in VCFG) { const r = vehParts(k); const t = tpl(r.p); let hl = r.hl; T[k] = { t, hl }; }
   return T;
 }
+function wpick(key) { let q = 0; for (const k in VCFG) q += VCFG[k][key]; q *= rr(); for (const k in VCFG) { q -= VCFG[k][key]; if (q <= 0) return k; } return 'sedan'; }
 
 const lanes = [], parked = [];
 let hornT = 0;
 let VT = null, vehMat = null, headL = null, tailL = null, nMoving = 0;
-const TAXI = [0xf7b500, 0xf2b10a, 0xf5b800];
-const CARC = [0x1d1f24, 0x1d1f24, 0xe9e9e9, 0xe9e9e9, 0x8a1a1a, 0x2a4d8a, 0x6c6f75, 0x234a2f, 0xb0b3b8, 0x3a3d42, 0x5a1d24, 0xc9c3b4, 0x0f2440];
-const SUVC = [0x16181c, 0x16181c, 0x2a2c30, 0xe5e5e5, 0x3b4048, 0x1c2a40, 0x5b5e63];
-const TRKC = [0xb8261f, 0x1f4f9c, 0x2f7a4a, 0x4a3222, 0xe2e2e2, 0xf2c00f];
 function mkVeh(type, extra) {
   const v = { type, hl: VT[type].hl, v: 0, brake: 0, x: 0, z: 0, yaw: 0, sc: [1, 1, 1], ...extra };
-  if (type === 'sedan' || type === 'suv' || type === 'crown') v.sc = [rb(0.97, 1.03), rb(0.97, 1.04), rb(0.96, 1.04)];
-  v.hl *= v.sc[2];
-  const hex = type === 'taxi' ? pick(TAXI) : type === 'bus' ? 0x1f57a8 : type === 'truck' ? pick(TRKC) : type === 'suv' ? pick(SUVC) : pick(CARC);
+  if (PASS.includes(type)) v.sc = [rb(0.98, 1.03), rb(0.97, 1.04), rb(0.97, 1.03)];
+  v.hl *= v.sc[2]; v.hw = VCFG[type].hw * v.sc[0];
+  const hex = pick(VCFG[type].cols);
   v.col = new THREE.Color(hex).convertSRGBToLinear();
   return v;
 }
@@ -582,11 +517,11 @@ export function initCars() {
   for (let j = 0; j <= NZ; j++) { const z = Z0 + j * CZ; lanes.push({ ax: 'x', c: z + 3.6, dir: 1, j, len: CW + 20, st: X0 - 10, list: [] }, { ax: 'x', c: z - 3.6, dir: -1, j, len: CW + 20, st: X0 - 10, list: [] }); }
   for (const L of lanes) {
     const n = L.ax === 'z' ? 4 + Math.floor(rr() * 3) : 2 + Math.floor(rr() * 2), types = [];
-    for (let k = 0; k < n; k++) { const q = rr(); types.push(q < 0.38 ? 'taxi' : q < 0.55 ? 'sedan' : q < 0.66 ? 'crown' : q < 0.86 ? 'suv' : 'truck'); }
+    for (let k = 0; k < n; k++) types.push(wpick('mv'));
     if (L.curb && rr() < 0.55) types[Math.floor(rr() * n)] = 'bus';
     types.forEach((t, k) => {
       const v = mkVeh(t, { L, s: (k / n) * L.len + rb(0, L.len / n * 0.3) });
-      v.vmax = t === 'bus' ? rb(8, 10) : t === 'truck' ? rb(9, 11.5) : rb(10.5, 14.5); v.v = v.vmax * rr();
+      v.vmax = t === 'bus' ? rb(8, 10) : t === 'truck' ? rb(9, 11.5) : t === 'garbage' ? rb(7.5, 9.5) : t === 'fire' ? rb(9, 11) : t === 'moto' || t === 'police' || t === 'ambulance' ? rb(12, 16) : rb(10.5, 14.5); v.v = v.vmax * rr();
       L.list.push(v);
     });
     L.list.sort((a, b) => a.s - b.s);
@@ -597,9 +532,9 @@ export function initCars() {
     const z = Z0 + j * CZ + side * 7.35, xa = X0 + i * CX + 14, xb = X0 + (i + 1) * CX - 14;
     if (inPark((xa + xb) / 2, z) || (j === 0 && side < 0) || (j === NZ && side > 0)) continue;
     for (let x = xa + rb(0, 3); x < xb - 2.5;) {
-      const q = rr(), t = q < 0.06 ? 'taxi' : q < 0.4 ? 'sedan' : q < 0.6 ? 'crown' : q < 0.96 ? 'suv' : 'truck', v = mkVeh(t);
+      const t = wpick('pk'), v = mkVeh(t);
       if (x + 2 * v.hl > xb) break;
-      if (rr() < 0.72) { v.x = x + v.hl; v.z = z + rb(-0.12, 0.12); v.yaw = side > 0 ? Math.PI / 2 : -Math.PI / 2; parked.push(v); addBox({ x0: v.x - v.hl, x1: v.x + v.hl, y0: 0, y1: 1.5, z0: v.z - v.sc[0], z1: v.z + v.sc[0] }); }
+      if (rr() < 0.72) { v.x = x + v.hl; v.z = z + rb(-0.12, 0.12); v.yaw = side > 0 ? Math.PI / 2 : -Math.PI / 2; parked.push(v); addBox({ x0: v.x - v.hl, x1: v.x + v.hl, y0: 0, y1: 1.5, z0: v.z - v.hw, z1: v.z + v.hw }); }
       x += 2 * v.hl + rb(0.9, 2.6);
     }
   }
@@ -608,6 +543,7 @@ export function initCars() {
   const cap = {}; for (const k in VT) cap[k] = 0;
   for (const L of lanes) for (const v of L.list) cap[v.type]++;
   for (const v of parked) cap[v.type]++;
+  for (const k in VT) cap[k] += 3; // zapas na pojazdy ustawiane przez debugPlace
   for (const k in VT) {
     const g = tplGeo(VT[k].t), n = Math.max(1, cap[k]);
     const ab = new THREE.InstancedBufferAttribute(new Float32Array(n), 1); ab.setUsage(THREE.DynamicDrawUsage); g.setAttribute('aBrake', ab);
@@ -665,7 +601,7 @@ function writeInst(m, k, v) {
 const _f = new THREE.Vector3();
 export function updateCars(dt) {
   if (!VT) return;
-  dt = Math.min(dt, 0.1); hornT -= dt;
+  dt = Math.min(dt, 0.1); hornT -= dt; U.time.value += dt;
   U.lamp.value = LAMPS[todName] ?? 0.6;
   if (bladeMat) bladeMat.emissiveIntensity = 0.12 + U.lamp.value * 1.3;
   updateSignals(false);
@@ -694,3 +630,7 @@ export const signalAt = sigState;
 
 // diagnostyka testow: dostep do pasow ruchu
 export const debugLanes = () => lanes;
+
+// diagnostyka: ustawienie zaparkowanego pojazdu danego typu (testy wygladu)
+export const debugParked = () => parked;
+export function debugPlace(type, x, z, yaw, col) { const v = mkVeh(type); v.x = x; v.z = z; v.yaw = yaw; if (col !== undefined) v.col = new THREE.Color(col).convertSRGBToLinear(); parked.push(v); return v; }
