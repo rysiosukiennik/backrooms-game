@@ -6287,7 +6287,7 @@ ${GLSL_NOISE}
     Bs.sd = rec.idx * 31 + 7;
     const rc = Math.min(w, d) < 14 ? 2.5 : 5;
     rec.occ.push([cx - rc, cx + rc, cz - rc, cz + rc]);
-    const heli = y >= 55 && w >= 22 && d >= 22 && rng2() < 0.32 ? helipad(Bs, Li, rec, rng2) : false;
+    const heli = y >= 45 && w >= 20 && d >= 20 && rng2() < 0.5 ? helipad(Bs, Li, rec, rng2) : false;
     if (!heli && y > 18 && y < 125 && w >= 16 && d >= 14 && rng2() < 0.25) adBoard(Bs, Ad, Li, rec, rng2, "ad");
     if (y > 14 && rng2() < 0.14) adBoard(Bs, Ad, Li, rec, rng2, rng2() < 0.5 ? "hneon" : "vneon");
     if (y > 10 && rng2() < 0.65) {
@@ -6483,7 +6483,7 @@ ${GLSL_NOISE}
       } else {
         const s = 1 + rng2() * 0.6;
         Bs.box(p[0] - s, p[0] + s, y, y + 0.35, p[1] - s, p[1] + s, "#566069", { r: 0.8 });
-        Bs.xbox(p[0], y + 0.6, p[1], s * 0.8, 0.02, s * 0.8, 0, 0, "#5f7f92", { r: 0.4, m: 0.1, e: 1 });
+        Bs.xbox(p[0], y + 0.6, p[1], s * 0.8, 0.02, s * 0.8, 0, 0, "#5f7f92", { r: 0.4, m: 0.1, e: 4 });
         Bs.xbox(p[0], y + 0.5, p[1], s * 0.92, 0.12, s * 0.92, 0, 0, "#566069");
       }
     }

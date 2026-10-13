@@ -1,4 +1,4 @@
-// Dachy i reklamy: klimatyzatory z wolno obracajacymi sie wentylatorami, budki wind i wyjscia na dach, zbiorniki na wode,
+﻿// Dachy i reklamy: klimatyzatory z wolno obracajacymi sie wentylatorami, budki wind i wyjscia na dach, zbiorniki na wode,
 // maszty z migajacymi swiatlami, helipady, panele solarne, ogrody dachowe, pranie, drabiny, anteny, graffiti, a takze
 // duze ekrany reklamowe (animowane) i neonowe szyldy HOTEL / BAR / PIZZA, ktore nocy daja poswiate.
 // Wszystko scalone w kawalki 128 x 128 m. Poziom "baza" (duze sylwetki) budowany od razu, poziom "detal" (rury, anteny,
@@ -685,7 +685,7 @@ function genDetail(rec, ch) {
     else if (t < 0.45) { Bs.box(p[0] - 0.5, p[0] + 0.5, y, y + 0.7, p[1] - 0.5, p[1] + 0.5, '#9b7a52', { r: 0.95 }); if (rng() < 0.5) Bs.box(p[0] - 0.4, p[0] + 0.4, y + 0.7, y + 1.3, p[1] - 0.4, p[1] + 0.4, '#8a6a46', { r: 0.95 }); }
     else if (t < 0.6) { Bs.box(p[0] - 0.6, p[0] + 0.6, y, y + 0.14, p[1] - 0.5, p[1] + 0.5, '#a8885a', { r: 0.95 }); Bs.box(p[0] - 0.5, p[0] + 0.5, y + 0.14, y + 0.7, p[1] - 0.4, p[1] + 0.4, '#d8d3c4', { r: 0.9 }); }
     else if (t < 0.78) { Bs.cyl(p[0], y + 0.4, p[1], 0.4, 0.4, 1.4, 10, '#1c1c1e', { r: 0.9 }, rng() * 3, Math.PI / 2); }
-    else { const s = 1.0 + rng() * 0.6; Bs.box(p[0] - s, p[0] + s, y, y + 0.35, p[1] - s, p[1] + s, '#566069', { r: 0.8 }); Bs.xbox(p[0], y + 0.6, p[1], s * 0.8, 0.02, s * 0.8, 0, 0, '#5f7f92', { r: 0.4, m: 0.1, e: 1 }); Bs.xbox(p[0], y + 0.5, p[1], s * 0.92, 0.12, s * 0.92, 0, 0.0, '#566069'); }
+    else { const s = 1.0 + rng() * 0.6; Bs.box(p[0] - s, p[0] + s, y, y + 0.35, p[1] - s, p[1] + s, '#566069', { r: 0.8 }); Bs.xbox(p[0], y + 0.6, p[1], s * 0.8, 0.02, s * 0.8, 0, 0, '#5f7f92', { r: 0.4, m: 0.1, e: 4 }); Bs.xbox(p[0], y + 0.5, p[1], s * 0.92, 0.12, s * 0.92, 0, 0.0, '#566069'); }
   }
   // dodatkowe plamy (wieksza gestosc z bliska), kaluze, szwy membrany
   const rf = b.x0 + 0.45, rt = b.x1 - 0.45, zf = b.z0 + 0.45, zt = b.z1 - 0.45;
