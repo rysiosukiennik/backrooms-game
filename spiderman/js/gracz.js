@@ -12,6 +12,7 @@ import { sfx } from './dzwiek.js';
 import { say } from './docinki.js';
 import { rumble } from './wejscie.js';
 import { showMsg, flashDamage, popText } from './ui.js';
+import { getRope, heroLand, anchorFX } from './efekty.js';
 
 const GRAV = 27;
 const _t = new V3(), _h = new V3(), _f = new V3(), _u = new V3(), _q = new THREE.Quaternion(), _cf = new V3();
@@ -30,7 +31,7 @@ let lineMain, lineZ1, lineZ2;
 
 export function initPlayer() {
   P.pc = newPose(); P.pt = newPose();
-  lineMain = mkLine(); lineZ1 = mkLine(); lineZ2 = mkLine();
+  lineMain = getRope(); lineZ1 = getRope(); lineZ2 = getRope();
   setSuit(save.suit);
   placeAtStart();
   P.hp = maxHp();
@@ -291,7 +292,7 @@ function land(imp) {
   P.lvT = imp > 32 ? 0.85 : imp > 12 ? 0.34 : 0; P.lvDur = P.lvT; P.lvHero = imp > 32; cam.kick = Math.max(cam.kick || 0, Math.min(0.5, imp / 90));
   if (imp > 32) {
     P.landT = 0.45; P.landHard = true; G.shake = Math.max(G.shake, 0.45);
-    rumble(0.25, 0.8, 0.5); sfx('land'); say('hero'); burst(P.pos.x, P.pos.y + 0.1, P.pos.z, 26, 0xcfc6b8, 6);
+    rumble(0.25, 0.8, 0.5); sfx('land'); say('hero'); heroLand(P.pos.x, P.pos.y, P.pos.z, Math.min(1.4, imp / 45));
   } else if (imp > 12) { P.landT = 0.22; P.landHard = false; sfx('land', 0.35); }
 }
 function wallContact(w) {
@@ -453,6 +454,7 @@ function tryAttach(wx, wz, wl) {
     best = new V3(o.x + Math.sin(base) * Math.cos(0.9) * 34, Math.min(o.y + Math.sin(0.9) * 34, 95), o.z + Math.cos(base) * Math.cos(0.9) * 34);
   }
   P.anchor.copy(best); P.state = 'swing'; P.swingT = 0;
+  anchorFX(best, P.pos);
   P.rope = P.pos.distanceTo(best); P.ropeT = clamp(Math.min(P.rope, best.y - 2.5), 6, 90);
   if (hs < 18) { P.vel.x += dx * 8; P.vel.z += dz * 8; }
   P.zips = zipMax(); P.flipT = -1; P.pc.bp = 0; P.trickT = 0;
@@ -646,10 +648,10 @@ export function updatePlayerVisual(dt) {
   if (P.state === 'pz') { aimArm(H, 'R', P.pz.to, 1); aimArm(H, 'L', P.pz.to, 1); }
   H.root.updateMatrixWorld(true);
 
-  if (P.state === 'swing') { (P.swingSide > 0 ? H.handR : H.handL).getWorldPosition(_h); setLine(lineMain, _h, P.anchor); }
-  else lineMain.visible = false;
+  if (P.state === 'swing') { (P.swingSide > 0 ? H.handR : H.handL).getWorldPosition(_h); const Ld = _h.distanceTo(P.anchor), slack = Math.max(0, P.rope - Ld) / Math.max(1, P.rope); lineMain.set(_h, P.anchor, 1 - Math.min(0.7, slack * 4), Math.max(0, 1 - P.swingT * 3.5) * 0.8); }
+  else lineMain.hide();
   const two = P.zipT > 0 ? P.zipPt : P.state === 'pz' ? P.pz.to : null;
-  if (two) { H.handR.getWorldPosition(_h); setLine(lineZ1, _h, two); H.handL.getWorldPosition(_h); setLine(lineZ2, _h, two); }
-  else lineZ1.visible = lineZ2.visible = false;
+  if (two) { H.handR.getWorldPosition(_h); lineZ1.set(_h, two, 0.9, 0.2); H.handL.getWorldPosition(_h); lineZ2.set(_h, two, 0.9, 0.2); }
+  else { lineZ1.hide(); lineZ2.hide(); }
   H.root.visible = !(P.hurtT > 0 && Math.floor(P.hurtT * 30) % 2 === 0);
 }

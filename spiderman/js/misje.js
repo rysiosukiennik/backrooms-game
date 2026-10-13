@@ -5,6 +5,7 @@ import { ARENA, NX, NZ, isecPos, inPark, glowTexture } from './miasto.js';
 import { buildBoss, newPose, zeroPose, blendPose, applyPose, runPose } from './postac.js';
 import { hurtPlayer } from './gracz.js';
 import { addXP, burst, spawnStreetThugs, removeEnemy } from './wrogowie.js';
+import { glassBurst } from './efekty.js';
 import { sfx, setMusicMode } from './dzwiek.js';
 import { rumble } from './wejscie.js';
 import { showMsg, popText, hint } from './ui.js';
@@ -243,7 +244,7 @@ export function startChase() {
 }
 export function carPunch() {
   const c = chase; if (!c || c.done) return;
-  c.hp--; burst(c.pos.x, 1.8, c.pos.z, 12, 0xfff2c0, 4); sfx('punch'); G.shake = Math.max(G.shake, 0.2); rumble(0.08, 0.4, 0.4);
+  c.hp--; burst(c.pos.x, 1.8, c.pos.z, 12, 0xfff2c0, 4); glassBurst(c.pos.x, 1.7, c.pos.z, Math.sin(c.yaw), 0.2, Math.cos(c.yaw), 14); sfx('punch'); G.shake = Math.max(G.shake, 0.2); rumble(0.08, 0.4, 0.4);
   popText(`AUTO ${Math.max(0, c.hp)}/6`);
   if (c.hp <= 0) {
     c.done = true; c.vel.set(0, 0, 0); sfx('crash'); G.shake = 0.6; burst(c.pos.x, 1, c.pos.z, 40, 0x555555, 6);
