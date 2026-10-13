@@ -9,6 +9,8 @@ import { websToWrap, dmgMul, skillPoints } from './umiejetnosci.js';
 import { sfx } from './dzwiek.js';
 import { say } from './docinki.js';
 import { rumble } from './wejscie.js';
+import { initEfekty, updateEfekty, burst, webSplat, getRope, freeRope, wrapFX, muzzleFlash, bulletImpact } from './efekty.js';
+export { burst };
 import { showMsg, popText, hint } from './ui.js';
 
 const _t = new V3(), _h = new V3(), _cf = new V3(), _a = new V3();
@@ -29,60 +31,23 @@ export function addXP(n) {
 }
 
 // ---------------------------------------------------------------- iskry (czasteczki)
-const PMAX = 700; let pts, pPos, pCol, pVel, pLife, pIdx = 0;
 const trGeo = new THREE.CylinderGeometry(0.035, 0.035, 1, 5, 1, true); trGeo.translate(0, 0.5, 0);
 const trMat = new THREE.MeshBasicMaterial({ color: 0xffe08a });
-const tracers = [], splats = [];
-let splatMat, shotGeo, shotMat, glowTex;
+const tracers = [];
+let shotGeo, shotMat, glowTex;
 
 export function initFX() {
-  pPos = new Float32Array(PMAX * 3); pCol = new Float32Array(PMAX * 3); pVel = new Float32Array(PMAX * 3); pLife = new Float32Array(PMAX);
-  for (let i = 0; i < PMAX; i++) pPos[i * 3 + 1] = -9999;
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
-  g.setAttribute('color', new THREE.BufferAttribute(pCol, 3));
-  pts = new THREE.Points(g, new THREE.PointsMaterial({ size: 0.25, vertexColors: true, transparent: true, depthWrite: false }));
-  pts.frustumCulled = false; scene.add(pts);
-
-  const c = cv(128, 128), x = c.getContext('2d');
-  x.strokeStyle = 'rgba(245,245,245,.95)'; x.lineWidth = 3; x.translate(64, 64);
-  for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; x.beginPath(); x.moveTo(0, 0); x.lineTo(Math.cos(a) * 60, Math.sin(a) * 60); x.stroke(); }
-  for (const r of [14, 28, 44]) { x.beginPath(); x.arc(0, 0, r, 0, 7); x.stroke(); }
-  splatMat = new THREE.MeshBasicMaterial({ map: canvasTex(c), transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
-  shotGeo = new THREE.SphereGeometry(0.13, 8, 6); shotMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  initEfekty();
+  shotGeo = new THREE.SphereGeometry(0.1, 8, 6); shotMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
   glowTex = glowTexture('rgba(255,230,120,1)', 'rgba(255,200,60,0)');
-}
-export function burst(x, y, z, n, col, spd = 5) {
-  const c = new THREE.Color(col);
-  for (let i = 0; i < n; i++) {
-    const k = pIdx++ % PMAX;
-    pPos[k * 3] = x; pPos[k * 3 + 1] = y; pPos[k * 3 + 2] = z;
-    pVel[k * 3] = rnd(-1, 1) * spd; pVel[k * 3 + 1] = rnd(0, 1.5) * spd; pVel[k * 3 + 2] = rnd(-1, 1) * spd;
-    pLife[k] = rnd(0.3, 0.7);
-    pCol[k * 3] = c.r; pCol[k * 3 + 1] = c.g; pCol[k * 3 + 2] = c.b;
-  }
 }
 export function tracer(a, b) {
   let t = tracers.find(q => q.life <= 0);
   if (!t) { t = { m: mkLine(trMat), life: 0 }; tracers.push(t); }
   setLine(t.m, a, b); t.life = 0.07;
 }
-function splat(p, n) {
-  let s;
-  if (splats.length < 30) { s = new THREE.Mesh(new THREE.CircleGeometry(0.8, 14), splatMat); scene.add(s); splats.push(s); }
-  else { s = splats.shift(); splats.push(s); }
-  s.position.copy(p).addScaledVector(n, 0.03);
-  s.lookAt(_a.copy(p).add(n)); s.rotation.z = Math.random() * 6;
-}
 export function updateFX(dt) {
-  for (let k = 0; k < PMAX; k++) {
-    if (pLife[k] <= 0) continue;
-    pLife[k] -= dt;
-    if (pLife[k] <= 0) { pPos[k * 3 + 1] = -9999; continue; }
-    pVel[k * 3 + 1] -= 12 * dt;
-    pPos[k * 3] += pVel[k * 3] * dt; pPos[k * 3 + 1] += pVel[k * 3 + 1] * dt; pPos[k * 3 + 2] += pVel[k * 3 + 2] * dt;
-  }
-  pts.geometry.attributes.position.needsUpdate = true; pts.geometry.attributes.color.needsUpdate = true;
+  updateEfekty(dt);
   for (const t of tracers) { if (t.life > 0) { t.life -= dt; if (t.life <= 0) t.m.visible = false; } }
   if (saveT > 0) { saveT -= dt; if (saveT <= 0) doSave(); }
 }
@@ -114,7 +79,7 @@ export function shootWeb() {
     if (t < 110) n = rayN.clone();
   }
   const m = new THREE.Mesh(shotGeo, shotMat); m.position.copy(_h); scene.add(m);
-  shots.push({ m, tr: mkLine(), pos: _h.clone(), target: best, pt, n, life: 2 });
+  shots.push({ m, tr: getRope(), pos: _h.clone(), target: best, pt, n, life: 2, hit: 0 });
   P.webT = 0.28; P.webAim.copy(pt);
   if (P.state === 'ground' && !P.atk) P.heading = Math.atan2(pt.x - P.pos.x, pt.z - P.pos.z);
   sfx('thwip');
@@ -122,21 +87,27 @@ export function shootWeb() {
 export function updateShots(dt) {
   for (let i = shots.length - 1; i >= 0; i--) {
     const s = shots[i]; s.life -= dt;
+    if (s.hit > 0) { // po trafieniu nic jeszcze chwile napiete, a potem znika
+      s.hit -= dt; P.H.handR.getWorldPosition(_h); if (s.target && !s.target.gone) s.pt.set(s.target.pos.x, s.target.pos.y + 1.0 * (s.target.scale || 1), s.target.pos.z);
+      if (s.hit <= 0) { freeRope(s.tr); shots.splice(i, 1); } else s.tr.set(_h, s.pt, 0.9, s.hit * 2);
+      continue;
+    }
     if (s.target && !s.target.gone) s.pt.set(s.target.pos.x, s.target.pos.y + (1.1 - s.target.down * 0.8) * (s.target.scale || 1), s.target.pos.z);
     _t.subVectors(s.pt, s.pos); const d = _t.length(), st = 85 * dt;
     let done = false;
     if (d <= st + 0.2) {
       s.pos.copy(s.pt); done = true;
-      if (s.target) webHit(s.target); else if (s.n) { splat(s.pt, s.n); sfx('splat', 0.4); }
+      if (s.target) webHit(s.target); else if (s.n) { webSplat(s.pt, s.n); sfx('splat', 0.4); }
     } else s.pos.addScaledVector(_t, st / d);
     s.m.position.copy(s.pos);
-    if (d > 0.01) { _a.copy(s.pos).addScaledVector(_t, -Math.min(3, d) / d); setLine(s.tr, _a, s.pos); }
-    if (done || s.life <= 0) { scene.remove(s.m); scene.remove(s.tr); shots.splice(i, 1); }
+    P.H.handR.getWorldPosition(_a); s.tr.set(_a, s.pos, 0.85, 0.25);
+    if (done) { scene.remove(s.m); s.hit = 0.22; }
+    else if (s.life <= 0) { scene.remove(s.m); freeRope(s.tr); shots.splice(i, 1); }
   }
 }
 function webHit(e) {
   if (e.gone) return;
-  burst(e.pos.x, e.pos.y + 1.1, e.pos.z, 12, 0xffffff, 3); sfx('splat'); addXP(5);
+  burst(e.pos.x, e.pos.y + 1.1, e.pos.z, 12, 0xffffff, 3); sfx('splat'); addXP(5); wrapFX(e);
   if (e.type === 'boss') { (e.webFn || bossWeb)(e); return; }
   e.webs++; e.webT = 6;
   if (e.type === 'brute') {
@@ -153,7 +124,7 @@ function webHit(e) {
 export function finishEnemy(e) {
   if (e.dead || e.gone) return;
   say('finisher');
-  burst(e.pos.x, e.pos.y + 1, e.pos.z, 30, 0xffffff, 6);
+  burst(e.pos.x, e.pos.y + 1, e.pos.z, 30, 0xffffff, 6); wrapFX(e, true);
   if (e.type === 'boss') { (e.finFn || bossFinish)(e); return; }
   e.webs = 9; e.webbed = true; killEnemy(e); e.air = false; e.state = 'down'; e.pos.y = supportAt(e.pos.x, e.pos.z, e.pos.y + 0.5, 0.1);
   addXP(20); popText('WYKOŃCZENIE!');
@@ -257,7 +228,13 @@ function fireAt(e, d) {
   ch = clamp(ch, 0.08, 0.75);
   const hit = Math.random() < ch && P.invT <= 0 && P.dodgeT <= 0;
   if (!hit) { _t.x += rnd(-2.5, 2.5); _t.y += rnd(-1, 2.5); _t.z += rnd(-2.5, 2.5); _t.sub(_h).multiplyScalar(1.6).add(_h); }
-  tracer(_h, _t); burst(_h.x, _h.y, _h.z, 4, 0xffd070, 2);
+  tracer(_h, _t);
+  _a.subVectors(_t, _h); const bl = _a.length(); if (bl > 0.1) {
+    _a.divideScalar(bl); muzzleFlash(_h, _a);
+    const rt = raycastCity(_h, _a, bl); // kula w sciane: iskry, rykoszet i slad
+    if (rt < bl - 0.05) { _cf.copy(_h).addScaledVector(_a, rt); bulletImpact(_cf, rayN); }
+    else if (hit) burst(_t.x, _t.y, _t.z, 4, 0xffd070, 2);
+  }
   sfx('shot', clamp(1.2 - d / 80, 0.15, 1));
   if (e.pos.y < 3) scarePeds(e.pos.x, e.pos.z);
   if (hit) hurtPlayer(7, e);
