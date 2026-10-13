@@ -12,6 +12,8 @@ import { initAudio, setWind, setMusic, cityAmbience, sfx, setMusicMode } from '.
 import { fiskActive } from './fisk.js';
 import { updateRooms } from './wnetrza.js';
 import { updateQuips, quipStart } from './docinki.js';
+import { updateWeather, cycleWeather } from './pogoda.js';
+import { makeFxPass, updateCameraFX } from './kamera_fx.js';
 
 try {
   buildCity();
@@ -28,15 +30,16 @@ setMusic(save.music);
 
 // ---------------------------------------------------------------- poswiata (bloom) — tylko noca i na wysokiej grafice
 // (w dzien prawie jej nie widac, a kosztuje kilka pelnoekranowych przebiegow)
-let composer = null, bloom = null;
+let composer = null, bloom = null, fxPass = null;
 function setupComposer() {
-  composer = null; bloom = null; setFogEncoded(true);
+  composer = null; bloom = null; fxPass = null; setFogEncoded(true);
   if (save.gfx !== 'high' || !THREE.EffectComposer || !THREE.UnrealBloomPass) return;
   try {
     composer = new THREE.EffectComposer(renderer); composer.setPixelRatio(renderer.getPixelRatio());
     composer.addPass(new THREE.RenderPass(scene, camera));
     bloom = new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.5, 0.45, 0.85);
     composer.addPass(bloom);
+    fxPass = makeFxPass(); fxPass.enabled = false; composer.addPass(fxPass); // rozmycie radialne / glebia ostrosci / aberracja (kamera_fx.js)
     // przy renderowaniu do bufora kolory sa liniowe — na koniec zamiana na ekranowe (sRGB)
     if (THREE.GammaCorrectionShader) composer.addPass(new THREE.ShaderPass(THREE.GammaCorrectionShader));
     tuneBloom();
@@ -94,6 +97,7 @@ hooks.tod = () => {
   save.tod = order[(order.indexOf(save.tod) + 1) % order.length]; doSave();
   setTOD(save.tod); setupComposer();
 };
+hooks.wx = () => cycleWeather();
 hooks.music = () => { save.music = !save.music; doSave(); setMusic(save.music); };
 hooks.voice = () => { save.voice = !save.voice; doSave(); try { if (!save.voice) window.speechSynthesis.cancel(); } catch (e) {} };
 
@@ -221,6 +225,7 @@ function step(now) {
   if (G.state !== 'pause') { updateTraffic(dt); updateFX(dt); updatePlayerVisual(dt); }
   if (G.wp) { beacon.visible = true; beacon.position.set(G.wp.x, 300, G.wp.z); } else beacon.visible = false;
   updateEnv();
+  updateWeather(rdt); updateCameraFX(rdt, fxPass);
   if (composer) composer.render(); else renderer.render(scene, camera);
   endFrame();
 }

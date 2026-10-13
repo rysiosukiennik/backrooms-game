@@ -11,6 +11,7 @@ import { buildRivers, dressBridge, updateWater } from './woda.js';
 import { planPark, addCityTrees, updatePark, parkTOD } from './park.js';
 import { buildStreet, buildLampHeads, initCars, updateCars, inShed, awningGeo, lampList } from './ulica.js';
 import { swInit, swTOD, swUpdate, swBuildStatic, aoGLSL, AOU, pedBlobBegin, pedBlobAdd, pedBlobEnd } from './swiatlo.js';
+import { wetPatch } from './pogoda.js';
 
 export const BW = 64, BD = 44, ST = 18, NX = 8, NZ = 18;
 export const CX = BW + ST, CZ = BD + ST, CW = NX * CX, CD = NZ * CZ, X0 = -CW / 2, Z0 = -CD / 2;
@@ -731,6 +732,8 @@ const TOD = {
 export const TOD_NAMES = { sunset: 'ZACHÓD SŁOŃCA', day: 'DZIEŃ', night: 'NOC' };
 let skyU = null, fogEnc = true, lastTOD = null;
 // z efektami (bloom) obraz idzie przez bufor liniowy, wiec mgla nie moze byc juz zakodowana w sRGB
+// uchwyty dla pogoda.js (pogoda zmienia niebo/mgle/swiatlo na biezaco wzgledem wartosci bazowych pory dnia)
+export const envRefs = () => ({ skyU, T: lastTOD, sun, hemi, fog: scene.fog, applyFog: () => lastTOD && applyFog(lastTOD) });
 export function setFogEncoded(v) { fogEnc = v; if (lastTOD) applyFog(lastTOD); }
 function applyFog(T) { const h = skyU.hor.value; const c = displayColor([h.x * 0.97, h.y * 0.97, h.z * 0.97], T.exp); scene.fog.color.setRGB(c[0], c[1], c[2]); }
 // three.js naklada mgle juz PO tonowaniu (ACES) i sRGB, wiec kolor mgly musi byc kolorem "jak na ekranie" — tak samo przeliczonym jak niebo
@@ -1294,6 +1297,7 @@ function buildGround() {
   const LW = LAND.x1 - LAND.x0, LD = LAND.z1 - LAND.z0;
   const gt = groundTex(); for (const t of [gt.map, gt.rough]) { t.repeat.set(LW / CX, LD / CZ); t.offset.set(-24 / CX, -24 / CZ); }
   const g = new THREE.Mesh(new THREE.PlaneGeometry(LW, LD), new THREE.MeshStandardMaterial({ map: gt.map, roughnessMap: gt.rough, roughness: 1, metalness: 0 }));
+  g.material.onBeforeCompile = wetPatch; // mokra jezdnia i kaluze (pogoda.js)
   g.rotation.x = -Math.PI / 2; g.position.y = 0.02; g.receiveShadow = true; scene.add(g);
   { // drobne ziarno asfaltu i chodnika (powtarza sie co 3 m), mnozone na podloze — ostre z bliska
     const c = cv(256, 256), x = c.getContext('2d'); x.fillStyle = '#ffffff'; x.fillRect(0, 0, 256, 256);

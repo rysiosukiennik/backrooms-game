@@ -306,6 +306,8 @@ export function sfx(n, v = 1, pos = null, surf = null) {
     case 'step': step(out, t, surf || curSurf, (v > 0.8), v, false); break;
     case 'pedstep': step(out, t, surf || 'pavement', false, v, true); break;
     case 'siren': siren(); break;
+    case 'thunder': N(0.12, 'highpass', 2500, 0.5, 400, 0, 1); N(3.6, 'lowpass', 280, 0.9, 50, 0.05, 0.7); N(2.2, 'lowpass', 150, 0.7, 40, 0.7, 0.7); T('sine', 58, 26, 2.6, 0.6, 0.1); break;
+    case 'rain': N(0.7, 'bandpass', 5200, 0.07, 4200, 0, 0.5); N(0.7, 'highpass', 7000, 0.025, 6500, 0.05, 0.5); break; // szum deszczu: nakladane krotkie szumy
   }
 }
 export function sfxAt(n, pos, v = 1) { sfx(n, v, pos); }
