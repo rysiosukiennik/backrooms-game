@@ -5,6 +5,7 @@ import { scene, camera, renderer, P, G, canvas } from './stan.js';
 import { pedGeometries, pedMaterial, pedLook, pedU } from './model.js';
 import { makeRoomAtlas, ROOM_INFO } from './pokoje.js';
 import { makeShopAtlas } from './sklepy_okna.js';
+import { dachyCollect, buildDachy, updateDachy, setDachyTOD } from './dachy.js';
 import { buildStreet, buildLampHeads, initCars, updateCars, inShed, awningGeo } from './ulica.js';
 
 export const BW = 64, BD = 44, ST = 18, NX = 8, NZ = 18;
@@ -827,6 +828,7 @@ export function setTOD(name) {
   shopMat.emissiveIntensity = T.shop; shopU.uSI.value = 0.45 + 0.6 * T.shop; shopU.uSEm.value = T.shop * 1.6;
   lampMat.emissiveIntensity = 0.2 + T.lamps * 2;
   for (const m of boardMats) m.emissiveIntensity = 0.8 + T.lamps * 1.2;
+  setDachyTOD(T.lamps, name);
   for (const g of glowPts) { g.visible = T.lamps > 0; g.material.opacity = T.lamps; }
   renderer.toneMappingExposure = T.exp;
   canvas.style.filter = { sunset: 'sepia(.12) saturate(1.15) contrast(1.12) brightness(.96)', day: 'saturate(1.12) contrast(1.06)', night: 'saturate(1.08) contrast(1.1)' }[name] || '';
@@ -849,6 +851,7 @@ export function updateEnv() {
   moon.position.copy(camera.position).addScaledVector(sunDir, 2500);
   sun.position.copy(P.pos).addScaledVector(sunDir, 450);
   sun.target.position.copy(P.pos); sun.target.updateMatrixWorld();
+  updateDachy(G.time, P.pos);
   if (waterNormal) { waterNormal.offset.x = G.time * 0.004; waterNormal.offset.y = G.time * 0.006; }
 }
 
@@ -969,14 +972,12 @@ function roofProps(b) {
   const w = b.x1 - b.x0, d = b.z1 - b.z0;
   parapet(b);
   if (w < 9 || d < 9) return;
+  dachyCollect(b); // rekwizyty dachow, zbiorniki, maszty i reklamy: dachy.js (ponizej tylko losowania, zeby uklad miasta sie nie zmienil)
   const n = 1 + Math.floor(srand() * 3);
-  for (let i = 0; i < n; i++) {
-    const x = sr(b.x0 + 2.5, b.x1 - 4), z = sr(b.z0 + 2.5, b.z1 - 4);
-    fullBox(roofGeo, x, x + 1.6, b.y1, b.y1 + 1.1, z, z + 2.2, 6);
-  }
-  if (srand() < 0.4) { const x = sr(b.x0 + 2, b.x1 - 5), z = sr(b.z0 + 2, b.z1 - 5); fullBox(trimGeo, x, x + 3, b.y1, b.y1 + 2.6, z, z + 3, 4); }
-  if (b.y1 < 85 && w > 11 && d > 11 && srand() < 0.45) tanks.push({ x: sr(b.x0 + 4, b.x1 - 4), y: b.y1, z: sr(b.z0 + 4, b.z1 - 4) });
-  if (b.y1 > 80) for (let i = 0; i < 1 + Math.floor(srand() * 2); i++) masts.push({ x: sr(b.x0 + 2, b.x1 - 2), y: b.y1, z: sr(b.z0 + 2, b.z1 - 2), h: sr(6, 18) });
+  for (let i = 0; i < n; i++) { sr(b.x0 + 2.5, b.x1 - 4); sr(b.z0 + 2.5, b.z1 - 4); }
+  if (srand() < 0.4) { sr(b.x0 + 2, b.x1 - 5); sr(b.z0 + 2, b.z1 - 5); }
+  if (b.y1 < 85 && w > 11 && d > 11 && srand() < 0.45) { sr(b.x0 + 4, b.x1 - 4); sr(b.z0 + 4, b.z1 - 4); }
+  if (b.y1 > 80) for (let i = 0; i < 1 + Math.floor(srand() * 2); i++) { sr(b.x0 + 2, b.x1 - 2); sr(b.z0 + 2, b.z1 - 2); sr(6, 18); }
   if (b.y1 > 18 && b.y1 < 80 && w > 18 && srand() < 0.14) boards.push(b);
 }
 const acUnits = [];
@@ -1676,19 +1677,10 @@ export function buildCity() {
   glowPoints(masts.flatMap(m => [m.x, m.y + m.h + 0.3, m.z]), 0xff2a2a, 5);
   for (const m of masts) if (m.h > 1) perches.push(new V3(m.x, m.y, m.z + 0.8));
 
-  // billboardy z neonami
-  const texts = [['DAILY BUGLE', '#ff3b3b'], ['NOWY JORK', '#3fe3ff'], ['PIZZA 24h', '#ffb13b'], ['HOT DOGI', '#ff5bd1'], ['OSCORP', '#39ff6a'], ['KINO', '#fff35b'], ['METRO', '#5b8dff'], ['TAXI', '#ffd21e']];
-  boardMats = texts.map(([t, c]) => { const tx = neonTex(t, c); return new THREE.MeshStandardMaterial({ map: tx, emissiveMap: tx, emissive: 0xffffff, emissiveIntensity: 1, roughness: 0.5 }); });
-  const bg = new THREE.PlaneGeometry(12, 5);
-  boards.forEach((b, i) => {
-    const alongX = b.x1 - b.x0 >= 18, m = new THREE.Mesh(bg, boardMats[i % boardMats.length]);
-    if (alongX) { const s = srand() < 0.5; m.position.set((b.x0 + b.x1) / 2, b.y1 + 4.2, s ? b.z0 + 0.5 : b.z1 - 0.5); m.rotation.y = s ? Math.PI : 0; }
-    else { const s = srand() < 0.5; m.position.set(s ? b.x0 + 0.5 : b.x1 - 0.5, b.y1 + 4.2, (b.z0 + b.z1) / 2); m.rotation.y = s ? -Math.PI / 2 : Math.PI / 2; }
-    const back = new THREE.Mesh(new THREE.BoxGeometry(12.4, 5.4, 0.3), new THREE.MeshStandardMaterial({ color: 0x1c1f24, roughness: 0.8 }));
-    back.position.set(0, 0, -0.18); m.add(back);
-    for (const px of [-4, 4]) { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.25, 2.2, 0.25), back.material); leg.position.set(px, -3.6, -0.2); m.add(leg); }
-    m.castShadow = true; scene.add(m);
-  });
+  // billboardy, ekrany reklamowe i neony na dachach, rekwizyty dachow: dachy.js
+  boardMats = [];
+  for (const b of boards) srand(); // jak dawniej (strona billboardu), zeby dalsze losowania sie nie przesunely
+  buildDachy();
 
   // glowice latarni + poswiata (slupy sa w ulica.js)
   lampMat = new THREE.MeshStandardMaterial({ color: 0xffd9a0, emissive: 0xffb860, emissiveIntensity: 0.9 });
