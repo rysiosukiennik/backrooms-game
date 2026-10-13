@@ -1155,12 +1155,17 @@ export const PED_PAL = [
   '#2b2b2e', '#5a4636', '#8a7a64', '#1d2a3a', '#6b2a2a', // 38-42 plaszcze
   '#eeeeee', '#1a1a1a', '#5a3a22', '#8a8a8a', '#b8141c', // 43-47 buty
   '#1a1a1a', '#6b1a1a', '#d49a16', '#2d3d2d', '#c8b896', '#3a5a8a', // 48-53 torby i czapki
+  '#1f2d4a', '#ff6a13', '#c8e000', '#f2c200', '#f2f2f0', '#1d8f4e', '#d9822b', '#f2efe8', // 54 granat policji, 55-56 kamizelki, 57-58 kaski, 59-60 kurierzy, 61 kubek
 ];
-export const PF = { CAP: 1, BEANIE: 2, BACKPACK: 4, BAG: 8, PHONE: 16, COAT: 32, SKIRT: 64, SHORT: 128, SHOP: 256, LONGHAIR: 512 };
+// flagi dodatkow (bity): czesci modelu wlaczane per instancja
+export const PF = { CAP: 1, BEANIE: 2, BACKPACK: 4, BAG: 8, PHONE: 16, COAT: 32, SKIRT: 64, SHORT: 128, SHOP: 256, LONGHAIR: 512,
+  BUN: 1024, PONY: 2048, AFRO: 4096, HOOD: 8192, HARDHAT: 16384, COPCAP: 32768, GLASSES: 65536, SUNGL: 131072, CANE: 262144, COFFEE: 524288,
+  VEST: 1048576, UMBRELLA: 2097152, BOX: 4194304, BALD: 8388608 };
 const PR = (a, b) => [a, b];
 const PAL = { skin: PR(3, 8), hair: PR(9, 14), top: PR(15, 30), bot: PR(31, 37), coat: PR(38, 42), shoe: PR(43, 47), acc: PR(48, 53) };
-// losowy wyglad przechodnia: [gora, dol, skora, wlosy], [buty, czapka, torba, plaszcz], flagi
-export function pedLook(r, female) {
+// losowy wyglad przechodnia: c0 = [gora, dol, skora, wlosy], c1 = [buty, czapka, torba, plaszcz], flagi, wariant twarzy (fv 0..2),
+// styl tulowia (ts: 0 koszula, 1 bluza, 2 koszulka, 3 kurtka); kind: undefined | 'cop' | 'worker' | 'courier' | 'suit' | 'child' | 'elder'
+export function pedLook(r, female, kind) {
   const P = k => PAL[k][0] + Math.floor(r() * (PAL[k][1] - PAL[k][0] + 1)), ch = p => r() < p;
   let f = 0;
   const coat = ch(0.28); if (coat) f |= PF.COAT; else if (ch(0.3)) f |= PF.SHORT;
@@ -1170,52 +1175,197 @@ export function pedLook(r, female) {
     if (ch(0.45)) f |= PF.BAG; else if (ch(0.15)) f |= PF.BACKPACK;
     if (ch(0.08)) f |= PF.BEANIE;
   } else {
-    const h = r(); if (h < 0.18) f |= PF.CAP; else if (h < 0.3) f |= PF.BEANIE;
+    const h = r(); if (h < 0.16) f |= PF.CAP; else if (h < 0.26) f |= PF.BEANIE; else if (h < 0.33) f |= PF.HOOD;
     if (ch(0.2)) f |= PF.BACKPACK; else if (ch(0.1)) f |= PF.BAG;
+    if (ch(0.1)) f |= PF.BALD;
   }
-  if (ch(0.24)) f |= PF.PHONE;
-  if (ch(0.1)) f |= PF.SHOP;
+  if (f & PF.LONGHAIR) { const q = r(); if (q < 0.16) f = (f & ~PF.LONGHAIR) | PF.BUN; else if (q < 0.32) f |= PF.PONY; }
   let hair = P('hair'); const skin = P('skin');
   if (skin >= 7 && hair > 11) hair = 9 + Math.floor(r() * 2); // ciemna karnacja: zwykle ciemne wlosy
-  return { c0: [P('top'), P('bot'), skin, hair], c1: [P('shoe'), P('acc'), P('acc'), P('coat')], flags: f };
+  if (!(f & (PF.CAP | PF.BEANIE | PF.HOOD)) && ch(skin >= 6 ? 0.1 : 0.02)) f = (f & ~(PF.LONGHAIR | PF.BUN | PF.PONY | PF.BALD)) | PF.AFRO;
+  if (f & PF.HOOD) f &= ~(PF.LONGHAIR | PF.BUN | PF.PONY);
+  // prawa dlon: telefon / kawa
+  if (ch(0.22)) f |= PF.PHONE; else if (ch(0.08)) f |= PF.COFFEE;
+  if (ch(0.1)) f |= PF.SHOP;
+  if (ch(0.13)) f |= PF.GLASSES; else if (ch(0.07)) f |= PF.SUNGL;
+  let ts = (f & PF.SHORT) ? 2 : (f & PF.HOOD) ? 1 : [0, 0, 0, 1, 1, 2, 3, 3][Math.floor(r() * 8)];
+  const L = { c0: [P('top'), P('bot'), skin, hair], c1: [P('shoe'), P('acc'), P('acc'), P('coat')], flags: f, fv: Math.floor(r() * 3), ts, sc: 1, head: 1, stoop: 0, spd: 1 };
+  if (kind === 'cop') {
+    L.c0[0] = 54; L.c0[1] = 32; L.c1[0] = 44; L.c1[1] = 54; L.ts = 0;
+    L.flags = PF.COPCAP | (ch(0.25) ? PF.SUNGL : 0) | (ch(0.15) ? PF.PHONE : 0);
+  } else if (kind === 'worker') {
+    L.c0[1] = 31; L.c1[0] = 45; L.c1[1] = ch(0.5) ? 57 : 58; L.c1[2] = ch(0.5) ? 55 : 56; L.ts = ch(0.5) ? 1 : 3;
+    L.flags = PF.HARDHAT | PF.VEST | (ch(0.25) ? PF.SUNGL : 0) | (ch(0.4) ? PF.COFFEE : 0);
+  } else if (kind === 'courier') {
+    const jc = ch(0.5) ? 59 : 60; L.c0[0] = jc; L.c0[1] = 33; L.c1[0] = 43; L.c1[1] = jc; L.c1[2] = jc; L.ts = 3;
+    L.flags = PF.CAP | PF.BOX | (ch(0.45) ? PF.PHONE : 0);
+  } else if (kind === 'suit') {
+    L.c0[0] = ch(0.6) ? 17 : 29; L.c0[1] = 32; L.c1[0] = 44; L.c1[3] = ch(0.5) ? 38 : 41; L.ts = 0;
+    L.flags = (ch(0.75) ? PF.COAT : 0) | (ch(0.2) ? PF.GLASSES : 0) | (ch(0.3) ? PF.PHONE : 0) | (ch(0.3) ? PF.BAG : 0) | (female && ch(0.5) ? PF.LONGHAIR : 0);
+  } else if (kind === 'child') {
+    L.flags = (ch(0.5) ? PF.BACKPACK : 0) | (ch(0.3) ? PF.CAP : 0) | (female && ch(0.6) ? PF.PONY | PF.LONGHAIR : 0);
+    L.ts = ch(0.5) ? 2 : 1; L.sc = 0.62 + r() * 0.12; L.head = 1.22; L.spd = 1.1;
+  } else if (kind === 'elder') {
+    L.c0[3] = 14; L.flags = (f & (PF.COAT | PF.SKIRT | PF.LONGHAIR | PF.BUN | PF.BAG)) | PF.CANE | (ch(0.5) ? PF.GLASSES : 0) | (ch(0.3) ? PF.CAP : 0);
+    L.fv = 2; L.stoop = 0.22 + r() * 0.12; L.spd = 0.55; L.sc = 0.95;
+    if (!(L.flags & PF.LONGHAIR) && !female && ch(0.4)) L.flags |= PF.BALD;
+  }
+  return L;
 }
 
-// atlas 512x512: twarz (gora), tulow, reka, noga i male kafelki. Kanal alfa < 1 = piksel NIE barwiony kolorem czesci.
+// atlas 1024x1280: lewy gorny blok 512x512 = tulow, reka, noga i male kafelki (jak dawniej); twarze 512x256 w kilku wariantach
+// (3 meskie + 3 damskie) i warianty tulowia 256x256 (bluza, koszulka, kurtka). Kanal alfa < 1 = piksel NIE barwiony kolorem czesci.
+const ATW = 1024, ATH = 1280;
 const AT = { face: [0, 0, 512, 256], torso: [0, 256, 256, 256], arm: [256, 256, 64, 256], leg: [320, 256, 64, 256],
   skin: [384, 256, 64, 64], hair: [448, 256, 64, 64], shoe: [384, 320, 64, 64], fab: [448, 320, 64, 64],
-  phone: [384, 384, 64, 64], coat: [448, 384, 64, 64], paper: [384, 448, 64, 64], hat: [448, 448, 64, 64] };
-const atUV = k => { const [x0, y0, w, h] = AT[k]; return (u, v) => [(x0 + 1 + u * (w - 2)) / 512, 1 - (y0 + 1 + (1 - v) * (h - 2)) / 512]; };
+  phone: [384, 384, 64, 64], coat: [448, 384, 64, 64], paper: [384, 448, 64, 64], hat: [448, 448, 64, 64], vest: [768, 1024, 128, 128] };
+const PED_FACE_OFF = [[0, 0], [512, 0], [512, 256], [0, 512], [0, 768], [512, 512]]; // m0 m1 m2 f0 f1 f2 (px)
+const PED_TORSO_OFF = [[0, 0], [0, 768], [256, 768], [512, 768]]; // wzgledem kafla tulowia (0,256)
+const atUV = k => { const [x0, y0, w, h] = AT[k]; return (u, v) => [(x0 + 1 + u * (w - 2)) / ATW, 1 - (y0 + 1 + (1 - v) * (h - 2)) / ATH]; };
 let pedAtlasTex = null;
+// twarz przechodnia na kaflu 512x256 (przod w x = 256; oczy y ~121, nos ~133, usta ~154, broda ~175)
+// o: fem, beard (0 brak, 1 zarost 3-dniowy, 2 broda + wasy), age (0..1), brow (grubosc), lip (kolor), shadow (cien powiek), eyeCol
+function pedFace(x, mk, o) {
+  const fem = !!o.fem, age = o.age || 0;
+  const rg = (cx, cy, r, c0, c1, sx = 1, sy = 1) => { x.save(); x.translate(cx, cy); x.scale(sx, sy); const g = x.createRadialGradient(0, 0, 0, 0, 0, r); g.addColorStop(0, c0); g.addColorStop(1, c1); x.fillStyle = g; x.fillRect(-r, -r, 2 * r, 2 * r); x.restore(); };
+  x.fillStyle = '#fff2e8'; x.fillRect(0, 0, 512, 256);
+  noise(x, 512, 256, 3800, 0.03);
+  let g = x.createLinearGradient(0, 0, 512, 0); // boki i tyl glowy ciemniejsze
+  g.addColorStop(0, 'rgba(40,20,10,.26)'); g.addColorStop(0.3, 'rgba(40,20,10,0)'); g.addColorStop(0.7, 'rgba(40,20,10,0)'); g.addColorStop(1, 'rgba(40,20,10,.26)');
+  x.fillStyle = g; x.fillRect(0, 0, 512, 256);
+  g = x.createLinearGradient(0, 158, 0, 256); g.addColorStop(0, 'rgba(30,15,8,0)'); g.addColorStop(0.45, 'rgba(30,15,8,.16)'); g.addColorStop(1, 'rgba(30,15,8,.5)');
+  x.fillStyle = g; x.fillRect(0, 158, 512, 98);
+  rg(256, 88, 76, 'rgba(255,246,236,.2)', 'rgba(255,246,236,0)', 1.25, 0.8); // czolo
+  for (const s of [-1, 1]) {
+    rg(256 + s * 52, 142, 24, 'rgba(255,240,230,.2)', 'rgba(255,240,230,0)', 1, 0.8); // kosc policzkowa
+    rg(256 + s * 58, 152, 26, `rgba(205,75,65,${fem ? 0.22 : 0.1})`, 'rgba(205,75,65,0)'); // rumieniec
+    rg(256 + s * 74, 112, 20, 'rgba(70,40,30,.2)', 'rgba(70,40,30,0)', 0.8, 1.3); // skron
+    rg(256 + s * 30, 122, 23, `rgba(90,50,55,${0.22 + age * 0.12})`, 'rgba(90,50,55,0)', 1.2, 0.8); // oczodol
+    rg(256 + s * 30, 132 + age * 2, 15, `rgba(100,60,60,${0.1 + age * 0.14})`, 'rgba(100,60,60,0)', 1.4, 0.45); // worki pod oczami
+    rg(256 + s * 46, 178, 34, 'rgba(60,30,20,.2)', 'rgba(60,30,20,0)', 1.1, 0.9); // zarys zuchwy
+  }
+  // nos: jasny grzbiet, cienie z bokow, skrzydelka, nozdrza
+  x.fillStyle = 'rgba(255,242,232,.26)'; ell(x, 256, 124, 4.5, 15); ell(x, 256, 140, 6, 3.4);
+  x.fillStyle = 'rgba(90,45,30,.18)'; ell(x, 246.5, 130, 4, 12); ell(x, 265.5, 130, 4, 12);
+  x.fillStyle = 'rgba(90,40,30,.22)'; ell(x, 256, 144, 12, 3.4); ell(x, 245, 141, 4, 3.6); ell(x, 267, 141, 4, 3.6);
+  x.fillStyle = 'rgba(35,12,8,.6)'; ell(x, 250, 142, 3.1, 1.7); ell(x, 262, 142, 3.1, 1.7);
+  // usta
+  const lipC = o.lip || (fem ? 'rgba(170,55,65,.7)' : 'rgba(140,60,52,.45)'), mw = fem ? 12.5 : 14;
+  x.fillStyle = 'rgba(70,35,30,.1)'; ell(x, 256, 150.5, 4.5, 2.6); // rynienka
+  x.fillStyle = lipC; x.beginPath(); x.moveTo(256 - mw, 154.4); x.quadraticCurveTo(250, 148.6, 256, 151); x.quadraticCurveTo(262, 148.6, 256 + mw, 154.4); x.quadraticCurveTo(256, 156.2, 256 - mw, 154.4); x.fill();
+  x.fillStyle = lipC; ell(x, 256, 158.2, mw - 3.2, fem ? 4.2 : 3.4);
+  x.fillStyle = 'rgba(255,225,215,.3)'; ell(x, 256, 157.6, 5.2, 1.3);
+  x.strokeStyle = 'rgba(55,18,14,.75)'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(256 - mw - 1, 153.6); x.quadraticCurveTo(256, 155.8, 256 + mw + 1, 153.6); x.stroke();
+  x.fillStyle = 'rgba(60,30,20,.14)'; ell(x, 256, 167, 12, 4);
+  // zmarszczki: czolo, kurze lapki, bruzdy nosowo-wargowe
+  if (age > 0) {
+    x.strokeStyle = `rgba(80,40,30,${0.1 + age * 0.12})`; x.lineWidth = 1.4;
+    for (const y of [70, 79, 88]) { x.beginPath(); x.moveTo(214, y + 2); x.quadraticCurveTo(256, y - 4, 298, y + 2); x.stroke(); }
+    for (const s of [-1, 1]) {
+      for (let k = -1; k <= 1; k++) { x.beginPath(); x.moveTo(256 + s * 42, 121 + k * 3); x.lineTo(256 + s * 54, 121 + k * 7); x.stroke(); }
+      x.lineWidth = 1.8; x.beginPath(); x.moveTo(256 + s * 13, 139); x.quadraticCurveTo(256 + s * 25, 150, 256 + s * 22, 166); x.stroke();
+      x.beginPath(); x.moveTo(256 + s * 16, 160); x.quadraticCurveTo(256 + s * 20, 170, 256 + s * 14, 180); x.stroke();
+    }
+  }
+  // zarost
+  if (o.beard) {
+    const full = o.beard > 1;
+    x.fillStyle = full ? 'rgba(25,16,10,.5)' : 'rgba(30,20,12,.3)';
+    for (let i = 0, n = full ? 8200 : 3600; i < n; i++) {
+      const px = 256 + (Math.random() * 2 - 1) * 72, py = 138 + Math.random() * 66;
+      if (((px - 256) / 72) ** 2 + ((py - 172) / 36) ** 2 > 1 || (Math.abs(px - 256) < 17 && py > 147 && py < 160)) continue;
+      x.fillRect(px, py, 1.6, 1.6);
+    }
+    if (full) { // wasy i kozia bródka
+      x.fillStyle = 'rgba(25,16,10,.62)'; x.beginPath(); x.moveTo(236, 147.5); x.quadraticCurveTo(256, 143, 276, 147.5); x.quadraticCurveTo(268, 152, 256, 151); x.quadraticCurveTo(244, 152, 236, 147.5); x.fill();
+      g = x.createLinearGradient(0, 160, 0, 205); g.addColorStop(0, 'rgba(25,16,10,.1)'); g.addColorStop(1, 'rgba(25,16,10,.4)'); x.fillStyle = g; ell(x, 256, 182, 52, 24);
+    }
+  }
+  // oczy
+  for (const s of [-1, 1]) {
+    const X = 256 + s * 30, Y = 121, ew = o.eyeW || 10.5, eh = o.eyeH || 4.9;
+    x.save(); x.beginPath(); x.ellipse(X, Y, ew, eh, 0, 0, TAU); x.clip();
+    x.fillStyle = '#efe8df'; x.fillRect(X - ew, Y - eh, ew * 2, eh * 2);
+    g = x.createLinearGradient(0, Y - eh, 0, Y + eh); g.addColorStop(0, 'rgba(70,40,40,.5)'); g.addColorStop(0.45, 'rgba(70,40,40,0)'); g.addColorStop(1, 'rgba(120,70,60,.15)'); x.fillStyle = g; x.fillRect(X - ew, Y - eh, ew * 2, eh * 2);
+    const ic = o.eyeCol || '#3b2a1c', ig = x.createRadialGradient(X, Y + 0.4, 0.5, X, Y + 0.4, 5.2); ig.addColorStop(0, '#000'); ig.addColorStop(0.3, ic); ig.addColorStop(0.85, ic); ig.addColorStop(1, 'rgba(10,8,6,.95)');
+    x.fillStyle = ig; x.beginPath(); x.arc(X, Y + 0.4, 5.1, 0, TAU); x.fill();
+    x.fillStyle = '#080808'; x.beginPath(); x.arc(X, Y + 0.4, 2.1, 0, TAU); x.fill();
+    x.fillStyle = 'rgba(255,255,255,.92)'; x.beginPath(); x.arc(X + 1.9, Y - 1.1, 1.15, 0, TAU); x.fill(); x.beginPath(); x.arc(X - 1.7, Y + 1.8, 0.6, 0, TAU); x.fill();
+    x.restore();
+    if (mk) { mk.fillStyle = '#fff'; mk.beginPath(); mk.ellipse(X, Y, ew, eh, 0, 0, TAU); mk.fill(); }
+    x.fillStyle = 'rgba(215,115,105,.55)'; ell(x, X - s * ew * 0.86, Y + 0.6, 2.6, 1.7); // kacik oka
+    if (o.shadow) { x.fillStyle = o.shadow; ell(x, X, Y - eh - 2, ew + 2, 4.2); } // cien do powiek
+    x.strokeStyle = 'rgba(30,15,10,.9)'; x.lineWidth = fem ? 3.4 : 2.5; x.beginPath(); x.ellipse(X, Y + 0.6, ew + 0.8, eh + 0.8, 0, Math.PI * 1.04, Math.PI * 1.96); x.stroke(); // gorna linia rzes
+    if (fem) { x.lineWidth = 1.4; for (let k = 0; k < 7; k++) { const a = Math.PI * (1.12 + k * 0.12), bx = X + Math.cos(a) * (ew + 0.8), by = Y + 0.6 + Math.sin(a) * (eh + 0.8); x.beginPath(); x.moveTo(bx, by); x.lineTo(bx + Math.cos(a) * 3 + s * 0.8, by + Math.sin(a) * 3.4 - 1); x.stroke(); }
+      x.lineWidth = 3; x.beginPath(); x.moveTo(X + s * (ew + 0.5), Y); x.lineTo(X + s * (ew + 5), Y - 3.4); x.stroke(); }
+    x.strokeStyle = 'rgba(70,35,25,.32)'; x.lineWidth = 1.2; x.beginPath(); x.ellipse(X, Y - 2.2, ew + 1.5, eh + 3.2, 0, Math.PI * 1.1, Math.PI * 1.9); x.stroke(); // zalamanie powieki
+    x.beginPath(); x.ellipse(X, Y + 1, ew - 0.6, eh + 0.4, 0, Math.PI * 0.12, Math.PI * 0.88); x.stroke(); // dolna powieka
+    // brwi: miekka podstawa + pojedyncze wloski
+    const inner = X - s * 14, outer = X + s * 15, bt = o.brow || (fem ? 2.7 : 4.8), bc = o.browCol || 'rgba(42,26,16,.8)', bh = fem ? 100.5 : 103.5;
+    x.lineCap = 'round'; x.strokeStyle = bc; x.lineWidth = bt; x.globalAlpha = 0.55; x.beginPath(); x.moveTo(inner, 108.8); x.quadraticCurveTo((inner + outer) / 2, bh, outer, 108.6); x.stroke(); x.globalAlpha = 1;
+    x.lineWidth = 1.1; for (let k = 0; k < 46; k++) { const t = k / 45, bx = inner + (outer - inner) * t, by = (1 - t) * (1 - t) * 108.8 + 2 * t * (1 - t) * bh + t * t * 108.6 + (Math.random() - 0.5) * bt * 0.8; x.beginPath(); x.moveTo(bx, by + 1); x.lineTo(bx + s * 3.2, by - 1.4 + t * 2); x.stroke(); }
+    x.lineCap = 'butt';
+  }
+}
 function pedAtlas() {
   if (pedAtlasTex) return pedAtlasTex;
-  const A = C(512, 512), M = C(512, 512), x = A.x, m = M.x;
-  x.fillStyle = '#f6f2ee'; x.fillRect(0, 0, 512, 512);
+  const A = C(ATW, ATH), M = C(ATW, ATH), x = A.x, m = M.x;
+  x.fillStyle = '#f6f2ee'; x.fillRect(0, 0, ATW, ATH);
   m.fillStyle = '#fff';
-  // twarz
-  x.save(); x.beginPath(); x.rect(0, 0, 512, 256); x.clip();
-  drawFace(x, { skin: '#fff3ea', hair: 'none', browCol: 'rgba(60,35,20,.75)', beard: 0, eyeCol: '#3b2a1c' }, m);
-  x.restore();
-  // tulow (v = wysokosc 0.79..1.7)
-  const ty = y => 256 + (1 - (y - 0.79) / 0.91) * 256;
-  for (let i = 0; i < 2500; i++) { x.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,.05)' : 'rgba(255,255,255,.05)'; x.fillRect(Math.random() * 256, 256 + Math.random() * 256, 2, 2); }
-  let g = x.createLinearGradient(0, ty(1.45), 0, ty(1.0)); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.14)');
-  x.fillStyle = g; x.fillRect(0, ty(1.45), 256, ty(1.0) - ty(1.45));
-  x.fillStyle = 'rgba(0,0,0,.28)'; x.fillRect(0, ty(1.56), 256, 5); // kolnierz
-  x.strokeStyle = 'rgba(0,0,0,.3)'; x.lineWidth = 2; x.beginPath(); x.moveTo(104, ty(1.545)); x.lineTo(128, ty(1.45)); x.lineTo(152, ty(1.545)); x.stroke(); // wyciecie pod szyja
-  x.fillStyle = 'rgba(0,0,0,.22)'; x.fillRect(127, ty(1.43), 2, ty(1.0) - ty(1.43)); // zapiecie
-  x.fillStyle = 'rgba(255,255,255,.35)'; for (let y = 1.4; y > 1.02; y -= 0.08) { x.beginPath(); x.arc(133, ty(y), 1.6, 0, TAU); x.fill(); }
-  x.strokeStyle = 'rgba(0,0,0,.12)'; x.lineWidth = 1.5;
-  for (const sx of [64, 192]) { x.beginPath(); x.moveTo(sx, ty(1.47)); x.lineTo(sx, ty(1.0)); x.stroke(); }
-  for (const sx of [100, 156]) { x.strokeRect(sx - 12, ty(1.38), 24, 18); } // kieszonki
-  for (let i = 0; i < 5; i++) { const y = ty(1.08 + i * 0.03); x.beginPath(); x.moveTo(30 + i * 9, y); x.quadraticCurveTo(64, y + 5, 98 - i * 6, y); x.moveTo(158 + i * 6, y); x.quadraticCurveTo(192, y + 5, 226 - i * 9, y); x.stroke(); }
-  x.fillStyle = 'rgba(0,0,0,.2)'; x.fillRect(0, ty(1.0), 256, 4); // dol bluzy
-  // spodnie: pasek, klamra, kieszenie, rozporek, tylne kieszenie
-  x.fillStyle = 'rgba(0,0,0,.55)'; x.fillRect(0, ty(0.995), 256, ty(0.965) - ty(0.995));
-  x.fillStyle = 'rgba(255,255,255,.6)'; x.fillRect(123, ty(0.993), 10, ty(0.967) - ty(0.993));
-  x.strokeStyle = 'rgba(0,0,0,.3)'; x.lineWidth = 1.5;
-  for (const sg of [-1, 1]) { x.beginPath(); x.moveTo(128 + sg * 22, ty(0.965)); x.quadraticCurveTo(128 + sg * 34, ty(0.9), 128 + sg * 56, ty(0.9)); x.stroke(); }
-  x.beginPath(); x.moveTo(131, ty(0.965)); x.lineTo(131, ty(0.86)); x.stroke();
-  for (const cx of [26, 230]) x.strokeRect(cx - 16, ty(0.94), 32, 26);
+  // twarze: 3 meskie + 3 damskie warianty
+  const FACES = [
+    { }, { beard: 1, brow: 5.8, eyeCol: '#2d2a22' }, { beard: 2, brow: 5.2, age: 0.55, eyeCol: '#4f6b78', eyeH: 4.4 },
+    { fem: true, eyeCol: '#46301f', shadow: 'rgba(120,80,90,.14)' },
+    { fem: true, lip: 'rgba(185,28,48,.85)', shadow: 'rgba(90,70,120,.3)', eyeCol: '#3f5f4a', brow: 3.2 },
+    { fem: true, age: 0.9, lip: 'rgba(150,70,70,.5)', eyeCol: '#5c7a8a', browCol: 'rgba(110,100,95,.7)' },
+  ];
+  FACES.forEach((o, i) => { const [ox, oy] = PED_FACE_OFF[i]; x.save(); x.translate(ox, oy); x.beginPath(); x.rect(0, 0, 512, 256); x.clip(); m.save(); m.translate(ox, oy); pedFace(x, m, o); m.restore(); x.restore(); });
+  // tulow (v = wysokosc 0.79..1.7): 4 style (koszula, bluza, koszulka, kurtka); spodnie wspolne
+  const TU = (style, ox, oy) => {
+    const ty = y => oy + (1 - (y - 0.79) / 0.91) * 256;
+    x.save(); x.translate(ox, 0); x.beginPath(); x.rect(0, oy, 256, 256); x.clip();
+    const R = (n, a, b) => { for (let i = 0; i < n; i++) { x.fillStyle = Math.random() < 0.5 ? `rgba(0,0,0,${a})` : `rgba(255,255,255,${a})`; x.fillRect(Math.random() * 256, oy + Math.random() * 256, 2, 2); } };
+    R(2500, 0.05);
+    if (style === 0 || style === 3) { x.fillStyle = 'rgba(0,0,0,.035)'; for (let a = 0; a < 256; a += 3) x.fillRect(a, oy, 1, 256); for (let b = 0; b < 256; b += 3) x.fillRect(0, oy + b, 256, 1); } // splot tkaniny
+    let g = x.createLinearGradient(0, ty(1.45), 0, ty(1.0)); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,.14)');
+    x.fillStyle = g; x.fillRect(0, ty(1.45), 256, ty(1.0) - ty(1.45));
+    x.strokeStyle = 'rgba(0,0,0,.12)'; x.lineWidth = 1.5;
+    for (const sx of [64, 192]) { x.beginPath(); x.moveTo(sx, ty(1.47)); x.lineTo(sx, ty(1.0)); x.stroke(); }
+    if (style === 0) {
+      x.fillStyle = 'rgba(0,0,0,.28)'; x.fillRect(0, ty(1.56), 256, 5); // kolnierz
+      x.strokeStyle = 'rgba(0,0,0,.3)'; x.lineWidth = 2; x.beginPath(); x.moveTo(104, ty(1.545)); x.lineTo(128, ty(1.45)); x.lineTo(152, ty(1.545)); x.stroke(); // wyciecie pod szyja
+      x.fillStyle = 'rgba(0,0,0,.22)'; x.fillRect(127, ty(1.43), 2, ty(1.0) - ty(1.43)); // zapiecie
+      x.fillStyle = 'rgba(255,255,255,.35)'; for (let y = 1.4; y > 1.02; y -= 0.08) { x.beginPath(); x.arc(133, ty(y), 1.6, 0, TAU); x.fill(); }
+      x.strokeStyle = 'rgba(0,0,0,.12)'; x.lineWidth = 1.5; for (const sx of [100, 156]) x.strokeRect(sx - 12, ty(1.38), 24, 18); // kieszonki
+      for (let i = 0; i < 5; i++) { const y = ty(1.08 + i * 0.03); x.beginPath(); x.moveTo(30 + i * 9, y); x.quadraticCurveTo(64, y + 5, 98 - i * 6, y); x.moveTo(158 + i * 6, y); x.quadraticCurveTo(192, y + 5, 226 - i * 9, y); x.stroke(); }
+      x.fillStyle = 'rgba(0,0,0,.2)'; x.fillRect(0, ty(1.0), 256, 4);
+    } else if (style === 1) { // bluza z kapturem: dekolt, sznurki, kangurka, sciagacz
+      x.fillStyle = 'rgba(0,0,0,.3)'; x.beginPath(); x.moveTo(98, ty(1.56)); x.quadraticCurveTo(128, ty(1.37), 158, ty(1.56)); x.lineTo(158, ty(1.6)); x.lineTo(98, ty(1.6)); x.fill();
+      x.fillStyle = 'rgba(0,0,0,.2)'; x.beginPath(); x.moveTo(70, ty(1.02)); x.lineTo(84, ty(1.2)); x.lineTo(172, ty(1.2)); x.lineTo(186, ty(1.02)); x.fill();
+      x.strokeStyle = 'rgba(0,0,0,.35)'; x.lineWidth = 2; x.beginPath(); x.moveTo(70, ty(1.02)); x.lineTo(84, ty(1.2)); x.lineTo(172, ty(1.2)); x.lineTo(186, ty(1.02)); x.stroke();
+      x.strokeStyle = 'rgba(255,255,255,.75)'; x.lineWidth = 2.2; for (const sx of [-1, 1]) { x.beginPath(); x.moveTo(128 + sx * 10, ty(1.45)); x.quadraticCurveTo(128 + sx * 13, ty(1.34), 128 + sx * 11, ty(1.28)); x.stroke(); }
+      x.fillStyle = 'rgba(0,0,0,.2)'; for (let a = 0; a < 256; a += 6) x.fillRect(a, ty(1.0), 3, ty(0.98) - ty(1.0) + 6); // zebra sciagacza
+      x.fillStyle = 'rgba(0,0,0,.1)'; for (let yy = ty(1.5); yy < ty(1.02); yy += 4) for (let a = (Math.floor(yy / 4) % 2) * 3; a < 256; a += 6) x.fillRect(a, yy, 3, 1.4); // dzianina
+    } else if (style === 2) { // koszulka: okragly dekolt i nadruk
+      x.strokeStyle = 'rgba(0,0,0,.35)'; x.lineWidth = 3; x.beginPath(); x.arc(128, ty(1.6), 30, 0.12 * Math.PI, 0.88 * Math.PI); x.stroke();
+      if (Math.random() < 0.8) { x.fillStyle = `hsla(${Math.random() * 360 | 0},70%,55%,.8)`; x.fillRect(100, ty(1.36), 56, 26); x.fillStyle = 'rgba(255,255,255,.7)'; x.fillRect(106, ty(1.36) + 8, 44, 4); x.fillRect(106, ty(1.36) + 15, 30, 3); }
+    } else { // kurtka: zamek, kolnierz, kieszenie z klapkami, naszywka
+      x.fillStyle = 'rgba(0,0,0,.35)'; x.fillRect(0, ty(1.57), 256, 7);
+      x.fillStyle = 'rgba(0,0,0,.45)'; x.fillRect(126, ty(1.56), 4, ty(0.99) - ty(1.56)); x.fillStyle = 'rgba(210,210,215,.8)'; for (let y = ty(1.55); y < ty(1.0); y += 4) x.fillRect(127, y, 2, 2);
+      x.strokeStyle = 'rgba(0,0,0,.3)'; x.lineWidth = 1.8; for (const sx of [58, 198]) { x.strokeRect(sx - 20, ty(1.15), 40, 8); x.beginPath(); x.moveTo(sx - 20, ty(1.15) + 8); x.lineTo(sx - 20, ty(1.02)); x.moveTo(sx + 20, ty(1.15) + 8); x.lineTo(sx + 20, ty(1.02)); x.stroke(); }
+      x.fillStyle = 'rgba(0,0,0,.18)'; x.fillRect(0, ty(1.0), 256, 6); x.fillStyle = 'rgba(0,0,0,.25)'; x.fillRect(150, ty(1.35), 26, 18);
+      for (let y = 1.45; y > 1.05; y -= 0.1) { x.fillStyle = 'rgba(255,255,255,.07)'; x.fillRect(0, ty(y), 256, 5); } // pasy pikowania
+    }
+    // spodnie: pasek, klamra, kieszenie, rozporek, tylne kieszenie
+    x.fillStyle = 'rgba(0,0,0,.55)'; x.fillRect(0, ty(0.995), 256, ty(0.965) - ty(0.995));
+    x.fillStyle = 'rgba(255,255,255,.6)'; x.fillRect(123, ty(0.993), 10, ty(0.967) - ty(0.993));
+    x.strokeStyle = 'rgba(0,0,0,.3)'; x.lineWidth = 1.5;
+    for (const sg of [-1, 1]) { x.beginPath(); x.moveTo(128 + sg * 22, ty(0.965)); x.quadraticCurveTo(128 + sg * 34, ty(0.9), 128 + sg * 56, ty(0.9)); x.stroke(); }
+    x.beginPath(); x.moveTo(131, ty(0.965)); x.lineTo(131, ty(0.86)); x.stroke();
+    for (const cx of [26, 230]) x.strokeRect(cx - 16, ty(0.94), 32, 26);
+    x.restore();
+  };
+  TU(0, 0, 256); TU(1, PED_TORSO_OFF[1][0], 1024); TU(2, PED_TORSO_OFF[2][0], 1024); TU(3, PED_TORSO_OFF[3][0], 1024);
   // reka: mankiet, szew na barku, zmarszczki w lokciu
   const [ax] = AT.arm, ay = v => 256 + (1 - v) * 256;
   for (let i = 0; i < 700; i++) { x.fillStyle = 'rgba(0,0,0,.05)'; x.fillRect(ax + Math.random() * 64, 256 + Math.random() * 256, 2, 2); }
@@ -1238,10 +1388,14 @@ function pedAtlas() {
   tile('coat', (c, w, h) => { c.fillStyle = '#ececec'; c.fillRect(0, 0, w, h); c.fillStyle = 'rgba(0,0,0,.35)'; c.fillRect(w / 2 - 1, 0, 2, h); c.fillRect(0, h - 4, w, 4); c.fillStyle = 'rgba(0,0,0,.12)'; c.fillRect(w / 2 + 2, 0, 6, h); noise(c, w, h, 300, 0.06); });
   tile('paper', (c, w, h) => { c.fillStyle = '#b48a5a'; c.fillRect(0, 0, w, h); c.fillStyle = 'rgba(0,0,0,.18)'; c.fillRect(0, 8, w, 2); c.fillRect(w * 0.5, 0, 1, h); c.fillStyle = '#f2ead8'; c.beginPath(); c.arc(w * 0.25, h * 0.55, 8, 0, TAU); c.fill(); });
   tile('hat', (c, w, h) => { c.fillStyle = '#e6e6e6'; c.fillRect(0, 0, w, h); c.fillStyle = 'rgba(0,0,0,.14)'; for (let a = 0; a < w; a += 4) c.fillRect(a, 0, 1.5, h); c.fillStyle = 'rgba(0,0,0,.25)'; c.fillRect(0, h * 0.85, w, 2); });
-  // maska "niebarwionych" pikseli (oczy, telefon, papierowa torba)
+  // kamizelka odblaskowa: kolor barwiony, dwa srebrne pasy i taśmy na ramionach (niebarwione)
+  tile('vest', (c, w, h) => { c.fillStyle = '#ececec'; c.fillRect(0, 0, w, h); noise(c, w, h, 500, 0.07); c.fillStyle = 'rgba(0,0,0,.18)'; c.fillRect(w / 2 - 1, 0, 2, h);
+    c.fillStyle = '#cfd3d6'; c.fillRect(0, h * 0.5, w, 11); c.fillRect(0, h * 0.78, w, 11); c.fillRect(w * 0.2, 0, 9, h * 0.5); c.fillRect(w * 0.8 - 9, 0, 9, h * 0.5); });
+  // maska "niebarwionych" pikseli (telefon, papierowa torba, pasy kamizelki)
   for (const k of ['phone', 'paper']) { const [x0, y0, w, h] = AT[k]; m.fillRect(x0, y0, w, h); }
   { const [x0, y0, w, h] = AT.shoe; m.fillRect(x0 + w * 0.12, y0, w * 0.26, h); } // podeszwa: zawsze jasna
-  const im = x.getImageData(0, 0, 512, 512), mk = m.getImageData(0, 0, 512, 512).data;
+  { const [x0, y0, w, h] = AT.vest; m.fillRect(x0, y0 + h * 0.5, w, 11); m.fillRect(x0, y0 + h * 0.78, w, 11); m.fillRect(x0 + w * 0.2, y0, 9, h * 0.5); m.fillRect(x0 + w * 0.8 - 9, y0, 9, h * 0.5); }
+  const im = x.getImageData(0, 0, ATW, ATH), mk = m.getImageData(0, 0, ATW, ATH).data;
   for (let i = 0; i < mk.length; i += 4) if (mk[i] > 127) im.data[i + 3] = 128;
   x.putImageData(im, 0, 0);
   pedAtlasTex = tex(A); pedAtlasTex.premultiplyAlpha = false;
@@ -1327,6 +1481,45 @@ function pedBody(b, L) {
   add(tubeData(smooth(skirt, L.c), L.t, r => (r.y - 0.6) / 0.4, null), 11, 'fab', [0, 0, 0]);
   // torba z zakupami w lewej dloni (14)
   add(prim(new THREE.BoxGeometry(0.1, 0.3, 0.26), [0.215 * b.w + 0.075, 0.66, 0], null, null), 14, 'paper', [3, 1, 1]);
+  // ---- dodatki rozszerzone: fryzury (16-18), kaptur (19), kaski (20-21), okulary (22-23), laska (24), kawa (25), kamizelka (26), skrzynia kuriera (28)
+  const sw2 = L.ears ? sw : 5, sh2 = L.ears ? sh : 3, SPH = (a, b2, c, d) => new THREE.SphereGeometry(1, sw2, sh2, a, b2, c, d), hz = hs;
+  add(prim(SPH(0, TAU), [0, HC + 0.108 * hz, -0.072 * hz], null, [0.052, 0.046, 0.052], H.neck), 16, 'hair', [5, 1, 0]); // kok
+  add(prim(SPH(0, TAU), [0, HC - 0.075 * hz, -0.142 * hz], [0.25, 0, 0], [0.034, 0.125, 0.04], H.neck), 17, 'hair', [5, 1, 0]); // kucyk / warkocz
+  add(prim(SPH(0, TAU), [0, HC + 0.0, -0.115 * hz], null, [0.04, 0.04, 0.035], H.neck), 17, 'hair', [5, 1, 0]);
+  add(prim(SPH(0, TAU), [0, HC + 0.03 * hz, -0.012], null, [0.168 * hz, 0.158 * hz, 0.165 * hz], H.neck), 18, 'hair', [5, 1, 0]); // afro
+  add(prim(SPH(Math.PI / 2 + 0.55, TAU - 1.1, 0, 2.4), [0, HC + 0.004, -0.018], null, [0.124 * hz, 0.148 * hz, 0.142 * hz], H.neck), 19, 'fab', [5, 1, 0]); // kaptur (otwarty z przodu)
+  if (L.ears) add(prim(new THREE.TorusGeometry(0.1, 0.034, 6, sw), [0, 1.485, -0.01], [Math.PI / 2 - 0.15, 0, 0], [1, 1, 1], null), 19, 'fab', [0, 0, 0]); // ciezki kolnierz kaptura na ramionach
+  add(prim(SPH(0, TAU, 0, 1.5), [0, HC + 0.012, 0.005], [-0.08, 0, 0], [0.118 * hz, 0.112 * hz, 0.13 * hz], H.neck), 20, 'hat', [5, 1, 0]); // kask budowlany
+  add(prim(new THREE.CylinderGeometry(0.124, 0.124, 0.012, sw2), [0, HC + 0.03 * hz, 0.012], [-0.08, 0, 0], [hz, 1, 1.05 * hz], H.neck), 20, 'hat', [5, 1, 0]);
+  add(prim(new THREE.CylinderGeometry(0.1, 0.1, 0.012, L.ears ? 10 : 5, 1, false, -Math.PI / 2, Math.PI), [0, HC + 0.036 * hz, 0.085 * hz], [0.08, 0, 0], [1.05 * hz, 1, 1.15 * hz], H.neck), 20, 'hat', [5, 1, 0]);
+  add(prim(new THREE.BoxGeometry(0.02, 0.014, 0.2 * hz), [0, HC + 0.124 * hz, 0.0], [-0.08, 0, 0], null, H.neck), 20, 'hat', [5, 1, 0]);
+  add(prim(new THREE.CylinderGeometry(0.106, 0.112, 0.07, sw2), [0, HC + 0.075 * hz, 0.0], [-0.04, 0, 0], [hz, 1, 1.1 * hz], H.neck), 21, 'hat', [5, 1, 0]); // czapka policyjna
+  add(prim(new THREE.CylinderGeometry(0.128, 0.108, 0.022, sw2), [0, HC + 0.118 * hz, 0.012], [-0.1, 0, 0], [hz, 1, 1.12 * hz], H.neck), 21, 'hat', [5, 1, 0]);
+  add(prim(new THREE.CylinderGeometry(0.1, 0.1, 0.01, L.ears ? 10 : 5, 1, false, -Math.PI / 2, Math.PI), [0, HC + 0.05 * hz, 0.09 * hz], [0.2, 0, 0], [1.0 * hz, 1, 1.2 * hz], H.neck), 21, 'hat', [5, 1, 0]);
+  if (L.ears) {
+    const EP = [1, -1].map(s => headPoint(((256 + s * 30) / 512 - 0.5) * TAU + Math.PI / 2, -Math.PI / 2 + 0.527 * Math.PI, b, true, new V3()));
+    for (const e of EP) {
+      const sg = Math.sign(e.x) || 1;
+      add(prim(new THREE.TorusGeometry(0.025, 0.0038, 5, 14), [e.x, e.y + 0.002, e.z + 0.012], null, [1, 0.85, 1], H.neck), 22, 'skin', [5, 1, 0]); // oprawka
+      add(prim(new THREE.BoxGeometry(0.0035, 0.0035, 0.1), [e.x + sg * 0.03, e.y + 0.004, e.z - 0.04], [0, -sg * 0.18, 0], null, H.neck), 22, 'skin', [5, 1, 0]); // zauszniki
+      add(prim(SPH(0, TAU), [e.x, e.y + 0.002, e.z + 0.016], null, [0.036, 0.021, 0.007], H.neck), 23, 'skin', [5, 1, 0]); // szkla przeciwsloneczne
+      add(prim(new THREE.BoxGeometry(0.0055, 0.0055, 0.1), [e.x + sg * 0.043, e.y + 0.004, e.z - 0.038], [0, -sg * 0.18, 0], null, H.neck), 23, 'skin', [5, 1, 0]);
+    }
+    add(prim(new THREE.BoxGeometry(0.02, 0.005, 0.005), [0, EP[0].y + 0.008, EP[0].z + 0.02], null, null, H.neck), 22, 'skin', [5, 1, 0]);
+    add(prim(new THREE.BoxGeometry(0.024, 0.006, 0.006), [0, EP[0].y + 0.01, EP[0].z + 0.019], null, null, H.neck), 23, 'skin', [5, 1, 0]);
+    // laska: trzon + raczka (nieruchoma wzgledem ciala, prawa reka trzyma ja w pozie)
+    const cx = -0.215 * b.w - 0.05, cz = 0.13;
+    add(prim(new THREE.CylinderGeometry(0.0115, 0.0115, 0.9, 6), [cx, 0.45, cz], null, null), 24, 'fab', [0, 0, 0]);
+    add(prim(new THREE.TorusGeometry(0.04, 0.012, 5, 10, Math.PI), [cx + 0.0, 0.9, cz], [0, 0, 0], null), 24, 'fab', [0, 0, 0]);
+  }
+  // kubek z kawa w prawej dloni (podaza za przedramieniem, wstepnie obrocony tak, by po pozie stal pionowo)
+  if (L.ears) add(prim(new THREE.CylinderGeometry(0.037, 0.028, 0.1, 8), [-0.215 * b.w + 0.012, HIPY - 0.075, 0.03], [1.75, 0, 0], null), 25, 'skin', [4, 1, 1]);
+  if (L.ears) add(prim(new THREE.CylinderGeometry(0.04, 0.04, 0.014, 8), [-0.215 * b.w + 0.012, HIPY - 0.075 + 0.05 * 0.18, 0.03 + 0.05 * 0.98], [1.75, 0, 0], null), 25, 'skin', [4, 1, 1]);
+  // kamizelka odblaskowa: kolnierz oplatajacy tulow
+  { const [, vr] = splitRings(smooth(torsoRings(b), 1), 0.99), [vv] = splitRings(vr, 1.45);
+    add(tubeData(vv.map(r => ({ ...r, rx: r.rx * 1.045 + 0.006, rz: r.rz * 1.045 + 0.009 })), L.t, r => (r.y - 0.99) / 0.46, null), 26, 'vest', [0, 0, 0]); }
+  // skrzynia kuriera na plecach
+  add(prim(new THREE.BoxGeometry(0.4 * b.w, 0.4, 0.34), [0, 1.2, -back - 0.2], null, null), 28, 'fab', [0, 0, 0]);
   // scalenie + atrybuty animacji
   const o = merge(pieces), pp = [], pv = [];
   for (const d of pieces) { pp.push(...d.pp); pv.push(...d.pv); }
@@ -1340,33 +1533,32 @@ export function pedGeometries() { return PED_BODIES.map(B => ({ ...B, hi: pedBod
 // shader chodu
 export const pedU = { uTime: { value: 0 }, uPal: { value: PED_PAL.map(h => new THREE.Color(h).convertSRGBToLinear()) } };
 const PED_VH = `
-attribute vec4 pp; attribute float pv; attribute vec4 iA; attribute vec4 iC0; attribute vec4 iC1;
+attribute vec4 pp; attribute float pv; attribute vec4 iA; attribute vec4 iC0; attribute vec4 iC1; attribute vec4 iD;
 uniform vec3 uPal[${PED_PAL.length}]; uniform float uTime; uniform float uAbd;
-varying vec3 vPedCol;
+varying vec3 vPedCol; varying float vPedF; varying float vPedT;
 float pbit(float f, float b) { return mod(floor((f + 0.5) / b), 2.0); }
 mat3 rX(float a) { float c = cos(a), s = sin(a); return mat3(1.0, 0.0, 0.0, 0.0, c, s, 0.0, -s, c); }
 mat3 rY(float a) { float c = cos(a), s = sin(a); return mat3(c, 0.0, -s, 0.0, 1.0, 0.0, s, 0.0, c); }
 mat3 rZ(float a) { float c = cos(a), s = sin(a); return mat3(c, s, 0.0, -s, c, 0.0, 0.0, 0.0, 1.0); }
 `;
+// iD: x = wariant twarzy + 4 * styl tulowia, y = tryb (0 chod/stanie, 1 telefon przy uchu, 2 ekran, 3 gestykuluje, 4 wskazuje, 5 siedzi, 6 kuli sie, 9 filmuje),
+// z = skala glowy, w = pochylenie (starcy)
 const PED_VB = `
 vec3 objectNormal = vec3(normal);
 vec3 pedP = position;
 {
   float ph = iA.x, A = iA.y, F = iA.z, sd = iA.w;
   float limb = pp.x, wu = pp.y, wl = pp.z, part = pp.w;
-  float coat = pbit(F, 32.0), skirt = pbit(F, 64.0), phone = pbit(F, 16.0), shop = pbit(F, 256.0), shortS = pbit(F, 128.0);
+  float coat = pbit(F, 32.0), skirt = pbit(F, 64.0), phone = pbit(F, 16.0), shop = pbit(F, 256.0), shortS = pbit(F, 128.0), coffee = pbit(F, 524288.0), cane = pbit(F, 262144.0);
+  float md = iD.y, hsc = iD.z, stoop = iD.w;
+  vPedF = floor(mod(iD.x + 0.5, 4.0)); vPedT = floor((iD.x + 0.5) / 4.0);
+  float sit = step(4.5, md) * step(md, 5.5), cow = step(5.5, md) * step(md, 6.5), scr = step(1.5, md) * step(md, 2.5), talk = step(2.5, md) * step(md, 3.5);
+  float pnt = step(3.5, md) * step(md, 4.5), film = step(8.5, md) * step(md, 9.5);
+  float ear = phone * (1.0 - scr) * (1.0 - film);
+  float tt = uTime + sd * 6.0;
   float vis = 1.0;
-  if (part > 4.5) {
-    if (part < 5.5) vis = pbit(F, 1.0);
-    else if (part < 6.5) vis = pbit(F, 2.0);
-    else if (part < 7.5) vis = pbit(F, 4.0);
-    else if (part < 8.5) vis = pbit(F, 8.0);
-    else if (part < 9.5) vis = phone;
-    else if (part < 10.5) vis = coat;
-    else if (part < 11.5) vis = skirt;
-    else if (part > 13.5 && part < 14.5) vis = shop;
-    else if (part > 14.5) vis = pbit(F, 512.0);
-  }
+  if (part > 4.5 && !(part > 11.5 && part < 13.5)) vis = pbit(F, floor(exp2(part < 11.5 ? part - 5.0 : part - 6.0) + 0.5));
+  else if (part > 3.5 && part < 4.5) vis = 1.0 - pbit(F, 8388608.0);
   float ci = iC0.x;
   if (part < 0.5) ci = iC0.z;
   else if (part < 1.5) ci = coat > 0.5 ? iC1.w : iC0.x;
@@ -1381,13 +1573,21 @@ vec3 pedP = position;
   else if (part < 12.5) ci = skirt > 0.5 ? 1.0 : iC0.y;
   else if (part < 13.5) ci = coat > 0.5 ? iC1.w : (shortS > 0.5 ? iC0.z : iC0.x);
   else if (part < 14.5) ci = 2.0;
-  else ci = iC0.w;
+  else if (part < 15.5 || (part > 15.5 && part < 18.5)) ci = iC0.w;
+  else if (part < 19.5) ci = iC0.x;
+  else if (part < 21.5) ci = iC1.y;
+  else if (part < 23.5) ci = 0.0;
+  else if (part < 24.5) ci = 45.0;
+  else if (part < 25.5) ci = 61.0;
+  else ci = iC1.z;
   vPedCol = uPal[int(ci + 0.5)];
   float s = sin(ph);
   if (limb > 0.5 && limb < 2.5) {
     float q = limb < 1.5 ? ph : ph + 3.14159;
     float aU = -A * 0.44 * sin(q);
     float aL = A * (0.07 + 0.8 * pow(max(0.0, cos(q + 0.35)), 1.5));
+    aU = mix(aU, -1.5, sit); aL = mix(aL, 1.5, sit);
+    aU = mix(aU, -0.95 + 0.08 * sin(tt * 6.0), cow); aL = mix(aL, 1.7, cow);
     vec3 P1 = vec3(pv, 0.91, 0.0), P2 = vec3(pv, 0.49, 0.0);
     mat3 R1 = rX(aU), R2 = rX(aL);
     vec3 lo = R1 * (R2 * (pedP - P2) + P2 - P1) + P1, up = R1 * (pedP - P1) + P1;
@@ -1396,47 +1596,74 @@ vec3 pedP = position;
   } else if (limb > 2.5 && limb < 4.5) {
     bool isL = limb < 3.5;
     float q = isL ? ph : ph + 3.14159;
-    float k = (isL && shop > 0.5) ? 0.25 : 1.0;
+    float k = ((isL && shop > 0.5) || (!isL && cane > 0.5)) ? 0.25 : 1.0;
     float aU = (A * 0.38 * sin(q) + 0.03) * k;
     float aL = -0.22 - A * 0.42 * max(0.0, -sin(q)) * k;
     float aZ = (isL ? 1.0 : -1.0) * (uAbd + ((isL && shop > 0.5) ? 0.07 : 0.0));
     if (A < 0.05) aU += 0.035 * sin(uTime * 0.9 + sd * 7.0 + limb);
-    if (!isL && phone > 0.5) { aU = -0.45; aL = -1.75; aZ = 0.2; }
+    if (!isL) {
+      if (cane > 0.5) { aU = -0.22; aL = -0.32; aZ = -0.02; }
+      if (coffee > 0.5) { aU = -0.4; aL = -1.35; aZ = -0.05; }
+      if (ear > 0.5) { aU = -0.45; aL = -1.75; aZ = 0.2; }
+    }
+    if (scr > 0.5) { aU = isL ? -0.45 : -0.5; aL = isL ? -1.3 : -1.35; aZ = isL ? 0.06 : -0.05; }
+    if (film > 0.5) { aU = -1.0; aL = -1.55; aZ = isL ? 0.05 : -0.05; }
+    if (talk > 0.5) {
+      if (isL) { aU = -0.3 + 0.22 * sin(tt * 1.7 + 2.0); aL = -0.95 + 0.4 * sin(tt * 2.6); aZ = 0.12; }
+      else { aU = -0.5 + 0.3 * sin(tt * 2.3); aL = -1.15 + 0.55 * sin(tt * 3.1 + 1.0); aZ = -0.25; }
+    }
+    if (pnt > 0.5 && !isL) { aU = -1.4 + 0.04 * sin(tt * 3.0); aL = -0.1; aZ = -0.1; }
+    if (sit > 0.5) { aU = -0.55; aL = -0.85; aZ = isL ? 0.12 : -0.12; }
+    if (cow > 0.5) { aU = -2.05; aL = -1.85; aZ = isL ? 0.4 : -0.4; }
     vec3 P1 = vec3(pv, 1.45, 0.0), P2 = vec3(pv, 1.17, 0.0);
     mat3 R1 = rZ(aZ) * rX(aU), R2 = rX(aL);
     vec3 lo = R1 * (R2 * (pedP - P2) + P2 - P1) + P1, up = R1 * (pedP - P1) + P1;
     pedP = mix(pedP, mix(up, lo, wl), wu);
     objectNormal = mix(objectNormal, mix(R1 * objectNormal, R1 * (R2 * objectNormal), wl), wu);
   } else if (limb > 4.5) {
-    float pitch = phone > 0.5 ? 0.42 : 0.05 * A;
-    float yaw = (A < 0.05 ? 0.55 : 0.18) * sin(uTime * 0.31 + sd * 3.7) * (1.0 - 0.8 * phone);
+    float pitch = 0.05 * A + stoop * 0.55 + 0.42 * (ear > 0.5 && scr < 0.5 ? 1.0 : 0.0) * 0.0 + 0.5 * scr + 0.6 * cow + 0.07 * talk * sin(tt * 2.6) - 0.1 * pnt;
+    if (ear > 0.5 && scr < 0.5) pitch = 0.1 + 0.05 * A;
+    float yaw = (A < 0.05 ? 0.55 : 0.18) * sin(uTime * 0.31 + sd * 3.7) * (1.0 - 0.85 * max(max(ear, scr), max(max(pnt, film), cow)));
+    yaw += talk * 0.25 * sin(tt * 0.9);
     mat3 R = rY(yaw) * rX(pitch); vec3 P = vec3(0.0, 1.54, 0.0);
-    pedP = mix(pedP, R * (pedP - P) + P, wu);
+    pedP = mix(pedP, R * ((pedP - P) * hsc) + P, wu);
     objectNormal = mix(objectNormal, R * objectNormal, wu);
   }
   if (limb < 0.5 || limb > 2.5) {
     mat3 T = rY(A * 0.1 * s * smoothstep(0.95, 1.5, position.y));
     pedP = T * pedP; objectNormal = T * objectNormal;
+    float lean = 0.04 * A + stoop + cow * 0.5 + 0.06 * talk * sin(tt * 1.3);
+    float wlean = limb > 2.5 ? 1.0 : smoothstep(0.9, 1.1, position.y);
+    mat3 Rl = rX(lean); vec3 Pl = vec3(0.0, 0.92, 0.0);
+    pedP = mix(pedP, Rl * (pedP - Pl) + Pl, wlean);
+    objectNormal = mix(objectNormal, Rl * objectNormal, wlean);
   }
   if (A < 0.05) pedP.y += 0.004 * sin(uTime * 1.6 + sd * 5.0) * smoothstep(1.0, 1.45, position.y);
   pedP.y += A * (0.03 * cos(2.0 * ph) - 0.015);
+  pedP.y -= 0.43 * sit + 0.3 * cow;
   pedP *= vis;
 }
 `;
 const PED_FM = `
 #ifdef USE_MAP
-  vec4 texelColor = texture2D(map, vUv);
+  vec2 pxu = vec2(vUv.x * 1024.0, (1.0 - vUv.y) * 1280.0), pOff = vec2(0.0);
+  if (pxu.y < 256.0) { if (pxu.x < 512.0) pOff = uFO[int(vPedF + 0.5) + int(uFB + 0.5)]; }
+  else if (pxu.y < 512.0 && pxu.x < 256.0) pOff = uTO[int(vPedT + 0.5)];
+  vec4 texelColor = texture2D(map, vUv + vec2(pOff.x / 1024.0, -pOff.y / 1280.0));
   texelColor = mapTexelToLinear(texelColor);
   diffuseColor.rgb *= texelColor.rgb * mix(vec3(1.0), vPedCol, step(0.75, texelColor.a));
 #endif
 `;
-export function pedMaterial(abd) {
+export function pedMaterial(abd, female) {
   const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.82, map: pedAtlas() });
   m.userData.lin = true;
   m.onBeforeCompile = sh => {
     sh.uniforms.uTime = pedU.uTime; sh.uniforms.uPal = pedU.uPal; sh.uniforms.uAbd = { value: abd };
+    sh.uniforms.uFO = { value: PED_FACE_OFF.map(p => new THREE.Vector2(p[0], p[1])) };
+    sh.uniforms.uTO = { value: PED_TORSO_OFF.map(p => new THREE.Vector2(p[0], p[1])) };
+    sh.uniforms.uFB = { value: female ? 3 : 0 };
     sh.vertexShader = PED_VH + sh.vertexShader.replace('#include <beginnormal_vertex>', PED_VB).replace('#include <begin_vertex>', 'vec3 transformed = pedP;');
-    sh.fragmentShader = 'varying vec3 vPedCol;\n' + sh.fragmentShader.replace('#include <map_fragment>', PED_FM);
+    sh.fragmentShader = 'varying vec3 vPedCol; varying float vPedF; varying float vPedT; uniform vec2 uFO[6]; uniform vec2 uTO[4]; uniform float uFB;\n' + sh.fragmentShader.replace('#include <map_fragment>', PED_FM);
   };
   return m;
 }
