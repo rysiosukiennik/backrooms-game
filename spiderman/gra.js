@@ -3463,7 +3463,7 @@
     H3.outfit = o;
     return H3;
   }
-  function pedLook(r, female) {
+  function pedLook(r, female, kind) {
     const P2 = (k) => PAL[k][0] + Math.floor(r() * (PAL[k][1] - PAL[k][0] + 1)), ch = (p) => r() < p;
     let f = 0;
     const coat = ch(0.28);
@@ -3477,96 +3477,485 @@
       if (ch(0.08)) f |= PF.BEANIE;
     } else {
       const h = r();
-      if (h < 0.18) f |= PF.CAP;
-      else if (h < 0.3) f |= PF.BEANIE;
+      if (h < 0.16) f |= PF.CAP;
+      else if (h < 0.26) f |= PF.BEANIE;
+      else if (h < 0.33) f |= PF.HOOD;
       if (ch(0.2)) f |= PF.BACKPACK;
       else if (ch(0.1)) f |= PF.BAG;
+      if (ch(0.1)) f |= PF.BALD;
     }
-    if (ch(0.24)) f |= PF.PHONE;
-    if (ch(0.1)) f |= PF.SHOP;
+    if (f & PF.LONGHAIR) {
+      const q = r();
+      if (q < 0.16) f = f & ~PF.LONGHAIR | PF.BUN;
+      else if (q < 0.32) f |= PF.PONY;
+    }
     let hair = P2("hair");
     const skin = P2("skin");
     if (skin >= 7 && hair > 11) hair = 9 + Math.floor(r() * 2);
-    return { c0: [P2("top"), P2("bot"), skin, hair], c1: [P2("shoe"), P2("acc"), P2("acc"), P2("coat")], flags: f };
+    if (!(f & (PF.CAP | PF.BEANIE | PF.HOOD)) && ch(skin >= 6 ? 0.1 : 0.02)) f = f & ~(PF.LONGHAIR | PF.BUN | PF.PONY | PF.BALD) | PF.AFRO;
+    if (f & PF.HOOD) f &= ~(PF.LONGHAIR | PF.BUN | PF.PONY);
+    if (ch(0.22)) f |= PF.PHONE;
+    else if (ch(0.08)) f |= PF.COFFEE;
+    if (ch(0.1)) f |= PF.SHOP;
+    if (ch(0.13)) f |= PF.GLASSES;
+    else if (ch(0.07)) f |= PF.SUNGL;
+    let ts = f & PF.SHORT ? 2 : f & PF.HOOD ? 1 : [0, 0, 0, 1, 1, 2, 3, 3][Math.floor(r() * 8)];
+    const L3 = { c0: [P2("top"), P2("bot"), skin, hair], c1: [P2("shoe"), P2("acc"), P2("acc"), P2("coat")], flags: f, fv: Math.floor(r() * 3), ts, sc: 1, head: 1, stoop: 0, spd: 1 };
+    if (kind === "cop") {
+      L3.c0[0] = 54;
+      L3.c0[1] = 32;
+      L3.c1[0] = 44;
+      L3.c1[1] = 54;
+      L3.ts = 0;
+      L3.flags = PF.COPCAP | (ch(0.25) ? PF.SUNGL : 0) | (ch(0.15) ? PF.PHONE : 0);
+    } else if (kind === "worker") {
+      L3.c0[1] = 31;
+      L3.c1[0] = 45;
+      L3.c1[1] = ch(0.5) ? 57 : 58;
+      L3.c1[2] = ch(0.5) ? 55 : 56;
+      L3.ts = ch(0.5) ? 1 : 3;
+      L3.flags = PF.HARDHAT | PF.VEST | (ch(0.25) ? PF.SUNGL : 0) | (ch(0.4) ? PF.COFFEE : 0);
+    } else if (kind === "courier") {
+      const jc = ch(0.5) ? 59 : 60;
+      L3.c0[0] = jc;
+      L3.c0[1] = 33;
+      L3.c1[0] = 43;
+      L3.c1[1] = jc;
+      L3.c1[2] = jc;
+      L3.ts = 3;
+      L3.flags = PF.CAP | PF.BOX | (ch(0.45) ? PF.PHONE : 0);
+    } else if (kind === "suit") {
+      L3.c0[0] = ch(0.6) ? 17 : 29;
+      L3.c0[1] = 32;
+      L3.c1[0] = 44;
+      L3.c1[3] = ch(0.5) ? 38 : 41;
+      L3.ts = 0;
+      L3.flags = (ch(0.75) ? PF.COAT : 0) | (ch(0.2) ? PF.GLASSES : 0) | (ch(0.3) ? PF.PHONE : 0) | (ch(0.3) ? PF.BAG : 0) | (female && ch(0.5) ? PF.LONGHAIR : 0);
+    } else if (kind === "child") {
+      L3.flags = (ch(0.5) ? PF.BACKPACK : 0) | (ch(0.3) ? PF.CAP : 0) | (female && ch(0.6) ? PF.PONY | PF.LONGHAIR : 0);
+      L3.ts = ch(0.5) ? 2 : 1;
+      L3.sc = 0.62 + r() * 0.12;
+      L3.head = 1.22;
+      L3.spd = 1.1;
+    } else if (kind === "elder") {
+      L3.c0[3] = 14;
+      L3.flags = f & (PF.COAT | PF.SKIRT | PF.LONGHAIR | PF.BUN | PF.BAG) | PF.CANE | (ch(0.5) ? PF.GLASSES : 0) | (ch(0.3) ? PF.CAP : 0);
+      L3.fv = 2;
+      L3.stoop = 0.22 + r() * 0.12;
+      L3.spd = 0.55;
+      L3.sc = 0.95;
+      if (!(L3.flags & PF.LONGHAIR) && !female && ch(0.4)) L3.flags |= PF.BALD;
+    }
+    return L3;
+  }
+  function pedFace(x, mk2, o) {
+    const fem = !!o.fem, age = o.age || 0;
+    const rg = (cx, cy, r, c0, c1, sx = 1, sy = 1) => {
+      x.save();
+      x.translate(cx, cy);
+      x.scale(sx, sy);
+      const g2 = x.createRadialGradient(0, 0, 0, 0, 0, r);
+      g2.addColorStop(0, c0);
+      g2.addColorStop(1, c1);
+      x.fillStyle = g2;
+      x.fillRect(-r, -r, 2 * r, 2 * r);
+      x.restore();
+    };
+    x.fillStyle = "#fff2e8";
+    x.fillRect(0, 0, 512, 256);
+    noise(x, 512, 256, 3800, 0.03);
+    let g = x.createLinearGradient(0, 0, 512, 0);
+    g.addColorStop(0, "rgba(40,20,10,.26)");
+    g.addColorStop(0.3, "rgba(40,20,10,0)");
+    g.addColorStop(0.7, "rgba(40,20,10,0)");
+    g.addColorStop(1, "rgba(40,20,10,.26)");
+    x.fillStyle = g;
+    x.fillRect(0, 0, 512, 256);
+    g = x.createLinearGradient(0, 158, 0, 256);
+    g.addColorStop(0, "rgba(30,15,8,0)");
+    g.addColorStop(0.45, "rgba(30,15,8,.16)");
+    g.addColorStop(1, "rgba(30,15,8,.5)");
+    x.fillStyle = g;
+    x.fillRect(0, 158, 512, 98);
+    rg(256, 88, 76, "rgba(255,246,236,.2)", "rgba(255,246,236,0)", 1.25, 0.8);
+    for (const s of [-1, 1]) {
+      rg(256 + s * 52, 142, 24, "rgba(255,240,230,.2)", "rgba(255,240,230,0)", 1, 0.8);
+      rg(256 + s * 58, 152, 26, `rgba(205,75,65,${fem ? 0.22 : 0.1})`, "rgba(205,75,65,0)");
+      rg(256 + s * 74, 112, 20, "rgba(70,40,30,.2)", "rgba(70,40,30,0)", 0.8, 1.3);
+      rg(256 + s * 30, 122, 23, `rgba(90,50,55,${0.22 + age * 0.12})`, "rgba(90,50,55,0)", 1.2, 0.8);
+      rg(256 + s * 30, 132 + age * 2, 15, `rgba(100,60,60,${0.1 + age * 0.14})`, "rgba(100,60,60,0)", 1.4, 0.45);
+      rg(256 + s * 46, 178, 34, "rgba(60,30,20,.2)", "rgba(60,30,20,0)", 1.1, 0.9);
+    }
+    x.fillStyle = "rgba(255,242,232,.26)";
+    ell(x, 256, 124, 4.5, 15);
+    ell(x, 256, 140, 6, 3.4);
+    x.fillStyle = "rgba(90,45,30,.18)";
+    ell(x, 246.5, 130, 4, 12);
+    ell(x, 265.5, 130, 4, 12);
+    x.fillStyle = "rgba(90,40,30,.22)";
+    ell(x, 256, 144, 12, 3.4);
+    ell(x, 245, 141, 4, 3.6);
+    ell(x, 267, 141, 4, 3.6);
+    x.fillStyle = "rgba(35,12,8,.6)";
+    ell(x, 250, 142, 3.1, 1.7);
+    ell(x, 262, 142, 3.1, 1.7);
+    const lipC = o.lip || (fem ? "rgba(170,55,65,.7)" : "rgba(140,60,52,.45)"), mw = fem ? 12.5 : 14;
+    x.fillStyle = "rgba(70,35,30,.1)";
+    ell(x, 256, 150.5, 4.5, 2.6);
+    x.fillStyle = lipC;
+    x.beginPath();
+    x.moveTo(256 - mw, 154.4);
+    x.quadraticCurveTo(250, 148.6, 256, 151);
+    x.quadraticCurveTo(262, 148.6, 256 + mw, 154.4);
+    x.quadraticCurveTo(256, 156.2, 256 - mw, 154.4);
+    x.fill();
+    x.fillStyle = lipC;
+    ell(x, 256, 158.2, mw - 3.2, fem ? 4.2 : 3.4);
+    x.fillStyle = "rgba(255,225,215,.3)";
+    ell(x, 256, 157.6, 5.2, 1.3);
+    x.strokeStyle = "rgba(55,18,14,.75)";
+    x.lineWidth = 1.5;
+    x.beginPath();
+    x.moveTo(256 - mw - 1, 153.6);
+    x.quadraticCurveTo(256, 155.8, 256 + mw + 1, 153.6);
+    x.stroke();
+    x.fillStyle = "rgba(60,30,20,.14)";
+    ell(x, 256, 167, 12, 4);
+    if (age > 0) {
+      x.strokeStyle = `rgba(80,40,30,${0.1 + age * 0.12})`;
+      x.lineWidth = 1.4;
+      for (const y of [70, 79, 88]) {
+        x.beginPath();
+        x.moveTo(214, y + 2);
+        x.quadraticCurveTo(256, y - 4, 298, y + 2);
+        x.stroke();
+      }
+      for (const s of [-1, 1]) {
+        for (let k = -1; k <= 1; k++) {
+          x.beginPath();
+          x.moveTo(256 + s * 42, 121 + k * 3);
+          x.lineTo(256 + s * 54, 121 + k * 7);
+          x.stroke();
+        }
+        x.lineWidth = 1.8;
+        x.beginPath();
+        x.moveTo(256 + s * 13, 139);
+        x.quadraticCurveTo(256 + s * 25, 150, 256 + s * 22, 166);
+        x.stroke();
+        x.beginPath();
+        x.moveTo(256 + s * 16, 160);
+        x.quadraticCurveTo(256 + s * 20, 170, 256 + s * 14, 180);
+        x.stroke();
+      }
+    }
+    if (o.beard) {
+      const full = o.beard > 1;
+      x.fillStyle = full ? "rgba(25,16,10,.5)" : "rgba(30,20,12,.3)";
+      for (let i = 0, n = full ? 8200 : 3600; i < n; i++) {
+        const px = 256 + (Math.random() * 2 - 1) * 72, py = 138 + Math.random() * 66;
+        if (((px - 256) / 72) ** 2 + ((py - 172) / 36) ** 2 > 1 || Math.abs(px - 256) < 17 && py > 147 && py < 160) continue;
+        x.fillRect(px, py, 1.6, 1.6);
+      }
+      if (full) {
+        x.fillStyle = "rgba(25,16,10,.62)";
+        x.beginPath();
+        x.moveTo(236, 147.5);
+        x.quadraticCurveTo(256, 143, 276, 147.5);
+        x.quadraticCurveTo(268, 152, 256, 151);
+        x.quadraticCurveTo(244, 152, 236, 147.5);
+        x.fill();
+        g = x.createLinearGradient(0, 160, 0, 205);
+        g.addColorStop(0, "rgba(25,16,10,.1)");
+        g.addColorStop(1, "rgba(25,16,10,.4)");
+        x.fillStyle = g;
+        ell(x, 256, 182, 52, 24);
+      }
+    }
+    for (const s of [-1, 1]) {
+      const X = 256 + s * 30, Y = 121, ew = o.eyeW || 10.5, eh = o.eyeH || 4.9;
+      x.save();
+      x.beginPath();
+      x.ellipse(X, Y, ew, eh, 0, 0, TAU2);
+      x.clip();
+      x.fillStyle = "#efe8df";
+      x.fillRect(X - ew, Y - eh, ew * 2, eh * 2);
+      g = x.createLinearGradient(0, Y - eh, 0, Y + eh);
+      g.addColorStop(0, "rgba(70,40,40,.5)");
+      g.addColorStop(0.45, "rgba(70,40,40,0)");
+      g.addColorStop(1, "rgba(120,70,60,.15)");
+      x.fillStyle = g;
+      x.fillRect(X - ew, Y - eh, ew * 2, eh * 2);
+      const ic = o.eyeCol || "#3b2a1c", ig = x.createRadialGradient(X, Y + 0.4, 0.5, X, Y + 0.4, 5.2);
+      ig.addColorStop(0, "#000");
+      ig.addColorStop(0.3, ic);
+      ig.addColorStop(0.85, ic);
+      ig.addColorStop(1, "rgba(10,8,6,.95)");
+      x.fillStyle = ig;
+      x.beginPath();
+      x.arc(X, Y + 0.4, 5.1, 0, TAU2);
+      x.fill();
+      x.fillStyle = "#080808";
+      x.beginPath();
+      x.arc(X, Y + 0.4, 2.1, 0, TAU2);
+      x.fill();
+      x.fillStyle = "rgba(255,255,255,.92)";
+      x.beginPath();
+      x.arc(X + 1.9, Y - 1.1, 1.15, 0, TAU2);
+      x.fill();
+      x.beginPath();
+      x.arc(X - 1.7, Y + 1.8, 0.6, 0, TAU2);
+      x.fill();
+      x.restore();
+      if (mk2) {
+        mk2.fillStyle = "#fff";
+        mk2.beginPath();
+        mk2.ellipse(X, Y, ew, eh, 0, 0, TAU2);
+        mk2.fill();
+      }
+      x.fillStyle = "rgba(215,115,105,.55)";
+      ell(x, X - s * ew * 0.86, Y + 0.6, 2.6, 1.7);
+      if (o.shadow) {
+        x.fillStyle = o.shadow;
+        ell(x, X, Y - eh - 2, ew + 2, 4.2);
+      }
+      x.strokeStyle = "rgba(30,15,10,.9)";
+      x.lineWidth = fem ? 3.4 : 2.5;
+      x.beginPath();
+      x.ellipse(X, Y + 0.6, ew + 0.8, eh + 0.8, 0, Math.PI * 1.04, Math.PI * 1.96);
+      x.stroke();
+      if (fem) {
+        x.lineWidth = 1.4;
+        for (let k = 0; k < 7; k++) {
+          const a = Math.PI * (1.12 + k * 0.12), bx = X + Math.cos(a) * (ew + 0.8), by = Y + 0.6 + Math.sin(a) * (eh + 0.8);
+          x.beginPath();
+          x.moveTo(bx, by);
+          x.lineTo(bx + Math.cos(a) * 3 + s * 0.8, by + Math.sin(a) * 3.4 - 1);
+          x.stroke();
+        }
+        x.lineWidth = 3;
+        x.beginPath();
+        x.moveTo(X + s * (ew + 0.5), Y);
+        x.lineTo(X + s * (ew + 5), Y - 3.4);
+        x.stroke();
+      }
+      x.strokeStyle = "rgba(70,35,25,.32)";
+      x.lineWidth = 1.2;
+      x.beginPath();
+      x.ellipse(X, Y - 2.2, ew + 1.5, eh + 3.2, 0, Math.PI * 1.1, Math.PI * 1.9);
+      x.stroke();
+      x.beginPath();
+      x.ellipse(X, Y + 1, ew - 0.6, eh + 0.4, 0, Math.PI * 0.12, Math.PI * 0.88);
+      x.stroke();
+      const inner = X - s * 14, outer = X + s * 15, bt = o.brow || (fem ? 2.7 : 4.8), bc = o.browCol || "rgba(42,26,16,.8)", bh = fem ? 100.5 : 103.5;
+      x.lineCap = "round";
+      x.strokeStyle = bc;
+      x.lineWidth = bt;
+      x.globalAlpha = 0.55;
+      x.beginPath();
+      x.moveTo(inner, 108.8);
+      x.quadraticCurveTo((inner + outer) / 2, bh, outer, 108.6);
+      x.stroke();
+      x.globalAlpha = 1;
+      x.lineWidth = 1.1;
+      for (let k = 0; k < 46; k++) {
+        const t = k / 45, bx = inner + (outer - inner) * t, by = (1 - t) * (1 - t) * 108.8 + 2 * t * (1 - t) * bh + t * t * 108.6 + (Math.random() - 0.5) * bt * 0.8;
+        x.beginPath();
+        x.moveTo(bx, by + 1);
+        x.lineTo(bx + s * 3.2, by - 1.4 + t * 2);
+        x.stroke();
+      }
+      x.lineCap = "butt";
+    }
   }
   function pedAtlas() {
     if (pedAtlasTex) return pedAtlasTex;
-    const A2 = C(512, 512), M = C(512, 512), x = A2.x, m = M.x;
+    const A2 = C(ATW, ATH), M = C(ATW, ATH), x = A2.x, m = M.x;
     x.fillStyle = "#f6f2ee";
-    x.fillRect(0, 0, 512, 512);
+    x.fillRect(0, 0, ATW, ATH);
     m.fillStyle = "#fff";
-    x.save();
-    x.beginPath();
-    x.rect(0, 0, 512, 256);
-    x.clip();
-    drawFace(x, { skin: "#fff3ea", hair: "none", browCol: "rgba(60,35,20,.75)", beard: 0, eyeCol: "#3b2a1c" }, m);
-    x.restore();
-    const ty = (y) => 256 + (1 - (y - 0.79) / 0.91) * 256;
-    for (let i = 0; i < 2500; i++) {
-      x.fillStyle = Math.random() < 0.5 ? "rgba(0,0,0,.05)" : "rgba(255,255,255,.05)";
-      x.fillRect(Math.random() * 256, 256 + Math.random() * 256, 2, 2);
-    }
-    let g = x.createLinearGradient(0, ty(1.45), 0, ty(1));
-    g.addColorStop(0, "rgba(0,0,0,0)");
-    g.addColorStop(1, "rgba(0,0,0,.14)");
-    x.fillStyle = g;
-    x.fillRect(0, ty(1.45), 256, ty(1) - ty(1.45));
-    x.fillStyle = "rgba(0,0,0,.28)";
-    x.fillRect(0, ty(1.56), 256, 5);
-    x.strokeStyle = "rgba(0,0,0,.3)";
-    x.lineWidth = 2;
-    x.beginPath();
-    x.moveTo(104, ty(1.545));
-    x.lineTo(128, ty(1.45));
-    x.lineTo(152, ty(1.545));
-    x.stroke();
-    x.fillStyle = "rgba(0,0,0,.22)";
-    x.fillRect(127, ty(1.43), 2, ty(1) - ty(1.43));
-    x.fillStyle = "rgba(255,255,255,.35)";
-    for (let y = 1.4; y > 1.02; y -= 0.08) {
+    const FACES2 = [
+      {},
+      { beard: 1, brow: 5.8, eyeCol: "#2d2a22" },
+      { beard: 2, brow: 5.2, age: 0.55, eyeCol: "#4f6b78", eyeH: 4.4 },
+      { fem: true, eyeCol: "#46301f", shadow: "rgba(120,80,90,.14)" },
+      { fem: true, lip: "rgba(185,28,48,.85)", shadow: "rgba(90,70,120,.3)", eyeCol: "#3f5f4a", brow: 3.2 },
+      { fem: true, age: 0.9, lip: "rgba(150,70,70,.5)", eyeCol: "#5c7a8a", browCol: "rgba(110,100,95,.7)" }
+    ];
+    FACES2.forEach((o, i) => {
+      const [ox, oy] = PED_FACE_OFF[i];
+      x.save();
+      x.translate(ox, oy);
       x.beginPath();
-      x.arc(133, ty(y), 1.6, 0, TAU2);
-      x.fill();
-    }
-    x.strokeStyle = "rgba(0,0,0,.12)";
-    x.lineWidth = 1.5;
-    for (const sx of [64, 192]) {
+      x.rect(0, 0, 512, 256);
+      x.clip();
+      m.save();
+      m.translate(ox, oy);
+      pedFace(x, m, o);
+      m.restore();
+      x.restore();
+    });
+    const TU = (style, ox, oy) => {
+      const ty = (y) => oy + (1 - (y - 0.79) / 0.91) * 256;
+      x.save();
+      x.translate(ox, 0);
       x.beginPath();
-      x.moveTo(sx, ty(1.47));
-      x.lineTo(sx, ty(1));
+      x.rect(0, oy, 256, 256);
+      x.clip();
+      const R3 = (n, a, b) => {
+        for (let i = 0; i < n; i++) {
+          x.fillStyle = Math.random() < 0.5 ? `rgba(0,0,0,${a})` : `rgba(255,255,255,${a})`;
+          x.fillRect(Math.random() * 256, oy + Math.random() * 256, 2, 2);
+        }
+      };
+      R3(2500, 0.05);
+      if (style === 0 || style === 3) {
+        x.fillStyle = "rgba(0,0,0,.035)";
+        for (let a = 0; a < 256; a += 3) x.fillRect(a, oy, 1, 256);
+        for (let b = 0; b < 256; b += 3) x.fillRect(0, oy + b, 256, 1);
+      }
+      let g = x.createLinearGradient(0, ty(1.45), 0, ty(1));
+      g.addColorStop(0, "rgba(0,0,0,0)");
+      g.addColorStop(1, "rgba(0,0,0,.14)");
+      x.fillStyle = g;
+      x.fillRect(0, ty(1.45), 256, ty(1) - ty(1.45));
+      x.strokeStyle = "rgba(0,0,0,.12)";
+      x.lineWidth = 1.5;
+      for (const sx of [64, 192]) {
+        x.beginPath();
+        x.moveTo(sx, ty(1.47));
+        x.lineTo(sx, ty(1));
+        x.stroke();
+      }
+      if (style === 0) {
+        x.fillStyle = "rgba(0,0,0,.28)";
+        x.fillRect(0, ty(1.56), 256, 5);
+        x.strokeStyle = "rgba(0,0,0,.3)";
+        x.lineWidth = 2;
+        x.beginPath();
+        x.moveTo(104, ty(1.545));
+        x.lineTo(128, ty(1.45));
+        x.lineTo(152, ty(1.545));
+        x.stroke();
+        x.fillStyle = "rgba(0,0,0,.22)";
+        x.fillRect(127, ty(1.43), 2, ty(1) - ty(1.43));
+        x.fillStyle = "rgba(255,255,255,.35)";
+        for (let y = 1.4; y > 1.02; y -= 0.08) {
+          x.beginPath();
+          x.arc(133, ty(y), 1.6, 0, TAU2);
+          x.fill();
+        }
+        x.strokeStyle = "rgba(0,0,0,.12)";
+        x.lineWidth = 1.5;
+        for (const sx of [100, 156]) x.strokeRect(sx - 12, ty(1.38), 24, 18);
+        for (let i = 0; i < 5; i++) {
+          const y = ty(1.08 + i * 0.03);
+          x.beginPath();
+          x.moveTo(30 + i * 9, y);
+          x.quadraticCurveTo(64, y + 5, 98 - i * 6, y);
+          x.moveTo(158 + i * 6, y);
+          x.quadraticCurveTo(192, y + 5, 226 - i * 9, y);
+          x.stroke();
+        }
+        x.fillStyle = "rgba(0,0,0,.2)";
+        x.fillRect(0, ty(1), 256, 4);
+      } else if (style === 1) {
+        x.fillStyle = "rgba(0,0,0,.3)";
+        x.beginPath();
+        x.moveTo(98, ty(1.56));
+        x.quadraticCurveTo(128, ty(1.37), 158, ty(1.56));
+        x.lineTo(158, ty(1.6));
+        x.lineTo(98, ty(1.6));
+        x.fill();
+        x.fillStyle = "rgba(0,0,0,.2)";
+        x.beginPath();
+        x.moveTo(70, ty(1.02));
+        x.lineTo(84, ty(1.2));
+        x.lineTo(172, ty(1.2));
+        x.lineTo(186, ty(1.02));
+        x.fill();
+        x.strokeStyle = "rgba(0,0,0,.35)";
+        x.lineWidth = 2;
+        x.beginPath();
+        x.moveTo(70, ty(1.02));
+        x.lineTo(84, ty(1.2));
+        x.lineTo(172, ty(1.2));
+        x.lineTo(186, ty(1.02));
+        x.stroke();
+        x.strokeStyle = "rgba(255,255,255,.75)";
+        x.lineWidth = 2.2;
+        for (const sx of [-1, 1]) {
+          x.beginPath();
+          x.moveTo(128 + sx * 10, ty(1.45));
+          x.quadraticCurveTo(128 + sx * 13, ty(1.34), 128 + sx * 11, ty(1.28));
+          x.stroke();
+        }
+        x.fillStyle = "rgba(0,0,0,.2)";
+        for (let a = 0; a < 256; a += 6) x.fillRect(a, ty(1), 3, ty(0.98) - ty(1) + 6);
+        x.fillStyle = "rgba(0,0,0,.1)";
+        for (let yy = ty(1.5); yy < ty(1.02); yy += 4) for (let a = Math.floor(yy / 4) % 2 * 3; a < 256; a += 6) x.fillRect(a, yy, 3, 1.4);
+      } else if (style === 2) {
+        x.strokeStyle = "rgba(0,0,0,.35)";
+        x.lineWidth = 3;
+        x.beginPath();
+        x.arc(128, ty(1.6), 30, 0.12 * Math.PI, 0.88 * Math.PI);
+        x.stroke();
+        if (Math.random() < 0.8) {
+          x.fillStyle = `hsla(${Math.random() * 360 | 0},70%,55%,.8)`;
+          x.fillRect(100, ty(1.36), 56, 26);
+          x.fillStyle = "rgba(255,255,255,.7)";
+          x.fillRect(106, ty(1.36) + 8, 44, 4);
+          x.fillRect(106, ty(1.36) + 15, 30, 3);
+        }
+      } else {
+        x.fillStyle = "rgba(0,0,0,.35)";
+        x.fillRect(0, ty(1.57), 256, 7);
+        x.fillStyle = "rgba(0,0,0,.45)";
+        x.fillRect(126, ty(1.56), 4, ty(0.99) - ty(1.56));
+        x.fillStyle = "rgba(210,210,215,.8)";
+        for (let y = ty(1.55); y < ty(1); y += 4) x.fillRect(127, y, 2, 2);
+        x.strokeStyle = "rgba(0,0,0,.3)";
+        x.lineWidth = 1.8;
+        for (const sx of [58, 198]) {
+          x.strokeRect(sx - 20, ty(1.15), 40, 8);
+          x.beginPath();
+          x.moveTo(sx - 20, ty(1.15) + 8);
+          x.lineTo(sx - 20, ty(1.02));
+          x.moveTo(sx + 20, ty(1.15) + 8);
+          x.lineTo(sx + 20, ty(1.02));
+          x.stroke();
+        }
+        x.fillStyle = "rgba(0,0,0,.18)";
+        x.fillRect(0, ty(1), 256, 6);
+        x.fillStyle = "rgba(0,0,0,.25)";
+        x.fillRect(150, ty(1.35), 26, 18);
+        for (let y = 1.45; y > 1.05; y -= 0.1) {
+          x.fillStyle = "rgba(255,255,255,.07)";
+          x.fillRect(0, ty(y), 256, 5);
+        }
+      }
+      x.fillStyle = "rgba(0,0,0,.55)";
+      x.fillRect(0, ty(0.995), 256, ty(0.965) - ty(0.995));
+      x.fillStyle = "rgba(255,255,255,.6)";
+      x.fillRect(123, ty(0.993), 10, ty(0.967) - ty(0.993));
+      x.strokeStyle = "rgba(0,0,0,.3)";
+      x.lineWidth = 1.5;
+      for (const sg of [-1, 1]) {
+        x.beginPath();
+        x.moveTo(128 + sg * 22, ty(0.965));
+        x.quadraticCurveTo(128 + sg * 34, ty(0.9), 128 + sg * 56, ty(0.9));
+        x.stroke();
+      }
+      x.beginPath();
+      x.moveTo(131, ty(0.965));
+      x.lineTo(131, ty(0.86));
       x.stroke();
-    }
-    for (const sx of [100, 156]) {
-      x.strokeRect(sx - 12, ty(1.38), 24, 18);
-    }
-    for (let i = 0; i < 5; i++) {
-      const y = ty(1.08 + i * 0.03);
-      x.beginPath();
-      x.moveTo(30 + i * 9, y);
-      x.quadraticCurveTo(64, y + 5, 98 - i * 6, y);
-      x.moveTo(158 + i * 6, y);
-      x.quadraticCurveTo(192, y + 5, 226 - i * 9, y);
-      x.stroke();
-    }
-    x.fillStyle = "rgba(0,0,0,.2)";
-    x.fillRect(0, ty(1), 256, 4);
-    x.fillStyle = "rgba(0,0,0,.55)";
-    x.fillRect(0, ty(0.995), 256, ty(0.965) - ty(0.995));
-    x.fillStyle = "rgba(255,255,255,.6)";
-    x.fillRect(123, ty(0.993), 10, ty(0.967) - ty(0.993));
-    x.strokeStyle = "rgba(0,0,0,.3)";
-    x.lineWidth = 1.5;
-    for (const sg of [-1, 1]) {
-      x.beginPath();
-      x.moveTo(128 + sg * 22, ty(0.965));
-      x.quadraticCurveTo(128 + sg * 34, ty(0.9), 128 + sg * 56, ty(0.9));
-      x.stroke();
-    }
-    x.beginPath();
-    x.moveTo(131, ty(0.965));
-    x.lineTo(131, ty(0.86));
-    x.stroke();
-    for (const cx of [26, 230]) x.strokeRect(cx - 16, ty(0.94), 32, 26);
+      for (const cx of [26, 230]) x.strokeRect(cx - 16, ty(0.94), 32, 26);
+      x.restore();
+    };
+    TU(0, 0, 256);
+    TU(1, PED_TORSO_OFF[1][0], 1024);
+    TU(2, PED_TORSO_OFF[2][0], 1024);
+    TU(3, PED_TORSO_OFF[3][0], 1024);
     const [ax] = AT.arm, ay = (v) => 256 + (1 - v) * 256;
     for (let i = 0; i < 700; i++) {
       x.fillStyle = "rgba(0,0,0,.05)";
@@ -3686,6 +4075,18 @@
       c.fillStyle = "rgba(0,0,0,.25)";
       c.fillRect(0, h * 0.85, w, 2);
     });
+    tile("vest", (c, w, h) => {
+      c.fillStyle = "#ececec";
+      c.fillRect(0, 0, w, h);
+      noise(c, w, h, 500, 0.07);
+      c.fillStyle = "rgba(0,0,0,.18)";
+      c.fillRect(w / 2 - 1, 0, 2, h);
+      c.fillStyle = "#cfd3d6";
+      c.fillRect(0, h * 0.5, w, 11);
+      c.fillRect(0, h * 0.78, w, 11);
+      c.fillRect(w * 0.2, 0, 9, h * 0.5);
+      c.fillRect(w * 0.8 - 9, 0, 9, h * 0.5);
+    });
     for (const k of ["phone", "paper"]) {
       const [x0, y0, w, h] = AT[k];
       m.fillRect(x0, y0, w, h);
@@ -3694,7 +4095,14 @@
       const [x0, y0, w, h] = AT.shoe;
       m.fillRect(x0 + w * 0.12, y0, w * 0.26, h);
     }
-    const im = x.getImageData(0, 0, 512, 512), mk2 = m.getImageData(0, 0, 512, 512).data;
+    {
+      const [x0, y0, w, h] = AT.vest;
+      m.fillRect(x0, y0 + h * 0.5, w, 11);
+      m.fillRect(x0, y0 + h * 0.78, w, 11);
+      m.fillRect(x0 + w * 0.2, y0, 9, h * 0.5);
+      m.fillRect(x0 + w * 0.8 - 9, y0, 9, h * 0.5);
+    }
+    const im = x.getImageData(0, 0, ATW, ATH), mk2 = m.getImageData(0, 0, ATW, ATH).data;
     for (let i = 0; i < mk2.length; i += 4) if (mk2[i] > 127) im.data[i + 3] = 128;
     x.putImageData(im, 0, 0);
     pedAtlasTex = tex(A2);
@@ -3815,6 +4223,42 @@
     const skirt = [{ y: 0.6, rx: 0.2 * kh, rz: 0.17 }, { y: 0.75, rx: 0.185 * kh, rz: 0.15 }, { y: 0.9, rx: 0.17 * kh + 8e-3, rz: 0.125 * kh + 0.01 }, { y: 1, rx: 0.152 * b.waist + 0.01, rz: 0.104 * b.waist + 0.01 }];
     add(tubeData(smooth(skirt, L3.c), L3.t, (r) => (r.y - 0.6) / 0.4, null), 11, "fab", [0, 0, 0]);
     add(prim(new THREE.BoxGeometry(0.1, 0.3, 0.26), [0.215 * b.w + 0.075, 0.66, 0], null, null), 14, "paper", [3, 1, 1]);
+    const sw2 = L3.ears ? sw : 5, sh22 = L3.ears ? sh2 : 3, SPH2 = (a, b2, c, d) => new THREE.SphereGeometry(1, sw2, sh22, a, b2, c, d), hz = hs;
+    add(prim(SPH2(0, TAU2), [0, HC + 0.108 * hz, -0.072 * hz], null, [0.052, 0.046, 0.052], H3.neck), 16, "hair", [5, 1, 0]);
+    add(prim(SPH2(0, TAU2), [0, HC - 0.075 * hz, -0.142 * hz], [0.25, 0, 0], [0.034, 0.125, 0.04], H3.neck), 17, "hair", [5, 1, 0]);
+    add(prim(SPH2(0, TAU2), [0, HC + 0, -0.115 * hz], null, [0.04, 0.04, 0.035], H3.neck), 17, "hair", [5, 1, 0]);
+    add(prim(SPH2(0, TAU2), [0, HC + 0.03 * hz, -0.012], null, [0.168 * hz, 0.158 * hz, 0.165 * hz], H3.neck), 18, "hair", [5, 1, 0]);
+    add(prim(SPH2(Math.PI / 2 + 0.55, TAU2 - 1.1, 0, 2.4), [0, HC + 4e-3, -0.018], null, [0.124 * hz, 0.148 * hz, 0.142 * hz], H3.neck), 19, "fab", [5, 1, 0]);
+    if (L3.ears) add(prim(new THREE.TorusGeometry(0.1, 0.034, 6, sw), [0, 1.485, -0.01], [Math.PI / 2 - 0.15, 0, 0], [1, 1, 1], null), 19, "fab", [0, 0, 0]);
+    add(prim(SPH2(0, TAU2, 0, 1.5), [0, HC + 0.012, 5e-3], [-0.08, 0, 0], [0.118 * hz, 0.112 * hz, 0.13 * hz], H3.neck), 20, "hat", [5, 1, 0]);
+    add(prim(new THREE.CylinderGeometry(0.124, 0.124, 0.012, sw2), [0, HC + 0.03 * hz, 0.012], [-0.08, 0, 0], [hz, 1, 1.05 * hz], H3.neck), 20, "hat", [5, 1, 0]);
+    add(prim(new THREE.CylinderGeometry(0.1, 0.1, 0.012, L3.ears ? 10 : 5, 1, false, -Math.PI / 2, Math.PI), [0, HC + 0.036 * hz, 0.085 * hz], [0.08, 0, 0], [1.05 * hz, 1, 1.15 * hz], H3.neck), 20, "hat", [5, 1, 0]);
+    add(prim(new THREE.BoxGeometry(0.02, 0.014, 0.2 * hz), [0, HC + 0.124 * hz, 0], [-0.08, 0, 0], null, H3.neck), 20, "hat", [5, 1, 0]);
+    add(prim(new THREE.CylinderGeometry(0.106, 0.112, 0.07, sw2), [0, HC + 0.075 * hz, 0], [-0.04, 0, 0], [hz, 1, 1.1 * hz], H3.neck), 21, "hat", [5, 1, 0]);
+    add(prim(new THREE.CylinderGeometry(0.128, 0.108, 0.022, sw2), [0, HC + 0.118 * hz, 0.012], [-0.1, 0, 0], [hz, 1, 1.12 * hz], H3.neck), 21, "hat", [5, 1, 0]);
+    add(prim(new THREE.CylinderGeometry(0.1, 0.1, 0.01, L3.ears ? 10 : 5, 1, false, -Math.PI / 2, Math.PI), [0, HC + 0.05 * hz, 0.09 * hz], [0.2, 0, 0], [1 * hz, 1, 1.2 * hz], H3.neck), 21, "hat", [5, 1, 0]);
+    if (L3.ears) {
+      const EP = [1, -1].map((s) => headPoint(((256 + s * 30) / 512 - 0.5) * TAU2 + Math.PI / 2, -Math.PI / 2 + 0.527 * Math.PI, b, true, new V3()));
+      for (const e of EP) {
+        const sg = Math.sign(e.x) || 1;
+        add(prim(new THREE.TorusGeometry(0.025, 38e-4, 5, 14), [e.x, e.y + 2e-3, e.z + 0.012], null, [1, 0.85, 1], H3.neck), 22, "skin", [5, 1, 0]);
+        add(prim(new THREE.BoxGeometry(35e-4, 35e-4, 0.1), [e.x + sg * 0.03, e.y + 4e-3, e.z - 0.04], [0, -sg * 0.18, 0], null, H3.neck), 22, "skin", [5, 1, 0]);
+        add(prim(SPH2(0, TAU2), [e.x, e.y + 2e-3, e.z + 0.016], null, [0.036, 0.021, 7e-3], H3.neck), 23, "skin", [5, 1, 0]);
+        add(prim(new THREE.BoxGeometry(55e-4, 55e-4, 0.1), [e.x + sg * 0.043, e.y + 4e-3, e.z - 0.038], [0, -sg * 0.18, 0], null, H3.neck), 23, "skin", [5, 1, 0]);
+      }
+      add(prim(new THREE.BoxGeometry(0.02, 5e-3, 5e-3), [0, EP[0].y + 8e-3, EP[0].z + 0.02], null, null, H3.neck), 22, "skin", [5, 1, 0]);
+      add(prim(new THREE.BoxGeometry(0.024, 6e-3, 6e-3), [0, EP[0].y + 0.01, EP[0].z + 0.019], null, null, H3.neck), 23, "skin", [5, 1, 0]);
+      const cx = -0.215 * b.w - 0.05, cz = 0.13;
+      add(prim(new THREE.CylinderGeometry(0.0115, 0.0115, 0.9, 6), [cx, 0.45, cz], null, null), 24, "fab", [0, 0, 0]);
+      add(prim(new THREE.TorusGeometry(0.04, 0.012, 5, 10, Math.PI), [cx + 0, 0.9, cz], [0, 0, 0], null), 24, "fab", [0, 0, 0]);
+    }
+    if (L3.ears) add(prim(new THREE.CylinderGeometry(0.037, 0.028, 0.1, 8), [-0.215 * b.w + 0.012, HIPY - 0.075, 0.03], [1.75, 0, 0], null), 25, "skin", [4, 1, 1]);
+    if (L3.ears) add(prim(new THREE.CylinderGeometry(0.04, 0.04, 0.014, 8), [-0.215 * b.w + 0.012, HIPY - 0.075 + 0.05 * 0.18, 0.03 + 0.05 * 0.98], [1.75, 0, 0], null), 25, "skin", [4, 1, 1]);
+    {
+      const [, vr] = splitRings(smooth(torsoRings(b), 1), 0.99), [vv] = splitRings(vr, 1.45);
+      add(tubeData(vv.map((r) => ({ ...r, rx: r.rx * 1.045 + 6e-3, rz: r.rz * 1.045 + 9e-3 })), L3.t, (r) => (r.y - 0.99) / 0.46, null), 26, "vest", [0, 0, 0]);
+    }
+    add(prim(new THREE.BoxGeometry(0.4 * b.w, 0.4, 0.34), [0, 1.2, -back - 0.2], null, null), 28, "fab", [0, 0, 0]);
     const o = merge(pieces), pp2 = [], pv = [];
     for (const d of pieces) {
       pp2.push(...d.pp);
@@ -3828,19 +4272,22 @@
   function pedGeometries() {
     return PED_BODIES.map((B3) => ({ ...B3, hi: pedBody(B3.b, PED_LOD.hi), lo: pedBody(B3.b, PED_LOD.lo) }));
   }
-  function pedMaterial(abd) {
+  function pedMaterial(abd, female) {
     const m = new THREE.MeshStandardMaterial({ color: 16777215, roughness: 0.82, map: pedAtlas() });
     m.userData.lin = true;
     m.onBeforeCompile = (sh2) => {
       sh2.uniforms.uTime = pedU.uTime;
       sh2.uniforms.uPal = pedU.uPal;
       sh2.uniforms.uAbd = { value: abd };
+      sh2.uniforms.uFO = { value: PED_FACE_OFF.map((p) => new THREE.Vector2(p[0], p[1])) };
+      sh2.uniforms.uTO = { value: PED_TORSO_OFF.map((p) => new THREE.Vector2(p[0], p[1])) };
+      sh2.uniforms.uFB = { value: female ? 3 : 0 };
       sh2.vertexShader = PED_VH + sh2.vertexShader.replace("#include <beginnormal_vertex>", PED_VB).replace("#include <begin_vertex>", "vec3 transformed = pedP;");
-      sh2.fragmentShader = "varying vec3 vPedCol;\n" + sh2.fragmentShader.replace("#include <map_fragment>", PED_FM);
+      sh2.fragmentShader = "varying vec3 vPedCol; varying float vPedF; varying float vPedT; uniform vec2 uFO[6]; uniform vec2 uTO[4]; uniform float uFB;\n" + sh2.fragmentShader.replace("#include <map_fragment>", PED_FM);
     };
     return m;
   }
-  var TAU2, sm2, cr, BN, MIRB, SHY, HIPY, HC, BODY, KEYS, norm, _T, _N, _B, _P, wTorso, wArm, wLeg, TY, AY, LY, CURL, tex, SC, _lensTex, SKINS, HAIR, TOPS, PANTS, pick, outfitCache, gs, PED_PAL, PF, PR, PAL, AT, atUV, pedAtlasTex, PED_BODIES, geoD, _m4, _o3, PED_LOD, pedU, PED_VH, PED_VB, PED_FM;
+  var TAU2, sm2, cr, BN, MIRB, SHY, HIPY, HC, BODY, KEYS, norm, _T, _N, _B, _P, wTorso, wArm, wLeg, TY, AY, LY, CURL, tex, SC, _lensTex, SKINS, HAIR, TOPS, PANTS, pick, outfitCache, gs, PED_PAL, PF, PR, PAL, ATW, ATH, AT, PED_FACE_OFF, PED_TORSO_OFF, atUV, pedAtlasTex, PED_BODIES, geoD, _m4, _o3, PED_LOD, pedU, PED_VH, PED_VB, PED_FM;
   var init_model = __esm({
     "js/model.js"() {
       init_util();
@@ -3980,12 +4427,48 @@
         "#d49a16",
         "#2d3d2d",
         "#c8b896",
-        "#3a5a8a"
+        "#3a5a8a",
         // 48-53 torby i czapki
+        "#1f2d4a",
+        "#ff6a13",
+        "#c8e000",
+        "#f2c200",
+        "#f2f2f0",
+        "#1d8f4e",
+        "#d9822b",
+        "#f2efe8"
+        // 54 granat policji, 55-56 kamizelki, 57-58 kaski, 59-60 kurierzy, 61 kubek
       ];
-      PF = { CAP: 1, BEANIE: 2, BACKPACK: 4, BAG: 8, PHONE: 16, COAT: 32, SKIRT: 64, SHORT: 128, SHOP: 256, LONGHAIR: 512 };
+      PF = {
+        CAP: 1,
+        BEANIE: 2,
+        BACKPACK: 4,
+        BAG: 8,
+        PHONE: 16,
+        COAT: 32,
+        SKIRT: 64,
+        SHORT: 128,
+        SHOP: 256,
+        LONGHAIR: 512,
+        BUN: 1024,
+        PONY: 2048,
+        AFRO: 4096,
+        HOOD: 8192,
+        HARDHAT: 16384,
+        COPCAP: 32768,
+        GLASSES: 65536,
+        SUNGL: 131072,
+        CANE: 262144,
+        COFFEE: 524288,
+        VEST: 1048576,
+        UMBRELLA: 2097152,
+        BOX: 4194304,
+        BALD: 8388608
+      };
       PR = (a, b) => [a, b];
       PAL = { skin: PR(3, 8), hair: PR(9, 14), top: PR(15, 30), bot: PR(31, 37), coat: PR(38, 42), shoe: PR(43, 47), acc: PR(48, 53) };
+      ATW = 1024;
+      ATH = 1280;
       AT = {
         face: [0, 0, 512, 256],
         torso: [0, 256, 256, 256],
@@ -3998,11 +4481,14 @@
         phone: [384, 384, 64, 64],
         coat: [448, 384, 64, 64],
         paper: [384, 448, 64, 64],
-        hat: [448, 448, 64, 64]
+        hat: [448, 448, 64, 64],
+        vest: [768, 1024, 128, 128]
       };
+      PED_FACE_OFF = [[0, 0], [512, 0], [512, 256], [0, 512], [0, 768], [512, 512]];
+      PED_TORSO_OFF = [[0, 0], [0, 768], [256, 768], [512, 768]];
       atUV = (k) => {
         const [x0, y0, w, h] = AT[k];
-        return (u, v) => [(x0 + 1 + u * (w - 2)) / 512, 1 - (y0 + 1 + (1 - v) * (h - 2)) / 512];
+        return (u, v) => [(x0 + 1 + u * (w - 2)) / ATW, 1 - (y0 + 1 + (1 - v) * (h - 2)) / ATH];
       };
       pedAtlasTex = null;
       PED_BODIES = [
@@ -4016,9 +4502,9 @@
       PED_LOD = { hi: { t: 16, a: 8, h: 7, s: 8, hd: [18, 12], sp: [14, 7], c: 2, ears: true }, lo: { t: 8, a: 5, h: 4, s: 5, hd: [10, 7], sp: [8, 4], c: 1, ears: false } };
       pedU = { uTime: { value: 0 }, uPal: { value: PED_PAL.map((h) => new THREE.Color(h).convertSRGBToLinear()) } };
       PED_VH = `
-attribute vec4 pp; attribute float pv; attribute vec4 iA; attribute vec4 iC0; attribute vec4 iC1;
+attribute vec4 pp; attribute float pv; attribute vec4 iA; attribute vec4 iC0; attribute vec4 iC1; attribute vec4 iD;
 uniform vec3 uPal[${PED_PAL.length}]; uniform float uTime; uniform float uAbd;
-varying vec3 vPedCol;
+varying vec3 vPedCol; varying float vPedF; varying float vPedT;
 float pbit(float f, float b) { return mod(floor((f + 0.5) / b), 2.0); }
 mat3 rX(float a) { float c = cos(a), s = sin(a); return mat3(1.0, 0.0, 0.0, 0.0, c, s, 0.0, -s, c); }
 mat3 rY(float a) { float c = cos(a), s = sin(a); return mat3(c, 0.0, -s, 0.0, 1.0, 0.0, s, 0.0, c); }
@@ -4030,19 +4516,16 @@ vec3 pedP = position;
 {
   float ph = iA.x, A = iA.y, F = iA.z, sd = iA.w;
   float limb = pp.x, wu = pp.y, wl = pp.z, part = pp.w;
-  float coat = pbit(F, 32.0), skirt = pbit(F, 64.0), phone = pbit(F, 16.0), shop = pbit(F, 256.0), shortS = pbit(F, 128.0);
+  float coat = pbit(F, 32.0), skirt = pbit(F, 64.0), phone = pbit(F, 16.0), shop = pbit(F, 256.0), shortS = pbit(F, 128.0), coffee = pbit(F, 524288.0), cane = pbit(F, 262144.0);
+  float md = iD.y, hsc = iD.z, stoop = iD.w;
+  vPedF = floor(mod(iD.x + 0.5, 4.0)); vPedT = floor((iD.x + 0.5) / 4.0);
+  float sit = step(4.5, md) * step(md, 5.5), cow = step(5.5, md) * step(md, 6.5), scr = step(1.5, md) * step(md, 2.5), talk = step(2.5, md) * step(md, 3.5);
+  float pnt = step(3.5, md) * step(md, 4.5), film = step(8.5, md) * step(md, 9.5);
+  float ear = phone * (1.0 - scr) * (1.0 - film);
+  float tt = uTime + sd * 6.0;
   float vis = 1.0;
-  if (part > 4.5) {
-    if (part < 5.5) vis = pbit(F, 1.0);
-    else if (part < 6.5) vis = pbit(F, 2.0);
-    else if (part < 7.5) vis = pbit(F, 4.0);
-    else if (part < 8.5) vis = pbit(F, 8.0);
-    else if (part < 9.5) vis = phone;
-    else if (part < 10.5) vis = coat;
-    else if (part < 11.5) vis = skirt;
-    else if (part > 13.5 && part < 14.5) vis = shop;
-    else if (part > 14.5) vis = pbit(F, 512.0);
-  }
+  if (part > 4.5 && !(part > 11.5 && part < 13.5)) vis = pbit(F, floor(exp2(part < 11.5 ? part - 5.0 : part - 6.0) + 0.5));
+  else if (part > 3.5 && part < 4.5) vis = 1.0 - pbit(F, 8388608.0);
   float ci = iC0.x;
   if (part < 0.5) ci = iC0.z;
   else if (part < 1.5) ci = coat > 0.5 ? iC1.w : iC0.x;
@@ -4057,13 +4540,21 @@ vec3 pedP = position;
   else if (part < 12.5) ci = skirt > 0.5 ? 1.0 : iC0.y;
   else if (part < 13.5) ci = coat > 0.5 ? iC1.w : (shortS > 0.5 ? iC0.z : iC0.x);
   else if (part < 14.5) ci = 2.0;
-  else ci = iC0.w;
+  else if (part < 15.5 || (part > 15.5 && part < 18.5)) ci = iC0.w;
+  else if (part < 19.5) ci = iC0.x;
+  else if (part < 21.5) ci = iC1.y;
+  else if (part < 23.5) ci = 0.0;
+  else if (part < 24.5) ci = 45.0;
+  else if (part < 25.5) ci = 61.0;
+  else ci = iC1.z;
   vPedCol = uPal[int(ci + 0.5)];
   float s = sin(ph);
   if (limb > 0.5 && limb < 2.5) {
     float q = limb < 1.5 ? ph : ph + 3.14159;
     float aU = -A * 0.44 * sin(q);
     float aL = A * (0.07 + 0.8 * pow(max(0.0, cos(q + 0.35)), 1.5));
+    aU = mix(aU, -1.5, sit); aL = mix(aL, 1.5, sit);
+    aU = mix(aU, -0.95 + 0.08 * sin(tt * 6.0), cow); aL = mix(aL, 1.7, cow);
     vec3 P1 = vec3(pv, 0.91, 0.0), P2 = vec3(pv, 0.49, 0.0);
     mat3 R1 = rX(aU), R2 = rX(aL);
     vec3 lo = R1 * (R2 * (pedP - P2) + P2 - P1) + P1, up = R1 * (pedP - P1) + P1;
@@ -4072,36 +4563,60 @@ vec3 pedP = position;
   } else if (limb > 2.5 && limb < 4.5) {
     bool isL = limb < 3.5;
     float q = isL ? ph : ph + 3.14159;
-    float k = (isL && shop > 0.5) ? 0.25 : 1.0;
+    float k = ((isL && shop > 0.5) || (!isL && cane > 0.5)) ? 0.25 : 1.0;
     float aU = (A * 0.38 * sin(q) + 0.03) * k;
     float aL = -0.22 - A * 0.42 * max(0.0, -sin(q)) * k;
     float aZ = (isL ? 1.0 : -1.0) * (uAbd + ((isL && shop > 0.5) ? 0.07 : 0.0));
     if (A < 0.05) aU += 0.035 * sin(uTime * 0.9 + sd * 7.0 + limb);
-    if (!isL && phone > 0.5) { aU = -0.45; aL = -1.75; aZ = 0.2; }
+    if (!isL) {
+      if (cane > 0.5) { aU = -0.22; aL = -0.32; aZ = -0.02; }
+      if (coffee > 0.5) { aU = -0.4; aL = -1.35; aZ = -0.05; }
+      if (ear > 0.5) { aU = -0.45; aL = -1.75; aZ = 0.2; }
+    }
+    if (scr > 0.5) { aU = isL ? -0.45 : -0.5; aL = isL ? -1.3 : -1.35; aZ = isL ? 0.06 : -0.05; }
+    if (film > 0.5) { aU = -1.0; aL = -1.55; aZ = isL ? 0.05 : -0.05; }
+    if (talk > 0.5) {
+      if (isL) { aU = -0.3 + 0.22 * sin(tt * 1.7 + 2.0); aL = -0.95 + 0.4 * sin(tt * 2.6); aZ = 0.12; }
+      else { aU = -0.5 + 0.3 * sin(tt * 2.3); aL = -1.15 + 0.55 * sin(tt * 3.1 + 1.0); aZ = -0.25; }
+    }
+    if (pnt > 0.5 && !isL) { aU = -1.4 + 0.04 * sin(tt * 3.0); aL = -0.1; aZ = -0.1; }
+    if (sit > 0.5) { aU = -0.55; aL = -0.85; aZ = isL ? 0.12 : -0.12; }
+    if (cow > 0.5) { aU = -2.05; aL = -1.85; aZ = isL ? 0.4 : -0.4; }
     vec3 P1 = vec3(pv, 1.45, 0.0), P2 = vec3(pv, 1.17, 0.0);
     mat3 R1 = rZ(aZ) * rX(aU), R2 = rX(aL);
     vec3 lo = R1 * (R2 * (pedP - P2) + P2 - P1) + P1, up = R1 * (pedP - P1) + P1;
     pedP = mix(pedP, mix(up, lo, wl), wu);
     objectNormal = mix(objectNormal, mix(R1 * objectNormal, R1 * (R2 * objectNormal), wl), wu);
   } else if (limb > 4.5) {
-    float pitch = phone > 0.5 ? 0.42 : 0.05 * A;
-    float yaw = (A < 0.05 ? 0.55 : 0.18) * sin(uTime * 0.31 + sd * 3.7) * (1.0 - 0.8 * phone);
+    float pitch = 0.05 * A + stoop * 0.55 + 0.42 * (ear > 0.5 && scr < 0.5 ? 1.0 : 0.0) * 0.0 + 0.5 * scr + 0.6 * cow + 0.07 * talk * sin(tt * 2.6) - 0.1 * pnt;
+    if (ear > 0.5 && scr < 0.5) pitch = 0.1 + 0.05 * A;
+    float yaw = (A < 0.05 ? 0.55 : 0.18) * sin(uTime * 0.31 + sd * 3.7) * (1.0 - 0.85 * max(max(ear, scr), max(max(pnt, film), cow)));
+    yaw += talk * 0.25 * sin(tt * 0.9);
     mat3 R = rY(yaw) * rX(pitch); vec3 P = vec3(0.0, 1.54, 0.0);
-    pedP = mix(pedP, R * (pedP - P) + P, wu);
+    pedP = mix(pedP, R * ((pedP - P) * hsc) + P, wu);
     objectNormal = mix(objectNormal, R * objectNormal, wu);
   }
   if (limb < 0.5 || limb > 2.5) {
     mat3 T = rY(A * 0.1 * s * smoothstep(0.95, 1.5, position.y));
     pedP = T * pedP; objectNormal = T * objectNormal;
+    float lean = 0.04 * A + stoop + cow * 0.5 + 0.06 * talk * sin(tt * 1.3);
+    float wlean = limb > 2.5 ? 1.0 : smoothstep(0.9, 1.1, position.y);
+    mat3 Rl = rX(lean); vec3 Pl = vec3(0.0, 0.92, 0.0);
+    pedP = mix(pedP, Rl * (pedP - Pl) + Pl, wlean);
+    objectNormal = mix(objectNormal, Rl * objectNormal, wlean);
   }
   if (A < 0.05) pedP.y += 0.004 * sin(uTime * 1.6 + sd * 5.0) * smoothstep(1.0, 1.45, position.y);
   pedP.y += A * (0.03 * cos(2.0 * ph) - 0.015);
+  pedP.y -= 0.43 * sit + 0.3 * cow;
   pedP *= vis;
 }
 `;
       PED_FM = `
 #ifdef USE_MAP
-  vec4 texelColor = texture2D(map, vUv);
+  vec2 pxu = vec2(vUv.x * 1024.0, (1.0 - vUv.y) * 1280.0), pOff = vec2(0.0);
+  if (pxu.y < 256.0) { if (pxu.x < 512.0) pOff = uFO[int(vPedF + 0.5) + int(uFB + 0.5)]; }
+  else if (pxu.y < 512.0 && pxu.x < 256.0) pOff = uTO[int(vPedT + 0.5)];
+  vec4 texelColor = texture2D(map, vUv + vec2(pOff.x / 1024.0, -pOff.y / 1280.0));
   texelColor = mapTexelToLinear(texelColor);
   diffuseColor.rgb *= texelColor.rgb * mix(vec3(1.0), vPedCol, step(0.75, texelColor.a));
 #endif
@@ -5769,15 +6284,15 @@ vec3 pedP = position;
   function makeShopAtlas() {
     const mapC = document.createElement("canvas");
     mapC.width = AT2;
-    mapC.height = ATH;
+    mapC.height = ATH2;
     const emiC = document.createElement("canvas");
     emiC.width = AT2 / 2;
-    emiC.height = ATH / 2;
+    emiC.height = ATH2 / 2;
     const mg = mapC.getContext("2d"), eg = emiC.getContext("2d");
     mg.fillStyle = "#000";
-    mg.fillRect(0, 0, AT2, ATH);
+    mg.fillRect(0, 0, AT2, ATH2);
     eg.fillStyle = "#000";
-    eg.fillRect(0, 0, AT2 / 2, ATH / 2);
+    eg.fillRect(0, 0, AT2 / 2, ATH2 / 2);
     for (let k = 0; k < 20; k++) {
       const bx = k % 4 * BLK, by = Math.floor(k / 4) * BLK;
       mg.clearRect(bx + 256, by + 384, 256, 128);
@@ -5805,7 +6320,7 @@ vec3 pedP = position;
     }
     return { map, emi, cols: 4, rows: 5, canvas: mapC };
   }
-  var W, H2, D, SH, ZS, BLK, AT2, ATH, Tl, FNS;
+  var W, H2, D, SH, ZS, BLK, AT2, ATH2, Tl, FNS;
   var init_sklepy_okna = __esm({
     "js/sklepy_okna.js"() {
       W = 4;
@@ -5815,7 +6330,7 @@ vec3 pedP = position;
       ZS = 2.6;
       BLK = 512;
       AT2 = 2048;
-      ATH = 2560;
+      ATH2 = 2560;
       Tl = class {
         constructor(g, emi, ox, oyb, sx, sy, wpx, hpx) {
           this.g = g;
@@ -11121,7 +11636,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
       for (const p of paths) if (p.walk && polyDist(p.pts, x, z) < p.w / 2 + 3.5) return;
       addBush(x, z, R3.r(0.9, 1.5));
     }
-    const benches = [], lamps = [], bins = [], gates = [];
+    const benches2 = [], lamps = [], bins = [], gates = [];
     const benchWear = [];
     const shade = (wx, wz) => {
       let s = 0;
@@ -11244,7 +11759,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
           const s = R3() < 0.5 ? 1 : -1, off = p.w / 2 + 1, x = x0 - uz * s * off, z = z0 + ux * s * off;
           if (!free(x, z) || !pondOK(x, z, 1)) return;
           const rot = Math.atan2(x0 - x, z0 - z);
-          benches.push({ x, z, rot });
+          benches2.push({ x, z, rot });
           benchWear.push([x, z]);
           const sit = R3() < 0.4, sd = R3.i(1, 1e6);
           put3(x, z, (g) => {
@@ -11256,7 +11771,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
       }
       for (let i = 0; i < 4; i++) {
         const a = i / 4 * 6.2832 + 0.785, x = fountain.x + Math.cos(a) * 8.8, z = fountain.z + Math.sin(a) * 8.8;
-        benches.push({ x, z, rot: Math.atan2(fountain.x - x, fountain.z - z) });
+        benches2.push({ x, z, rot: Math.atan2(fountain.x - x, fountain.z - z) });
         benchWear.push([x, z]);
         const sd = R3.i(1, 1e6);
         put3(x, z, (g) => {
@@ -11276,7 +11791,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
         if (blocked(p[0], p[1], 0.6, paths.find((q) => q.name === "ring")) && polyDist(paths.find((q) => q.name === "ring").pts, p[0], p[1]) < 3) continue;
         if (paths.some((q) => q.name !== "ring" && q.walk && polyDist(q.pts, p[0], p[1]) < q.w / 2 + 4)) continue;
         const rot = Math.atan2(POND2.x - p[0], POND2.z - p[1]);
-        benches.push({ x: p[0], z: p[1], rot });
+        benches2.push({ x: p[0], z: p[1], rot });
         benchWear.push([p[0], p[1]]);
         const sd = R3.i(1, 1e6);
         put3(p[0], p[1], (g) => {
@@ -11373,7 +11888,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
         paths: paths.filter((p) => p.walk && !p.name.startsWith("most") || p.name.startsWith("most")),
         pond: POND2,
         fountain,
-        attract: benches.map((b) => [b.x, b.z]).concat([[fountain.x + 9, fountain.z], [fountain.x - 9, fountain.z], [fountain.x, fountain.z + 9], [fountain.x, fountain.z - 9]]),
+        attract: benches2.map((b) => [b.x, b.z]).concat([[fountain.x + 9, fountain.z], [fountain.x - 9, fountain.z], [fountain.x, fountain.z + 9], [fountain.x, fountain.z - 9]]),
         trees: trees.filter((t) => t.sp !== "willow" && t.sp !== "spruce"),
         bounds: PK2,
         arena: ARENA2,
@@ -13531,7 +14046,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     tailL.geometry.setDrawRange(0, nt2);
     hp.needsUpdate = tp.needsUpdate = true;
   }
-  var rs2, rr3, rb, pick4, LC2, lin5, U2, LAMPS, MT, B2, C6, Sph, SCH, chunks3, grow, boxAt, PT, lampList, poles, lensMesh, lensGlow, CYC, sigOff, SIGC, GLOWC, BLADES, bladeMat, sheds, inShed, capped, shadowQ, lanes, parked, hornT, VT, vehMat, headL, tailL, nMoving, TAXI, CARC, SUVC, TRKC, parkIsec, _f;
+  var rs2, rr3, rb, pick4, LC2, lin5, U2, LAMPS, MT, B2, C6, Sph, SCH, chunks3, grow, boxAt, PT, lampList, poles, lensMesh, lensGlow, CYC, sigOff, SIGC, GLOWC, BLADES, bladeMat, sheds, inShed, capped, shadowQ, lanes, parked, hornT, VT, vehMat, headL, tailL, nMoving, TAXI, CARC, SUVC, TRKC, parkIsec, _f, signalAt;
   var init_ulica = __esm({
     "js/ulica.js"() {
       init_stan();
@@ -13617,6 +14132,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
       TRKC = [12068383, 2051996, 3111498, 4862498, 14869218, 15908879];
       parkIsec = (i, j) => inPark(X0 + i * CX, Z0 + j * CZ);
       _f = new THREE.Vector3();
+      signalAt = sigState;
     }
   });
 
@@ -16188,40 +16704,81 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     const b = p.b, d = p.d, W2 = b.x1 - b.x0 - 2 * d, D2 = b.z1 - b.z0 - 2 * d, Pm = 2 * (W2 + D2);
     let s = (p.s % Pm + Pm) % Pm;
     p.s = s;
+    p.W = W2;
+    p.D = D2;
     if (s < W2) {
       p.x = b.x0 + d + s;
       p.z = b.z0 + d;
       p.tx = 1;
       p.tz = 0;
+      p.nx = 0;
+      p.nz = 1;
     } else if (s < W2 + D2) {
       p.x = b.x1 - d;
       p.z = b.z0 + d + s - W2;
       p.tx = 0;
       p.tz = 1;
+      p.nx = -1;
+      p.nz = 0;
     } else if (s < 2 * W2 + D2) {
       p.x = b.x1 - d - (s - W2 - D2);
       p.z = b.z1 - d;
       p.tx = -1;
       p.tz = 0;
+      p.nx = 0;
+      p.nz = -1;
     } else {
       p.x = b.x0 + d;
       p.z = b.z1 - d - (s - 2 * W2 - D2);
       p.tx = 0;
       p.tz = -1;
+      p.nx = 1;
+      p.nz = 0;
     }
   }
   function pedWalkParams(p) {
-    p.A = clamp(p.sp / 1.4, 0.8, 1.12);
+    p.A = clamp(p.sp / 1.4, 0.5, 1.12);
     p.rate = p.sp * Math.PI * 2 / (1.25 + 0.3 * p.A);
+  }
+  function snapBlock(p, i, j, x, z, hx2, hz) {
+    p.b = blk(i, j);
+    p.bi = i;
+    p.bj = j;
+    const b = p.b, d = p.d, W2 = b.x1 - b.x0 - 2 * d, D2 = b.z1 - b.z0 - 2 * d;
+    const horiz = Math.abs(hx2) > 0.5;
+    const k = horiz ? Math.abs(z - (b.z0 + d)) < Math.abs(z - (b.z1 - d)) ? 0 : 2 : Math.abs(x - (b.x0 + d)) < Math.abs(x - (b.x1 - d)) ? 3 : 1;
+    const t = [[1, 0], [0, 1], [-1, 0], [0, -1]][k];
+    p.dir = hx2 * t[0] + hz * t[1] >= 0 ? 1 : -1;
+    p.s = k === 0 ? x - (b.x0 + d) : k === 1 ? W2 + (z - (b.z0 + d)) : k === 2 ? W2 + D2 + (b.x1 - d - x) : 2 * W2 + D2 + (b.z1 - d - z);
+    pedPos(p);
+  }
+  function redLeft(ii, jj, ax) {
+    if (signalAt(ii, jj, ax) !== 2) return 0;
+    const u = ((G.time + (ii * 5 + jj * 3) % 9 * 3) % 27 + 27) % 27;
+    if (ax === "z") return u >= 12.5 ? 27 - u : 0;
+    return u >= 26 ? 27 - u + 13.5 : u < 13.5 ? 13.5 - u : 0;
+  }
+  function pedDress(p) {
+    const L3 = pedLook(Math.random, p.body === 2, p.kind);
+    if (p.role === "talk" || p.role === "sit") L3.flags &= ~(PF.PHONE | PF.CANE);
+    if (p.kind === "child") L3.flags &= ~(PF.PHONE | PF.SHOP | PF.COFFEE);
+    p.look = L3;
+    p.flags = L3.flags;
+    p.sc = (p.body === 2 ? sr(0.92, 1) : sr(0.95, 1.08)) * L3.sc;
+    p.wx = sr(0.94, 1.06);
   }
   function spawnPed(p, cx, cz, fx2, fz, avoid) {
     const ci = Math.floor((cx - X0) / CX), cj = Math.floor((cz - Z0) / CZ);
     for (let t = 0; t < 12; t++) {
-      const i = clamp(ci + Math.floor(Math.random() * 5) - 2, 0, NX - 1), j = clamp(cj + Math.floor(Math.random() * 5) - 2, 0, NZ - 1);
+      const rg = Math.random() < 0.55 ? 1 : 2;
+      const i = clamp(ci + Math.floor(Math.random() * (2 * rg + 1)) - rg, 0, NX - 1), j = clamp(cj + Math.floor(Math.random() * (2 * rg + 1)) - rg, 0, NZ - 1);
       if (isPark(i, j)) continue;
       p.b = blk(i, j);
-      const idle = Math.random() < 0.17;
+      p.bi = i;
+      p.bj = j;
+      const idle = p.role === "talk" ? true : Math.random() < 0.15;
       p.idle = idle;
+      p.st = idle ? "idle" : "walk";
       p.idleT = idle ? 8 + Math.random() * 25 : 0;
       p.dir = Math.random() < 0.5 ? 1 : -1;
       p.d = idle ? Math.random() < 0.7 ? 3.15 : 1.3 : (p.dir > 0 ? 2.5 : 3.05) + (Math.random() - 0.5) * 0.2;
@@ -16230,27 +16787,51 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
       const dx = p.x - cx, dz = p.z - cz, dd = Math.hypot(dx, dz);
       if (dd > PED_R - 5) continue;
       if (avoid && dd < 60 && dx * fx2 + dz * fz > -0.2 * dd) continue;
-      p.look = pedLook(Math.random, p.body === 2);
-      p.flags = p.look.flags;
+      pedDress(p);
       p.flee = 0;
-      p.sp = 1.1 + Math.random() * 0.55;
+      p.cow = 0;
+      p.wt = 0;
+      p.watchCd = Math.random() * 8;
+      p.lastCorner = "";
+      p.mode = 0;
+      p.sp = (1.1 + Math.random() * 0.55) * p.look.spd;
       pedWalkParams(p);
+      p.cr = p.kind === "cop" ? 0.2 : 0.4;
       if (idle) {
         p.A = 0;
-        p.yaw = Math.atan2(p.tz, -p.tx) + (Math.random() - 0.5) * 1.6;
+        p.yaw = Math.atan2(p.tx, p.tz) + (p.role === "talk" ? 0 : (Math.random() - 0.5) * 1.6);
+        if (p.role !== "talk") p.yaw = Math.atan2(p.tz, -p.tx) + (Math.random() - 0.5) * 1.6;
       } else p.yaw = Math.atan2(p.tx * p.dir, p.tz * p.dir);
       return true;
     }
     return false;
   }
+  function benchGeo() {
+    const parts = [[1.7, 0.06, 0.5, 0, 0.43, 0], [1.7, 0.4, 0.06, 0, 0.7, -0.22], [0.08, 0.43, 0.46, -0.75, 0.215, 0], [0.08, 0.43, 0.46, 0.75, 0.215, 0], [0.06, 0.3, 0.06, -0.75, 0.55, -0.2], [0.06, 0.3, 0.06, 0.75, 0.55, -0.2]];
+    const pos = [], nor = [], idx = [];
+    let off = 0;
+    for (const [w, h, d, x, y, z] of parts) {
+      const g = new THREE.BoxGeometry(w, h, d);
+      g.translate(x, y, z);
+      pos.push(...g.attributes.position.array);
+      nor.push(...g.attributes.normal.array);
+      idx.push(...Array.from(g.index.array, (v) => v + off));
+      off += g.attributes.position.count;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+    geo.setIndex(idx);
+    return geo;
+  }
   function initPeds() {
     const G3 = pedGeometries();
     pedSets = [];
     G3.forEach((B3) => {
-      const mat = pedMaterial(B3.abd);
+      const mat = pedMaterial(B3.abd, B3.female);
       for (const lod of ["hi", "lo"]) {
-        const g = B3[lod], iA = new Float32Array(PED_N * 4), iC0 = new Float32Array(PED_N * 4), iC1 = new Float32Array(PED_N * 4);
-        for (const [k, a] of [["iA", iA], ["iC0", iC0], ["iC1", iC1]]) {
+        const g = B3[lod], iA = new Float32Array(PED_N * 4), iC0 = new Float32Array(PED_N * 4), iC1 = new Float32Array(PED_N * 4), iD = new Float32Array(PED_N * 4);
+        for (const [k, a] of [["iA", iA], ["iC0", iC0], ["iC1", iC1], ["iD", iD]]) {
           const at2 = new THREE.InstancedBufferAttribute(a, 4);
           at2.setUsage(THREE.DynamicDrawUsage);
           g.setAttribute(k, at2);
@@ -16263,28 +16844,395 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
         m.count = 0;
         m.name = "ped";
         scene.add(m);
-        pedSets.push({ m, g, iA, iC0, iC1, n: 0 });
+        pedSets.push({ m, g, iA, iC0, iC1, iD, n: 0 });
       }
     });
-    const rr5 = () => Math.random();
-    for (let n = 0; n < PED_N; n++) {
-      const r = Math.random(), body = r < 0.47 ? 2 : r < 0.62 ? 1 : 0, look = pedLook(rr5, body === 2);
-      const p = { body, look, flags: look.flags, seed: Math.random() * 6.28, ph: Math.random() * 6.28, sc: body === 2 ? sr(0.92, 1) : sr(0.95, 1.08), wx: sr(0.94, 1.06), x: 0, z: 0, yaw: 0 };
+    for (let i = 0; i < NX; i++) for (let j = 0; j < NZ; j++) {
+      if (isPark(i, j)) continue;
+      const b = blk(i, j), h = (i * 7 + j * 13) % 5, cnt = h < 2 ? 0 : h < 4 ? 1 : 2;
+      for (let k = 0; k < cnt; k++) {
+        const side = (i * 3 + j * 5 + k * 2) % 4, t = 0.25 + 0.5 * ((i * 11 + j * 17 + k * 5) % 7 / 6);
+        const o = side === 0 ? { x: b.x0 + t * BW, z: b.z0 + 1.7, yaw: Math.PI } : side === 1 ? { x: b.x1 - 1.7, z: b.z0 + t * BD, yaw: Math.PI / 2 } : side === 2 ? { x: b.x0 + t * BW, z: b.z1 - 1.7, yaw: 0 } : { x: b.x0 + 1.7, z: b.z0 + t * BD, yaw: -Math.PI / 2 };
+        o.occ = null;
+        benches.push(o);
+      }
+    }
+    const bm = new THREE.InstancedMesh(benchGeo(), new THREE.MeshStandardMaterial({ color: 5913892, roughness: 0.85 }), benches.length);
+    benches.forEach((o, n) => {
+      _o4.position.set(o.x, SW, o.z);
+      _o4.rotation.set(0, o.yaw, 0);
+      _o4.scale.set(1, 1, 1);
+      _o4.updateMatrix();
+      bm.setMatrixAt(n, _o4.matrix);
+    });
+    bm.frustumCulled = false;
+    bm.castShadow = false;
+    bm.receiveShadow = true;
+    bm.name = "pedBench";
+    scene.add(bm);
+    const mk2 = (kind, role, female) => {
+      const r = Math.random(), body = female === void 0 ? r < 0.47 ? 2 : r < 0.62 ? 1 : 0 : female ? 2 : r < 0.2 ? 1 : 0;
+      const p = { body, kind, role: role || "solo", look: null, flags: 0, seed: Math.random() * 6.28, ph: Math.random() * 6.28, sc: 1, wx: 1, x: 0, z: 0, yaw: 0, st: "walk", mode: 0, flee: 0, cow: 0, mate: null, lead: null };
       peds.push(p);
+      return p;
+    };
+    const pair = (a, b, type) => {
+      a.mate = b;
+      b.lead = a;
+      b.pairType = type;
+    };
+    for (let n = 0; n < 10; n++) mk2("cop", "solo", Math.random() < 0.25);
+    for (let n = 0; n < 12; n++) mk2("worker", "solo", Math.random() < 0.1);
+    for (let n = 0; n < 10; n++) mk2("courier", "solo", Math.random() < 0.3);
+    for (let n = 0; n < 36; n++) mk2("suit", "solo");
+    for (let n = 0; n < 22; n++) mk2("elder", "solo");
+    for (let n = 0; n < 12; n++) mk2(void 0, "sit");
+    for (let n = 0; n < 14; n++) pair(mk2(void 0, "solo", Math.random() < 0.5), mk2("child", "solo", Math.random() < 0.5), "family");
+    for (let n = 0; n < 22; n++) pair(mk2(void 0, "solo"), mk2(void 0, "solo"), "couple");
+    for (let n = 0; n < 16; n++) pair(mk2(void 0, "talk"), mk2(void 0, "talk"), "talk");
+    while (peds.length < PED_N) mk2(void 0, "solo");
+    for (const p of peds) {
+      p.gone = Math.random() * 3;
     }
     pedsFresh = true;
   }
   function scarePeds(x, z, r = 45) {
     for (const p of peds) {
+      if (p.role === "sit") {
+        if (!p.seat || Math.abs(p.x - x) > r * 0.6 || Math.abs(p.z - z) > r * 0.6) continue;
+        const dx = p.x - x, dz = p.z - z, dd2 = Math.hypot(dx, dz) || 1;
+        p.seat.occ = null;
+        p.seat = null;
+        p.run = { vx: dx / dd2 * 4.2, vz: dz / dd2 * 4.2, t: 5 };
+        p.gone = 40 + Math.random() * 40;
+        continue;
+      }
       if (!p.b || Math.abs(p.x - x) > r || Math.abs(p.z - z) > r) continue;
+      if (p.st === "cross") {
+        p.flee = 6;
+        p.csp = 4.2;
+        continue;
+      }
+      const dd = Math.hypot(p.x - x, p.z - z);
+      if (p.st === "wait" || p.st === "watch") p.st = "walk";
+      if (dd < r * 0.5 && Math.random() < 0.45) {
+        p.cow = 1.4 + Math.random() * 2.2;
+        p.cowFlip = 1;
+      }
       p.flee = 6;
       p.idle = false;
+      p.st = "walk";
       p.sp = 3.8 + Math.random() * 0.8;
       p.A = 1.35;
       p.rate = p.sp * Math.PI * 2 / 1.75;
       p.dir = p.tx * (p.x - x) + p.tz * (p.z - z) >= 0 ? 1 : -1;
-      p.flags = p.look.flags & ~16;
+      p.flags = p.look.flags & ~(PF.PHONE | PF.COFFEE);
     }
+  }
+  function pedCalmDown(p) {
+    p.sp = (1.1 + Math.random() * 0.55) * p.look.spd;
+    pedWalkParams(p);
+    p.flags = p.look.flags;
+  }
+  function startWatch(p) {
+    const r = Math.random();
+    p.wasIdle = p.st === "idle";
+    p.st = "watch";
+    p.wt = 3 + Math.random() * 6;
+    p.A = 0;
+    if (r < 0.3) {
+      p.wmode = MODE.POINT;
+      p.flags = p.look.flags & ~(PF.PHONE | PF.COFFEE | PF.CANE | PF.SHOP);
+    } else if (r < 0.65) {
+      p.wmode = MODE.FILM;
+      p.flags = (p.look.flags | PF.PHONE) & ~(PF.COFFEE | PF.CANE | PF.SHOP);
+    } else {
+      p.wmode = MODE.WALK;
+      p.flags = p.look.flags & ~PF.PHONE;
+    }
+  }
+  function cornerAhead(p, out) {
+    const W2 = p.W, D2 = p.D, cs = [0, W2, W2 + D2, 2 * W2 + D2, 2 * (W2 + D2)], s = p.s;
+    for (let k = 0; k < 4; k++) {
+      if (p.dir > 0) {
+        if (s >= cs[k] - 1e-6 && s < cs[k + 1]) {
+          out.dist = cs[k + 1] - s;
+          out.idx = (k + 1) % 4;
+          return out;
+        }
+      } else if (s > cs[k] + 1e-6 && s <= cs[k + 1] + 1e-6) {
+        out.dist = s - cs[k];
+        out.idx = k;
+        return out;
+      }
+    }
+    out.dist = 99;
+    out.idx = 0;
+    return out;
+  }
+  function tryCross(p, dist2) {
+    const hx2 = p.tx * p.dir, hz = p.tz * p.dir, b = p.b;
+    const sx = Math.round(hx2), sz = Math.round(hz), i2 = p.bi + sx, j2 = p.bj + sz;
+    if (i2 < 0 || i2 >= NX || j2 < 0 || j2 >= NZ || isPark(i2, j2)) return;
+    let ii, jj, ax;
+    if (sx !== 0) {
+      ax = "z";
+      ii = sx > 0 ? p.bi + 1 : p.bi;
+      jj = p.z < (b.z0 + b.z1) / 2 ? p.bj : p.bj + 1;
+    } else {
+      ax = "x";
+      jj = sz > 0 ? p.bj + 1 : p.bj;
+      ii = p.x < (b.x0 + b.x1) / 2 ? p.bi : p.bi + 1;
+    }
+    p.cx = { hx: hx2, hz, ii, jj, ax, i2, j2, sx: p.x + hx2 * dist2, sz: p.z + hz * dist2 };
+    p.st = "wait";
+    p.wt = 0;
+    p.A = 0;
+  }
+  function stepPed(p, dt) {
+    const pp2 = P.pos;
+    if (p.forceMode !== void 0) {
+      p.mode = p.forceMode;
+      p.A = 0;
+      p.ph += dt * 0.3;
+      return;
+    }
+    if (p.cow > 0) {
+      p.cow -= dt;
+      p.mode = MODE.COWER;
+      p.A = 0;
+      p.ph += dt * 0.3;
+      return;
+    }
+    if (p.flee > 0) {
+      p.flee -= dt;
+      if (p.flee <= 0) {
+        p.csp = 0;
+        pedCalmDown(p);
+      }
+    }
+    if (p.st === "watch") {
+      p.wt -= dt;
+      p.yaw = angLerp(p.yaw, Math.atan2(pp2.x - p.x, pp2.z - p.z), damp(5, dt));
+      p.mode = p.wmode;
+      p.A = 0;
+      p.ph += dt * 0.3;
+      if (p.wt <= 0) {
+        p.st = p.wasIdle ? "idle" : "walk";
+        p.watchCd = 25 + Math.random() * 25;
+        p.flags = p.look.flags;
+        if (p.st === "walk") pedWalkParams(p);
+      }
+      return;
+    }
+    p.watchCd -= dt;
+    if (p.watchCd <= 0 && p.flee <= 0 && p.st !== "cross" && p.role !== "talk") {
+      const dx = pp2.x - p.x, dz = pp2.z - p.z;
+      if (dx * dx + dz * dz < 19 * 19 && Math.abs(pp2.y - SW) < 60 && Math.random() < dt * 1.3) {
+        startWatch(p);
+        return;
+      }
+    }
+    const phoneMode = p.flags & PF.PHONE ? p.seed > 3.1 ? MODE.EAR : MODE.SCREEN : MODE.WALK;
+    if (p.st === "idle") {
+      p.idleT -= dt;
+      p.ph += dt * 0.5;
+      p.A = 0;
+      if (p.role === "talk") {
+        p.idleT = Math.max(p.idleT, 5);
+        p.mode = Math.sin(G.time * 0.55 + p.seed * 3) > 0.15 ? MODE.TALK : MODE.WALK;
+        return;
+      }
+      p.mode = phoneMode;
+      if (p.idleT <= 0) {
+        p.st = "walk";
+        pedWalkParams(p);
+      }
+      return;
+    }
+    if (p.st === "wait") {
+      const c = p.cx;
+      p.wt += dt;
+      p.A = 0;
+      p.ph += dt * 0.4;
+      p.mode = phoneMode === MODE.WALK ? MODE.WALK : MODE.SCREEN;
+      p.yaw = angLerp(p.yaw, Math.atan2(c.hx, c.hz), damp(6, dt));
+      if (redLeft(c.ii, c.jj, c.ax) > 8 + (p.flee > 0 ? -8 : 0)) {
+        p.st = "cross";
+        p.ct = 0;
+        p.clen = ST + 2 * p.d;
+        p.csp = p.csp || Math.max(p.sp, 1.55) * 1.15;
+        p.A = 1;
+        p.rate = p.csp * Math.PI * 2 / 1.55;
+        p.cx.ex = c.sx + c.hx * p.clen;
+        p.cx.ez = c.sz + c.hz * p.clen;
+        p.cx.x0 = p.x;
+        p.cx.z0 = p.z;
+        p.cx.len = Math.hypot(p.cx.ex - p.x, p.cx.ez - p.z);
+      } else if (p.wt > 40) {
+        p.st = "walk";
+        pedWalkParams(p);
+      }
+      return;
+    }
+    if (p.st === "cross") {
+      const c = p.cx;
+      p.ct += (p.csp || 1.8) * dt / c.len;
+      p.ph += dt * p.rate;
+      p.mode = MODE.WALK;
+      const u = Math.min(p.ct, 1);
+      p.x = c.x0 + (c.ex - c.x0) * u;
+      p.z = c.z0 + (c.ez - c.z0) * u;
+      p.yaw = angLerp(p.yaw, Math.atan2(c.hx, c.hz), damp(8, dt));
+      if (p.ct >= 1) {
+        p.csp = 0;
+        snapBlock(p, c.i2, c.j2, p.x, p.z, c.hx, c.hz);
+        p.st = "walk";
+        p.lastCorner = "";
+        pedWalkParams(p);
+        if (p.flee > 0) {
+          p.A = 1.35;
+          p.rate = p.sp * Math.PI * 2 / 1.75;
+        }
+      }
+      return;
+    }
+    p.mode = phoneMode;
+    if (p.flee <= 0 && !p.lead) {
+      cornerAhead(p, _ca);
+      if (_ca.dist < 0.6) {
+        const key2 = p.bi + "," + p.bj + "," + _ca.idx + "," + p.dir;
+        if (key2 !== p.lastCorner) {
+          p.lastCorner = key2;
+          if (Math.random() < p.cr) {
+            tryCross(p, _ca.dist);
+            if (p.st === "wait") return;
+          }
+        }
+      }
+    }
+    p.s += p.sp * p.dir * dt;
+    pedPos(p);
+    p.yaw = angLerp(p.yaw, Math.atan2(p.tx * p.dir, p.tz * p.dir), damp(7, dt));
+    p.ph += dt * p.rate;
+    if (p.ph > 1e4) p.ph -= Math.PI * 2 * 1e3;
+  }
+  function followMate(p, q) {
+    q.b = p.b;
+    q.bi = p.bi;
+    q.bj = p.bj;
+    const type = q.pairType, cr2 = p.st === "cross", hx2 = cr2 ? p.cx.hx : p.tx * (p.dir || 1), hz = cr2 ? p.cx.hz : p.tz * (p.dir || 1);
+    let nx = p.nx, nz2 = p.nz;
+    if (p.st === "cross") {
+      nx = -hz;
+      nz2 = hx2;
+    }
+    if (type === "talk") {
+      q.x = p.x + p.tx * 1.25;
+      q.z = p.z + p.tz * 1.25;
+      q.yaw = angLerp(q.yaw, Math.atan2(-p.tx, -p.tz), 0.2);
+      p.yaw = angLerp(p.yaw, Math.atan2(p.tx, p.tz), 0.2);
+      q.st = "idle";
+      q.A = 0;
+      q.mode = p.mode === MODE.TALK ? MODE.WALK : MODE.TALK;
+      q.ph = p.ph + 1;
+      return;
+    }
+    const off = type === "family" ? 0.6 : 0.85, back = type === "family" ? 0.35 : 0;
+    q.x = p.x + nx * off - (p.st === "walk" || p.st === "cross" ? hx2 : 0) * back;
+    q.z = p.z + nz2 * off - (p.st === "walk" || p.st === "cross" ? hz : 0) * back;
+    q.yaw = p.st === "watch" ? p.yaw : angLerp(q.yaw, p.yaw, 0.25);
+    q.st = p.st;
+    q.idle = p.idle;
+    q.flee = p.flee;
+    q.A = p.A * (type === "family" ? 1.05 : 1);
+    q.rate = p.rate * (type === "family" ? 1.18 : 1);
+    q.sp = p.sp;
+    if (p.st === "walk" || p.st === "cross") q.ph = p.ph * (q.rate / (p.rate || 1)) + 2.1;
+    q.mode = p.cow > 0 ? MODE.COWER : p.st === "watch" ? q.flags & PF.PHONE ? MODE.SCREEN : MODE.WALK : q.flags & PF.PHONE ? q.seed > 3.1 ? MODE.EAR : MODE.SCREEN : MODE.WALK;
+    q.flags = p.flee > 0 ? q.look.flags & ~(PF.PHONE | PF.COFFEE) : q.look.flags;
+  }
+  function updateSitter(p, dt, cx, cz) {
+    if (p.run) {
+      p.run.t -= dt;
+      p.x += p.run.vx * dt;
+      p.z += p.run.vz * dt;
+      p.yaw = angLerp(p.yaw, Math.atan2(p.run.vx, p.run.vz), damp(10, dt));
+      p.ph += dt * 7;
+      p.A = 1.35;
+      p.mode = MODE.WALK;
+      p.flags = p.look.flags & ~(PF.PHONE | PF.COFFEE);
+      if (p.run.t <= 0) {
+        p.run = null;
+        p.b = null;
+      }
+      return p.run !== null;
+    }
+    if (!p.seat) {
+      p.b = null;
+      p.gone -= dt;
+      if (p.gone > 0) return false;
+      let pick7 = null, n = 0;
+      for (const o2 of benches) {
+        if (o2.occ) continue;
+        const d2 = Math.hypot(o2.x - cx, o2.z - cz);
+        if (d2 > PED_R - 12 || d2 < 14) continue;
+        if (Math.random() * ++n < 1) pick7 = o2;
+      }
+      if (!pick7) {
+        p.gone = 2;
+        return false;
+      }
+      p.seat = pick7;
+      pick7.occ = p;
+      pedDress(p);
+      p.flee = 0;
+      p.cow = 0;
+      p.st = "sit";
+      p.sc = p.body === 2 ? 0.96 : 1.01;
+    }
+    const o = p.seat, d = Math.hypot(o.x - cx, o.z - cz);
+    if (d > PED_R + 4) {
+      o.occ = null;
+      p.seat = null;
+      p.gone = 3;
+      p.b = null;
+      return false;
+    }
+    const sx = Math.sin(o.yaw), sz = Math.cos(o.yaw), off = p.body === 1 ? -0.14 : -0.1;
+    p.b = true;
+    p.x = o.x + sx * off + Math.cos(o.yaw) * (p.seed % 1 - 0.5) * 0.7;
+    p.z = o.z + sz * off - Math.sin(o.yaw) * (p.seed % 1 - 0.5) * 0.7;
+    p.yaw = o.yaw;
+    p.A = 0;
+    p.mode = MODE.SIT;
+    p.ph += dt * 0.3;
+    p.flags = p.look.flags & ~(PF.PHONE | PF.CANE | PF.SHOP | PF.BACKPACK | PF.BOX | PF.COAT | PF.SKIRT);
+    return true;
+  }
+  function drawPed(p, cx, cz, fx2, fz, cull) {
+    const dx = p.x - cx, dz = p.z - cz, d = Math.hypot(dx, dz);
+    if (d > 108 || cull && d > 6 && dx * fx2 + dz * fz < 0.25 * d) return;
+    const S = pedSets[p.body * 2 + (d < PED_HI ? 0 : 1)], k = S.n++;
+    _o4.position.set(p.x, SW, p.z);
+    _o4.rotation.set(0, p.yaw, 0);
+    _o4.scale.set(p.sc * p.wx, p.sc, p.sc * p.wx);
+    _o4.updateMatrix();
+    S.m.setMatrixAt(k, _o4.matrix);
+    if (d < 70) pedBlobAdd(p.x, p.z, p.yaw, p.sc);
+    const L3 = p.look, k4 = k * 4;
+    S.iA[k4] = p.ph;
+    S.iA[k4 + 1] = p.mode === MODE.SIT || p.mode === MODE.COWER || p.st === "idle" || p.st === "wait" || p.st === "watch" ? 0 : p.A;
+    S.iA[k4 + 2] = p.flags;
+    S.iA[k4 + 3] = p.seed;
+    for (let q = 0; q < 4; q++) {
+      S.iC0[k4 + q] = L3.c0[q];
+      S.iC1[k4 + q] = L3.c1[q];
+    }
+    S.iD[k4] = L3.fv + 4 * L3.ts;
+    S.iD[k4 + 1] = p.mode;
+    S.iD[k4 + 2] = L3.head;
+    S.iD[k4 + 3] = L3.stoop;
   }
   function updatePeds(dt) {
     pedU.uTime.value = G.time;
@@ -16300,59 +17248,50 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     const cull = fl > 0.35;
     const fx2 = _fw2.x / (fl || 1), fz = _fw2.z / (fl || 1);
     let out = 0;
-    for (const p of peds) if (!p.b || Math.hypot(p.x - cx, p.z - cz) > PED_R) out++;
+    for (const p of peds) if (p.role !== "sit" && (!p.b || Math.hypot(p.x - cx, p.z - cz) > PED_R)) out++;
     const avoid = !pedsFresh && out < PED_N * 0.3;
     pedsFresh = false;
     for (const p of peds) {
+      if (p.role === "sit") {
+        if (updateSitter(p, dt, cx, cz)) drawPed(p, cx, cz, fx2, fz, cull);
+        continue;
+      }
+      if (p.lead) continue;
       if (!p.b || Math.hypot(p.x - cx, p.z - cz) > PED_R) {
         if (!spawnPed(p, cx, cz, fx2, fz, avoid)) continue;
-      }
-      if (p.flee > 0) {
-        p.flee -= dt;
-        if (p.flee <= 0) {
-          p.sp = 1.1 + Math.random() * 0.55;
-          pedWalkParams(p);
-          p.flags = p.look.flags;
+        const q = p.mate;
+        if (q) {
+          pedDress(q);
+          q.flee = 0;
+          q.cow = 0;
+          q.sp = p.sp;
+          q.ph = p.ph;
+          q.mode = 0;
+          q.seed = Math.random() * 6.28;
+          if (q.pairType === "talk") {
+            q.look.flags &= ~(PF.PHONE | PF.CANE);
+            q.flags = q.look.flags;
+          }
+          if (q.pairType === "family") {
+            p.look.spd = 0.9;
+            p.sp = 1.2;
+            pedWalkParams(p);
+            p.flags = p.look.flags;
+          }
         }
       }
-      if (p.idle) {
-        p.idleT -= dt;
-        if (p.idleT <= 0) {
-          p.idle = false;
-          pedWalkParams(p);
-        }
-        p.ph += dt * 0.5;
-      } else {
-        p.s += p.sp * p.dir * dt;
-        pedPos(p);
-        p.yaw = angLerp(p.yaw, Math.atan2(p.tx * p.dir, p.tz * p.dir), damp(7, dt));
-        p.ph += dt * p.rate;
-        if (p.ph > 1e4) p.ph -= Math.PI * 2 * 1e3;
-      }
-      const dx = p.x - cx, dz = p.z - cz, d = Math.hypot(dx, dz);
-      if (cull && d > 6 && dx * fx2 + dz * fz < 0.25 * d) continue;
-      const S = pedSets[p.body * 2 + (d < PED_HI ? 0 : 1)], k = S.n++;
-      _o4.position.set(p.x, SW, p.z);
-      _o4.rotation.set(0, p.yaw, 0);
-      _o4.scale.set(p.sc * p.wx, p.sc, p.sc * p.wx);
-      _o4.updateMatrix();
-      S.m.setMatrixAt(k, _o4.matrix);
-      if (d < 70) pedBlobAdd(p.x, p.z, p.yaw, p.sc);
-      const L3 = p.look, k4 = k * 4;
-      S.iA[k4] = p.ph;
-      S.iA[k4 + 1] = p.idle ? 0 : p.A;
-      S.iA[k4 + 2] = p.flags;
-      S.iA[k4 + 3] = p.seed;
-      for (let q = 0; q < 4; q++) {
-        S.iC0[k4 + q] = L3.c0[q];
-        S.iC1[k4 + q] = L3.c1[q];
+      stepPed(p, dt);
+      drawPed(p, cx, cz, fx2, fz, cull);
+      if (p.mate && p.b) {
+        followMate(p, p.mate);
+        drawPed(p.mate, cx, cz, fx2, fz, cull);
       }
     }
     for (const S of pedSets) {
       S.m.count = S.n;
       if (!S.n) continue;
       S.m.instanceMatrix.needsUpdate = true;
-      for (const k of ["iA", "iC0", "iC1"]) S.g.attributes[k].needsUpdate = true;
+      for (const k of ["iA", "iC0", "iC1", "iD"]) S.g.attributes[k].needsUpdate = true;
     }
     pedBlobEnd();
   }
@@ -16363,7 +17302,7 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     updateCars(dt);
     updatePeds(dt);
   }
-  var BW, BD, ST, NX, NZ, CX, CZ, CW, CD, X0, Z0, LAND, PK, POND, isPark, inPark, isecPos, DIST, doors, boxes, roofs, footprints, spots, perches, START, START_H, HC2, hash, stamp, hk, _s1, _s2, _rl, rayN, _rbN, CHUNK, cur, GLASS_TINTS, ngon, chamferPts, STY, isGlassy, isOld, CURT2, RM, RM_TOD, SHOPS, SIGNC, SHOP_DECL, SHOP_BLOCK, LOBBY_NAMES, sunDir, sun, sky, skyFX, hemi, amb, water, pondM, waterNormal, TOD, TOD_NAMES, skyU, fogEnc, lastTOD, lin32, pmrem, envRT, skyScene, shopU, facMats, shopMat, lampMat, boardMats, glowPts, todName, savedL, facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo, ironGeo, pitchGeo, metalGeo, slateGeo, SW, tanks, awnings, masts, boards, DOOR_TYPES, ROOMSPEC, acUnits, balconyCount, streetFaces, FISK_DOOR, LANDMARKS, legacyParkTrees, export_arena, ARENA, ventList, _o4, _c2, steam2, birds2, BIRD_N, birdData, _bo, PED_N, PED_R, PED_HI, peds, pedSets, _fw2, pedsFresh;
+  var BW, BD, ST, NX, NZ, CX, CZ, CW, CD, X0, Z0, LAND, PK, POND, isPark, inPark, isecPos, DIST, doors, boxes, roofs, footprints, spots, perches, START, START_H, HC2, hash, stamp, hk, _s1, _s2, _rl, rayN, _rbN, CHUNK, cur, GLASS_TINTS, ngon, chamferPts, STY, isGlassy, isOld, CURT2, RM, RM_TOD, SHOPS, SIGNC, SHOP_DECL, SHOP_BLOCK, LOBBY_NAMES, sunDir, sun, sky, skyFX, hemi, amb, water, pondM, waterNormal, TOD, TOD_NAMES, skyU, fogEnc, lastTOD, lin32, pmrem, envRT, skyScene, shopU, facMats, shopMat, lampMat, boardMats, glowPts, todName, savedL, facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo, ironGeo, pitchGeo, metalGeo, slateGeo, SW, tanks, awnings, masts, boards, DOOR_TYPES, ROOMSPEC, acUnits, balconyCount, streetFaces, FISK_DOOR, LANDMARKS, legacyParkTrees, export_arena, ARENA, ventList, _o4, _c2, steam2, birds2, BIRD_N, birdData, _bo, PED_N, PED_R, PED_HI, peds, pedSets, _fw2, benches, MODE, pedsFresh, _ca;
   var init_miasto = __esm({
     "js/miasto.js"() {
       init_util();
@@ -16699,13 +17638,16 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
       BIRD_N = 70;
       birdData = [];
       _bo = new THREE.Object3D();
-      PED_N = 340;
+      PED_N = 420;
       PED_R = 125;
-      PED_HI = 30;
+      PED_HI = 32;
       peds = [];
       pedSets = [];
       _fw2 = new V3();
+      benches = [];
+      MODE = { WALK: 0, EAR: 1, SCREEN: 2, TALK: 3, POINT: 4, SIT: 5, COWER: 6, FILM: 9 };
       pedsFresh = true;
+      _ca = { dist: 99, idx: 0 };
     }
   });
 
