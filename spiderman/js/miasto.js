@@ -10,6 +10,7 @@ import { dachyCollect, buildDachy, updateDachy, setDachyTOD } from './dachy.js';
 import { buildRivers, dressBridge, updateWater } from './woda.js';
 import { planPark, addCityTrees, updatePark, parkTOD } from './park.js';
 import { buildStreet, buildLampHeads, initCars, updateCars, inShed, awningGeo, lampList } from './ulica.js';
+import { detailPatch, noisePatch, roofTextures, rustTexture, ghostSign } from './elewacje.js';
 import { swInit, swTOD, swUpdate, swBuildStatic, aoGLSL, AOU, pedBlobBegin, pedBlobAdd, pedBlobEnd } from './swiatlo.js';
 
 export const BW = 64, BD = 44, ST = 18, NX = 8, NZ = 18;
@@ -194,19 +195,33 @@ function meshFrom(g, mat, cast = true) {
 
 // ---------------------------------------------------------------- tekstury (wszystkie rysowane, bez plikow)
 const STY = [
-  { wall: '#7d3f2e', gTop: '#e8b68e', gBot: '#2d3440', inset: [26, 20, 26, 30], lit: 0.12, rough: 0.9, frame: '#d9d0c0', brick: true, fire: true },
-  { wall: '#9c866a', gTop: '#f3c49a', gBot: '#3a4250', inset: [24, 20, 24, 30], lit: 0.1, rough: 0.85, frame: '#8a7a62' },
-  { wall: '#76797e', gTop: '#e9b58f', gBot: '#34404d', inset: [20, 16, 20, 24], lit: 0.1, rough: 0.8, frame: '#5a5d62' },
-  { wall: '#4d6275', gTop: '#a7b2bb', gBot: '#22384e', inset: [4, 6, 4, 18], lit: 0.05, rough: 0.35, metal: 0.3, band: '#34495a', glassy: true },
-  { wall: '#2a3340', gTop: '#8f98a3', gBot: '#161e29', inset: [4, 6, 4, 14], lit: 0.06, rough: 0.3, metal: 0.4, band: '#1c232d', glassy: true },
-  { wall: '#a69c8a', gTop: '#f2c6a0', gBot: '#3b4552', inset: [30, 24, 30, 28], lit: 0.1, rough: 0.9, frame: '#9d968a' },
+  { wall: '#7d3f2e', gTop: '#e8b68e', gBot: '#2d3440', inset: [26, 20, 26, 30], lit: 0.12, rough: 0.9, frame: '#d9d0c0', brick: true, fire: true, det: 'brick', mort: '#a39a8c', pipe: true, cable: true },
+  { wall: '#9c866a', gTop: '#f3c49a', gBot: '#3a4250', inset: [24, 20, 24, 30], lit: 0.1, rough: 0.85, frame: '#8a7a62', det: 'stone', mort: '#5d5042', pipe: true },
+  { wall: '#76797e', gTop: '#e9b58f', gBot: '#34404d', inset: [20, 16, 20, 24], lit: 0.1, rough: 0.8, frame: '#5a5d62', det: 'plaster', mort: '#7a5a48', str: 1.2 },
+  { wall: '#4d6275', gTop: '#a7b2bb', gBot: '#22384e', inset: [4, 6, 4, 18], lit: 0.05, rough: 0.35, metal: 0.3, band: '#34495a', glassy: true, det: 'glass' },
+  { wall: '#2a3340', gTop: '#8f98a3', gBot: '#161e29', inset: [4, 6, 4, 14], lit: 0.06, rough: 0.3, metal: 0.4, band: '#1c232d', glassy: true, det: 'glass' },
+  { wall: '#a69c8a', gTop: '#f2c6a0', gBot: '#3b4552', inset: [30, 24, 30, 28], lit: 0.1, rough: 0.9, frame: '#9d968a', det: 'stone', mort: '#7d756a', pipe: true },
   // 6: ciemna sciana kurtynowa (kafel 2x wiekszy: 8 x 8 paneli, kazdy w innym odcieniu; kolor szkla daje odcien budynku)
-  { kind: 'curtain', wall: '#1d2530', rough: 0.25, metal: 0.5, glassy: true, tile: 2 },
+  { kind: 'curtain', wall: '#1d2530', rough: 0.25, metal: 0.5, glassy: true, tile: 2, det: 'glass', amt: 0.3 },
   // 7: biurowiec z poziomymi pasami okien (modernizm): jasne gzymsy betonu i ciagle wstegi szkla
-  { kind: 'ribbon', wall: '#b9b4aa', rough: 0.8, metal: 0.25, glassy: true },
+  { kind: 'ribbon', wall: '#b9b4aa', rough: 0.8, metal: 0.25, glassy: true, det: 'glass' },
   // 8: art deco: pionowe filary z wapienia, waskie okna w parach, ciemne plyciny miedzy pietrami
-  { kind: 'deco', wall: '#c2b6a0', rough: 0.85, metal: 0.15 },
+  { kind: 'deco', wall: '#c2b6a0', rough: 0.85, metal: 0.15, det: 'stone', mort: '#8c8272' },
+  // 9-14: dodatkowe style (ten sam uklad okien co wzor: 9 jak 1, 10-11 jak 0, 12 jak 7, 13 jak 3, 14 jak 2) -- przypisywane w styleVariant()
+  { wall: '#6b4333', gTop: '#e8b08a', gBot: '#2d3440', inset: [24, 18, 24, 30], lit: 0.12, rough: 0.88, frame: '#c9bda4', det: 'stone', mort: '#3b2a22', pipe: true, str: 1.2 },                       // 9: brownstone
+  { wall: '#5f2c22', gTop: '#e8b68e', gBot: '#2d3440', inset: [26, 20, 26, 30], lit: 0.1, rough: 0.92, frame: '#4a4038', brick: true, fire: true, det: 'brick', mort: '#8d857a', ghost: true, pipe: true, cable: true, str: 1.4 }, // 10: ceglany robotniczy
+  { wall: '#8c4a36', gTop: '#f3c49a', gBot: '#3a4250', inset: [8, 10, 8, 22], lit: 0.16, rough: 0.9, frame: '#23272b', brick: true, det: 'brick', mort: '#b3aa9b', cable: true },                    // 11: loft z duzymi oknami
+  { kind: 'ribbon', wall: '#8f8d88', rough: 0.85, metal: 0.2, glassy: true, det: 'concrete', mort: '#4c4b48', amt: 0.5 },                                                              // 12: modernistyczny beton (okna tasmowe)
+  { wall: '#5d7d90', gTop: '#b6c4cf', gBot: '#22384e', inset: [4, 6, 4, 18], lit: 0.05, rough: 0.3, metal: 0.4, band: '#46606f', glassy: true, det: 'glass', amt: 0.7 },                      // 13: szklany biurowiec
+  { wall: '#b9a98a', gTop: '#e9b58f', gBot: '#34404d', inset: [20, 16, 20, 24], lit: 0.1, rough: 0.85, frame: '#e6dccb', det: 'plaster', mort: '#8a6a55', str: 1.1, pipe: true },             // 14: tynk, kamienica
 ];
+// nowe style: deterministycznie (z polozenia, bez srand) zamiast czesci budynkow starych stylow
+const STY_VAR = { 0: [0, 0, 10, 11], 1: [1, 1, 9], 2: [2, 14], 5: [5, 14, 5], 7: [7, 12], 3: [3, 13], 4: [4, 13, 4] };
+function styleVariant(st, x, z) {
+  const v = STY_VAR[st]; if (!v) return st;
+  const h = Math.abs(Math.sin(x * 12.9898 + z * 78.233) * 43758.5453) % 1;
+  return v[Math.floor(h * v.length)];
+}
 const isGlassy = st => !!STY[st].glassy;
 const isOld = st => !STY[st].glassy && !STY[st].kind; // klasyczna siatka 4 x 4 okien (klimatyzatory, parapety, balkony)
 // nowe rodzaje elewacji: wlasny rytm okien zamiast jednakowej siatki 4 x 4
@@ -279,11 +294,15 @@ function paintKind(s, S, x, ex, rx, bx, mx) {
   }
 }
 const CURT = ['rgba(200,60,50,.55)', 'rgba(230,210,160,.55)', 'rgba(60,90,150,.5)', 'rgba(240,240,230,.5)', 'rgba(120,160,90,.5)'];
+function facDetail(m, s, si) { // detal powierzchni (elewacje.js); wlasny klucz programu, bo kazdy styl ma inne stale w shaderze
+  m.customProgramCacheKey = () => 'fac' + si;
+  return s.det ? detailPatch(m, { kind: s.det, wall: s.wall, mort: s.mort, str: s.str, amt: s.amt }) : m;
+}
 function facadeTex(s) {
   const S = 512, C = 128, c = cv(2 * S, 2 * S), x = c.getContext('2d'), e = cv(2 * S, 2 * S), ex = e.getContext('2d');
   // szorstkosc (jasne = matowe, ciemne = gladkie jak szklo) i wypuklosc (okna wglebione w sciane)
-  const rc = cv(2 * S, 2 * S), rx = rc.getContext('2d'), bc = cv(2 * S, 2 * S), bx = bc.getContext('2d'), mc = cv(2 * S, 2 * S), mx = mc.getContext('2d');
-  for (const q of [x, ex, rx, bx, mx]) q.scale(2, 2);
+  const rc = cv(S, S), rx = rc.getContext('2d'), bc = cv(2 * S, 2 * S), bx = bc.getContext('2d'), mc = cv(S, S), mx = mc.getContext('2d');
+  for (const q of [x, ex, bx]) q.scale(2, 2);
   mx.fillStyle = s.metal ? '#707070' : '#000'; mx.fillRect(0, 0, S, S); // szyby odbijaja niebo mocniej niz sciana
   const wr = Math.round(s.rough * 255);
   rx.fillStyle = `rgb(${wr},${wr},${wr})`; rx.fillRect(0, 0, S, S);
@@ -291,7 +310,7 @@ function facadeTex(s) {
   x.fillStyle = s.wall; x.fillRect(0, 0, S, S);
   ex.fillStyle = '#000'; ex.fillRect(0, 0, S, S);
   for (let i = 0; i < 5000; i++) { x.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,.06)' : 'rgba(255,255,255,.05)'; x.fillRect(Math.random() * S, Math.random() * S, 2, 2); }
-  if (s.brick) {
+  if (s.brick && !s.det) {
     for (let y = 0; y < S; y += 6) for (let xx = (y / 6 % 2) * 7 - 7; xx < S; xx += 14) { // pojedyncze cegly w lekko roznych odcieniach
       const k = Math.random() * 0.14 - 0.07; x.fillStyle = k > 0 ? `rgba(255,220,200,${k})` : `rgba(0,0,0,${-k})`; x.fillRect(xx, y, 13, 5);
     }
@@ -320,7 +339,8 @@ function facadeTex(s) {
       x.fillStyle = 'rgba(0,0,0,.4)'; x.fillRect(X, Y, W, 4); x.fillRect(X, Y, 3, H);              // cien gornej i lewej krawedzi wneki
       x.fillStyle = 'rgba(255,255,255,.14)'; x.fillRect(X, Y + H - 2, W, 2);                       // jasny dolny brzeg (parapet)
       if (s.frame) { x.fillStyle = 'rgba(255,255,255,.1)'; x.fillRect(X - 5, Y - 8, W + 10, 6); x.fillStyle = 'rgba(0,0,0,.2)'; x.fillRect(X - 5, Y - 2, W + 10, 2); } // nadproze
-      { const sg = x.createLinearGradient(0, Y + H, 0, Y + H + 40); sg.addColorStop(0, 'rgba(20,16,12,.32)'); sg.addColorStop(1, 'rgba(20,16,12,0)'); x.fillStyle = sg; x.fillRect(X + 3, Y + H, W - 6, 40); } // smuga brudu pod oknem
+      { const sg = x.createLinearGradient(0, Y + H, 0, Y + H + 70); sg.addColorStop(0, 'rgba(20,16,12,.42)'); sg.addColorStop(1, 'rgba(20,16,12,0)'); x.fillStyle = sg; x.fillRect(X + 3, Y + H, W - 6, 70); // smuga brudu pod oknem
+        for (let k = 0; k < 5; k++) { const sx = X + 4 + Math.random() * (W - 8), sl = 30 + Math.random() * 90, g2 = x.createLinearGradient(0, Y + H, 0, Y + H + sl); g2.addColorStop(0, 'rgba(18,14,10,.28)'); g2.addColorStop(1, 'rgba(18,14,10,0)'); x.fillStyle = g2; x.fillRect(sx, Y + H, 1 + Math.random() * 2, sl); } }
       bx.fillStyle = '#5a5a5a'; bx.fillRect(X, Y, W, H);
       const q = Math.random();
       if (q < s.lit) { x.fillStyle = 'rgba(255,205,130,.7)'; x.fillRect(X, Y, W, H); }
@@ -353,6 +373,21 @@ function facadeTex(s) {
       x.beginPath(); x.moveTo(fx + 30, fy); x.lineTo(fx + 110, fy - C + 16); x.stroke();
     }
   } }
+  if (!s.kind) {
+    if (s.ghost) ghostSign(x, S, C, 1, ['FURNITURE & BEDDING', 'COAL . ICE . WOOD', 'HOTEL ROOMS 50c', 'PIANOS . ORGANS'][Math.floor(Math.random() * 4)], '#e9dcc0');
+    if (s.pipe) { // rura spustowa na styku kafli (miedzy oknami): ciemna stal z jasnym refleksem, obejmy co kilka metrow
+      for (const [px, pw] of [[S - 4, 4], [0, 3.5]]) {
+        x.fillStyle = '#2f3336'; x.fillRect(px, 0, pw, S); x.fillStyle = 'rgba(190,200,205,.35)'; x.fillRect(px + 0.8, 0, 1.2, S);
+        bx.fillStyle = '#e6e6e6'; bx.fillRect(px, 0, pw, S);
+        rx.fillStyle = '#585858'; rx.fillRect(px, 0, pw, S); mx.fillStyle = '#606060'; mx.fillRect(px, 0, pw, S);
+      }
+      for (let y = 20; y < S; y += 86) { x.fillStyle = '#1b1d1f'; x.fillRect(S - 6, y, 9, 3); x.fillRect(0, y, 2.5, 3); }
+    }
+    if (s.cable) { // kable telefoniczne/elektryczne zwisajace miedzy slupkami: cienkie, ciemne
+      x.strokeStyle = 'rgba(10,10,10,.8)'; x.lineWidth = 1.1;
+      for (let j = 0; j < 4; j++) if (Math.random() < 0.55) { const yy = j * C + C - 14 + Math.random() * 8; x.beginPath(); x.moveTo(-2, yy); x.quadraticCurveTo(S / 2, yy + 8 + Math.random() * 8, S + 2, yy); x.stroke(); bx.strokeStyle = '#e0e0e0'; bx.beginPath(); bx.moveTo(-2, yy); bx.quadraticCurveTo(S / 2, yy + 10, S + 2, yy); bx.stroke(); }
+    }
+  }
   const map = canvasTex(c, true), emi = canvasTex(e, true), rough = canvasTex(rc, true), bump = canvasTex(bc, true), metal = canvasTex(mc, true);
   return { map, emi, rough, bump, metal };
 }
@@ -617,8 +652,8 @@ function stoneCanvas() {
   const S = 256, c = cv(S, S), x = c.getContext('2d'); x.fillStyle = '#b5ac9e'; x.fillRect(0, 0, S, S);
   for (let i = 0; i < 30; i++) { const px = Math.random() * S, py = Math.random() * S, r = 20 + Math.random() * 60, g = x.createRadialGradient(px, py, 0, px, py, r); const d = Math.random() < 0.6; g.addColorStop(0, d ? 'rgba(70,60,50,.08)' : 'rgba(255,250,235,.07)'); g.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = g; x.fillRect(0, 0, S, S); }
   for (let i = 0; i < 900; i++) { x.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,.035)' : 'rgba(255,255,255,.03)'; x.fillRect(Math.random() * S, Math.random() * S, 1, 1); }
-  x.fillStyle = 'rgba(60,50,40,.16)'; for (let y = 0; y < S; y += 64) x.fillRect(0, y, S, 1.5);
-  for (let y = 0; y < S; y += 64) for (let xx = (y / 64 % 2) * 64; xx < S; xx += 128) x.fillRect(xx, y, 1.5, 64);
+  // (spoiny rysuje teraz detal kamienia z elewacje.js)
+
   return c;
 }
 function sidewalkCanvas() {
@@ -1136,6 +1171,7 @@ function mansard(x0, x1, z0, z1, h) {
   return addBox({ x0: x0 + ins * 0.5, x1: x1 - ins * 0.5, y0: h, y1: h + R, z0: z0 + ins * 0.5, z1: z1 - ins * 0.5 });
 }
 function building(x0, x1, z0, z1, h, st, dk, bk, pitched) {
+  st = styleVariant(st, x0, z0); // nowe style elewacji (ten sam uklad okien, inny material); bez srand
   randomBuildingLook(); styleLook(st);
   // rodzaj bryly: wysokie budynki dostaja ksztalt (art deco z uskokami, szklana wieza ze scietymi narozami, zebra)
   const tall = bk && !pitched && h > 58 && x1 - x0 > 22 && z1 - z0 > 17;
@@ -1518,16 +1554,16 @@ export function buildCity() {
   initRoomAtlas();
   facMats = STY.map((s, si) => {
     const t = facadeTex(s);
-    return interiorMapping(groundAO(new THREE.MeshStandardMaterial({
+    return facDetail(interiorMapping(groundAO(new THREE.MeshStandardMaterial({
       map: t.map, emissiveMap: t.emi, emissive: 0xffffff, emissiveIntensity: 0.3,
       roughness: 1, roughnessMap: t.rough, bumpMap: dbg('nobump') ? null : t.bump, bumpScale: 0.07, metalness: 1, metalnessMap: t.metal,
-    })), si);
+    })), si), s, si);
   });
   facMats.forEach((m, i) => { m.userData.env = STY[i].metal ? 3.6 : 1.6; });
   facGeo.forEach((g, i) => meshFrom(g, facMats[i]));
-  const roofMat = new THREE.MeshStandardMaterial({ map: canvasTex(noiseCanvas('#8a8780', 7000, 0.14, 256, { n: 40, r: 5, c: ['rgba(60,60,60,.3)', 'rgba(120,110,100,.3)'] }), true), roughness: 1 });
+  const rt = roofTextures(), roofMat = noisePatch(new THREE.MeshStandardMaterial({ map: rt.map, roughnessMap: rt.rough, bumpMap: rt.bump, bumpScale: 0.02, roughness: 1 }), 0.3); roofMat.customProgramCacheKey = () => 'roof';
   meshFrom(roofGeo, roofMat, false);
-  meshFrom(ironGeo, new THREE.MeshStandardMaterial({ color: 0x23262a, roughness: 0.5, metalness: 0.55 }), false);
+  meshFrom(ironGeo, new THREE.MeshStandardMaterial({ map: rustTexture(), roughness: 0.6, metalness: 0.35 }), false);
   { // stal nierdzewna (iglice, korony, lamele) i lupek mansard
     const mm = new THREE.MeshStandardMaterial({ color: 0xc4c8ce, roughness: 0.3, metalness: 0.9 }); mm.userData.env = 2.2;
     meshFrom(metalGeo, mm, true);
@@ -1544,7 +1580,7 @@ export function buildCity() {
     const gm = new THREE.MeshStandardMaterial({ map: canvasTex(noiseCanvas('#5b8a3a', 6000, 0.1, 128, { n: 30, r: 3, c: ['#6f9e45', '#4b7a2e', '#f3f3f3'] }), true), roughness: 1 });
     for (const l of pocketParks) { const m = new THREE.Mesh(new THREE.PlaneGeometry(l[1] - l[0] - 1, l[3] - l[2] - 1), gm); m.rotation.x = -Math.PI / 2; m.position.set((l[0] + l[1]) / 2, SW + 0.03, (l[2] + l[3]) / 2); m.receiveShadow = true; scene.add(m); }
   }
-  meshFrom(trimGeo, groundAO(new THREE.MeshStandardMaterial({ map: canvasTex(stoneCanvas(), true), roughness: 0.85 })));
+  { const tm = detailPatch(groundAO(new THREE.MeshStandardMaterial({ map: canvasTex(stoneCanvas(), true), roughness: 0.85 })), { kind: 'stone', wall: '#b5ac9e', mort: '#8a8274', mask: false, k: 1.1, str: 0.7, bumpK: 0.8 }); tm.customProgramCacheKey = () => 'trim'; meshFrom(trimGeo, tm); }
   const st = shopTex();
   shopMat = groundAO(new THREE.MeshStandardMaterial({ map: st.map, emissiveMap: st.emi, emissive: 0xffffff, emissiveIntensity: 0.8, roughness: 0.35, metalness: 0.1 }), 0.75, 6);
   // interior mapping w witrynach: za szyba (klucz magenta w teksturze) wirtualny pokoj z atlasu sklepy_okna.js
