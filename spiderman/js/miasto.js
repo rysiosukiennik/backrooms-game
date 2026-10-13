@@ -9,6 +9,7 @@ import { skyUniforms, skyMaterial, setSkyTOD, updateSky, createSkyFX } from './n
 import { dachyCollect, buildDachy, updateDachy, setDachyTOD } from './dachy.js';
 import { buildRivers, dressBridge, updateWater } from './woda.js';
 import { buildStreet, buildLampHeads, initCars, updateCars, inShed, awningGeo } from './ulica.js';
+import { planPark, addCityTrees, updatePark, parkTOD } from './park.js';
 
 export const BW = 64, BD = 44, ST = 18, NX = 8, NZ = 18;
 export const CX = BW + ST, CZ = BD + ST, CW = NX * CX, CD = NZ * CZ, X0 = -CW / 2, Z0 = -CD / 2;
@@ -783,11 +784,11 @@ export function setTOD(name) {
   linHex(sun.color, T.sunCol); sun.intensity = T.sunI;
   linHex(hemi.color, T.hemi[0]); linHex(hemi.groundColor, T.hemi[1]); hemi.intensity = T.hemi[2]; amb.intensity = T.amb;
   setSkyTOD(skyU, todName); skyFX.setTOD(todName);
-  linHex(water.material.color, T.water); linHex(pondM.material.color, T.water).multiplyScalar(0.45); pondM.material.color.g *= 1.15;
+  linHex(water.material.color, T.water); linHex(pondM.material.color, { sunset: 0x58798e, day: 0x3d7295, night: 0x16222f }[name] || 0x58798e);
   for (const m of facMats) m.emissiveIntensity = T.win;
   setRoomTOD(name);
   shopMat.emissiveIntensity = T.shop; shopU.uSI.value = 0.45 + 0.6 * T.shop; shopU.uSEm.value = T.shop * 1.6;
-  lampMat.emissiveIntensity = 0.2 + T.lamps * 2;
+  lampMat.emissiveIntensity = 0.2 + T.lamps * 2; parkTOD(T.lamps);
   for (const m of boardMats) m.emissiveIntensity = 0.8 + T.lamps * 1.2;
   setDachyTOD(T.lamps, name);
   for (const g of glowPts) { g.visible = T.lamps > 0; g.material.opacity = T.lamps; }
@@ -1371,7 +1372,9 @@ function bridge(xa, xb, z, kind) {
 function buildPark(inst) {
   const gt = canvasTex(grassCanvas(), true); gt.repeat.set((PK.x1 - PK.x0) / 9, (PK.z1 - PK.z0) / 9);
   const PW = PK.x1 - PK.x0, PD = PK.z1 - PK.z0, cx0 = (PK.x0 + PK.x1) / 2, cz0 = (PK.z0 + PK.z1) / 2;
-  const pg = new THREE.PlaneGeometry(PW, PD, Math.ceil(PW / 6), Math.ceil(PD / 6)), pp = pg.attributes.position, pc = [];
+  export_arena.x = cx0; export_arena.z = PK.z1 - 70;
+  const plan = planPark({ PK, POND, ARENA: export_arena, addBox, glowPoints }); // park.js: sciezki, drzewa, wyposazenie
+  const pg = new THREE.PlaneGeometry(PW, PD, Math.ceil(PW / 3), Math.ceil(PD / 3)), pp = pg.attributes.position, pc = [];
   const pathsX = [cx0 - 60, cx0 + 70], pathsZ = [PK.z0 + PD * 0.15, PK.z0 + PD * 0.42];
   for (let i = 0; i < pp.count; i++) {
     const wx = cx0 + pp.getX(i), wz = cz0 - pp.getY(i);
@@ -1383,7 +1386,8 @@ function buildPark(inst) {
     const pe = Math.sqrt(((wx - POND.x) / POND.rx) ** 2 + ((wz - POND.z) / POND.rz) ** 2);
     if (pe < 1.15) k *= 0.82; // wilgotna, ciemniejsza trawa przy stawie
     dry = Math.max(0, dry) * 0.6;
-    pc.push(k * (1 + dry * 0.35), k * (1 - dry * 0.05), k * (1 - dry * 0.3));
+    const tt = plan.groundTint(wx, wz); // cien drzew i wydeptana trawa
+    pc.push(k * (1 + dry * 0.35) * tt[0], k * (1 - dry * 0.05) * tt[1], k * (1 - dry * 0.3) * tt[2]);
   }
   pg.setAttribute('color', new THREE.Float32BufferAttribute(pc, 3));
   const g = new THREE.Mesh(pg, new THREE.MeshStandardMaterial({ map: gt, roughness: 1, vertexColors: true }));
@@ -1411,66 +1415,23 @@ function buildPark(inst) {
     const lg = new THREE.CircleGeometry(1, 10, 0.4, Math.PI * 2 - 0.4); lg.rotateX(-Math.PI / 2);
     buildInstanced(lg, new THREE.MeshStandardMaterial({ color: 0x4f7a34, roughness: 0.6 }), lily, (o, t) => { o.position.set(t.x, 0.13, t.z); o.rotation.set(0, t.r, 0); o.scale.setScalar(t.s); }, false);
   }
-  const pm = new THREE.MeshStandardMaterial({ color: 0xb5a78e, roughness: 1 });
-  const path = (x, z, w, d) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), pm); m.rotation.x = -Math.PI / 2; m.position.set(x, 0.08, z); m.receiveShadow = true; scene.add(m); };
-  const cx = (PK.x0 + PK.x1) / 2;
-  path(cx - 60, (PK.z0 + PK.z1) / 2, 5, PK.z1 - PK.z0); path(cx + 70, (PK.z0 + PK.z1) / 2 - 60, 5, PK.z1 - PK.z0 - 120);
-  for (const f of [0.15, 0.42]) path(cx, PK.z0 + (PK.z1 - PK.z0) * f, PK.x1 - PK.x0, 4.5);
-  // Polana (arena bossa) — bez drzew
-  export_arena.x = cx; export_arena.z = PK.z1 - 70;
+  // Polana (arena bossa) — bez drzew; ten sam ciag losowan co dawniej, zeby reszta miasta wygladala tak samo
   for (let i = 0; i < 560; i++) {
     const x = sr(PK.x0 + 4, PK.x1 - 4), z = sr(PK.z0 + 4, PK.z1 - 4);
     if (((x - POND.x) / (POND.rx + 5)) ** 2 + ((z - POND.z) / (POND.rz + 5)) ** 2 < 1) continue;
     if (Math.hypot(x - export_arena.x, z - export_arena.z) < 62) continue;
-    inst.push({ x, z, s: sr(2.4, 4.4), h: sr(2.5, 4.5) });
+    legacyParkTrees++;
   }
+  plan.build();
 }
+let legacyParkTrees = 0;
 const export_arena = { x: 0, z: 0 };
 export const ARENA = export_arena;
 
+// drzewa miejskie (kraty przy ulicach, kieszonkowe parki): park.js — gatunki, korony z kart z alpha-testem, porcje z LOD
 function buildTrees(list) {
-  const trunk = new THREE.CylinderGeometry(0.13, 0.34, 1, 8); trunk.translate(0, 0.5, 0);
-  // korona z kilku splaszczonych, pofalowanych kep liscia; ciemniejsza od spodu, jasniejsza od gory
-  const crown = (() => {
-    const pos = [], col = [], idx = [], nor = []; let base = 0;
-    const lobes = [[0, 0.1, 0, 0.75], [0.45, -0.05, 0.1, 0.5], [-0.42, 0, -0.15, 0.52], [0.1, 0.05, 0.48, 0.48], [-0.1, 0.0, -0.5, 0.5], [0.05, 0.55, 0.05, 0.45], [0.35, 0.3, -0.35, 0.38]];
-    for (const [lx, ly, lz, lr] of lobes) {
-      const g = new THREE.IcosahedronGeometry(lr, 2), p = g.attributes.position, ix = g.index ? g.index.array : null;
-      for (let i = 0; i < p.count; i++) {
-        const x = p.getX(i), y = p.getY(i), z = p.getZ(i), l = Math.hypot(x, y, z) || 1;
-        const n = 1 + 0.16 * Math.sin(x * 9 + lx * 7) * Math.cos(z * 8 + ly * 5) + 0.1 * Math.sin(y * 13 + lz * 9);
-        const X = lx + x * n, Y = ly + y * n * 0.82, Z = lz + z * n;
-        pos.push(X, Y, Z); nor.push(x / l * 0.8 + X * 0.25, y / l * 0.8 + Y * 0.25 + 0.15, z / l * 0.8 + Z * 0.25); // gladkie, kopulaste normalne
-        const k = 0.62 + 0.5 * Math.min(1, Math.max(0, (Y + 0.7) / 1.5)) + 0.12 * Math.sin(X * 17 + Z * 11);
-        col.push(k, k, k);
-      }
-      if (ix) for (let i = 0; i < ix.length; i++) idx.push(ix[i] + base); else for (let i = 0; i < p.count; i++) idx.push(i + base);
-      base += p.count;
-    }
-    const G2 = new THREE.BufferGeometry();
-    G2.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); G2.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-    G2.setIndex(idx); const nv = new THREE.Vector3(); for (let i = 0; i < nor.length; i += 3) { nv.set(nor[i], nor[i + 1], nor[i + 2]).normalize(); nor[i] = nv.x; nor[i + 1] = nv.y; nor[i + 2] = nv.z; }
-    G2.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); return G2;
-  })();
-  const tm = new THREE.MeshStandardMaterial({ map: canvasTex(noiseCanvas('#5a4030', 3000, 0.15, 128), true), roughness: 1 });
-  const cm = new THREE.MeshStandardMaterial({ map: canvasTex(noiseCanvas('#dddddd', 4000, 0.18, 128), true), roughness: 0.92, vertexColors: true });
-  // drzewa przy ulicy (w kratach) sa wyzsze, z wysoko podniesiona korona z dwoch kep
-  const nPit = list.reduce((a, t) => a + (t.pit ? 1 : 0), 0);
-  const T = new THREE.InstancedMesh(trunk, tm, list.length), C = new THREE.InstancedMesh(crown, cm, list.length + nPit);
-  const o = new THREE.Object3D(), col = new THREE.Color();
-  const pal = [0x4f7a2f, 0x5d8a35, 0x3f6a2a, 0x6f8f3a, 0xb8782e, 0xa0522d, 0x7a8f35];
-  let ci = list.length;
-  list.forEach((t, i) => {
-    const h = t.pit ? t.h * 1.75 : t.h, s = t.pit ? t.s * 0.95 : t.s, w = t.pit ? 1.2 : 1;
-    o.position.set(t.x, t.y || 0, t.z); o.rotation.set(0, srand() * 6, 0); o.scale.set(w, h, w); o.updateMatrix(); T.setMatrixAt(i, o.matrix);
-    o.position.set(t.x, (t.y || 0) + h + s * 0.45, t.z); o.rotation.set(0, srand() * 6, 0); o.scale.set(s * 1.5, s * 1.5 * (t.pit ? 1.1 : 1), s * 1.5); o.updateMatrix(); C.setMatrixAt(i, o.matrix);
-    col.setHex(pal[Math.floor(srand() * pal.length)]); C.setColorAt(i, col);
-    if (t.pit) { // druga, mniejsza kepa przesunieta w bok i w gore
-      const a = Math.random() * 6.28; o.position.set(t.x + Math.cos(a) * s * 0.6, (t.y || 0) + h + s * 1.25, t.z + Math.sin(a) * s * 0.6); o.rotation.set(0, a, 0); o.scale.setScalar(s * 1.05); o.updateMatrix();
-      C.setMatrixAt(ci, o.matrix); C.setColorAt(ci++, col.multiplyScalar(1.08));
-    }
-  });
-  for (const m of [T, C]) { m.castShadow = false; m.receiveShadow = true; m.frustumCulled = false; scene.add(m); }
+  addCityTrees(list);
+  for (let q = 0; q < (list.length + legacyParkTrees) * 3; q++) srand(); // zgodnosc ciagu losowan z dawnym kodem
 }
 
 function buildInstanced(geo, mat, items, place, cast = true) {
@@ -1802,6 +1763,7 @@ function updatePeds(dt) {
   }
 }
 export function updateTraffic(dt) {
+  updatePark(dt);
   updateLife(dt);
   updateWater(dt);
   updateCars(dt);
