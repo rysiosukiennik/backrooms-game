@@ -1,6 +1,6 @@
 // Start gry i glowna petla: stan menu / gra / pauza, kamera trzecioosobowa, poswiata (bloom).
 import { V3, clamp, lerp, damp, angLerp, save, doSave, dbg, resetProgress } from './util.js';
-import { G, P, cam, scene, camera, renderer, canvas, hooks, zglosBlad, pixelRatio } from './stan.js';
+import { G, P, enemies, cam, scene, camera, renderer, canvas, hooks, zglosBlad, pixelRatio } from './stan.js';
 import { buildCity, updateTraffic, updateEnv, raycastCity, setTOD, setFogEncoded } from './miasto.js';
 import { initPlayer, updatePlayer, updatePlayerVisual } from './gracz.js';
 import { initFX, updateFX, spawnCrime, updateEnemies, updateCrimes, updateShots, initBags, updateBags } from './wrogowie.js';
@@ -8,7 +8,8 @@ import { initMissions, updateMissions } from './misje.js';
 import { playCine, updateCine } from './scenki.js';
 import { initUI, updateHUD, updateMenu, updatePause, openPause, showHUD, showMsg, key, hideSplash } from './ui.js';
 import { pollPads, gameInput, endFrame, lockMouse, pad, KP, MP } from './wejscie.js';
-import { initAudio, setWind, setMusic, cityAmbience, sfx } from './dzwiek.js';
+import { initAudio, setWind, setMusic, cityAmbience, sfx, setMusicMode } from './dzwiek.js';
+import { fiskActive } from './fisk.js';
 import { updateRooms } from './wnetrza.js';
 import { updateQuips, quipStart } from './docinki.js';
 
@@ -76,7 +77,7 @@ hooks.start = mode => {
 function savePos() { save.pos = [P.pos.x, P.pos.y, P.pos.z]; save.hd = P.heading; save.hasGame = true; save.savedAt = Date.now(); doSave(); }
 hooks.save = () => { savePos(); sfx('win'); showMsg('GRA ZAPISANA', 'Postęp i miejsce zostały zapamiętane', 2.5); };
 hooks.newGame = () => { resetProgress(); location.reload(); };
-let posT = 0;
+let posT = 0, musT = 0, musMode = '';
 hooks.toMenu = () => {
   G.state = 'menu'; showHUD(false);
   if (document.pointerLockElement) document.exitPointerLock();
@@ -208,6 +209,14 @@ function step(now) {
   else if (G.state === 'pause') { updatePause(rdt); setWind(0); }
 
   updateQuips(rdt);
+  { // muzyka reaguje na to, co sie dzieje: boss > walka (wrogowie blisko) > spokoj
+    musT -= rdt;
+    if (musT <= 0) {
+      musT = 0.5;
+      const m = G.boss || fiskActive() ? 'boss' : enemies.some(e => !e.dead && e.pos.distanceTo(P.pos) < 16) ? 'fight' : 'calm';
+      if (m !== musMode) { musMode = m; setMusicMode(m); }
+    }
+  }
   if (G.state === 'play') updateRooms(dt);
   if (G.state !== 'pause') { updateTraffic(dt); updateFX(dt); updatePlayerVisual(dt); }
   if (G.wp) { beacon.visible = true; beacon.position.set(G.wp.x, 300, G.wp.z); } else beacon.visible = false;
