@@ -42,6 +42,7 @@ export function setSuit(id) {
   let q = null;
   if (P.H) { q = P.H.root.quaternion.clone(); scene.remove(P.H.root); }
   P.H = buildSpider(s); P.suit = s;
+  P.H.getWear = () => 1 - P.hp / maxHp(); // zniszczenia stroju rosna z obrazeniami
   if (q) P.H.root.quaternion.copy(q);
   P.H.root.position.copy(P.pos);
   scene.add(P.H.root);

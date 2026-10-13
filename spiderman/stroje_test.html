@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>Podgląd strojów</title>
+<script src="lib/three-r128.js"></script>
+</head>
+<body style="margin:0;background:#222">
+<!-- Strona deweloperska: wszystkie stroje Spider-Mana obok siebie (gora: przod, dol: tyl). Wymaga serwera. -->
+<!-- ?from=0&n=5&wear=0..1&close=1 -->
+<script type="module">
+import { buildSpider, SUITS, newPose, applyPose, idlePose, suitWear } from './js/postac.js';
+const q = new URLSearchParams(location.search), from = +(q.get('from') || 0), n = +(q.get('n') || 5), close = q.get('close') === '1';
+suitWear.force = +(q.get('wear') || 0);
+const W = 1500, H = close ? 800 : 1000;
+const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true }); r.setSize(W, H); r.shadowMap.enabled = true;
+r.outputEncoding = THREE.sRGBEncoding; r.toneMapping = THREE.ACESFilmicToneMapping; r.setScissorTest(true);
+document.body.appendChild(r.domElement);
+// niebo do odbic (otoczenie)
+const skyS = new THREE.Scene(), cvs = document.createElement('canvas'); cvs.width = 16; cvs.height = 256;
+const cx = cvs.getContext('2d'), g = cx.createLinearGradient(0, 0, 0, 256); g.addColorStop(0, '#7fa6d8'); g.addColorStop(0.5, '#ffd9a0'); g.addColorStop(0.52, '#3a3530'); g.addColorStop(1, '#201c18');
+cx.fillStyle = g; cx.fillRect(0, 0, 16, 256);
+const st = new THREE.CanvasTexture(cvs); st.encoding = THREE.sRGBEncoding;
+skyS.add(new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), new THREE.MeshBasicMaterial({ map: st, side: THREE.BackSide })));
+const pm = new THREE.PMREMGenerator(r);
+const sc = new THREE.Scene(); sc.background = new THREE.Color(0x3a4450); sc.environment = pm.fromScene(skyS).texture;
+sc.add(new THREE.HemisphereLight(0xdfe9ff, 0x404048, 0.5));
+const d = new THREE.DirectionalLight(0xfff0d8, 1.6); d.position.set(3, 6, 5); sc.add(d);
+const d2 = new THREE.DirectionalLight(0xffd8b0, 1.0); d2.position.set(-3, 4, -5); sc.add(d2);
+const cam = new THREE.PerspectiveCamera(30, W / (H / 2), 0.1, 100);
+const figs = [];
+for (let i = 0; i < n && from + i < SUITS.length; i++) {
+  const h = buildSpider(SUITS[from + i]); h.root.position.x = (i - (n - 1) / 2) * (+(q.get('sp') || 1.35));
+  const p = newPose(); idlePose(p, 0); applyPose(h, p); sc.add(h.root); figs.push(h);
+}
+if (close) { cam.position.set(0, 1.55, 3.2); cam.lookAt(0, 1.3, 0); } else { const D = +(q.get('d') || 4.4); cam.position.set(0, 1.0, D); cam.lookAt(0, 0.9, 0); }
+window.render = () => {
+  for (let pass = 0; pass < 2; pass++) {
+    figs.forEach(f => { f.root.rotation.y = pass ? Math.PI - 0.3 : 0.3; });
+    r.setViewport(0, pass ? 0 : H / 2, W, H / 2); r.setScissor(0, pass ? 0 : H / 2, W, H / 2); r.render(sc, cam);
+  }
+  return fetch('/shot?n=' + (q.get('name') || 'stroje'), { method: 'POST', body: r.domElement.toDataURL('image/png') }).then(x => x.text());
+};
+window.names = figs.map((f, i) => SUITS[from + i].id);
+window.dbg = { figs, sc, r, suitWear }; window.ready = true;
+</script>
+</body>
+</html>
