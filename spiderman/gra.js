@@ -1794,15 +1794,6 @@
     }
     x.restore();
   }
-  function hexDots(x, x0, y0, w, h, col2) {
-    x.save();
-    x.beginPath();
-    x.rect(x0, y0, w, h);
-    x.clip();
-    x.fillStyle = col2;
-    for (let y = y0; y < y0 + h; y += 6) for (let a = y / 6 % 2 * 3.5; a < x0 + w; a += 7) x.fillRect(a, y, 3, 3);
-    x.restore();
-  }
   function headWeb(x, W2, H3, col2, lw) {
     const cx = W2 / 2, cy = H3 * 0.52, N = 22;
     x.strokeStyle = col2;
@@ -1960,36 +1951,132 @@
     x.fill();
     x.restore();
   }
-  function advCanvases(s) {
-    const mk2 = (w, h) => {
-      const T3 = { m: C2(w, h), b: C2(w, h), r: C2(w, h) };
-      T3.m.x.fillStyle = s.prim;
-      T3.m.x.fillRect(0, 0, w, h);
-      T3.b.x.fillStyle = "#808080";
-      T3.b.x.fillRect(0, 0, w, h);
-      T3.r.x.fillStyle = "#fff";
-      T3.r.x.fillRect(0, 0, w, h);
-      return T3;
+  function rngFor(str) {
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619);
+    return () => {
+      h += 1831565813;
+      let t = Math.imul(h ^ h >>> 15, 1 | h);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
     };
-    const fabric = (T3, step4 = 5) => {
-      T3.b.x.save();
-      T3.b.x.globalAlpha = 0.3;
-      T3.b.x.filter = "blur(0.8px)";
-      hexDots2(T3.b.x, 0, 0, T3.b.w, T3.b.h, "#9a9a9a", step4);
-      T3.b.x.restore();
+  }
+  function hexDots2(x, x0, y0, w, h, col2, st) {
+    x.fillStyle = col2;
+    const d = st * 0.5;
+    for (let y = y0, k = 0; y < y0 + h; y += st, k++) for (let a = x0 + k % 2 * st / 2; a < x0 + w; a += st) x.fillRect(a, y, d, d);
+  }
+  function clipRects(x, rects) {
+    x.beginPath();
+    for (const r of rects) x.rect(r[0], r[1], r[2], r[3]);
+    x.clip();
+  }
+  function richCanvases(s) {
+    const advL = s.layout === "adv", P2 = s.parts || {};
+    let R3 = rngFor(s.id);
+    const colOf = (k) => k === "p" ? s.prim : k === "s" ? s.sec : s.acc || "#222";
+    const metalKind = (k) => s.metal === "all" || s.metal && k !== "p";
+    const mk2 = (w, h, wear) => {
+      const T2 = { w, h, m: C2(w, h), b: C2(w, h), r: C2(w, h), t: s.metal ? C2(w, h) : null, e: s.glow || s.glowLogo ? C2(w, h) : null, wr: null };
+      T2.m.x.fillStyle = s.prim;
+      T2.m.x.fillRect(0, 0, w, h);
+      T2.b.x.fillStyle = "#808080";
+      T2.b.x.fillRect(0, 0, w, h);
+      T2.r.x.fillStyle = "#fff";
+      T2.r.x.fillRect(0, 0, w, h);
+      if (T2.t) {
+        T2.t.x.fillStyle = s.metal === "all" ? "#fff" : "#000";
+        T2.t.x.fillRect(0, 0, w, h);
+      }
+      if (T2.e) {
+        T2.e.x.fillStyle = "#000";
+        T2.e.x.fillRect(0, 0, w, h);
+      }
+      if (wear) {
+        T2.wr = cv(w, h);
+        const x = T2.wr.getContext("2d");
+        x.fillStyle = "#fff";
+        x.fillRect(0, 0, w, h);
+      }
+      return T2;
     };
-    const web = (T3, draw) => {
-      draw(T3.m.x, s.web, 1.5);
-      T3.b.x.save();
-      T3.b.x.filter = "blur(1.1px)";
-      draw(T3.b.x, "#c4c4c4", 3.4);
-      T3.b.x.filter = "none";
-      draw(T3.b.x, "#dadada", 1.2);
-      T3.b.x.restore();
-      draw(T3.r.x, "#a8a8a8", 2.6);
+    const softRect = (T2, x0, y0, w, h) => {
+      const x = T2.b.x;
+      x.save();
+      x.beginPath();
+      x.rect(x0, y0, w, h);
+      x.clip();
+      x.filter = "blur(0.8px)";
+      x.drawImage(T2.b.c, 0, 0, T2.b.w, T2.b.h);
+      x.restore();
     };
-    const panel2 = (T3, path) => {
-      const { m, b, r } = T3;
+    const fabric = (T2, step4 = 5) => {
+      T2.b.x.save();
+      T2.b.x.globalAlpha = 0.3;
+      hexDots2(T2.b.x, 0, 0, T2.b.w, T2.b.h, "#9a9a9a", step4);
+      T2.b.x.restore();
+      softRect(T2, 0, 0, T2.b.w, T2.b.h);
+    };
+    const fill = (T2, x0, y0, w, h, kind, step4 = 3.2) => {
+      const col2 = colOf(kind), met = metalKind(kind);
+      T2.m.x.fillStyle = col2;
+      T2.m.x.fillRect(x0, y0, w, h);
+      T2.b.x.fillStyle = "#808080";
+      T2.b.x.fillRect(x0, y0, w, h);
+      if (met) {
+        T2.r.x.fillStyle = "#7a7a7a";
+        T2.r.x.fillRect(x0, y0, w, h);
+        if (T2.t && s.metal !== "all") {
+          T2.t.x.fillStyle = "#fff";
+          T2.t.x.fillRect(x0, y0, w, h);
+        }
+        for (let y = y0 + 24; y < y0 + h - 6; y += 30) {
+          T2.m.x.fillStyle = "rgba(0,0,0,.28)";
+          T2.m.x.fillRect(x0, y, w, 1.6);
+          T2.b.x.save();
+          T2.b.x.filter = "blur(0.8px)";
+          T2.b.x.fillStyle = "#4c4c4c";
+          T2.b.x.fillRect(x0, y, w, 2.4);
+          T2.b.x.restore();
+        }
+      } else {
+        T2.b.x.save();
+        T2.b.x.globalAlpha = 0.3;
+        hexDots2(T2.b.x, x0, y0, w, h, "#9a9a9a", step4 + 1.6);
+        T2.b.x.restore();
+        softRect(T2, x0, y0, w, h);
+      }
+      if (s.pin && kind === "s") {
+        T2.m.x.fillStyle = "rgba(255,255,255,.1)";
+        for (let a = x0 + 4; a < x0 + w; a += 9) T2.m.x.fillRect(a, y0, 1, h);
+      }
+    };
+    const web = (T2, draw, rects) => {
+      if (!s.web) return;
+      const sv = (c) => {
+        c.x.save();
+        if (rects) clipRects(c.x, rects);
+      };
+      sv(T2.m);
+      draw(T2.m.x, s.web, 1.5);
+      T2.m.x.restore();
+      sv(T2.b);
+      T2.b.x.filter = "blur(1.1px)";
+      draw(T2.b.x, "#c4c4c4", 3.4);
+      T2.b.x.filter = "none";
+      draw(T2.b.x, "#dadada", 1.2);
+      T2.b.x.restore();
+      sv(T2.r);
+      draw(T2.r.x, "#a8a8a8", 2.6);
+      T2.r.x.restore();
+      if (T2.e && s.glow) {
+        sv(T2.e);
+        draw(T2.e.x, s.web, 2.6);
+        T2.e.x.restore();
+      }
+    };
+    const panel2 = (T2, path) => {
+      const { m, b, r } = T2, met = metalKind("s");
       m.x.save();
       path(m.x);
       m.x.clip();
@@ -2008,9 +2095,25 @@
       r.x.save();
       path(r.x);
       r.x.clip();
-      r.x.fillStyle = "#f2f2f2";
+      r.x.fillStyle = met ? "#808080" : "#f2f2f2";
       r.x.fillRect(0, 0, r.w, r.h);
       r.x.restore();
+      if (T2.t && s.metal !== "all") {
+        T2.t.x.save();
+        path(T2.t.x);
+        T2.t.x.clip();
+        T2.t.x.fillStyle = met ? "#fff" : "#000";
+        T2.t.x.fillRect(0, 0, T2.w, T2.h);
+        T2.t.x.restore();
+      }
+      if (T2.e) {
+        T2.e.x.save();
+        path(T2.e.x);
+        T2.e.x.clip();
+        T2.e.x.fillStyle = "#000";
+        T2.e.x.fillRect(0, 0, T2.w, T2.h);
+        T2.e.x.restore();
+      }
       m.x.save();
       path(m.x);
       m.x.strokeStyle = "rgba(0,0,0,.5)";
@@ -2025,243 +2128,427 @@
       b.x.stroke();
       b.x.restore();
     };
-    const logo = (T3, cx, cy, size) => {
-      drawAdvSpider(T3.m.x, cx, cy, size, s.logo);
-      T3.b.x.save();
-      T3.b.x.filter = "blur(2px)";
-      drawAdvSpider(T3.b.x, cx, cy, size, "#b8b8b8");
-      T3.b.x.filter = "none";
-      drawAdvSpider(T3.b.x, cx, cy, size * 0.985, "#c4c4c4");
-      T3.b.x.restore();
-      drawAdvSpider(T3.r.x, cx, cy, size, "#b4b4b4");
+    const logo = (T2, cx, cy, size) => {
+      if (s.logoS === "none") return;
+      const dr = (x, col2) => s.logoS === "small" ? drawSpider(x, cx, cy, size * 0.5, col2, "small", 0.85) : drawAdvSpider(x, cx, cy, size, col2);
+      dr(T2.m.x, s.logo);
+      T2.b.x.save();
+      T2.b.x.filter = "blur(2px)";
+      dr(T2.b.x, "#b8b8b8");
+      T2.b.x.filter = "none";
+      dr(T2.b.x, "#c4c4c4");
+      T2.b.x.restore();
+      dr(T2.r.x, "#b4b4b4");
+      if (T2.e && (s.glow || s.glowLogo)) dr(T2.e.x, s.logo);
+      if (T2.t && (s.metal === true || s.metal === "logo")) dr(T2.t.x, "#fff");
     };
-    const T2 = mk2(512, 512), CY = TY(1.33);
-    fabric(T2);
-    web(T2, (x, col2, lw) => {
+    const band2 = (T2, x0, y0, w, h, col2, mat) => {
+      T2.m.x.fillStyle = col2;
+      T2.m.x.fillRect(x0, y0, w, h);
+      T2.b.x.save();
+      T2.b.x.filter = "blur(1px)";
+      T2.b.x.fillStyle = "#a4a4a4";
+      T2.b.x.fillRect(x0, y0 + 1, w, h - 2);
+      T2.b.x.restore();
+      T2.m.x.fillStyle = "rgba(0,0,0,.4)";
+      T2.m.x.fillRect(x0, y0, w, 1.2);
+      T2.m.x.fillRect(x0, y0 + h - 1.2, w, 1.2);
+      T2.r.x.fillStyle = mat ? "#6a6a6a" : "#cfcfcf";
+      T2.r.x.fillRect(x0, y0, w, h);
+      if (T2.t) {
+        T2.t.x.fillStyle = mat ? "#fff" : s.metal === "all" ? "#fff" : "#000";
+        T2.t.x.fillRect(x0, y0, w, h);
+      }
+    };
+    const dirt = (T2, cx, cy, rx, ry, a) => {
+      const x = T2.m.x;
       x.save();
+      x.translate(cx, cy);
+      x.scale(1, ry / rx);
+      const g = x.createRadialGradient(0, 0, 0, 0, 0, rx);
+      g.addColorStop(0, `rgba(36,26,18,${a})`);
+      g.addColorStop(1, "rgba(36,26,18,0)");
+      x.fillStyle = g;
       x.beginPath();
-      x.rect(128, 0, 256, 512);
-      x.clip();
-      radialWeb(x, 256, CY, col2, lw);
+      x.arc(0, 0, rx, 0, TAU2);
+      x.fill();
       x.restore();
-      for (const bx of [0, 512]) {
+      const y = T2.r.x;
+      y.save();
+      y.translate(cx, cy);
+      y.scale(1, ry / rx);
+      y.fillStyle = "rgba(255,255,255,.5)";
+      y.beginPath();
+      y.arc(0, 0, rx * 0.8, 0, TAU2);
+      y.fill();
+      y.restore();
+    };
+    const scuffs = (T2, x0, y0, w, h, n) => {
+      for (let i = 0; i < n; i++) {
+        const px = x0 + R3() * w, py = y0 + R3() * h, l = 6 + R3() * 16, a = -0.9 + R3() * 0.5;
+        T2.m.x.strokeStyle = `rgba(${R3() < 0.5 ? "255,255,255" : "0,0,0"},.13)`;
+        T2.m.x.lineWidth = 0.9;
+        T2.m.x.beginPath();
+        T2.m.x.moveTo(px, py);
+        T2.m.x.lineTo(px + Math.cos(a) * l, py + Math.sin(a) * l);
+        T2.m.x.stroke();
+      }
+    };
+    const tear = (T2, cx, cy, r, thr) => {
+      const x = T2.wr.getContext("2d"), n = 9;
+      const poly2 = (k, rgb2) => {
+        x.fillStyle = rgb2;
+        x.beginPath();
+        for (let i = 0; i < n; i++) {
+          const a = i / n * TAU2, rr5 = r * k * (0.55 + R3() * 0.7);
+          x.lineTo(cx + Math.cos(a) * rr5 * 1.5, cy + Math.sin(a) * rr5 * 0.8);
+        }
+        x.closePath();
+        x.fill();
+      };
+      poly2(1.35, `rgb(0,${Math.min(254, (thr + 0.1) * 255) | 0},0)`);
+      poly2(1, `rgb(255,${thr * 255 | 0},0)`);
+    };
+    const scratches = (T2, n, x0 = 0, y0 = 0, w = T2.w, h = T2.h) => {
+      const x = T2.wr.getContext("2d");
+      x.lineCap = "round";
+      for (let i = 0; i < n; i++) {
+        const px = x0 + R3() * w, py = y0 + R3() * h, l = 10 + R3() * 40, a = -1.1 + R3() * 0.6, thr = 0.1 + R3() * 0.85;
+        x.strokeStyle = `rgb(0,${thr * 255 | 0},0)`;
+        x.lineWidth = 1 + R3() * 0.8;
+        x.beginPath();
+        x.moveTo(px, py);
+        x.lineTo(px + Math.cos(a) * l, py + Math.sin(a) * l);
+        x.stroke();
+      }
+    };
+    const part = (name, fn) => () => {
+      R3 = rngFor(s.id + name);
+      return fn();
+    };
+    const wrect = (ys, kinds, w) => {
+      const out = [];
+      for (let i = 0; i < ys.length - 1; i++) if (advL || s.webAll || kinds[i] === "p") out.push([0, ys[i], w, ys[i + 1] - ys[i]]);
+      return out;
+    };
+    const buildT = part("T", () => {
+      const T2 = mk2(512, 512, true), CY = TY(1.33);
+      fabric(T2);
+      const tY = [0, TY(1.555), TY(1.18), TY(0.98), 512];
+      const tKinds = [P2.head, s.chestSec ? "s" : P2.chest || "p", P2.abd, P2.pelvis].map((k) => k || "p");
+      if (!advL) {
+        for (let i = 0; i < 4; i++) if (tKinds[i] !== "p") fill(T2, 0, tY[i], 512, tY[i + 1] - tY[i], tKinds[i]);
+      }
+      web(T2, (x, col2, lw) => {
         x.save();
         x.beginPath();
-        x.rect(bx - 128, 0, 256, 512);
+        x.rect(128, 0, 256, 512);
         x.clip();
-        radialWeb(x, bx, CY, col2, lw);
+        radialWeb(x, 256, CY, col2, lw);
         x.restore();
+        for (const bx of [0, 512]) {
+          x.save();
+          x.beginPath();
+          x.rect(bx - 128, 0, 256, 512);
+          x.clip();
+          radialWeb(x, bx, CY, col2, lw);
+          x.restore();
+        }
+      }, advL ? null : wrect(tY, tKinds, 512));
+      if (advL || s.sides || s.panels) for (const cx of [128, 384]) {
+        const f = cx < 256 ? 1 : -1;
+        const Pp = [
+          [14, 1.43],
+          [56, 1.31],
+          [76, 1.2],
+          [84, 1.08],
+          [87, 0.99],
+          [92, 0.92],
+          [102, 0.86],
+          [112, 0.79],
+          [40, 0.77],
+          [-60, 0.77],
+          [-140, 0.77],
+          [-140, 0.96],
+          [-90, 0.99],
+          [-84, 1.09],
+          [-70, 1.21],
+          [-42, 1.32],
+          [-12, 1.43]
+        ].map(([dx, y]) => [cx + f * dx, TY(y)]);
+        panel2(T2, (x) => smoothPath(x, Pp));
       }
+      if (s.stripe) for (const cx of [128, 384]) {
+        const col2 = s.stripe;
+        T2.m.x.fillStyle = col2;
+        T2.m.x.fillRect(cx - 4, TY(1.3), 8, 512 - TY(1.3));
+        T2.b.x.fillStyle = "#9a9a9a";
+        T2.b.x.fillRect(cx - 3, TY(1.3), 6, 512 - TY(1.3));
+        if (T2.t && s.metal) {
+          T2.t.x.fillStyle = "#fff";
+          T2.t.x.fillRect(cx - 4, TY(1.3), 8, 512 - TY(1.3));
+        }
+        if (T2.e && s.glowLogo) {
+          T2.e.x.fillStyle = col2;
+          T2.e.x.fillRect(cx - 3, TY(1.3), 6, 512 - TY(1.3));
+        }
+      }
+      if (s.hoodie) {
+        T2.m.x.fillStyle = "rgba(210,214,222,.55)";
+        T2.m.x.fillRect(255, TY(1.5), 2, TY(0.9) - TY(1.5));
+        T2.b.x.fillStyle = "#b0b0b0";
+        T2.b.x.fillRect(254, TY(1.5), 4, TY(0.9) - TY(1.5));
+        T2.m.x.strokeStyle = "rgba(0,0,0,.35)";
+        T2.m.x.lineWidth = 1.4;
+        T2.m.x.beginPath();
+        T2.m.x.moveTo(205, TY(1.1));
+        T2.m.x.lineTo(222, TY(0.99));
+        T2.m.x.moveTo(307, TY(1.1));
+        T2.m.x.lineTo(290, TY(0.99));
+        T2.m.x.stroke();
+      }
+      logo(T2, 256, CY, 176);
+      for (const bx of [0, 512]) logo(T2, bx, TY(1.3), 182);
+      if (s.belt) {
+        band2(T2, 0, TY(0.985) - 8, 512, 16, s.belt, s.metal === true);
+        T2.m.x.fillStyle = s.buckle || "#c8c8c8";
+        T2.m.x.fillRect(244, TY(0.985) - 8, 24, 16);
+        T2.m.x.fillStyle = "rgba(0,0,0,.55)";
+        T2.m.x.fillRect(249, TY(0.985) - 4, 14, 8);
+        T2.b.x.fillStyle = "#d0d0d0";
+        T2.b.x.fillRect(244, TY(0.985) - 8, 24, 16);
+        T2.r.x.fillStyle = "#505050";
+        T2.r.x.fillRect(244, TY(0.985) - 8, 24, 16);
+        if (T2.t) {
+          T2.t.x.fillStyle = "#fff";
+          T2.t.x.fillRect(244, TY(0.985) - 8, 24, 16);
+        }
+        if (s.pouch) for (const px of [196, 296]) {
+          band2(T2, px, TY(0.985) + 2, 20, 26, s.belt, false);
+          T2.m.x.fillStyle = "rgba(255,255,255,.12)";
+          T2.m.x.fillRect(px, TY(0.985) + 2, 20, 4);
+        }
+      } else {
+        T2.m.x.fillStyle = "rgba(0,0,0,.25)";
+        T2.m.x.fillRect(0, TY(0.985) - 2, 512, 4);
+      }
+      dirt(T2, 256, TY(0.82), 150, 28, 0.2);
+      scuffs(T2, 150, TY(1.45), 212, TY(0.9) - TY(1.45), 26);
+      noise(T2.m.x, 512, 512, 2500, 0.025);
+      for (const [cx, cy, r, th] of [[310, TY(1.2), 20, 0.3], [212, TY(1.07), 17, 0.5], [134, TY(1.3), 14, 0.45], [388, TY(1.18), 15, 0.7], [20, TY(1.25), 18, 0.6], [490, TY(1.36), 14, 0.82], [262, TY(1.02), 12, 0.9], [176, TY(1.38), 12, 0.76]]) tear(T2, cx, cy, r, th);
+      scratches(T2, 46, 110, TY(1.5), 300, TY(0.85) - TY(1.5));
+      return T2;
     });
-    for (const cx of [128, 384]) {
-      const f = cx < 256 ? 1 : -1;
-      const P2 = [
-        [14, 1.43],
-        [56, 1.31],
-        [76, 1.2],
-        [84, 1.08],
-        [87, 0.99],
-        [92, 0.92],
-        [102, 0.86],
-        [112, 0.79],
-        [40, 0.77],
-        [-60, 0.77],
-        [-140, 0.77],
-        [-140, 0.96],
-        [-90, 0.99],
-        [-84, 1.09],
-        [-70, 1.21],
-        [-42, 1.32],
-        [-12, 1.43]
-      ].map(([dx, y]) => [cx + f * dx, TY(y)]);
-      panel2(T2, (x) => smoothPath(x, P2));
-    }
-    logo(T2, 256, CY, 176);
-    for (const bx of [0, 512]) logo(T2, bx, TY(1.3), 182);
-    noise(T2.m.x, 512, 512, 2500, 0.025);
-    const A2 = mk2(256, 512);
-    fabric(A2, 4.5);
-    web(A2, (x, col2, lw) => webLines(x, 0, 0, 256, 512, col2, lw, 32, 30));
-    const armIn = (x) => smoothPath(x, [[148, AY(0.1)], [236, AY(0.1)], [228, AY(-0.27)], [214, AY(-0.47)], [192, AY(-0.53)], [170, AY(-0.47)], [156, AY(-0.27)]]);
-    panel2(A2, armIn);
-    A2.m.x.fillStyle = "rgba(0,0,0,.18)";
-    A2.m.x.fillRect(0, AY(-0.5) - 1, 256, 2);
-    noise(A2.m.x, 256, 512, 1200, 0.025);
-    const G2 = mk2(256, 512);
-    fabric(G2, 5);
-    web(G2, (x, col2, lw) => webLines(x, 0, 0, 256, 512, col2, lw, 32, 27));
-    const legBack = (o) => (x) => smoothPath(x, [
-      [200 + o, LY(0.14)],
-      [362 + o, LY(0.14)],
-      [362 + o, LY(-0.2)],
-      [366 + o, LY(-0.39)],
-      [330 + o, LY(-0.44)],
-      [290 + o, LY(-0.47)],
-      [270 + o, LY(-0.56)],
-      [262 + o, LY(-0.7)],
-      [256 + o, LY(-0.8)],
-      [250 + o, LY(-0.7)],
-      [242 + o, LY(-0.56)],
-      [222 + o, LY(-0.46)],
-      [204 + o, LY(-0.4)],
-      [196 + o, LY(-0.2)]
-    ]);
-    panel2(G2, legBack(0));
-    panel2(G2, legBack(-256));
-    noise(G2.m.x, 256, 512, 1200, 0.025);
-    const Hd = mk2(512, 256);
-    fabric(Hd, 4);
-    web(Hd, (x, col2, lw) => headWeb(x, 512, 256, col2, lw * 0.9));
-    const tile = () => {
-      const t = mk2(128, 128);
-      fabric(t, 4);
-      web(t, (x, col2, lw) => webLines(x, 0, 0, 128, 128, col2, lw));
-      return t;
-    };
-    return { T: T2, A: A2, G: G2, Hd, hand: tile(), foot: tile() };
-  }
-  function hexDots2(x, x0, y0, w, h, col2, st) {
-    x.fillStyle = col2;
-    const d = st * 0.5;
-    for (let y = y0, k = 0; y < y0 + h; y += st, k++) for (let a = x0 + k % 2 * st / 2; a < x0 + w; a += st) x.fillRect(a, y, d, d);
-  }
-  function suitCanvases(s) {
-    if (s._cv) return s._cv;
-    if (s.layout === "adv") return s._cv = advCanvases(s);
-    const key2 = (k) => k || "p", colOf = (k) => k === "p" ? s.prim : k === "s" ? s.sec : s.acc || "#222";
-    const webOn = (k) => k === "p" && !!s.web;
-    const mk2 = (w, h) => {
-      const m = C2(w, h), b = C2(w, h), e = s.glow ? C2(w, h) : null;
-      b.x.fillStyle = "#808080";
-      b.x.fillRect(0, 0, w, h);
-      if (e) {
-        e.x.fillStyle = "#000";
-        e.x.fillRect(0, 0, w, h);
+    const buildA = part("A", () => {
+      const A2 = mk2(256, 512, true);
+      fabric(A2, 4.5);
+      const aY = [0, AY(-0.28), 512], aK = [P2.uarm || "p", P2.farm || "p"];
+      if (!advL) {
+        for (let i = 0; i < 2; i++) if (aK[i] !== "p") fill(A2, 0, aY[i], 256, aY[i + 1] - aY[i], aK[i]);
       }
-      return { m, b, e };
-    };
-    const region = (T3, y0, y1, k, x0 = 0, w) => {
-      w = w != null ? w : T3.m.w;
-      k = key2(k);
-      T3.m.x.fillStyle = colOf(k);
-      T3.m.x.fillRect(x0, y0, w, y1 - y0);
-      if (webOn(k)) {
-        webLines(T3.m.x, x0, y0, w, y1 - y0, s.web, 2.2);
-        T3.b.x.save();
-        T3.b.x.filter = "blur(1.2px)";
-        webLines(T3.b.x, x0, y0, w, y1 - y0, "#cfcfcf", 3.6);
-        T3.b.x.restore();
-        if (s.glow) webLines(T3.e.x, x0, y0, w, y1 - y0, s.web, 2.4);
-      } else hexDots(T3.b.x, x0, y0, w, y1 - y0, "#949494");
-    };
-    const logo = (T3, cx, cy, size, sxk) => {
-      if (s.logoS === "none") return;
-      drawSpider(T3.m.x, cx, cy, size, s.logo, s.logoS, sxk);
-      T3.b.x.save();
-      T3.b.x.filter = "blur(2px)";
-      drawSpider(T3.b.x, cx, cy, size, "#c8c8c8", s.logoS, sxk);
-      T3.b.x.restore();
-      if (s.glow) drawSpider(T3.e.x, cx, cy, size, s.logo, s.logoS, sxk);
-    };
-    const T2 = mk2(512, 512);
-    region(T2, 0, TY(1.555), s.parts.head);
-    region(T2, TY(1.555), TY(1.18), s.chestSec ? "s" : "p");
-    region(T2, TY(1.18), TY(0.98), s.parts.abd);
-    region(T2, TY(0.98), 512, s.parts.pelvis);
-    if (s.sides) for (const cx of [128, 384]) {
-      T2.m.x.fillStyle = s.sec;
-      T2.m.x.beginPath();
-      T2.m.x.moveTo(cx - 12, TY(1.44));
-      T2.m.x.lineTo(cx + 12, TY(1.44));
-      T2.m.x.lineTo(cx + 46, TY(0.99));
-      T2.m.x.lineTo(cx - 46, TY(0.99));
-      T2.m.x.fill();
-    }
-    if (s.stripe) for (const cx of [128, 384]) {
-      T2.m.x.fillStyle = s.stripe;
-      T2.m.x.fillRect(cx - 4, TY(0.98), 8, 512 - TY(0.98));
-    }
-    T2.m.x.fillStyle = "rgba(0,0,0,.25)";
-    T2.m.x.fillRect(0, TY(0.985) - 2, 512, 4);
-    const big = s.logoS === "big";
-    logo(T2, 256, TY(big ? 1.34 : 1.36), big ? 185 : 80, 0.85);
-    for (const bx of [0, 512]) logo(T2, bx, TY(1.33), big ? 175 : 110, 0.85);
-    noise(T2.m.x, 512, 512, 3e3, 0.035);
-    const A2 = mk2(256, 512);
-    region(A2, 0, AY(-0.28), s.parts.uarm);
-    region(A2, AY(-0.28), 512, s.parts.farm);
-    A2.m.x.fillStyle = "rgba(0,0,0,.25)";
-    A2.m.x.fillRect(0, AY(-0.5) - 1, 256, 3);
-    noise(A2.m.x, 256, 512, 1500, 0.035);
-    const G2 = mk2(256, 512);
-    region(G2, 0, LY(-0.47), s.parts.thigh);
-    region(G2, LY(-0.47), 512, s.parts.shin);
-    if (s.stripe) {
-      G2.m.x.fillStyle = s.stripe;
-      G2.m.x.fillRect(56, 0, 16, 512);
-    }
-    noise(G2.m.x, 256, 512, 1500, 0.035);
-    const Hd = mk2(512, 256), hk2 = key2(s.parts.head);
-    Hd.m.x.fillStyle = colOf(hk2);
-    Hd.m.x.fillRect(0, 0, 512, 256);
-    if (webOn(hk2)) {
-      headWeb(Hd.m.x, 512, 256, s.web, 2.2);
-      Hd.b.x.save();
-      Hd.b.x.filter = "blur(1.2px)";
-      headWeb(Hd.b.x, 512, 256, "#cfcfcf", 3.4);
-      Hd.b.x.restore();
-      if (s.glow) headWeb(Hd.e.x, 512, 256, s.web, 2.4);
-    } else hexDots(Hd.b.x, 0, 0, 512, 256, "#949494");
-    const tile = (k) => {
-      const t = mk2(128, 128);
-      region(t, 0, 128, k);
+      web(A2, (x, col2, lw) => webLines(x, 0, 0, 256, 512, col2, lw, 32, 30), advL ? null : wrect(aY, aK, 256));
+      if (advL || s.panels) panel2(A2, (x) => smoothPath(x, [[148, AY(0.1)], [236, AY(0.1)], [228, AY(-0.27)], [214, AY(-0.47)], [192, AY(-0.53)], [170, AY(-0.47)], [156, AY(-0.27)]]));
+      if (s.cuff) band2(A2, 0, AY(-0.47), 256, 22, s.cuff, !!s.metal && s.cuff !== s.prim);
+      else {
+        A2.m.x.fillStyle = "rgba(0,0,0,.18)";
+        A2.m.x.fillRect(0, AY(-0.5) - 1, 256, 2);
+      }
+      dirt(A2, 3, AY(-0.28), 30, 38, 0.3);
+      dirt(A2, 253, AY(-0.28), 30, 38, 0.3);
+      dirt(A2, 128, AY(-0.55), 70, 22, 0.15);
+      scuffs(A2, 0, AY(-0.2), 256, 120, 14);
+      noise(A2.m.x, 256, 512, 1200, 0.025);
+      for (const [cx, cy, r, th] of [[4, AY(-0.28), 15, 0.3], [252, AY(-0.28), 14, 0.5], [66, AY(-0.38), 12, 0.64], [128, AY(-0.1), 13, 0.8], [200, AY(-0.2), 10, 0.9]]) tear(A2, cx, cy, r, th);
+      scratches(A2, 20);
+      return A2;
+    });
+    const buildG = part("G", () => {
+      const G2 = mk2(256, 512, true);
+      fabric(G2, 5);
+      const gY = [0, LY(-0.47), 512], gK = [P2.thigh || "p", P2.shin || "p"];
+      if (!advL) {
+        for (let i = 0; i < 2; i++) if (gK[i] !== "p") fill(G2, 0, gY[i], 256, gY[i + 1] - gY[i], gK[i]);
+      }
+      web(G2, (x, col2, lw) => webLines(x, 0, 0, 256, 512, col2, lw, 32, 27), advL ? null : wrect(gY, gK, 256));
+      const legBack = (o) => (x) => smoothPath(x, [
+        [200 + o, LY(0.14)],
+        [362 + o, LY(0.14)],
+        [362 + o, LY(-0.2)],
+        [366 + o, LY(-0.39)],
+        [330 + o, LY(-0.44)],
+        [290 + o, LY(-0.47)],
+        [270 + o, LY(-0.56)],
+        [262 + o, LY(-0.7)],
+        [256 + o, LY(-0.8)],
+        [250 + o, LY(-0.7)],
+        [242 + o, LY(-0.56)],
+        [222 + o, LY(-0.46)],
+        [204 + o, LY(-0.4)],
+        [196 + o, LY(-0.2)]
+      ]);
+      if (advL || s.panels) {
+        panel2(G2, legBack(0));
+        panel2(G2, legBack(-256));
+      }
+      if (s.stripe) {
+        G2.m.x.fillStyle = s.stripe;
+        G2.m.x.fillRect(58, 0, 12, 512);
+        G2.b.x.fillStyle = "#9a9a9a";
+        G2.b.x.fillRect(59, 0, 10, 512);
+        if (G2.t && s.metal) {
+          G2.t.x.fillStyle = "#fff";
+          G2.t.x.fillRect(58, 0, 12, 512);
+        }
+        if (G2.e && s.glowLogo) {
+          G2.e.x.fillStyle = s.stripe;
+          G2.e.x.fillRect(59, 0, 10, 512);
+        }
+      }
+      if (s.boot) {
+        fill(G2, 0, LY(-0.7), 256, 512 - LY(-0.7), "p");
+        G2.m.x.fillStyle = s.boot;
+        G2.m.x.fillRect(0, LY(-0.7), 256, 512 - LY(-0.7));
+        band2(G2, 0, LY(-0.7) - 3, 256, 12, s.bootCuff || "#1a1a1a", false);
+        G2.b.x.fillStyle = "#808080";
+        G2.b.x.fillRect(0, LY(-0.7) + 9, 256, 512 - LY(-0.7) - 9);
+        if (s.web && (s.webAll || advL)) web(G2, (x, col2, lw) => webLines(x, 0, 0, 256, 512, col2, lw, 32, 27), [[0, LY(-0.7) + 9, 256, 512]]);
+      }
+      dirt(G2, 128, LY(-0.44), 44, 36, 0.32);
+      dirt(G2, 128, LY(-0.83), 128, 26, 0.3);
+      dirt(G2, 128, LY(0.03), 90, 20, 0.12);
+      scuffs(G2, 40, LY(-0.55), 176, 100, 16);
+      noise(G2.m.x, 256, 512, 1200, 0.025);
+      for (const [cx, cy, r, th] of [[128, LY(-0.44), 16, 0.3], [70, LY(-0.2), 13, 0.55], [170, LY(-0.62), 11, 0.74], [8, LY(-0.3), 12, 0.84], [212, LY(-0.1), 10, 0.92]]) tear(G2, cx, cy, r, th);
+      scratches(G2, 22);
+      return G2;
+    });
+    const buildH = part("H", () => {
+      const Hd = mk2(512, 256, true);
+      const hk2 = (advL ? "p" : P2.head) || "p";
+      if (hk2 !== "p") fill(Hd, 0, 0, 512, 256, hk2, 4);
+      fabric(Hd, 4);
+      if (advL || hk2 === "p" || s.webAll) web(Hd, (x, col2, lw) => headWeb(x, 512, 256, col2, lw * 0.9));
+      if (s.goggles) {
+        for (const [x0, w] of [[0, 190], [322, 190]]) {
+          band2(Hd, x0, 104, w, 26, "#1d1d20", false);
+          Hd.m.x.fillStyle = "rgba(255,255,255,.1)";
+          for (let a = x0 + 6; a < x0 + w; a += 8) Hd.m.x.fillRect(a, 114, 3, 6);
+        }
+      }
+      scratches(Hd, 8);
+      tear(Hd, 330, 172, 9, 0.86);
+      return Hd;
+    });
+    const tile = (kind, bootCol) => {
+      const t = mk2(128, 128, false);
+      if (!advL) fill(t, 0, 0, 128, 128, kind, 4);
+      if (bootCol) {
+        t.m.x.fillStyle = bootCol;
+        t.m.x.fillRect(0, 0, 128, 128);
+      }
+      fabric(t, 4);
+      if (advL || kind === "p" || s.webAll) web(t, (x, col2, lw) => webLines(x, 0, 0, 128, 128, col2, lw), bootCol && !s.webAll && !advL ? [] : null);
+      scuffs(t, 0, 0, 128, 128, 8);
       return t;
     };
-    return s._cv = { T: T2, A: A2, G: G2, Hd, hand: tile(s.parts.hand), foot: tile(s.parts.foot) };
+    const handKind = P2.hand || "p", footKind = P2.foot || "p";
+    const L3 = {}, lazy = (k, fn) => Object.defineProperty(L3, k, { configurable: true, enumerable: true, get() {
+      const v = fn();
+      Object.defineProperty(L3, k, { value: v, enumerable: true });
+      return v;
+    } });
+    lazy("T", buildT);
+    lazy("A", buildA);
+    lazy("G", buildG);
+    lazy("Hd", buildH);
+    lazy("hand", part("hand", () => tile(handKind, s.glove)));
+    lazy("foot", part("foot", () => tile(footKind, s.boot)));
+    return L3;
   }
-  function lensTex() {
-    if (_lensTex) return _lensTex;
-    const c = C(256, 256), x = c.x, g = x.createRadialGradient(128, 128, 10, 128, 128, 128);
-    g.addColorStop(0, "#ffffff");
-    g.addColorStop(0.55, "#f4f4f4");
-    g.addColorStop(1, "#b9bcc0");
+  function lensTexFor(s) {
+    const key2 = s.eye + (s.goggles ? "g" : "");
+    if (_lensCache[key2]) return _lensCache[key2];
+    const c = C(256, 256), x = c.x, col2 = new THREE.Color(s.eye);
+    const rgb2 = (k, add = 0) => `rgb(${Math.min(255, col2.r * 255 * k + add) | 0},${Math.min(255, col2.g * 255 * k + add) | 0},${Math.min(255, col2.b * 255 * k + add) | 0})`;
+    const g = x.createRadialGradient(118, 118, 8, 128, 128, 128);
+    g.addColorStop(0, rgb2(1, 6));
+    g.addColorStop(0.6, rgb2(0.93));
+    g.addColorStop(1, rgb2(0.55));
     x.fillStyle = g;
     x.fillRect(0, 0, 256, 256);
-    x.strokeStyle = "rgba(120,125,130,.28)";
+    x.strokeStyle = "rgba(80,86,92,.3)";
     x.lineWidth = 1;
     for (let y = 0, k = 0; y < 256; y += 7, k++) for (let a = k % 2 * 6; a < 256; a += 12) {
       x.beginPath();
       x.arc(a, y, 3.6, 0, TAU2);
       x.stroke();
     }
-    _lensTex = tex(c);
-    return _lensTex;
+    x.save();
+    x.translate(110, 96);
+    x.rotate(-0.5);
+    const hg = x.createRadialGradient(0, 0, 2, 0, 0, 64);
+    hg.addColorStop(0, "rgba(255,255,255,.75)");
+    hg.addColorStop(1, "rgba(255,255,255,0)");
+    x.scale(1.6, 0.55);
+    x.fillStyle = hg;
+    x.beginPath();
+    x.arc(0, 0, 64, 0, TAU2);
+    x.fill();
+    x.restore();
+    x.fillStyle = "rgba(255,255,255,.9)";
+    x.beginPath();
+    x.arc(86, 82, 4.5, 0, TAU2);
+    x.fill();
+    if (s.goggles) {
+      x.strokeStyle = "rgba(255,255,255,.25)";
+      x.lineWidth = 6;
+      x.beginPath();
+      x.arc(128, 128, 78, 0.2, 1.9);
+      x.stroke();
+    }
+    return _lensCache[key2] = tex(c);
   }
   function suitMats(s) {
+    var _a5;
     if (s._mats) return s._mats;
-    const cvs2 = suitCanvases(s), adv = s.layout === "adv";
-    const rough = adv ? 0.45 : s.gloss ? 0.32 : 0.55, metal = s.metal ? 0.45 : 0.05, env = adv ? 1.5 : s.metal ? 1.6 : 1.2;
+    const cvs2 = suitCanvases(s);
+    const rough = (_a5 = s.rough) != null ? _a5 : s.gloss ? 0.3 : s.metal === "all" ? 0.3 : 0.45, env = s.metal === "all" ? 2 : s.metal ? 1.7 : s.gloss ? 1.6 : 1.5;
     const lin7 = (t) => {
       t.encoding = THREE.LinearEncoding;
       return t;
     };
     const mat = (t, rep, ns = 1) => {
-      const m = new THREE.MeshStandardMaterial({ map: tex(t.m, rep), normalMap: lin7(tex(normalFromHeight(t.b.c, adv ? 5 : 4), rep)), roughness: rough, metalness: metal });
+      const m = new THREE.MeshStandardMaterial({ map: tex(t.m, rep), normalMap: lin7(tex(normalFromHeight(t.b.c, 5), rep)), roughness: rough, metalness: t.t ? 1 : 0.04 });
       m.normalScale.set(ns, ns);
-      if (t.r) m.roughnessMap = lin7(tex(t.r, rep));
-      if (s.glow && t.e) {
+      m.roughnessMap = lin7(tex(t.r, rep));
+      if (t.t) m.metalnessMap = lin7(tex(t.t, rep));
+      if (t.e) {
         m.emissive = new THREE.Color(16777215);
         m.emissiveMap = tex(t.e, rep);
       }
       m.envMapIntensity = env;
       m.userData.env = env;
+      if (t.wr) {
+        const wm = lin7(new THREE.CanvasTexture(t.wr));
+        wm.anisotropy = 4;
+        m.onBeforeCompile = (sh2) => {
+          sh2.uniforms.uWear = suitWear;
+          sh2.uniforms.wearMap = { value: wm };
+          sh2.fragmentShader = sh2.fragmentShader.replace("#include <common>", "#include <common>\nuniform float uWear;\nuniform sampler2D wearMap;").replace("#include <map_fragment>", `#include <map_fragment>
+          { vec2 wv = texture2D(wearMap, vUv).rg; float wk = smoothstep(wv.g, wv.g + 0.05, uWear) * (1.0 - step(0.992, wv.g));
+            vec3 under = vec3(0.05, 0.034, 0.03); diffuseColor.rgb = mix(diffuseColor.rgb, mix(diffuseColor.rgb * 1.7 + 0.1, under, wv.r), wk); }`);
+        };
+        m.customProgramCacheKey = () => "suitwear1";
+      }
       return m;
     };
     const hand = mat(cvs2.hand, true), foot2 = mat(cvs2.foot, true);
-    for (const [m, r] of [[hand, 2], [foot2, 3]]) for (const k of ["map", "normalMap", "roughnessMap", "emissiveMap"]) if (m[k]) m[k].repeat.set(r, 1);
-    const eye = new THREE.MeshStandardMaterial({ color: s.eye, map: lensTex(), emissive: s.eye, emissiveIntensity: 0.25, roughness: 0.18, metalness: 0.05, side: THREE.DoubleSide });
-    eye.envMapIntensity = 1.8;
-    eye.userData.env = 1.8;
+    for (const [m, r] of [[hand, 2], [foot2, 3]]) for (const k of ["map", "normalMap", "roughnessMap", "metalnessMap", "emissiveMap"]) if (m[k]) m[k].repeat.set(r, 1);
+    const lt = lensTexFor(s), gl = !!(s.glow || s.glowLogo);
+    const eye = new THREE.MeshStandardMaterial({ color: 16777215, map: lt, emissive: 16777215, emissiveMap: lt, emissiveIntensity: gl ? 0.7 : 0.22, roughness: 0.1, metalness: 0.05, side: THREE.DoubleSide });
+    eye.envMapIntensity = 2.2;
+    eye.userData.env = 2.2;
+    const sole = new THREE.MeshStandardMaterial({ color: s.sole || "#151515", roughness: 0.82, metalness: 0.02 });
     return s._mats = {
       torso: mat(cvs2.T),
       arm: mat(cvs2.A),
@@ -2270,8 +2557,13 @@
       hand,
       foot: foot2,
       eye,
-      rim: new THREE.MeshStandardMaterial({ color: s.rim, roughness: 0.38, side: THREE.DoubleSide })
+      sole,
+      rim: new THREE.MeshStandardMaterial({ color: s.rim, roughness: s.goggles ? 0.3 : 0.38, metalness: s.goggles || s.metal ? 0.7 : 0.05, side: THREE.DoubleSide }),
+      gold: s.legs ? new THREE.MeshStandardMaterial({ color: s.legCol || "#c8921c", roughness: 0.28, metalness: 0.95 }) : null
     };
+  }
+  function suitCanvases(s) {
+    return s._cv || (s._cv = richCanvases(s));
   }
   function suitThumb(s) {
     if (s._thumb) return s._thumb;
@@ -3286,10 +3578,15 @@
       m.frustumCulled = false;
       m.castShadow = true;
       m.receiveShadow = true;
+      m.onBeforeRender = syncWear;
       H3.root.add(m);
       m.updateMatrixWorld(true);
       m.bind(skel);
       return m;
+    };
+    const syncWear = () => {
+      var _a5;
+      suitWear.value = (_a5 = suitWear.force) != null ? _a5 : H3.getWear ? H3.getWear() : 0;
     };
     const tr = smooth(spTorsoRings(), 5);
     skinned(sculpt(tubeData(tr, 56, (r) => (r.y - 0.79) / 0.91, wTorso), tr, 56, torsoSculpt), M.torso);
@@ -3301,6 +3598,7 @@
     skinned(merge([leg, mirror(leg)]), M.leg);
     const head = new THREE.Mesh(toGeo(spHeadData(b)), M.head);
     head.castShadow = true;
+    head.onBeforeRender = syncWear;
     H3.neck.add(head);
     H3.headM = head;
     const HB = { arm: 1.08 };
@@ -3318,6 +3616,10 @@
       const f = new THREE.Mesh(toGeo(shoeData("spider", 1.03)), M.foot);
       f.castShadow = true;
       H3["ft" + L3].add(f);
+      const so = new THREE.Mesh(f.geometry, M.sole);
+      so.scale.set(1.07, 0.2, 1.04);
+      so.position.y = -0.064;
+      H3["ft" + L3].add(so);
     }
     H3.handPose = { L: "open", R: "open" };
     H3.setHands = (l, r) => {
@@ -3329,10 +3631,12 @@
     };
     H3.b = b;
     for (const side of [1, -1]) {
-      const rim = new THREE.Mesh(toGeo(spLensData(b, side, 1.36, 35e-4)), M.rim);
-      const lens = new THREE.Mesh(toGeo(spLensData(b, side, 1.1, 62e-4)), M.eye);
+      const ek = s.eyeK || 1;
+      const rim = new THREE.Mesh(toGeo(spLensData(b, side, 1.36 * ek, 35e-4)), M.rim);
+      const lens = new THREE.Mesh(toGeo(spLensData(b, side, 1.1 * ek, 62e-4)), M.eye);
       H3.neck.add(rim, lens);
     }
+    if (s.legs) addMechLegs(H3, M);
     if (s.layout === "adv") return H3;
     const wm = new THREE.MeshStandardMaterial({ color: 9278361, metalness: 0.8, roughness: 0.32 });
     for (const L3 of ["L", "R"]) {
@@ -3342,6 +3646,36 @@
       H3["el" + L3].add(w);
     }
     return H3;
+  }
+  function addMechLegs(H3, M) {
+    const PATHS = [
+      [[0.06, 0.14, -0.1], [0.15, 0.34, -0.2], [0.3, 0.48, -0.26], [0.5, 0.5, -0.22], [0.66, 0.4, -0.12], [0.72, 0.22, -0.02]],
+      [[0.06, 0.04, -0.11], [0.17, 0.12, -0.28], [0.36, 0.16, -0.43], [0.56, 0.08, -0.44], [0.68, -0.1, -0.36], [0.72, -0.3, -0.27]]
+    ], RAD = [0.044, 0.032, 0.038, 0.027, 0.018, 3e-3], parts = [];
+    for (const P2 of PATHS) {
+      const pts = [], rad = [], N = P2.map((p) => new V3(...p));
+      for (let i = 0; i < N.length - 1; i++) for (let q = 0; q < 7; q++) {
+        const t = q / 7, a = N[Math.max(i - 1, 0)], b2 = N[i], c = N[i + 1], d2 = N[Math.min(i + 2, N.length - 1)];
+        pts.push(new V3(cr(a.x, b2.x, c.x, d2.x, t), cr(a.y, b2.y, c.y, d2.y, t), cr(a.z, b2.z, c.z, d2.z, t)));
+        const joint = 1 + 0.35 * Math.exp(-(((t - 0) / 0.12) ** 2));
+        rad.push((RAD[i] + (RAD[i + 1] - RAD[i]) * t) * joint);
+      }
+      pts.push(N[N.length - 1].clone());
+      rad.push(RAD[RAD.length - 1]);
+      const d = sweepData(pts, rad, 12, new V3(0, 0, 1));
+      parts.push(d, mirror(d));
+    }
+    const legs = new THREE.Mesh(toGeo(merge(parts)), M.gold);
+    legs.castShadow = true;
+    legs.frustumCulled = false;
+    legs.onBeforeRender = () => {
+      const t = performance.now() / 1e3;
+      legs.rotation.x = Math.sin(t * 1.3) * 0.035;
+      legs.rotation.z = Math.sin(t * 0.9 + 1) * 0.02;
+    };
+    legs.scale.setScalar(0.76);
+    H3.chest.add(legs);
+    H3.mechLegs = legs;
   }
   function addHat(H3, o, M) {
     const hs = H3.b.head, hc = new V3(0, HC, 0.012), sh2 = (m) => {
@@ -3840,7 +4174,7 @@
     };
     return m;
   }
-  var TAU2, sm2, cr, BN, MIRB, SHY, HIPY, HC, BODY, KEYS, norm, _T, _N, _B, _P, wTorso, wArm, wLeg, TY, AY, LY, CURL, tex, SC, _lensTex, SKINS, HAIR, TOPS, PANTS, pick, outfitCache, gs, PED_PAL, PF, PR, PAL, AT, atUV, pedAtlasTex, PED_BODIES, geoD, _m4, _o3, PED_LOD, pedU, PED_VH, PED_VB, PED_FM;
+  var TAU2, sm2, cr, BN, MIRB, SHY, HIPY, HC, BODY, KEYS, norm, _T, _N, _B, _P, wTorso, wArm, wLeg, TY, AY, LY, CURL, tex, SC, suitWear, _lensCache, SKINS, HAIR, TOPS, PANTS, pick, outfitCache, gs, PED_PAL, PF, PR, PAL, AT, atUV, pedAtlasTex, PED_BODIES, geoD, _m4, _o3, PED_LOD, pedU, PED_VH, PED_VB, PED_FM;
   var init_model = __esm({
     "js/model.js"() {
       init_util();
@@ -3902,7 +4236,8 @@
       CURL = { open: [0.2, 0.24, 0.28, 0.32], fist: [1, 1, 1, 1], thwip: [0.05, 1, 1, 0.05] };
       tex = (c, rep) => canvasTex(c.c || c, rep);
       SC = 2;
-      _lensTex = null;
+      suitWear = { value: 0, force: null };
+      _lensCache = {};
       SKINS = ["#e6b996", "#c68e6a", "#8d5a3b", "#f1c9a5", "#5e3a24", "#b07a55"];
       HAIR = ["#1b1410", "#3b2414", "#0e0e0e", "#6b4a2a", "#2a2a2a"];
       TOPS = {
@@ -16934,21 +17269,31 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
       ADV = { head: "p", abd: "s", pelvis: "p", uarm: "p", farm: "s", hand: "p", thigh: "s", shin: "s", foot: "p" };
       ALLP = { head: "p", abd: "p", pelvis: "p", uarm: "p", farm: "p", hand: "p", thigh: "p", shin: "p", foot: "p" };
       SUITS = [
-        { id: "adv", name: "ZAAWANSOWANY STR\xD3J", lvl: 1, desc: "Str\xF3j, kt\xF3ry Peter zaprojektowa\u0142 sam. Lekki, wytrzyma\u0142y i z wielkim bia\u0142ym paj\u0105kiem.", prim: "#a8101a", web: "#170204", sec: "#16204a", logo: "#f2f2f0", logoS: "big", eye: "#f7f7f7", rim: "#070707", sides: true, stripe: "#c8141c", layout: "adv", parts: ADV },
-        { id: "classic", name: "KLASYCZNY STR\xD3J", lvl: 1, desc: "Czerwie\u0144 i b\u0142\u0119kit, czarna paj\u0119czyna. Tak to si\u0119 wszystko zacz\u0119\u0142o.", prim: "#d3161e", web: "#1a0000", sec: "#1d3ea8", logo: "#111", logoS: "small", eye: "#f2f2f2", rim: "#111", sides: true, parts: { head: "p", abd: "p", pelvis: "p", uarm: "s", farm: "p", hand: "p", thigh: "s", shin: "s", foot: "p" } },
-        { id: "home", name: "DOMOWY STR\xD3J", lvl: 1, desc: "Bluza, dresy i gogle. Uszyty w pokoju, ale dzia\u0142a.", prim: "#b8262b", web: null, sec: "#2d56a8", acc: "#2a2a2a", logo: "#111", logoS: "small", eye: "#161616", rim: "#555", parts: { head: "p", abd: "p", pelvis: "s", uarm: "p", farm: "p", hand: "p", thigh: "s", shin: "s", foot: "a" } },
-        { id: "black", name: "CZARNY STR\xD3J", lvl: 2, desc: "Czarny jak noc, z ogromnym bia\u0142ym paj\u0105kiem na piersi.", prim: "#111317", web: null, sec: "#111317", logo: "#f2f2f2", logoS: "big", eye: "#f5f5f5", rim: "#000", gloss: true, parts: ALLP },
-        { id: "neg", name: "NEGATYW", lvl: 2, desc: "Odwr\xF3cone kolory \u2014 bia\u0142e t\u0142o i czarna sie\u0107.", prim: "#eeeeee", web: "#111", sec: "#141414", logo: "#111", logoS: "big", eye: "#1a1a1a", rim: "#eee", sides: true, stripe: "#eeeeee", parts: ADV },
-        { id: "miles", name: "STR\xD3J MILESA", lvl: 3, desc: "Czarny str\xF3j z czerwon\u0105 paj\u0119czyn\u0105.", prim: "#121212", web: "#d0141c", sec: "#121212", logo: "#d0141c", logoS: "big", eye: "#f5f5f5", rim: "#000", parts: ALLP },
-        { id: "iron", name: "\u017BELAZNY PAJ\u0104K", lvl: 3, desc: "Czerwie\u0144 i z\u0142oto. Metalowe p\u0142ytki l\u015Bni\u0105 w s\u0142o\u0144cu.", prim: "#b3121a", web: "#4a0004", sec: "#d9ab2e", acc: "#d9ab2e", logo: "#e6b93a", logoS: "big", eye: "#f5f5f5", rim: "#222", sides: true, metal: true, parts: { head: "p", abd: "s", pelvis: "s", uarm: "s", farm: "p", hand: "s", thigh: "s", shin: "p", foot: "s" } },
-        { id: "scarlet", name: "SZKAR\u0141ATNY PAJ\u0104K", lvl: 4, desc: "Czerwony kombinezon i niebieska bluza bez r\u0119kaw\xF3w.", prim: "#b01218", web: "#3d0003", sec: "#233f8f", logo: "#b01218", logoS: "big", eye: "#f0f0f0", rim: "#111", chestSec: true, parts: { head: "p", abd: "s", pelvis: "s", uarm: "p", farm: "p", hand: "p", thigh: "p", shin: "p", foot: "p" } },
-        { id: "2099", name: "SPIDER-MAN 2099", lvl: 4, desc: "Str\xF3j z przysz\u0142o\u015Bci: granat, czer\u0144 i czerwony znak.", prim: "#152461", web: null, sec: "#0a0d1c", logo: "#d4161f", logoS: "big", eye: "#e21b25", rim: "#0a0a0a", sides: true, parts: { head: "p", abd: "s", pelvis: "s", uarm: "p", farm: "s", hand: "s", thigh: "p", shin: "p", foot: "s" } },
-        { id: "noir", name: "NOIR", lvl: 5, desc: "Czarno-bia\u0142y detektyw z lat trzydziestych.", prim: "#1a1a1a", web: null, sec: "#2e2e2e", acc: "#3a3a3a", logo: "#2e2e2e", logoS: "none", eye: "#9aa0a6", rim: "#4a4a4a", parts: { head: "p", abd: "s", pelvis: "s", uarm: "s", farm: "s", hand: "p", thigh: "p", shin: "p", foot: "a" } },
-        { id: "anti", name: "ANTY-VENOM", lvl: 5, desc: "Biel i czer\u0144, czarna g\u0142owa i wielki czarny paj\u0105k.", prim: "#efefef", web: null, sec: "#101010", logo: "#101010", logoS: "big", eye: "#ffffff", rim: "#222", sides: true, parts: { head: "s", abd: "s", pelvis: "s", uarm: "p", farm: "s", hand: "p", thigh: "s", shin: "p", foot: "p" } },
-        { id: "toxic", name: "TOKSYCZNY", lvl: 6, desc: "\u015Awiec\u0105ca na zielono sie\u0107 \u2014 wida\u0107 ci\u0119 w nocy z daleka.", prim: "#0e1210", web: "#39ff6a", glow: true, sec: "#0a0c0b", logo: "#39ff6a", logoS: "big", eye: "#9dffb5", rim: "#000", parts: ALLP },
-        { id: "mk", name: "ZBROJA MK II", lvl: 6, desc: "Ci\u0119\u017Cka zbroja w czerni i \u017C\xF3\u0142ci.", prim: "#1b1b1d", web: "#2d2d30", sec: "#f0c419", logo: "#f0c419", logoS: "big", eye: "#f0c419", rim: "#111", sides: true, metal: true, parts: { head: "p", abd: "s", pelvis: "s", uarm: "s", farm: "p", hand: "p", thigh: "p", shin: "s", foot: "p" } },
-        { id: "stealth", name: "STR\xD3J UKRYCIA", lvl: 7, desc: "Ciemny str\xF3j z b\u0142\u0119kitn\u0105, \u015Bwiec\u0105c\u0105 paj\u0119czyn\u0105.", prim: "#1c2127", web: "#18e0ff", glow: true, sec: "#12161a", logo: "#18e0ff", logoS: "big", eye: "#6ff2ff", rim: "#000", parts: ALLP },
-        { id: "gold", name: "Z\u0141OTY PAJ\u0104K", lvl: 8, desc: "Czyste z\u0142oto. Nagroda dla najlepszych.", prim: "#d4a52a", web: "#5b4108", sec: "#1a1a1a", logo: "#1a1a1a", logoS: "big", eye: "#fff", rim: "#111", metal: true, sides: true, stripe: "#d4a52a", parts: ADV }
+        { id: "adv", name: "ZAAWANSOWANY STR\xD3J", lvl: 1, desc: "Str\xF3j, kt\xF3ry Peter zaprojektowa\u0142 sam. Lekki, wytrzyma\u0142y i z wielkim bia\u0142ym paj\u0105kiem.", prim: "#a8101a", web: "#170204", sec: "#16204a", logo: "#f2f2f0", logoS: "big", eye: "#f7f7f7", rim: "#070707", sides: true, stripe: "#c8141c", layout: "adv", cuff: "#10183a", sole: "#141414", parts: ADV },
+        // klasyk z komiksu: czerwien z czarna siatka na calosci, niebieskie boki i nogi, czerwone buty, duze oczy
+        { id: "classic", name: "KLASYCZNY STR\xD3J", lvl: 1, desc: "Czerwie\u0144 i b\u0142\u0119kit, czarna paj\u0119czyna. Tak to si\u0119 wszystko zacz\u0119\u0142o.", prim: "#d3161e", web: "#150000", webAll: true, sec: "#1f46b5", logo: "#0d0d0d", logoS: "small", eye: "#f4f4f4", eyeK: 1.22, rim: "#111", sides: true, boot: "#c8141c", bootCuff: "#1f46b5", cuff: "#1f46b5", sole: "#2a0a0a", parts: { head: "p", abd: "p", pelvis: "s", uarm: "p", farm: "p", hand: "p", thigh: "s", shin: "s", foot: "p" } },
+        // domowy: szara bluza z czerwonymi rekawami, ciemne rekawiczki i tenisowki, gogle z bursztynowymi szkielkami
+        { id: "home", name: "DOMOWY STR\xD3J", lvl: 1, desc: "Bluza, dresy i gogle. Uszyty w pokoju, ale dzia\u0142a.", prim: "#a8242a", web: "#4a1013", sec: "#6c7076", acc: "#2a2a2e", logo: "#16161a", logoS: "small", eye: "#d9a441", eyeK: 1.12, rim: "#3a3a40", goggles: true, hoodie: true, pin: false, cuff: "#2a2a2e", belt: null, sole: "#e6e6e0", parts: { head: "p", abd: "p", pelvis: "s", uarm: "p", farm: "p", hand: "a", thigh: "s", shin: "s", foot: "a" } },
+        // czarny: gladka czern, biale logo, srebrne wstawki wzdluz bokow i metalowe mankiety
+        { id: "black", name: "CZARNY STR\xD3J", lvl: 2, desc: "Czarny jak noc, z ogromnym bia\u0142ym paj\u0105kiem na piersi.", prim: "#101216", web: "#262a31", sec: "#1b1e24", logo: "#f2f2f2", logoS: "big", eye: "#f5f5f5", rim: "#000", gloss: true, layout: "adv", stripe: "#b9c1cc", metal: "logo", cuff: "#9aa3ae", belt: "#1a1d22", buckle: "#b9c1cc", sole: "#0c0c0e", parts: ALLP },
+        { id: "neg", name: "NEGATYW", lvl: 2, desc: "Odwr\xF3cone kolory \u2014 bia\u0142e t\u0142o i czarna sie\u0107.", prim: "#eeeeee", web: "#111", sec: "#141414", logo: "#111", logoS: "big", eye: "#1a1a1a", rim: "#eee", layout: "adv", sides: true, stripe: "#eeeeee", cuff: "#141414", sole: "#e8e8e8", parts: ADV },
+        { id: "miles", name: "STR\xD3J MILESA", lvl: 3, desc: "Czarny str\xF3j z czerwon\u0105 paj\u0119czyn\u0105.", prim: "#121212", web: "#d0141c", sec: "#19191b", logo: "#d0141c", logoS: "big", eye: "#f5f5f5", rim: "#000", layout: "adv", glowLogo: false, boot: "#cf1620", bootCuff: "#e8e8e8", cuff: "#d0141c", sole: "#ececec", parts: ALLP },
+        // zelazny pajak: czerwien z zlotymi plytkami (metal), zlote logo i cztery mechaniczne nogi na plecach
+        { id: "iron", name: "\u017BELAZNY PAJ\u0104K", lvl: 3, desc: "Czerwie\u0144 i z\u0142oto. Metalowe p\u0142ytki l\u015Bni\u0105 w s\u0142o\u0144cu.", prim: "#b3121a", web: "#4a0004", sec: "#d9ab2e", acc: "#d9ab2e", logo: "#e6b93a", logoS: "big", eye: "#f5f5f5", rim: "#9a7416", sides: true, metal: true, legs: true, cuff: "#d9ab2e", belt: "#d9ab2e", buckle: "#f3d27a", sole: "#3a2a08", parts: { head: "p", abd: "p", pelvis: "s", uarm: "p", farm: "s", hand: "s", thigh: "p", shin: "s", foot: "s" } },
+        // szkarlatny: czerwony kombinezon, granatowa bluza bez rekawow z zamkiem
+        { id: "scarlet", name: "SZKAR\u0141ATNY PAJ\u0104K", lvl: 4, desc: "Czerwony kombinezon i niebieska bluza bez r\u0119kaw\xF3w.", prim: "#b01218", web: "#3d0003", sec: "#233f8f", logo: "#b01218", logoS: "big", eye: "#f0f0f0", rim: "#111", chestSec: true, hoodie: true, sole: "#1a1a1a", cuff: "#233f8f", parts: { head: "p", abd: "s", pelvis: "s", uarm: "p", farm: "p", hand: "p", thigh: "p", shin: "p", foot: "p" } },
+        // 2099: granat i czern, czerwone swiecace paski i znak, czerwone oczy
+        { id: "2099", name: "SPIDER-MAN 2099", lvl: 4, desc: "Str\xF3j z przysz\u0142o\u015Bci: granat, czer\u0144 i czerwony znak.", prim: "#152461", web: "#0d1a52", sec: "#0a0d1c", logo: "#d4161f", logoS: "big", eye: "#e21b25", eyeK: 0.95, rim: "#0a0a0a", sides: true, stripe: "#d4161f", glowLogo: true, metal: "logo", cuff: "#0a0d1c", belt: "#0a0d1c", buckle: "#d4161f", sole: "#0a0a0e", parts: { head: "p", abd: "s", pelvis: "s", uarm: "p", farm: "s", hand: "s", thigh: "p", shin: "p", foot: "s" } },
+        // noir: ciemny garnitur w prazki, skorzany pas
+        { id: "noir", name: "NOIR", lvl: 5, desc: "Czarno-bia\u0142y detektyw z lat trzydziestych.", prim: "#27272a", web: null, sec: "#3a3a3e", acc: "#3a3a3a", logo: "#2e2e2e", logoS: "none", eye: "#9aa0a6", rim: "#4a4a4a", pin: true, belt: "#4a3320", buckle: "#b79b5a", cuff: "#2e2e2e", sole: "#24160c", parts: { head: "p", abd: "s", pelvis: "s", uarm: "s", farm: "s", hand: "p", thigh: "p", shin: "p", foot: "a" } },
+        { id: "anti", name: "ANTY-VENOM", lvl: 5, desc: "Biel i czer\u0144, czarna g\u0142owa i wielki czarny paj\u0105k.", prim: "#efefef", web: "#a9aaae", sec: "#101010", logo: "#101010", logoS: "big", eye: "#ffffff", rim: "#222", sides: true, cuff: "#101010", sole: "#101010", parts: { head: "s", abd: "s", pelvis: "s", uarm: "p", farm: "s", hand: "p", thigh: "s", shin: "p", foot: "p" } },
+        // toksyczny: czarny z zielona swiecaca siecia, ciemne panele
+        { id: "toxic", name: "TOKSYCZNY", lvl: 6, desc: "\u015Awiec\u0105ca na zielono sie\u0107 \u2014 wida\u0107 ci\u0119 w nocy z daleka.", prim: "#0e1210", web: "#39ff6a", glow: true, sec: "#070908", logo: "#39ff6a", logoS: "big", eye: "#9dffb5", rim: "#000", layout: "adv", cuff: "#0b2a14", sole: "#070908", parts: ALLP },
+        // zbroja MK II: czern i zolty metal, plytki, pas z klamra
+        { id: "mk", name: "ZBROJA MK II", lvl: 6, desc: "Ci\u0119\u017Cka zbroja w czerni i \u017C\xF3\u0142ci.", prim: "#1b1b1d", web: "#2d2d30", sec: "#f0c419", logo: "#f0c419", logoS: "big", eye: "#f0c419", rim: "#111", sides: true, metal: true, glowLogo: true, cuff: "#f0c419", belt: "#f0c419", buckle: "#1b1b1d", sole: "#101010", parts: { head: "p", abd: "s", pelvis: "p", uarm: "s", farm: "p", hand: "p", thigh: "p", shin: "s", foot: "p" } },
+        // ukrycie: matowy granat-czern, blekitna swiecaca siec, pas z kieszonkami
+        { id: "stealth", name: "STR\xD3J UKRYCIA", lvl: 7, desc: "Ciemny str\xF3j z b\u0142\u0119kitn\u0105, \u015Bwiec\u0105c\u0105 paj\u0119czyn\u0105.", prim: "#1c2127", web: "#18e0ff", glow: true, sec: "#0e1216", logo: "#18e0ff", logoS: "big", eye: "#6ff2ff", rim: "#000", layout: "adv", rough: 0.62, belt: "#0e1216", buckle: "#2b3440", pouch: true, cuff: "#0e1216", sole: "#08090b", parts: ALLP },
+        { id: "gold", name: "Z\u0141OTY PAJ\u0104K", lvl: 8, desc: "Czyste z\u0142oto. Nagroda dla najlepszych.", prim: "#d4a52a", web: "#5b4108", sec: "#1a1a1a", logo: "#1a1a1a", logoS: "big", eye: "#fff", rim: "#111", metal: "all", layout: "adv", sides: true, stripe: "#d4a52a", cuff: "#1a1a1a", belt: "#1a1a1a", buckle: "#f3d27a", sole: "#1a1a1a", parts: ADV }
       ];
       suitById = (id) => SUITS.find((s) => s.id === id);
       _webMat = null;
@@ -23274,6 +23619,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     }
     P.H = buildSpider(s);
     P.suit = s;
+    P.H.getWear = () => 1 - P.hp / maxHp();
     if (q) P.H.root.quaternion.copy(q);
     P.H.root.position.copy(P.pos);
     scene.add(P.H.root);
