@@ -214,16 +214,16 @@ export function finCamera() {
   const cx = c.x, cy = c.y + 1.35 * sc, cz = c.z;
   if (!F.cam) { _a.set(camera.position.x - cx, 0, camera.position.z - cz); F.cam = { ang: Math.atan2(_a.x, _a.z), d: clamp(_a.length(), 2.5, 9), h: camera.position.y - cy, fov: camera.fov }; }
   const C = F.cam, push = ease(t / 0.5), kb = ease((t - (DUR - 0.4)) / 0.4);
-  const ang = C.ang + F.sg * Math.PI * 0.8 * ease((t - 0.1) / (THIT + 0.4));
+  const ang = C.ang + F.sg * Math.PI * 0.75 * ease((t - 0.1) / (THIT + 0.4));
   const low = ease((t - (THIT - 0.2)) / 0.35) * (1 - ease((t - (THIT + 0.35)) / 0.4));
-  let d = lerp(C.d, 3.0 * sc, push); d = lerp(d, 2.3 * sc, low);
-  const h = lerp(lerp(C.h, 0.55, push), -0.85, low);
+  let d = lerp(C.d, 3.0 * sc, push); d = lerp(d, 4.2 * sc, low);
+  const h = lerp(lerp(C.h, 0.55, push), -0.6, low);
   _b.set(Math.sin(ang), h / Math.max(1, d), Math.cos(ang));
   const hd = Math.hypot(d, h);
   _b.set(Math.sin(ang) * d, h, Math.cos(ang) * d);
   _c.set(_b.x, _b.y, _b.z).normalize();
   const rt = raycastCity(_a.set(cx, cy, cz), _c, hd + 0.3); if (rt < hd + 0.3) { const f = Math.max(0.8, rt - 0.4) / hd; _b.multiplyScalar(f); }
-  _a.set(cx + _b.x, Math.max(0.4, cy + _b.y), cz + _b.z);
+  _a.set(cx + _b.x, Math.max(1.0, cy + _b.y), cz + _b.z);
   _c.set(cx, cy + 0.15 + low * 0.35, cz);
   if (kb > 0) { _a.lerp(camera.position, kb); _c.lerp(cam.tgt, kb); }
   camera.position.copy(_a); camera.lookAt(_c);

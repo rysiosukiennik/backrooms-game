@@ -29350,11 +29350,11 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       F2.cam = { ang: Math.atan2(_a4.x, _a4.z), d: clamp(_a4.length(), 2.5, 9), h: camera.position.y - cy, fov: camera.fov };
     }
     const C7 = F2.cam, push = ease2(t / 0.5), kb = ease2((t - (DUR - 0.4)) / 0.4);
-    const ang = C7.ang + F2.sg * Math.PI * 0.8 * ease2((t - 0.1) / (THIT + 0.4));
+    const ang = C7.ang + F2.sg * Math.PI * 0.75 * ease2((t - 0.1) / (THIT + 0.4));
     const low2 = ease2((t - (THIT - 0.2)) / 0.35) * (1 - ease2((t - (THIT + 0.35)) / 0.4));
     let d = lerp(C7.d, 3 * sc, push);
-    d = lerp(d, 2.3 * sc, low2);
-    const h = lerp(lerp(C7.h, 0.55, push), -0.85, low2);
+    d = lerp(d, 4.2 * sc, low2);
+    const h = lerp(lerp(C7.h, 0.55, push), -0.6, low2);
     _b3.set(Math.sin(ang), h / Math.max(1, d), Math.cos(ang));
     const hd = Math.hypot(d, h);
     _b3.set(Math.sin(ang) * d, h, Math.cos(ang) * d);
@@ -29364,7 +29364,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       const f = Math.max(0.8, rt - 0.4) / hd;
       _b3.multiplyScalar(f);
     }
-    _a4.set(cx + _b3.x, Math.max(0.4, cy + _b3.y), cz + _b3.z);
+    _a4.set(cx + _b3.x, Math.max(1, cy + _b3.y), cz + _b3.z);
     _c4.set(cx, cy + 0.15 + low2 * 0.35, cz);
     if (kb > 0) {
       _a4.lerp(camera.position, kb);
