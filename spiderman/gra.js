@@ -18478,10 +18478,10 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     "js/rozmowy_teksty.js"() {
       LINIE = [
         // ---------------------------------------------------------------- scenki
-        { id: "cine_intro_01", kind: "cine", text: "Nowy Jork. Osiem milion\xF3w ludzi i ani jednego wolnego miejsca parkingowego.", voice: "peter", mood: "dry" },
-        { id: "cine_intro_02", kind: "cine", text: "Zwyk\u0142y dzie\u0144. Czyli kto\u015B w\u0142a\u015Bnie szykuje co\u015B g\u0142upiego.", voice: "peter", mood: "dry" },
-        { id: "cine_intro_03", kind: "cine", text: "Kto\u015B musi tego miasta pilnowa\u0107. Jako\u015B zawsze wychodzi na mnie.", voice: "peter", mood: "normal" },
-        { id: "cine_boss_01", kind: "cine", text: "Spider-Man! Ten park jest m\xF3j, a ty jeste\u015B w nim tylko szkodnikiem!", voice: "rhino", mood: "excited" },
+        { id: "cine_intro_01", kind: "cine", text: "Nowy Jork. Osiem milion\xF3w ludzi, zero miejsc parkingowych.", voice: "peter", mood: "dry" },
+        { id: "cine_intro_02", kind: "cine", text: "Zwyk\u0142y dzie\u0144. Kto\u015B w\u0142a\u015Bnie szykuje co\u015B g\u0142upiego.", voice: "peter", mood: "dry" },
+        { id: "cine_intro_03", kind: "cine", text: "Kto\u015B musi tu pilnowa\u0107. Zawsze wychodzi na mnie.", voice: "peter", mood: "normal" },
+        { id: "cine_boss_01", kind: "cine", text: "Spider-Man! Ten park jest m\xF3j, a ty tu jeste\u015B szkodnikiem!", voice: "rhino", mood: "excited" },
         { id: "cine_boss_02", kind: "cine", text: "Rogaty kolego, mo\u017Ce pogadamy? Nie? Dobra, tak te\u017C mo\u017Ce by\u0107.", voice: "peter", mood: "dry" },
         { id: "cine_bossend_01", kind: "cine", text: "Gotowy do transportu. Tylko kto\u015B musi naprawi\u0107 ogrodzenie. I po\u0142ow\u0119 parku.", voice: "peter", mood: "dry" },
         { id: "cine_bossend_02", kind: "cine", text: "Spider-Man, tu Watanabe. Odbieramy go z parku. Dobra robota.", voice: "yuri", mood: "normal" },
@@ -18898,7 +18898,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       if (shoutCD <= 0) shoutCD = 3;
     }
   }
-  var BY, lineInfo, speakerName, COL, pan, bars, eName, eWho, eTxt, eSub, thugEl, thugT, cur2, queue, cdUntil, playT, gapT, pollT, calls, ctx, shoutCD;
+  var BY, lineInfo, lineMs, speakerName, COL, pan, bars, eName, eWho, eTxt, eSub, thugEl, thugT, cur2, queue, cdUntil, playT, gapT, pollT, calls, ctx, shoutCD;
   var init_rozmowy = __esm({
     "js/rozmowy.js"() {
       init_stan();
@@ -18909,6 +18909,10 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       init_rozmowy_glos();
       BY = new Map(LINIE.map((l) => [l.id, l]));
       lineInfo = (id) => BY.get(id) || null;
+      lineMs = (id) => {
+        const l = BY.get(id);
+        return l ? glosMs(id, l.text) : 0;
+      };
       speakerName = (v) => MOWCA[v] || "";
       COL = { may: "#f2b36a", mj: "#ff7aa5", yuri: "#62b9ff", radio: "#9ee37d" };
       pan = null;
@@ -18967,7 +18971,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     ui2();
     ctx2.p = P.pos.clone();
     if (ctx2.b) ctx2.b = ctx2.b.clone();
-    cine = { name, shots: SCENES[name](ctx2), i: 0, t: 0, onEnd: ctx2.onEnd, sk: 0, sid: 0, talking: false, h: null };
+    cine = { name, shots: SCENES[name](ctx2), i: 0, t: 0, onEnd: ctx2.onEnd, sk: 0, sid: 0, talking: false, need: 0, h: null };
     G.cine = name;
     const h = document.getElementById("hud");
     if (h) h.style.visibility = "hidden";
@@ -18988,6 +18992,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     stopTalk();
     const me = cine, sid = me.sid;
     me.talking = !!(ids && ids.length);
+    me.need = ids ? ids.reduce((a, id) => a + lineMs(id) + 250, 0) / 1e3 : 0;
     const next = (k) => {
       if (cine !== me || me.sid !== sid) return;
       if (k >= ids.length) {
@@ -19037,7 +19042,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     const t = clamp(cine.t / s.dur, 0, 1);
     s.at(t);
     camera.updateProjectionMatrix();
-    if (cine.t >= s.dur && (!cine.talking || cine.t >= s.dur + 3)) {
+    if (cine.t >= s.dur && cine.t >= Math.min(s.dur + 3, cine.need || 0)) {
       if (++cine.i >= cine.shots.length) {
         endCine();
         return false;

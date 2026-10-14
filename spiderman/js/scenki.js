@@ -5,7 +5,7 @@ import { G, P, camera } from './stan.js';
 import { KP, MP, pp } from './wejscie.js';
 import { START_H } from './miasto.js';
 import { sfx } from './dzwiek.js';
-import { sayLine, lineInfo, speakerName } from './rozmowy.js';
+import { sayLine, lineInfo, lineMs, speakerName } from './rozmowy.js';
 import { glosStop } from './rozmowy_glos.js';
 
 let talk = null, bars = null, sub = null, subT = null, subS = null, cine = null;
@@ -103,7 +103,7 @@ const SCENES = {
 export function playCine(name, ctx = {}) {
   ui();
   ctx.p = P.pos.clone(); if (ctx.b) ctx.b = ctx.b.clone();
-  cine = { name, shots: SCENES[name](ctx), i: 0, t: 0, onEnd: ctx.onEnd, sk: 0, sid: 0, talking: false, h: null };
+  cine = { name, shots: SCENES[name](ctx), i: 0, t: 0, onEnd: ctx.onEnd, sk: 0, sid: 0, talking: false, need: 0, h: null };
   G.cine = name;
   const h = document.getElementById('hud'); if (h) h.style.visibility = 'hidden';
   bars[0].style.height = bars[1].style.height = '11vh';
@@ -114,7 +114,7 @@ export function playCine(name, ctx = {}) {
 function stopTalk() { if (!cine) return; cine.sid++; cine.talking = false; if (cine.h) cine.h.cancel(); cine.h = null; glosStop(); if (talk) talk.style.opacity = 0; }
 function startTalk(ids) {
   stopTalk();
-  const me = cine, sid = me.sid; me.talking = !!(ids && ids.length);
+  const me = cine, sid = me.sid; me.talking = !!(ids && ids.length); me.need = ids ? ids.reduce((a, id) => a + lineMs(id) + 250, 0) / 1000 : 0;
   const next = k => {
     if (cine !== me || me.sid !== sid) return;
     if (k >= ids.length) { me.talking = false; talk.style.opacity = 0; return; }
@@ -143,7 +143,7 @@ export function updateCine(dt) {
   const t = clamp(cine.t / s.dur, 0, 1);
   s.at(t);
   camera.updateProjectionMatrix();
-  if (cine.t >= s.dur && (!cine.talking || cine.t >= s.dur + 3)) {
+  if (cine.t >= s.dur && cine.t >= Math.min(s.dur + 3, cine.need || 0)) {
     if (++cine.i >= cine.shots.length) { endCine(); return false; }
     cine.t = 0; setShotText();
   }

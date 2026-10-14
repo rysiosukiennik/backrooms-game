@@ -10,6 +10,7 @@ import { glosPlay, glosStop, glosState, glosMs } from './rozmowy_glos.js';
 
 const BY = new Map(LINIE.map(l => [l.id, l]));
 export const lineInfo = id => BY.get(id) || null;
+export const lineMs = id => { const l = BY.get(id); return l ? glosMs(id, l.text) : 0; };
 export const speakerName = v => MOWCA[v] || '';
 
 // ---------------------------------------------------------------- pojedyncza kwestia (dla scenek i rozmow)

@@ -7,11 +7,11 @@
 
 export const LINIE = [
   // ---------------------------------------------------------------- scenki
-  { id: 'cine_intro_01', kind: 'cine', text: 'Nowy Jork. Osiem milionów ludzi i ani jednego wolnego miejsca parkingowego.', voice: 'peter', mood: 'dry' },
-  { id: 'cine_intro_02', kind: 'cine', text: 'Zwykły dzień. Czyli ktoś właśnie szykuje coś głupiego.', voice: 'peter', mood: 'dry' },
-  { id: 'cine_intro_03', kind: 'cine', text: 'Ktoś musi tego miasta pilnować. Jakoś zawsze wychodzi na mnie.', voice: 'peter', mood: 'normal' },
+  { id: 'cine_intro_01', kind: 'cine', text: 'Nowy Jork. Osiem milionów ludzi, zero miejsc parkingowych.', voice: 'peter', mood: 'dry' },
+  { id: 'cine_intro_02', kind: 'cine', text: 'Zwykły dzień. Ktoś właśnie szykuje coś głupiego.', voice: 'peter', mood: 'dry' },
+  { id: 'cine_intro_03', kind: 'cine', text: 'Ktoś musi tu pilnować. Zawsze wychodzi na mnie.', voice: 'peter', mood: 'normal' },
 
-  { id: 'cine_boss_01', kind: 'cine', text: 'Spider-Man! Ten park jest mój, a ty jesteś w nim tylko szkodnikiem!', voice: 'rhino', mood: 'excited' },
+  { id: 'cine_boss_01', kind: 'cine', text: 'Spider-Man! Ten park jest mój, a ty tu jesteś szkodnikiem!', voice: 'rhino', mood: 'excited' },
   { id: 'cine_boss_02', kind: 'cine', text: 'Rogaty kolego, może pogadamy? Nie? Dobra, tak też może być.', voice: 'peter', mood: 'dry' },
   { id: 'cine_bossend_01', kind: 'cine', text: 'Gotowy do transportu. Tylko ktoś musi naprawić ogrodzenie. I połowę parku.', voice: 'peter', mood: 'dry' },
   { id: 'cine_bossend_02', kind: 'cine', text: 'Spider-Man, tu Watanabe. Odbieramy go z parku. Dobra robota.', voice: 'yuri', mood: 'normal' },
