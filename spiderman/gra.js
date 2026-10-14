@@ -65,7 +65,7 @@
     });
   }
   function resetProgress() {
-    const keep = { gfx: save.gfx, tod: save.tod, music: save.music, voice: save.voice };
+    const keep = { gfx: save.gfx, tod: save.tod, music: save.music, voice: save.voice, voiceVol: save.voiceVol, voiceMode: save.voiceMode };
     Object.assign(save, { lvl: 1, xp: 0, suit: "adv", bags: [], crimes: 0, skills: [], races: {}, bossWins: 0, chases: 0, fisk: 0, pos: null, hd: 0, hasGame: false, savedAt: 0, colas: 0 }, keep);
     doSave();
   }
@@ -108,7 +108,9 @@
         savedAt: 0,
         tod: "sunset",
         music: true,
-        voice: true
+        voice: true,
+        voiceVol: 0.9,
+        voiceMode: "nagrania"
       };
       try {
         Object.assign(save, JSON.parse(localStorage.getItem(KEY) || "{}"));
@@ -11457,6 +11459,12 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
   });
 
   // js/dzwiek.js
+  function audioGraph() {
+    return AC && !OFFLINE ? { ac: AC, master, conv, duckMix, duckMus } : null;
+  }
+  function audioEnv() {
+    return { indoor: ind, canyon, street: streetF };
+  }
   function initAudio() {
     if (AC) {
       if (AC.state === "suspended") AC.resume();
@@ -11571,8 +11579,10 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     roomLP.frequency.value = 2e4;
     roomLP.Q.value = 0.4;
     roomLP.connect(master);
+    duckMix = AC.createGain();
+    duckMix.connect(roomLP);
     mix = AC.createGain();
-    mix.connect(roomLP);
+    mix.connect(duckMix);
     conv = AC.createConvolver();
     conv.buffer = makeIR(offline ? 1.6 : 2.4);
     revSend = AC.createGain();
@@ -11581,9 +11591,11 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     revRet = AC.createGain();
     revRet.gain.value = 0.9;
     conv.connect(revRet).connect(roomLP);
+    duckMus = AC.createGain();
+    duckMus.connect(master);
     musBus = AC.createGain();
     musBus.gain.value = 0;
-    musBus.connect(master);
+    musBus.connect(duckMus);
     musRevSend = AC.createGain();
     musRevSend.gain.value = 0.22;
     musBus.connect(musRevSend).connect(conv);
@@ -12405,7 +12417,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     }
     if (Math.random() < 0.35) voice(route2(rr2(4, 9), side * 0.5, 0.6), t + 0.2, rr2(110, 220), rr2(110, 220), rr2(0.15, 0.3), 0.04, rr2(500, 800), rr2(1e3, 1500));
   }
-  var AC, OFFLINE, master, comp, mix, roomLP, revSend, conv, revRet, musBus, musRevSend, nWhite, nPink, nBrown, Ly, clamp2, rr2, live, audioOK, _fw, L2, getPos, spd, pauseMuf, last, vari, BOOST, musOn, mode, userInt, mi, swingF, stepN, nextT, timer, padLP, padG, bassLP, hornLP, dIn, vibG, PROG, MEL, mf, BASEVOL, PROF, ind, streetF, canyon, simT, envT, dist, distT, curSurf, OVR, TM, stepSide;
+  var AC, OFFLINE, master, comp, mix, roomLP, revSend, conv, revRet, musBus, musRevSend, duckMix, duckMus, nWhite, nPink, nBrown, Ly, clamp2, rr2, live, audioOK, _fw, L2, getPos, spd, pauseMuf, last, vari, BOOST, musOn, mode, userInt, mi, swingF, stepN, nextT, timer, padLP, padG, bassLP, hornLP, dIn, vibG, PROG, MEL, mf, BASEVOL, PROF, ind, streetF, canyon, simT, envT, dist, distT, curSurf, OVR, TM, stepSide;
   var init_dzwiek = __esm({
     "js/dzwiek.js"() {
       init_stan();
@@ -20596,7 +20608,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       showMsg("SLOT " + n + " JEST PUSTY", "Najpierw zapisz gr\u0119: Pauza \u2192 Gra \u2192 Zapisz w slocie", 3);
       return;
     }
-    const keep = { gfx: save.gfx, tod: save.tod, music: save.music, voice: save.voice };
+    const keep = { gfx: save.gfx, tod: save.tod, music: save.music, voice: save.voice, voiceVol: save.voiceVol, voiceMode: save.voiceMode };
     delete sl.pct;
     Object.assign(save, sl, keep, { hasGame: true });
     doSave();
@@ -23887,8 +23899,8 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     _t3.subVectors(e.pos, P.pos);
     _t3.y = 0;
     _t3.normalize();
-    const fin = a.type === 3, up = a.type === 4;
-    const r = hitEnemy(e, fin ? 2 : 1, _t3.x * (fin ? 14 : 3), up ? 13 : fin ? 7 : 0, _t3.z * (fin ? 14 : 3), up ? "up" : fin, P.state !== "ground");
+    const fin2 = a.type === 3, up = a.type === 4;
+    const r = hitEnemy(e, fin2 ? 2 : 1, _t3.x * (fin2 ? 14 : 3), up ? 13 : fin2 ? 7 : 0, _t3.z * (fin2 ? 14 : 3), up ? "up" : fin2, P.state !== "ground");
     if (r === "block") {
       P.vel.x -= _t3.x * 5;
       P.vel.z -= _t3.z * 5;
@@ -24565,6 +24577,267 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
   init_fisk();
   init_wnetrza();
   init_docinki();
+
+  // js/glos.js
+  init_util();
+  init_stan();
+  init_dzwiek();
+  var glosState = { speaking: false, speaker: "", level: 0, id: "" };
+  var clamp3 = (x, a, b) => x < a ? a : x > b ? b : x;
+  var DUCK_MIX = 0.42;
+  var DUCK_MUS = 0.3;
+  var DUCK_HOLD = 0.3;
+  var BASE2 = (() => {
+    try {
+      const cs = document.currentScript;
+      if (cs && cs.src) return cs.src.replace(/[#?].*$/, "").replace(/[^/]*$/, "").replace(/js\/$/, "");
+    } catch (e) {
+    }
+    return location.href.replace(/[#?].*$/, "").replace(/[^/]*$/, "");
+  })();
+  function loadScript(url) {
+    return new Promise((res, rej) => {
+      const s = document.createElement("script");
+      s.src = url;
+      s.async = true;
+      s.onload = () => {
+        s.remove();
+        res();
+      };
+      s.onerror = () => {
+        s.remove();
+        rej(new Error("glos: brak " + url));
+      };
+      document.head.appendChild(s);
+    });
+  }
+  var MAN = null;
+  var manP = null;
+  function ensureManifest() {
+    if (MAN) return Promise.resolve(MAN);
+    if (window.GLOS_MANIFEST) return Promise.resolve(MAN = window.GLOS_MANIFEST);
+    if (!manP) manP = loadScript(BASE2 + "glos/manifest.js").then(() => MAN = window.GLOS_MANIFEST || {}, () => {
+      MAN = {};
+      return MAN;
+    });
+    return manP;
+  }
+  var G_ = null;
+  var bus = null;
+  function ensureGraph() {
+    var _a5;
+    const g = audioGraph();
+    if (!g) return null;
+    if (bus && bus.ac === g.ac) return bus;
+    const ac = g.ac, mk2 = (t) => ac.createBiquadFilter(), gn = (v) => {
+      const n = ac.createGain();
+      n.gain.value = v;
+      return n;
+    };
+    G_ = g;
+    const b = { ac, duckMix: g.duckMix, duckMus: g.duckMus };
+    b.plain = gn(1);
+    b.mask = gn(1);
+    b.radio = gn(1);
+    const hp = mk2();
+    hp.type = "highpass";
+    hp.frequency.value = 95;
+    hp.Q.value = 0.7;
+    const pk = mk2();
+    pk.type = "peaking";
+    pk.frequency.value = 1150;
+    pk.Q.value = 0.9;
+    pk.gain.value = 2.2;
+    const hs = mk2();
+    hs.type = "highshelf";
+    hs.frequency.value = 4200;
+    hs.gain.value = -4.5;
+    const lp = mk2();
+    lp.type = "lowpass";
+    lp.frequency.value = 7800;
+    lp.Q.value = 0.5;
+    const rh = mk2();
+    rh.type = "highpass";
+    rh.frequency.value = 480;
+    const rl = mk2();
+    rl.type = "lowpass";
+    rl.frequency.value = 3300;
+    b.sum = gn(1);
+    b.mask.connect(hp).connect(pk).connect(hs).connect(lp).connect(b.sum);
+    b.radio.connect(rh).connect(rl).connect(b.sum);
+    b.plain.connect(b.sum);
+    const comp2 = ac.createDynamicsCompressor();
+    comp2.threshold.value = -20;
+    comp2.knee.value = 10;
+    comp2.ratio.value = 3;
+    comp2.attack.value = 5e-3;
+    comp2.release.value = 0.15;
+    b.sum.connect(comp2);
+    b.an = ac.createAnalyser();
+    b.an.fftSize = 1024;
+    b.an.smoothingTimeConstant = 0;
+    comp2.connect(b.an);
+    b.buf = new Float32Array(b.an.fftSize);
+    b.out = gn(clamp3((_a5 = save.voiceVol) != null ? _a5 : 0.9, 0, 1));
+    comp2.connect(b.out);
+    b.out.connect(g.master);
+    b.rev = gn(0.1);
+    b.out.connect(b.rev);
+    b.rev.connect(g.conv);
+    bus = b;
+    return b;
+  }
+  var voiceCache = {};
+  function ssOK() {
+    try {
+      return !!(window.speechSynthesis && window.SpeechSynthesisUtterance);
+    } catch (e) {
+      return false;
+    }
+  }
+  try {
+    if (ssOK()) window.speechSynthesis.addEventListener("voiceschanged", () => {
+      voiceCache = {};
+    });
+  } catch (e) {
+  }
+  var lanes2 = {};
+  var activeLanes = () => Object.values(lanes2).filter((l) => l.cur);
+  var modeNow = () => !save.voice ? "wylaczony" : save.voiceMode || "nagrania";
+  function fin(item2, ok) {
+    if (item2.fin) return;
+    item2.fin = true;
+    if (item2.onEnd) {
+      try {
+        item2.onEnd(ok);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }
+  function release2(item2) {
+    if (item2.src) {
+      item2.src.onended = null;
+      try {
+        const t = bus.ac.currentTime;
+        item2.gain.gain.cancelScheduledValues(t);
+        item2.gain.gain.setTargetAtTime(0, t, 0.012);
+        item2.src.stop(t + 0.07);
+      } catch (e) {
+      }
+    }
+    if (item2.state === "synth" && ssOK()) {
+      try {
+        item2.utt.onend = item2.utt.onerror = null;
+        window.speechSynthesis.cancel();
+      } catch (e) {
+      }
+    }
+    clearTimeout(item2.wd);
+    item2.state = "done";
+  }
+  function interrupt(l) {
+    const c = l.cur;
+    if (!c) return;
+    l.cur = null;
+    release2(c);
+    fin(c, false);
+  }
+  function initGlos() {
+    ensureGraph();
+    ensureManifest();
+  }
+  function glosStop(sp2) {
+    for (const l of Object.values(lanes2)) {
+      if (sp2 && l.sp !== sp2) continue;
+      const q = l.queue;
+      l.queue = [];
+      q.forEach((i) => fin(i, false));
+      interrupt(l);
+    }
+  }
+  var _d2 = new THREE.Vector3();
+  function spat(p) {
+    const q = typeof p === "function" ? p() : p;
+    if (!q) return { pan: 0, gain: 1 };
+    const x = Array.isArray(q) ? q[0] : q.x, y = Array.isArray(q) ? q[1] : q.y, z = Array.isArray(q) ? q[2] : q.z;
+    try {
+      camera.getWorldDirection(_d2);
+      const h = Math.hypot(_d2.x, _d2.z) || 1, fx2 = _d2.x / h, fz = _d2.z / h;
+      const dx = x - camera.position.x, dy = y - camera.position.y, dz = z - camera.position.z, d = Math.hypot(dx, dy, dz) || 0.01;
+      return { pan: clamp3((dx * -fz + dz * fx2) / d * Math.min(1, 0.25 + d / 4), -1, 1), gain: clamp3(1 / (1 + d / 22 * (d / 22)), 0.12, 1) };
+    } catch (e) {
+      return { pan: 0, gain: 1 };
+    }
+  }
+  var duckOn = false;
+  var hold = 0;
+  var envT2 = 0;
+  var fakeT = 0;
+  var fakeL = 0;
+  function updateGlos(dt) {
+    var _a5;
+    const m = modeNow();
+    if (m === "wylaczony" && activeLanes().length) glosStop();
+    const b = bus;
+    const t = b ? b.ac.currentTime : 0;
+    let top2 = null, synth = false;
+    for (const l of Object.values(lanes2)) {
+      const c = l.cur;
+      if (!c) continue;
+      if (c.state === "playing" && c.t0 > t) continue;
+      if (c.state !== "playing" && c.state !== "synth") continue;
+      if (!top2 || c.priority > top2.priority || c.priority === top2.priority && c.speaker === "peter") top2 = c;
+      if (c.state === "synth") synth = true;
+      if (c.pos && c.dist) {
+        const sp2 = spat(c.pos);
+        c.pan.pan.setTargetAtTime(sp2.pan, t, 0.05);
+        c.dist.gain.setTargetAtTime(sp2.gain, t, 0.05);
+      }
+    }
+    const speaking = !!top2;
+    glosState.speaking = speaking;
+    if (top2) {
+      glosState.speaker = top2.speaker;
+      glosState.id = top2.id || "";
+    } else glosState.id = "";
+    let lv = 0;
+    if (top2 && b && top2.state === "playing") {
+      b.an.getFloatTimeDomainData(b.buf);
+      let e = 0;
+      for (let i = 0; i < b.buf.length; i++) e += b.buf[i] * b.buf[i];
+      lv = clamp3(Math.sqrt(e / b.buf.length) * 5.5, 0, 1);
+    } else if (top2 && synth) {
+      fakeT -= dt;
+      if (fakeT <= 0) {
+        fakeT = 0.07 + Math.random() * 0.09;
+        fakeL = Math.random() < 0.18 ? 0.05 : 0.3 + Math.random() * 0.5;
+      }
+      lv = fakeL;
+    }
+    glosState.level += (lv - glosState.level) * (lv > glosState.level ? 0.6 : 0.25);
+    if (!speaking && glosState.level < 0.01) glosState.level = 0;
+    if (!b) return;
+    const vol = clamp3((_a5 = save.voiceVol) != null ? _a5 : 0.9, 0, 1);
+    if (Math.abs(b.out.gain.value - vol) > 5e-3) b.out.gain.setTargetAtTime(vol, t, 0.05);
+    if (speaking) hold = DUCK_HOLD;
+    else hold = Math.max(0, hold - dt);
+    const want = speaking || hold > 0;
+    if (want !== duckOn) {
+      duckOn = want;
+      const tc = want ? 0.07 : 0.4;
+      b.duckMix.gain.setTargetAtTime(want ? DUCK_MIX : 1, t, tc);
+      b.duckMus.gain.setTargetAtTime(want ? DUCK_MUS : 1, t, tc);
+    }
+    envT2 -= dt;
+    if (envT2 <= 0) {
+      envT2 = 0.2;
+      const e = audioEnv();
+      b.rev.gain.setTargetAtTime(0.05 + 0.2 * (e.canyon || 0) * (1 - e.indoor) + 0.3 * e.indoor, t, 0.3);
+    }
+  }
+
+  // js/main.js
   try {
     buildCity();
     setTOD(save.tod);
@@ -24619,6 +24892,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
   hooks.start = (mode2) => {
     G.mode = mode2;
     initAudio();
+    initGlos();
     quipStart();
     showHUD(true);
     G.state = "play";
@@ -24858,6 +25132,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       setWind(0);
     }
     updateQuips(rdt);
+    updateGlos(rdt);
     {
       musT -= rdt;
       if (musT <= 0) {
