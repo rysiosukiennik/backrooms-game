@@ -473,7 +473,7 @@ function slotSave(n) {
 }
 function slotLoad(n) {
   const sl = slotRead(n); if (!sl) { showMsg('SLOT ' + n + ' JEST PUSTY', 'Najpierw zapisz grę: Pauza → Gra → Zapisz w slocie', 3); return; }
-  const keep = { gfx: save.gfx, tod: save.tod, music: save.music, voice: save.voice };
+  const keep = { gfx: save.gfx, tod: save.tod, music: save.music, voice: save.voice, voiceVol: save.voiceVol, voiceMode: save.voiceMode };
   delete sl.pct; Object.assign(save, sl, keep, { hasGame: true }); doSave();
   try { sessionStorage.setItem('sp_skip', '1'); sessionStorage.setItem('sp_load', G.mode || (pad.connected ? 'pad' : 'kb')); } catch (e) {}
   location.reload(); // po przeladowaniu gra od razu startuje w zapisanym miejscu (main.js)
