@@ -74,8 +74,23 @@ export function boxesNear(x, z, r, out) {
 }
 const _s1 = [], _s2 = [], _rl = [];
 // najwyzszy dach pod punktem (nie wyzej niz maxY); 0 = ulica
+// mosty: dojazdy (rampy) do pomostu — gladkie wysokosci zamiast schodow; granica = polowa rzeki
+export const BRIDGES = [];
+const BR_DECK = 38 + 1.1;
+export function bridgeDeckAt(br, x) { // wysokosc jezdni w punkcie x (0 u brzegu, rampa, pomost)
+  const e = Math.min(x - br.xa, br.xb - x);
+  return Math.max(0, Math.min(1, e / br.ramp)) * BR_DECK;
+}
+export function bridgeAt(x, z) { // most, na ktorego polowie od strony ladu jest punkt (do ~30 m od osi)
+  for (const br of BRIDGES) if (Math.abs(z - br.z) < 30 && (br.side > 0 ? (x > br.xa - 2 && x <= br.mid + 4) : (x < br.xb + 2 && x >= br.mid - 4))) return br; // +4 m zapasu za polowa: granica.js przytnie i zatrzyma
+  return null;
+}
 export function supportAt(x, z, maxY, r = 0.3) {
   let h = 0; boxesNear(x, z, r + 1, _s1);
+  for (const br of BRIDGES) {
+    if (x < br.xa || x > br.xb || Math.abs(z - br.z) > br.W / 2) continue;
+    const hy = bridgeDeckAt(br, x); if (hy <= maxY && hy > h) h = hy;
+  }
   for (const b of _s1) if (x > b.x0 - r && x < b.x1 + r && z > b.z0 - r && z < b.z1 + r && b.y1 <= maxY && b.y1 > h) h = b.y1;
   return h;
 }
@@ -1459,10 +1474,11 @@ function bridge(xa, xb, z, kind) {
   const add = (geo, m, x, y, zz) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, zz); o.castShadow = false; o.receiveShadow = true; scene.add(o); return o; };
   // pomost z dojazdami opadajacymi do brzegu; kolizja, zeby dalo sie na nim stanac
   const ramp = Math.min(70, L * 0.22), mid0 = xa + ramp, mid1 = xb - ramp;
+  BRIDGES.push({ xa, xb, z, W, ramp, deckY, mid: (xa + xb) / 2, side: xa >= LAND.x1 - 10 ? 1 : -1 }); // side: kierunek od ladu ku rzece (+x wschod)
   add(new THREE.BoxGeometry(mid1 - mid0, 2.2, W), dm, (mid0 + mid1) / 2, deckY, z); addBox({ x0: mid0, x1: mid1, y0: deckY - 1.1, y1: deckY + 1.1, z0: z - W / 2, z1: z + W / 2 });
   for (const [a, b] of [[xa, mid0], [mid1, xb]]) {
-    const up = a === xa, g = new THREE.BoxGeometry(Math.hypot(b - a, deckY), 2.2, W), m = add(g, dm, (a + b) / 2, deckY / 2, z);
-    m.rotation.z = (up ? 1 : -1) * Math.atan2(deckY, b - a);
+    const up = a === xa, H = deckY + 1.1, th = Math.atan2(H, b - a), g = new THREE.BoxGeometry(Math.hypot(b - a, H), 2.2, W), m = add(g, dm, (a + b) / 2, H / 2 - 1.1 / Math.cos(th), z); // gorna powierzchnia = wysokosc kolizji (0 u brzegu, pomost na szczycie)
+    m.rotation.z = (up ? 1 : -1) * th;
   }
   add(new THREE.BoxGeometry(mid1 - mid0, 1.2, 0.3), cm, (mid0 + mid1) / 2, deckY + 1.7, z - W / 2); add(new THREE.BoxGeometry(mid1 - mid0, 1.2, 0.3), cm, (mid0 + mid1) / 2, deckY + 1.7, z + W / 2);
   // wieze

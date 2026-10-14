@@ -15,6 +15,35 @@ import { showMsg, popText, hint } from './ui.js';
 
 const _t = new V3(), _h = new V3(), _cf = new V3(), _a = new V3();
 
+// ---------------------------------------------------------------- TRUDNOSC wrogow (jedno miejsce do strojenia)
+// Wszystko ponizej mozna zmieniac bez ruszania reszty kodu. "Bylo" = wartosc sprzed rundy 5.
+export const DIFF = {
+  hp: 1.4,            // mnoznik zdrowia (bylo 1.0): bandyta 6, strzelec 4, osilek 14; plus hpLvl za kazdy poziom gracza
+  hpLvl: 0.03,        // +3% zdrowia na poziom gracza (maks. 10 poziomow)
+  speed: 1.2,         // predkosc biegu wrogow (bylo 1.0): bandyta 5.0 m/s, osilek 3.8 m/s
+  dmg: 1.1,           // obrazenia wrogow (bylo 1.0): bandyta 11, osilek 27.5, pocisk 7.7
+  cd: 0.7,          // mnoznik przerw miedzy atakami (bylo 1.0; mniej = czesciej)
+  windup: 0.8,        // mnoznik czasu zamachu / reakcji (bylo 1.0); zamach nie spada ponizej 0.44 s, wiec unik/kontra nadal dziala
+  aim: 0.8,           // mnoznik czasu celowania strzelca (bylo 0.75 s -> 0.6 s)
+  spread: 0.55,       // mnoznik rozrzutu chybien strzelcow (bylo 1.0)
+  hitBase: 0.85,      // bazowa szansa trafienia strzelca (bylo 0.75)
+  lead: 0.8,          // 0..1: jak bardzo celuja z wyprzedzeniem (w predkosc gracza; bujanie nie daje juz takiej ochrony)
+  cover: 0.55,        // szansa, ze strzelec po strzale schowa sie za przeszkoda / przykucnie
+  meleeMax: 2,        // ilu wrogow z bronia biala atakuje naraz (reszta okrazaja); +1 od poziomu 6
+  shooterMax: 2,      // ilu strzelcow celuje naraz; +1 od poziomu 6
+  orbit: 3.2,         // promien okrazania gracza przez oczekujacych [m]
+  bruteStun: 1.6,     // czas ogluszenia osilka siecia [s] (bylo 2.5)
+  bruteHurtBlock: 0.35, // szansa, ze osilek zablokuje cios takze tuz po trafieniu (przerywa kombo); w innych chwilach blokuje zawsze
+  bruteHurt: 0.28,    // czas "zachwiania" osilka po trafieniu [s] (bylo 0.4)
+  extraPerLvl: 3,     // +1 wrog w przestepstwie na kazde tyle poziomow gracza (maks. +4); bylo +1 na 4 poziomy (maks. +2)
+  brute2Lvl: 6,       // od tego poziomu w przestepstwie moze byc 2 osilkow
+  regenFight: 0.35,   // mnoznik odnawiania zdrowia gracza, gdy wrog jest w poblizu (bylo 1.0)
+};
+const lvlHp = () => 1 + DIFF.hpLvl * Math.min(10, save.lvl - 1);
+let nMelee = 0, nShoot = 0; // ile wrogow ma teraz "zezwolenie na atak" (liczone co klatke)
+// mnoznik regeneracji zdrowia gracza (gracz.js): w walce goi sie wolniej
+export function regenMul() { return enemies.some(e => !e.dead && !e.gone && e.state !== 'idle' && e.type !== 'boss' && e.pos.distanceTo(P.pos) < 30) ? DIFF.regenFight : 1; }
+
 // ---------------------------------------------------------------- doswiadczenie
 export const need = l => 600 + l * 400;
 let saveT = 0;
@@ -110,7 +139,7 @@ function webHit(e) {
   if (e.type === 'boss') { (e.webFn || bossWeb)(e); return; }
   e.webs++; e.webT = 6;
   if (e.type === 'brute') {
-    e.stunT = 2.5; if (!e.dead) { e.state = 'hurt'; e.t = 0.4; }
+    e.stunT = DIFF.bruteStun; if (!e.dead) { e.state = 'hurt'; e.t = 0.4; }
     if (e.webs >= websToWrap() + 2 && !e.dead) { e.webbed = true; killEnemy(e); e.state = 'down'; }
     else popText('OSIŁEK OGŁUSZONY!');
     return;
@@ -156,7 +185,7 @@ export function makeEnemy(type) {
   const blob = el(webMaterial(), 0.14, 0.12, 0.08, 0, 0.12, 0.12); blob.visible = false; H.chest.add(blob);
   scene.add(H.root);
   return {
-    H, type, wpn, cocoon, blob, pos: new V3(), vel: new V3(), yaw: rnd(0, 6.28), hp: brute ? 10 : type === 'gun' ? 3 : 4,
+    H, type, wpn, cocoon, blob, pos: new V3(), vel: new V3(), yaw: rnd(0, 6.28), hp: Math.round((brute ? 10 : type === 'gun' ? 3 : 4) * DIFF.hp * lvlHp()), orbitDir: Math.random() < 0.5 ? 1 : -1, crouchT: 0, coverT: 0, losT: 0, los: true,
     state: 'idle', t: rnd(1, 4), cd: rnd(0.5, 2), webs: 0, webT: 0, dead: false, air: false, down: 0, webbed: false,
     pc: newPose(), pt: newPose(), ph: rnd(0, 6), moving: false, groundY: 0, crime: null, gone: false, spin: 0, hurtT: 0,
     scale: brute ? 1.25 : 1, stunT: 0, airHold: 0,
@@ -168,7 +197,7 @@ export function makeCrime(x0, x1, z0, z1, y, spot, n, bruteOK) {
   let brutes = 0;
   for (let k = 0; k < n; k++) {
     let type = Math.random() < 0.4 ? 'gun' : 'melee';
-    if (bruteOK && brutes === 0 && Math.random() < 0.45) { type = 'brute'; brutes++; }
+    if (bruteOK && brutes < (save.lvl >= DIFF.brute2Lvl ? 2 : 1) && Math.random() < (brutes === 0 ? 0.5 : 0.35)) { type = 'brute'; brutes++; }
     const e = makeEnemy(type);
     e.pos.set(rnd(x0, x1), y, rnd(z0, z1)); e.groundY = y; e.crime = cr;
     cr.list.push(e); enemies.push(e);
@@ -179,7 +208,7 @@ export function spawnCrime(first) {
   const cand = spots.filter(s => !s.busy && Math.hypot(s.cx - P.pos.x, s.cz - P.pos.z) > (first ? 80 : 150));
   if (!cand.length) return;
   const s = cand[Math.floor(Math.random() * cand.length)]; s.busy = true;
-  const n = 3 + Math.floor(Math.random() * 3) + Math.min(2, Math.floor(save.lvl / 4));
+  const n = 3 + Math.floor(Math.random() * 3) + Math.min(4, Math.floor(save.lvl / DIFF.extraPerLvl));
   makeCrime(s.x0 + 2, s.x1 - 2, s.z0 + 2, s.z1 - 2, s.y1, s, n, save.lvl >= 2);
 }
 // bandyci wysiadajacy z rozbitego auta w poscigu
@@ -194,7 +223,7 @@ export function hitEnemy(e, dmg, kx, ky, kz, launch, fromAir) {
   if (e.dead || e.gone) return false;
   sayCtx('hit', { enemy: e, fromAir });
   if (e.type === 'boss') return (e.hit || bossHit)(e, dmg * dmgMul(), launch);
-  if (e.type === 'brute' && e.stunT <= 0 && !fromAir && e.state !== 'hurt') {
+  if (e.type === 'brute' && e.stunT <= 0 && !fromAir && (e.state !== 'hurt' || Math.random() < DIFF.bruteHurtBlock)) {
     burst(e.pos.x, e.pos.y + 1.6, e.pos.z, 8, 0x9fd8ff, 3); sfx('block'); rumble(0.06, 0.2, 0.2);
     popText('BLOK!'); hint('brute', 'Osiłek blokuje ciosy. Trafiaj go siecią albo atakuj z powietrza!');
     e.cd = Math.min(e.cd, 0.3); return 'block';
@@ -207,7 +236,7 @@ export function hitEnemy(e, dmg, kx, ky, kz, launch, fromAir) {
   if (e.air) { e.vel.set(kx * 0.3, 3, kz * 0.3); e.airHold = 0.9; e.state = 'air'; }
   else if (launch === 'up' && !heavy) { e.air = true; e.vel.set(0, 14, 0); e.airHold = 1.6; e.state = 'air'; e.spin = rnd(-3, 3); popText('WYBICIE!'); }
   else if ((e.hp <= 0 || launch) && !(heavy && e.hp > 0)) { e.air = true; e.vel.set(kx * (heavy ? 0.5 : 1), ky, kz * (heavy ? 0.5 : 1)); e.state = 'air'; e.spin = rnd(-6, 6); }
-  else { e.state = 'hurt'; e.t = 0.4; e.vel.set(kx, 0, kz); }
+  else { e.state = 'hurt'; e.t = heavy ? DIFF.bruteHurt : 0.4; e.vel.set(kx, 0, kz); }
   if (e.hp <= 0) killEnemy(e);
   return true;
 }
@@ -223,10 +252,12 @@ function moveEnemy(e, vx, vz, dt) {
 function fireAt(e, d) {
   e.wpn.getWorldPosition(_h);
   _t.set(P.pos.x, P.pos.y + 1.2, P.pos.z);
-  let ch = 0.75 - P.vel.length() / 55 - d / 140; if (P.state === 'swing') ch -= 0.15;
-  ch = clamp(ch, 0.08, 0.75);
+  // celowanie z wyprzedzeniem: punkt przed graczem (predkosc * ~0,25 s * lead)
+  _t.x += P.vel.x * 0.25 * DIFF.lead; _t.y += P.vel.y * 0.12 * DIFF.lead; _t.z += P.vel.z * 0.25 * DIFF.lead;
+  let ch = DIFF.hitBase - P.vel.length() / 55 * (1 - 0.5 * DIFF.lead) - d / 160; if (P.state === 'swing') ch -= 0.1;
+  ch = clamp(ch, 0.12, DIFF.hitBase);
   const hit = Math.random() < ch && P.invT <= 0 && P.dodgeT <= 0;
-  if (!hit) { _t.x += rnd(-2.5, 2.5); _t.y += rnd(-1, 2.5); _t.z += rnd(-2.5, 2.5); _t.sub(_h).multiplyScalar(1.6).add(_h); }
+  if (!hit) { const sp = DIFF.spread; _t.x += rnd(-2.5, 2.5) * sp; _t.y += rnd(-1, 2.5) * sp; _t.z += rnd(-2.5, 2.5) * sp; _t.sub(_h).multiplyScalar(1.6).add(_h); }
   tracer(_h, _t);
   _a.subVectors(_t, _h); const bl = _a.length(); if (bl > 0.1) {
     _a.divideScalar(bl); muzzleFlash(_h, _a);
@@ -236,11 +267,13 @@ function fireAt(e, d) {
   }
   sfx('shot', clamp(1.2 - d / 80, 0.15, 1));
   if (e.pos.y < 3) scarePeds(e.pos.x, e.pos.z);
-  if (hit) hurtPlayer(7, e);
+  if (hit) hurtPlayer(7 * DIFF.dmg, e);
 }
 
 export function updateEnemies(dt) {
   G.sense = false;
+  nMelee = 0; nShoot = 0; // "zezwolenia na atak": ilu juz zamachuje sie / celuje (koordynacja grupy)
+  for (const e of enemies) if (!e.dead && !e.air) { if (e.state === 'windup' || e.state === 'recover') nMelee++; else if (e.state === 'aim') nShoot++; }
   for (const e of enemies) if (e.type !== 'boss') updateEnemy(e, dt);
   // rozpychanie sie
   for (let i = 0; i < enemies.length; i++) for (let j = i + 1; j < enemies.length; j++) {
@@ -292,27 +325,58 @@ function updateEnemy(e, dt) {
         face(); e.cd -= dt;
         if (e.type !== 'gun') {
           if (Math.abs(dy) < 2.5 && dist < 35) {
-            const sp = (e.type === 'brute' ? 3.2 : 4.2) * slow;
-            if (dist > 1.4 * R) { moveEnemy(e, dx / dist * sp, dz / dist * sp, dt); e.moving = true; }
-            if (dist < 1.9 * R && e.cd <= 0 && P.state !== 'wall') { e.state = 'windup'; e.t = e.type === 'brute' ? 0.8 : 0.55; }
+            const sp = (e.type === 'brute' ? 3.2 : 4.2) * DIFF.speed * slow, big = e.type === 'brute';
+            const canAtk = nMelee < DIFF.meleeMax + (save.lvl >= 6 ? 1 : 0); // reszta okrazaja gracza
+            if (!canAtk && dist < 14 && e.cd > -0.5) { // czeka na swoja kolej: kraza wokol gracza po okregu
+              const k = dist > 0.1 ? 1 / dist : 0, rx = dx * k, rz = dz * k, rad = (dist - DIFF.orbit * R) * 0.8;
+              moveEnemy(e, (rx * rad - rz * e.orbitDir * sp * 0.8), (rz * rad + rx * e.orbitDir * sp * 0.8), dt); e.moving = true;
+              if (e.cd < 0.2) e.cd = 0.2; // gotowy do ataku, jak tylko zwolni sie miejsce
+            } else {
+              if (dist > 1.4 * R) { moveEnemy(e, dx / dist * sp, dz / dist * sp, dt); e.moving = true; }
+              if (dist < 1.9 * R && e.cd <= 0 && P.state !== 'wall' && canAtk) { e.state = 'windup'; e.t = Math.max(0.44, (big ? 0.8 : 0.55) * DIFF.windup); nMelee++; if (Math.random() < 0.5) e.orbitDir = -e.orbitDir; }
+            }
           }
         } else {
-          if (dist < 5 && dist > 0.1) { moveEnemy(e, -dx / dist * 2.5 * slow, -dz / dist * 2.5 * slow, dt); e.moving = true; }
-          if (e.cd <= 0 && d3 < 65) { e.state = 'aim'; e.t = 0.75; }
+          // strzelec: kryje sie / kuca po strzale, potem wychyla sie, gdy ma linie strzalu
+          if (e.crouchT > 0) { e.crouchT -= dt; break; }
+          if (e.coverT > 0) { e.coverT -= dt; if (e.coverDir) { moveEnemy(e, e.coverDir.x * 5 * DIFF.speed * slow, e.coverDir.z * 5 * DIFF.speed * slow, dt); e.moving = true; } if (e.coverT <= 0) { e.coverDir = null; e.crouchT = rnd(0.5, 1.0); } break; }
+          e.losT -= dt;
+          if (e.losT <= 0 && d3 < 70) { // linia strzalu (sprawdzana co ~0,3 s)
+            e.losT = 0.3; _h.set(e.pos.x, e.pos.y + 1.4, e.pos.z); _t.set(P.pos.x - _h.x, P.pos.y + 1.2 - _h.y, P.pos.z - _h.z); const L = _t.length(); _t.divideScalar(L);
+            e.los = raycastCity(_h, _t, L) >= L - 1.0;
+          }
+          if (dist < 5 && dist > 0.1) { moveEnemy(e, -dx / dist * 2.5 * DIFF.speed * slow, -dz / dist * 2.5 * DIFF.speed * slow, dt); e.moving = true; }
+          else if (!e.los && dist > 3) { // brak linii: obchodzi przeszkode bokiem i zblizaja sie
+            const k = 1 / dist; moveEnemy(e, (dx * 0.6 - dz * e.orbitDir * 0.8) * k * 4 * DIFF.speed * slow, (dz * 0.6 + dx * e.orbitDir * 0.8) * k * 4 * DIFF.speed * slow, dt); e.moving = true;
+          }
+          if (e.cd <= 0 && d3 < 65 && e.los) { if (nShoot < DIFF.shooterMax + (save.lvl >= 6 ? 1 : 0)) { e.state = 'aim'; e.t = 0.75 * DIFF.aim; nShoot++; } else e.cd = 0.25; }
         }
         break;
       case 'windup':
         face(); e.t -= dt; G.sense = true;
         if (e.t <= 0) {
           const big = e.type === 'brute';
-          if (dist < 2.4 * R && Math.abs(dy) < 1.8) hurtPlayer(big ? 25 : 10, e, big ? 16 : 6);
+          if (dist < 2.4 * R && Math.abs(dy) < 1.8) hurtPlayer((big ? 25 : 10) * DIFF.dmg, e, big ? 16 : 6);
           if (big) { G.shake = Math.max(G.shake, 0.3); sfx('slam', 0.5); burst(e.pos.x, e.pos.y + 0.2, e.pos.z, 16, 0xbdb5a8, 5); }
-          e.state = 'recover'; e.t = big ? 0.8 : 0.45; e.cd = rnd(1.2, 2.4);
+          e.state = 'recover'; e.t = (big ? 0.8 : 0.45) * (0.5 + 0.5 * DIFF.windup); e.cd = rnd(1.2, 2.4) * DIFF.cd;
         }
         break;
       case 'aim':
         face(); e.t -= dt; if (e.t < 0.5) G.sense = true;
-        if (e.t <= 0) { fireAt(e, d3); e.state = 'fight'; e.cd = rnd(1.6, 3.2); }
+        if (e.t <= 0) {
+          fireAt(e, d3); e.state = 'fight'; e.cd = rnd(1.6, 3.2) * DIFF.cd;
+          if (Math.random() < DIFF.cover) { // po strzale: schowaj sie za przeszkoda (jesli jest blisko) albo przykucnij
+            let found = null; const a0 = Math.random() * 6.28;
+            for (let k = 0; k < 8 && !found; k++) {
+              const a = a0 + k * 0.785, cx = Math.sin(a), cz = Math.cos(a);
+              _h.set(e.pos.x + cx * 3.5, e.pos.y + 1.4, e.pos.z + cz * 3.5); if (solidAt(_h.x, _h.y, _h.z)) continue;
+              _t.set(P.pos.x - _h.x, P.pos.y + 1.2 - _h.y, P.pos.z - _h.z); const L = _t.length(); _t.divideScalar(L);
+              if (raycastCity(_h, _t, L) < L - 1.0) found = { x: cx, z: cz };
+            }
+            if (found) { e.coverDir = found; e.coverT = 0.7; } else e.crouchT = rnd(0.6, 1.1);
+            e.los = false; e.losT = 0.5;
+          }
+        }
         break;
       case 'recover': case 'hurt': case 'getup':
         e.t -= dt; if (e.t <= 0) e.state = 'fight';
@@ -338,6 +402,7 @@ function poseEnemy(e, dt, d3) {
       if (e.type === 'melee' && !e.moving) { t.sRx = -0.5; t.eR = -1.3; }
       if (e.type === 'brute') { t.sLz = 0.45; t.sRz = -0.45; t.eL = -1.4; t.eR = -1.4; t.sLx = -0.4; t.sRx = -0.4; }
       if (e.state === 'fight' && e.type === 'gun') { t.sRx = -1.2; t.eR = -0.2; }
+      if (e.crouchT > 0 && !e.moving) { t.by = -0.4; t.hLx = -1.3; t.kL = 1.9; t.hRx = -1.1; t.kR = 1.7; t.bp = 0.4; } // kuca za oslona
   }
   if (e.finPose) e.finPose(e, t);
   if (d3 < 120 || e.air) {

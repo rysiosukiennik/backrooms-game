@@ -212,6 +212,7 @@ export function showMsg(t, s, dur = 2.5) {
 }
 export function flashDamage() { dmgT = 0.25; }
 export function popText(t) { const p = $('pop'); p.textContent = t; p.style.opacity = 1; p.style.transform = 'translate(-50%,-50%) scale(1.1)'; popT = 0.9; }
+export function hintNow(text) { $('hint').innerHTML = text; $('hint').style.opacity = 1; hintT = 3; } // krotka podpowiedz (bez zapamietywania)
 const hintsShown = new Set();
 export function hint(id, text) { if (hintsShown.has(id)) return; hintsShown.add(id); $('hint').innerHTML = text; $('hint').style.opacity = 1; hintT = 6; }
 
