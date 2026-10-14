@@ -14,7 +14,7 @@ const SHY = 1.45, HIPY = 0.91, HC = 0.125; // HC: srodek glowy nad koscia szyi
 
 // sylwetki
 export const BODY = {
-  spider: { w: 1, chest: 1, waist: 1, belly: 0, pec: 1, hips: 1, arm: 1, leg: 1, neck: 1, head: 1 },
+  spider: { w: 1.06, chest: 1, waist: 1, belly: 0, pec: 1, hips: 1, arm: 1, leg: 1, neck: 1, head: 1.08 },
   thug: { w: 0.97, chest: 0.93, waist: 1.08, belly: 0.1, pec: 0.3, hips: 1.02, arm: 0.93, leg: 1, neck: 1.05, head: 1 },
   brute: { w: 1.16, chest: 1.12, waist: 1.16, belly: 0.08, pec: 1.4, hips: 1.14, arm: 1.4, leg: 1.18, neck: 1.35, head: 1.02 },
   fisk: { w: 1.34, chest: 1.24, waist: 1.6, belly: 0.55, pec: 0.4, hips: 1.32, arm: 1.32, leg: 1.1, neck: 1.6, head: 1.42 },
@@ -416,7 +416,7 @@ function richCanvases(s) {
   };
   // faktura materialu: kropki rysowane bez filtra (filtr per kropka jest bardzo wolny), potem JEDNO rozmycie regionu
   const softRect = (T, x0, y0, w, h) => { const x = T.b.x; x.save(); x.beginPath(); x.rect(x0, y0, w, h); x.clip(); x.filter = 'blur(0.8px)'; x.drawImage(T.b.c, 0, 0, T.b.w, T.b.h); x.restore(); };
-  const fabric = (T, step = 5) => { T.b.x.save(); T.b.x.globalAlpha = 0.3; hexDots2(T.b.x, 0, 0, T.b.w, T.b.h, '#9a9a9a', step); T.b.x.restore(); softRect(T, 0, 0, T.b.w, T.b.h); };
+  const fabric = (T, step = 5) => { T.b.x.save(); T.b.x.globalAlpha = s.fine ? 0.14 : 0.3; hexDots2(T.b.x, 0, 0, T.b.w, T.b.h, '#9a9a9a', step); T.b.x.restore(); softRect(T, 0, 0, T.b.w, T.b.h); };
   // prostokat w kolorze czesci stroju (kolor + faktura; metal = gladki, plytki)
   const fill = (T, x0, y0, w, h, kind, step = 3.2) => {
     const col = colOf(kind), met = metalKind(kind);
@@ -436,13 +436,14 @@ function richCanvases(s) {
     if (s.pin && kind === 's') { T.m.x.fillStyle = 'rgba(255,255,255,.1)'; for (let a = x0 + 4; a < x0 + w; a += 9) T.m.x.fillRect(a, y0, 1, h); }
   };
   // linie sieci: ciemne w kolorze, wypukle (miekki profil) w wysokosci, gladsze w szorstkosci, swiecace w emisji
-  const web = (T, draw, rects) => {
+  const web = (T, draw, rects, wcol) => {
     if (!s.web) return;
+    const fk = s.fine || 1, WC = wcol || s.web;
     const sv = (c) => { c.x.save(); if (rects) clipRects(c.x, rects); };
-    sv(T.m); draw(T.m.x, s.web, 1.5); T.m.x.restore();
-    sv(T.b); T.b.x.filter = 'blur(1.1px)'; draw(T.b.x, '#c4c4c4', 3.4); T.b.x.filter = 'none'; draw(T.b.x, '#dadada', 1.2); T.b.x.restore();
-    sv(T.r); draw(T.r.x, '#a8a8a8', 2.6); T.r.x.restore();
-    if (T.e && s.glow) { sv(T.e); draw(T.e.x, s.web, 2.6); T.e.x.restore(); }
+    sv(T.m); draw(T.m.x, WC, 1.5 * fk); T.m.x.restore();
+    sv(T.b); T.b.x.filter = 'blur(1.1px)'; draw(T.b.x, '#c4c4c4', 3.4 * fk); T.b.x.filter = 'none'; draw(T.b.x, '#dadada', 1.2 * fk); T.b.x.restore();
+    sv(T.r); draw(T.r.x, '#a8a8a8', 2.6 * fk); T.r.x.restore();
+    if (T.e && s.glow) { sv(T.e); draw(T.e.x, WC, 2.6); T.e.x.restore(); }
   };
   // panel w kolorze dodatkowym (granat/czern/srebro): kolor + faktura, rant na krawedzi
   const panel = (T, path) => {
@@ -513,9 +514,14 @@ function richCanvases(s) {
   const tKinds = [P.head, s.chestSec ? 's' : P.chest || 'p', P.abd, P.pelvis].map(k => k || 'p');
   if (!advL) for (let i = 0; i < 4; i++) if (tKinds[i] !== 'p') fill(T, 0, tY[i], 512, tY[i + 1] - tY[i], tKinds[i]);
   web(T, (x, col, lw) => {
-    x.save(); x.beginPath(); x.rect(128, 0, 256, 512); x.clip(); radialWeb(x, 256, CY, col, lw); x.restore();
-    for (const bx of [0, 512]) { x.save(); x.beginPath(); x.rect(bx - 128, 0, 256, 512); x.clip(); radialWeb(x, bx, CY, col, lw); x.restore(); }
+    const rn = s.fine ? 32 : 26, rs = s.fine ? 20 : 25;
+    x.save(); x.beginPath(); x.rect(128, 0, 256, 512); x.clip(); radialWeb(x, 256, CY, col, lw, 330, rn, rs); x.restore();
+    for (const bx of [0, 512]) { x.save(); x.beginPath(); x.rect(bx - 128, 0, 256, 512); x.clip(); radialWeb(x, bx, CY, col, lw, 330, rn, rs); x.restore(); }
   }, advL ? null : wrect(tY, tKinds, 512));
+  if (s.legNavy) { // spodnie: granat z czerwonymi rzedami siatki
+    const y0 = tY[3] + 2; fill(T, 0, y0, 512, 512 - y0, 's', 4);
+    web(T, (x, col, lw) => { for (const cx of [128, 256, 384, 0, 512]) { x.save(); x.beginPath(); x.rect(cx - 64, y0, 128, 512 - y0); x.clip(); radialWeb(x, cx, CY, col, lw, 330, 32, 20); x.restore(); } }, [[0, y0, 512, 512 - y0]], s.legWeb);
+  }
   if (advL || s.sides || s.panels) for (const cx of [128, 384]) {
     const f = cx < 256 ? 1 : -1;
     const Pp = [[14, 1.43], [56, 1.31], [76, 1.2], [84, 1.08], [87, 0.99], [92, 0.92], [102, 0.86], [112, 0.79],
@@ -560,7 +566,7 @@ function richCanvases(s) {
   fabric(A, 4.5);
   const aY = [0, AY(-0.28), 512], aK = [P.uarm || 'p', P.farm || 'p'];
   if (!advL) for (let i = 0; i < 2; i++) if (aK[i] !== 'p') fill(A, 0, aY[i], 256, aY[i + 1] - aY[i], aK[i]);
-  web(A, (x, col, lw) => webLines(x, 0, 0, 256, 512, col, lw, 32, 30), advL ? null : wrect(aY, aK, 256));
+  web(A, (x, col, lw) => webLines(x, 0, 0, 256, 512, col, lw, s.fine ? 24 : 32, s.fine ? 22 : 30), advL ? null : wrect(aY, aK, 256));
   if (advL || s.panels) panel(A, x => smoothPath(x, [[148, AY(0.1)], [236, AY(0.1)], [228, AY(-0.27)], [214, AY(-0.47)], [192, AY(-0.53)], [170, AY(-0.47)], [156, AY(-0.27)]]));
   if (s.cuff) band(A, 0, AY(-0.47), 256, 22, s.cuff, !!s.metal && s.cuff !== s.prim);
   else { A.m.x.fillStyle = 'rgba(0,0,0,.18)'; A.m.x.fillRect(0, AY(-0.5) - 1, 256, 2); }
@@ -576,7 +582,8 @@ function richCanvases(s) {
   fabric(G, 5);
   const gY = [0, LY(-0.47), 512], gK = [P.thigh || 'p', P.shin || 'p'];
   if (!advL) for (let i = 0; i < 2; i++) if (gK[i] !== 'p') fill(G, 0, gY[i], 256, gY[i + 1] - gY[i], gK[i]);
-  web(G, (x, col, lw) => webLines(x, 0, 0, 256, 512, col, lw, 32, 27), advL ? null : wrect(gY, gK, 256));
+  if (s.legNavy) fill(G, 0, 0, 256, 512, 's', 4);
+  web(G, (x, col, lw) => webLines(x, 0, 0, 256, 512, col, lw, s.fine ? 24 : 32, s.fine ? 22 : 27), advL ? null : wrect(gY, gK, 256), s.legNavy ? s.legWeb : null);
   const legBack = o => x => smoothPath(x, [[200 + o, LY(0.14)], [362 + o, LY(0.14)], [362 + o, LY(-0.2)], [366 + o, LY(-0.39)], [330 + o, LY(-0.44)], [290 + o, LY(-0.47)],
     [270 + o, LY(-0.56)], [262 + o, LY(-0.7)], [256 + o, LY(-0.8)], [250 + o, LY(-0.7)], [242 + o, LY(-0.56)], [222 + o, LY(-0.46)], [204 + o, LY(-0.4)], [196 + o, LY(-0.2)]]);
   if (advL || s.panels) { panel(G, legBack(0)); panel(G, legBack(-256)); }
@@ -585,7 +592,7 @@ function richCanvases(s) {
     fill(G, 0, LY(-0.7), 256, 512 - LY(-0.7), 'p'); G.m.x.fillStyle = s.boot; G.m.x.fillRect(0, LY(-0.7), 256, 512 - LY(-0.7));
     band(G, 0, LY(-0.7) - 3, 256, 12, s.bootCuff || '#1a1a1a', false);
     G.b.x.fillStyle = '#808080'; G.b.x.fillRect(0, LY(-0.7) + 9, 256, 512 - LY(-0.7) - 9);
-    if (s.web && (s.webAll || advL)) web(G, (x, col, lw) => webLines(x, 0, 0, 256, 512, col, lw, 32, 27), [[0, LY(-0.7) + 9, 256, 512]]);
+    if (s.web && (s.webAll || advL)) web(G, (x, col, lw) => webLines(x, 0, 0, 256, 512, col, lw, s.fine ? 24 : 32, s.fine ? 22 : 27), [[0, LY(-0.7) + 9, 256, 512]], s.bootWeb);
   }
   dirt(G, 128, LY(-0.44), 44, 36, 0.32); dirt(G, 128, LY(-0.83), 128, 26, 0.3); dirt(G, 128, LY(0.03), 90, 20, 0.12); scuffs(G, 40, LY(-0.55), 176, 100, 16);
   noise(G.m.x, 256, 512, 1200, 0.025);
@@ -613,7 +620,7 @@ function richCanvases(s) {
   const tile = (kind, bootCol) => {
     const t = mk(128, 128, false); if (!advL) fill(t, 0, 0, 128, 128, kind, 4); if (bootCol) { t.m.x.fillStyle = bootCol; t.m.x.fillRect(0, 0, 128, 128); }
     fabric(t, 4);
-    if (advL || kind === 'p' || s.webAll) web(t, (x, col, lw) => webLines(x, 0, 0, 128, 128, col, lw), bootCol && !s.webAll && !advL ? [] : null);
+    if (advL || kind === 'p' || s.webAll) web(t, (x, col, lw) => webLines(x, 0, 0, 128, 128, col, lw, s.fine ? 22 : 32, s.fine ? 20 : 34), bootCol && !s.webAll && !advL ? [] : null, bootCol === s.glove ? s.gloveWeb : s.bootWeb);
     scuffs(t, 0, 0, 128, 128, 8); return t;
   };
   const handKind = P.hand || 'p', footKind = P.foot || 'p';
@@ -1023,27 +1030,27 @@ function spTorsoRings() {
     { y: 0.815, rx: 0.1, rz: 0.08 },
     { y: 0.86, rx: 0.148, rz: 0.108, bb: 0.15, cz: -0.006, n: 2.3 },
     { y: 0.93, rx: 0.152, rz: 0.106, bb: 0.1, cz: -0.005, n: 2.4 },
-    { y: 1.0, rx: 0.138, rz: 0.097, n: 2.35 },
-    { y: 1.08, rx: 0.134, rz: 0.096, fb: 0.04, n: 2.35 },
-    { y: 1.16, rx: 0.15, rz: 0.102, fb: 0.06, n: 2.4 },
-    { y: 1.24, rx: 0.178, rz: 0.113, fb: 0.07, pec: 0.04, n: 2.5, cz: 0.005 },
-    { y: 1.32, rx: 0.2, rz: 0.121, fb: 0.06, pec: 0.1, n: 2.6, cz: 0.01 },
-    { y: 1.39, rx: 0.214, rz: 0.119, fb: 0.04, pec: 0.06, n: 2.6, cz: 0.01 },
-    { y: 1.445, rx: 0.226, rz: 0.106, n: 2.4 },
-    { y: 1.49, rx: 0.178, rz: 0.094, n: 2.3, cz: -0.006 },
-    { y: 1.525, rx: 0.122, rz: 0.084, n: 2.2, cz: -0.006 },
-    { y: 1.56, rx: 0.08, rz: 0.074, cz: 0.002 },
+    { y: 1.0, rx: 0.131, rz: 0.094, n: 2.35 },
+    { y: 1.08, rx: 0.13, rz: 0.094, fb: 0.04, n: 2.35 },
+    { y: 1.16, rx: 0.158, rz: 0.102, fb: 0.06, n: 2.4 },
+    { y: 1.24, rx: 0.194, rz: 0.115, fb: 0.07, pec: 0.04, n: 2.5, cz: 0.005 },
+    { y: 1.32, rx: 0.22, rz: 0.123, fb: 0.06, pec: 0.1, n: 2.6, cz: 0.01 },
+    { y: 1.39, rx: 0.238, rz: 0.121, fb: 0.04, pec: 0.06, n: 2.6, cz: 0.01 },
+    { y: 1.445, rx: 0.246, rz: 0.108, n: 2.4 },
+    { y: 1.49, rx: 0.208, rz: 0.098, n: 2.3, cz: -0.006 },
+    { y: 1.525, rx: 0.15, rz: 0.088, n: 2.2, cz: -0.006 },
+    { y: 1.56, rx: 0.098, rz: 0.078, cz: 0.002 },
     { y: 1.6, rx: 0.071, rz: 0.069, cz: 0.01 },
     { y: 1.68, rx: 0.05, rz: 0.05, cz: 0.015 },
   ];
 }
 function spArmRings() {
-  const X = 0.215;
+  const X = 0.215 * 1.06;
   return [
     [-0.56, 0.012, 0.012], [-0.545, 0.029, 0.026], [-0.52, 0.033, 0.029], [-0.46, 0.036, 0.031], [-0.41, 0.043, 0.037],
     [-0.35, 0.05, 0.044], [-0.3, 0.046, 0.043], [-0.25, 0.049, 0.047, 0, 0, 0.06], [-0.18, 0.055, 0.053, 0, 0.16, 0.1],
     [-0.1, 0.06, 0.057, 0.003, 0.1, 0.12], [-0.035, 0.066, 0.061, 0.008], [-0.005, 0.063, 0.059, 0.007], [0.018, 0.054, 0.051, 0.005], [0.034, 0.036, 0.035, 0.003], [0.045, 0.012, 0.012],
-  ].map(([t, rx, rz, cx = 0, fb = 0, bb = 0]) => ({ y: SHY + t, rx, rz, cx: X + cx, fb, bb }));
+  ].map(([t, rx, rz, cx = 0, fb = 0, bb = 0], i, A) => { const g = i > 0 && i < A.length - 2 ? 1.06 : 1; return { y: SHY + t, rx: rx * g, rz: rz * g, cx: X + cx, fb, bb }; });
 }
 function spLegRings() {
   const X = 0.09;
@@ -1071,7 +1078,7 @@ function torsoSculpt(c, s, y) {
 }
 function armSculpt(c, s, y) {
   const t = y - SHY, fr = Math.max(0, s), bk = Math.max(0, -s);
-  let d = 0.01 * gs(t, -0.04, 0.07) * Math.max(0, c * 0.8 + 0.35);  // naramienny
+  let d = 0.017 * gs(t, -0.045, 0.075) * Math.max(0, c * 0.8 + 0.35);  // naramienny
   d += 0.007 * fr * gs(t, -0.19, 0.055) * gs(c, 0, 0.6);            // biceps
   d += 0.007 * bk * gs(t, -0.15, 0.06);                              // triceps
   d += 0.006 * gs(t, -0.36, 0.035) * Math.max(0, c * 0.5 + s * 0.7); // przedramie
@@ -1125,10 +1132,10 @@ function spLensData(b, s, scale, lift) {
     const r = j / RN;
     for (let i = 0; i <= SN; i++) {
       const th = i / SN * TAU, c = Math.cos(th), sn = Math.sin(th);
-      const R = (1 + 0.55 * Math.pow(Math.max(0, Math.cos(th - 0.5)), 3) + 0.3 * Math.pow(Math.max(0, Math.cos(th - 3.75)), 8)) / Math.pow(Math.pow(Math.abs(c), 2.6) + Math.pow(Math.abs(sn), 2.6), 1 / 2.6);
-      const X = c * 0.27 * R * r * scale, Y = sn * 0.165 * R * r * scale, tl = 0.36;
+      const R = (1 + 0.55 * Math.pow(Math.max(0, Math.cos(th - 0.5)), 3) + 0.55 * Math.pow(Math.max(0, Math.cos(th - 3.7)), 7)) / Math.pow(Math.pow(Math.abs(c), 2.3) + Math.pow(Math.abs(sn), 2.3), 1 / 2.3);
+      const X = c * 0.3 * R * r * scale, Y = sn * 0.15 * R * r * scale, tl = 0.46;
       const Xr = X * Math.cos(tl) - Y * Math.sin(tl), Yr = X * Math.sin(tl) + Y * Math.cos(tl);
-      spHeadPoint(Math.PI / 2 - s * 0.4 - s * Xr, 0.1 + Yr, b, P);
+      spHeadPoint(Math.PI / 2 - s * 0.43 - s * Xr, 0.1 + Yr, b, P);
       n.copy(P).sub(C0).normalize(); P.addScaledVector(n, lift * (1 - 0.35 * r * r));
       pos.push(P.x, P.y, P.z); uv.push(0.5 + X * 0.9, 0.5 + Y * 1.3);
     }
