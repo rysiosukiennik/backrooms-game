@@ -8,7 +8,7 @@ export function el(mat, sx, sy, sz, x = 0, y = 0, z = 0, geo = SG) {
 }
 
 // ---------------------------------------------------------------- pozy
-export const POSEK = ['by', 'bp', 'br', 'bw', 'spx', 'spy', 'spz', 'chx', 'hx', 'hy', 'sLx', 'sLy', 'sLz', 'eL', 'sRx', 'sRy', 'sRz', 'eR', 'hLx', 'hLz', 'kL', 'hRx', 'hRz', 'kR', 'fL', 'fR'];
+export const POSEK = ['by', 'bp', 'br', 'bw', 'spx', 'spy', 'spz', 'chx', 'hx', 'hy', 'hz', 'sLx', 'sLy', 'sLz', 'eL', 'sRx', 'sRy', 'sRz', 'eR', 'hLx', 'hLz', 'kL', 'hRx', 'hRz', 'kR', 'fL', 'fR'];
 export function newPose() { const o = {}; for (const k of POSEK) o[k] = 0; return o; }
 export function zeroPose(o) { for (const k of POSEK) o[k] = 0; }
 export function blendPose(c, t, k) { for (const q of POSEK) c[q] += (t[q] - c[q]) * k; }
@@ -17,7 +17,7 @@ export function applyPose(H, c) {
   H.body.rotation.set(c.bp, c.bw, c.br, 'YXZ');
   H.spine.rotation.set(c.spx, c.spy, c.spz);
   H.chest.rotation.set(c.chx, 0, 0);
-  H.neck.rotation.set(c.hx, c.hy, 0);
+  H.neck.rotation.set(c.hx, c.hy, c.hz);
   H.shL.rotation.set(c.sLx, c.sLy, c.sLz); H.elL.rotation.set(c.eL, 0, 0);
   H.shR.rotation.set(c.sRx, c.sRy, c.sRz); H.elR.rotation.set(c.eR, 0, 0);
   H.hipL.rotation.set(c.hLx, 0, c.hLz); H.knL.rotation.set(c.kL, 0, 0);

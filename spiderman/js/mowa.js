@@ -57,6 +57,7 @@ export function speechPose(t, mode, time) {
 // mimika soczewek (wolac po applyPose; zmienia skale tylko gdy sie zmienila)
 export function speechFace(H) {
   if (!H || !H.squint) return;
+  if (S.H !== H) { S.H = H; S.sqApplied = -1; } // nowy model (zmiana stroju)
   const q = Math.round(S.sq * 200) / 200;
   if (q !== S.sqApplied) { S.sqApplied = q; H.squint(q); }
 }

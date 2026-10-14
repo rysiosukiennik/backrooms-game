@@ -12,6 +12,7 @@ import { initAudio, setWind, setMusic, cityAmbience, sfx, setMusicMode } from '.
 import { fiskActive } from './fisk.js';
 import { updateRooms } from './wnetrza.js';
 import { updateQuips, quipStart } from './docinki.js';
+import { glosStop } from './glos.js';
 
 try {
   buildCity();
@@ -95,7 +96,18 @@ hooks.tod = () => {
   setTOD(save.tod); setupComposer();
 };
 hooks.music = () => { save.music = !save.music; doSave(); setMusic(save.music); };
-hooks.voice = () => { save.voice = !save.voice; doSave(); try { if (!save.voice) window.speechSynthesis.cancel(); } catch (e) {} };
+const VMODES = ['nagrania', 'syntezator', 'wylaczony'];
+hooks.voice = (d = 1) => { // tryb glosu: nagrania / syntezator / wylaczony (save.voice zostaje dla starszego kodu)
+  save.voiceMode = VMODES[(Math.max(0, VMODES.indexOf(save.voiceMode)) + d + VMODES.length) % VMODES.length];
+  save.voice = save.voiceMode !== 'wylaczony'; doSave();
+  try { if (!save.voice) { window.speechSynthesis.cancel(); glosStop(); } } catch (e) {}
+  dispatchEvent(new Event('glos-settings'));
+};
+hooks.voiceVol = (d = 1, wrap = false) => { // glosnosc glosu w krokach co 10%
+  let n = Math.round((save.voiceVol ?? 0.9) * 10) + d;
+  if (n > 10) n = wrap ? 0 : 10; if (n < 0) n = wrap ? 10 : 0;
+  save.voiceVol = n / 10; doSave(); dispatchEvent(new Event('glos-settings'));
+};
 
 document.addEventListener('pointerlockchange', () => {
   if (document.pointerLockElement !== canvas && G.state === 'play' && G.mode === 'kb') openPause('game', false);
