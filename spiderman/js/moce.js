@@ -149,9 +149,9 @@ function instant(id) {
     ring(px, py + 1, pz, 3, 0.35, 0x7fd8ff);
     burst(px, py + 1.2, pz, 14, 0x7fd8ff, 5);
     let from = new V3(px, py + 1.2, pz), pool = foesIn(14).map(q => q[0]), hops = 0;
-    while (pool.length && hops < 6) {
+    while (pool.length && hops < 8) {
       pool.sort((a, b) => a.pos.distanceTo(from) - b.pos.distanceTo(from));
-      const e = pool.shift(); if (hops > 0 && e.pos.distanceTo(from) > 9) break;
+      const e = pool.shift(); if (hops > 0 && e.pos.distanceTo(from) > 10) break;
       const to = chest(e).clone(); addBeam(from, to, hops % 2 ? 0xffffff : 0x7fd8ff, 0.45, 0.5);
       burst(to.x, to.y, to.z, 10, 0x7fd8ff, 4);
       if (e.type !== 'boss') { e.stunT = 3; hitEnemy(e, 0.5, 0, 0, 0, false, true); stun(e, 3.5); } else hitEnemy(e, 1, 0, 0, 0, false);
@@ -242,10 +242,11 @@ function hudBuild() {
   const h = document.getElementById('hud'); (h || document.body).appendChild(hudEl);
 }
 function hudShow(v) { if (hudEl) hudEl.style.display = v ? '' : 'none'; }
-let lastSig = '';
+let lastSig = '', lastB = 0;
 export function updatePowerHUD(dt = 0) {
   if (!hudEl) { if (!document.getElementById('hud')) return; hudBuild(); }
   hudEl.style.display = '';
+  const pr = document.getElementById('prompts'); if (pr) { const b = 40 + pr.offsetHeight; if (b !== lastB) { lastB = b; hudEl.style.bottom = b + 'px'; } }
   if (flashT > 0) { flashT -= dt; if (flashT <= 0) flash = ''; }
   const S = powerState, key = G.lastDev === 'pad' ? 'L3 + R3' : 'V';
   const sig = S.id + key + flash + (S.active ? 'a' : S.ready ? 'r' : 'c');

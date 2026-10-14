@@ -25920,10 +25920,10 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       ring2(px, py + 1, pz, 3, 0.35, 8378623);
       burst(px, py + 1.2, pz, 14, 8378623, 5);
       let from = new V3(px, py + 1.2, pz), pool = foesIn(14).map((q) => q[0]), hops = 0;
-      while (pool.length && hops < 6) {
+      while (pool.length && hops < 8) {
         pool.sort((a, b) => a.pos.distanceTo(from) - b.pos.distanceTo(from));
         const e = pool.shift();
-        if (hops > 0 && e.pos.distanceTo(from) > 9) break;
+        if (hops > 0 && e.pos.distanceTo(from) > 10) break;
         const to = chest(e).clone();
         addBeam(from, to, hops % 2 ? 16777215 : 8378623, 0.45, 0.5);
         burst(to.x, to.y, to.z, 10, 8378623, 4);
@@ -26061,6 +26061,14 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       hudBuild();
     }
     hudEl.style.display = "";
+    const pr = document.getElementById("prompts");
+    if (pr) {
+      const b = 40 + pr.offsetHeight;
+      if (b !== lastB) {
+        lastB = b;
+        hudEl.style.bottom = b + "px";
+      }
+    }
     if (flashT2 > 0) {
       flashT2 -= dt;
       if (flashT2 <= 0) flash3 = "";
@@ -26077,7 +26085,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     const f = S2.active ? 1 - S2.t / (S2.dur || 1) : S2.cdMax ? 1 - S2.cd / S2.cdMax : 1;
     hudEl.querySelector(".pb i").style.width = clamp(f, 0, 1) * 100 + "%";
   }
-  var POWERS, powerOf, powerState, cd, cdMax, act, actT, actDur, t10, t11, fired, flash3, flashT2, hudEl, useCount, hasteTS, myTS, cloakH, cloakMats, _v2, fxInit, aura, auraMat, rings2, beamLines, beamPos, beamCol, beams, MAXB, SEG, live2, chest, lastSig;
+  var POWERS, powerOf, powerState, cd, cdMax, act, actT, actDur, t10, t11, fired, flash3, flashT2, hudEl, useCount, hasteTS, myTS, cloakH, cloakMats, _v2, fxInit, aura, auraMat, rings2, beamLines, beamPos, beamCol, beams, MAXB, SEG, live2, chest, lastSig, lastB;
   var init_moce = __esm({
     "js/moce.js"() {
       init_util();
@@ -26125,6 +26133,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       live2 = (e) => e && !e.dead && !e.gone && e.type !== "boss";
       chest = (e) => _v2.set(e.pos.x, e.pos.y + 1.2 * (e.scale || 1), e.pos.z);
       lastSig = "";
+      lastB = 0;
     }
   });
 
