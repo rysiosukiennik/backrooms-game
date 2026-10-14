@@ -21305,12 +21305,12 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
 #logo .t1{font-family:'Bebas Neue',Impact,sans-serif;font-size:clamp(48px,min(9.5vw,15vh),140px);line-height:.85;letter-spacing:2px;text-shadow:0 6px 30px rgba(0,0,0,.6)}
 #logo .t1 span{color:var(--red)}
 #logo .t2{font-size:20px;font-weight:700;letter-spacing:12px;color:var(--cy);margin-top:10px}
-#menuList{position:absolute;left:7vw;top:max(33vh,190px);display:flex;flex-direction:column;gap:2px}
-.mi{font-family:'Bebas Neue',Impact,sans-serif;font-size:clamp(20px,4.6vh,34px);letter-spacing:2px;padding:3px 44px 0 18px;color:rgba(255,255,255,.72);cursor:pointer;clip-path:polygon(0 0,100% 0,calc(100% - 18px) 100%,0 100%);transition:background .12s,padding .12s}
+#menuList{position:absolute;left:7vw;top:max(25vh,160px);display:flex;flex-direction:column;gap:2px}
+.mi{font-family:'Bebas Neue',Impact,sans-serif;font-size:clamp(15px,3.3vh,32px);letter-spacing:2px;padding:3px 44px 0 18px;color:rgba(255,255,255,.72);cursor:pointer;clip-path:polygon(0 0,100% 0,calc(100% - 18px) 100%,0 100%);transition:background .12s,padding .12s}
 .vbar{display:inline-block;vertical-align:middle;width:150px;height:14px;margin-left:14px;background:repeating-linear-gradient(90deg,currentColor 0 12px,transparent 12px 15px);-webkit-mask:linear-gradient(90deg,#000 calc(var(--n)*15px),rgba(0,0,0,.28) 0)}
 .mi small{font-family:'Rajdhani';font-weight:600;font-size:17px;letter-spacing:1px;margin-left:10px;opacity:.85}
 .mi.f{background:var(--red);color:#fff;padding-left:30px}
-#menuFoot{position:absolute;left:7vw;bottom:4vh;font-size:17px;font-weight:600;color:#bfe9f5;line-height:1.6}
+#menuFoot{position:absolute;right:4vw;text-align:right;bottom:4vh;font-size:17px;font-weight:600;color:#bfe9f5;line-height:1.6}
 #pause{position:fixed;inset:0;z-index:12;background:rgba(3,12,20,.94)}
 #tabs{position:absolute;left:0;right:0;top:0;height:56px;display:flex;align-items:center;gap:2px;padding-left:20px;background:linear-gradient(#050d14,#08151f);border-bottom:2px solid rgba(63,227,255,.25);overflow:hidden}
 .tab{font-family:'Bebas Neue',Impact,sans-serif;font-size:25px;letter-spacing:1px;padding:9px 20px 4px;cursor:pointer;color:#cfe9f2;clip-path:polygon(12px 0,100% 0,calc(100% - 12px) 100%,0 100%);white-space:nowrap}

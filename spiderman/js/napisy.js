@@ -13,7 +13,7 @@ function ensure() {
   if (box) return;
   const st = document.createElement('style');
   st.textContent = `
-#napisy{position:fixed;left:50%;bottom:200px;transform:translateX(-50%);z-index:6;width:min(780px,calc(100vw - 520px));min-width:300px;
+#napisy{position:fixed;left:50%;bottom:236px;transform:translateX(-50%);z-index:6;width:min(780px,calc(100vw - 520px));min-width:300px;
   display:flex;flex-direction:column;gap:6px;align-items:stretch;pointer-events:none;font-family:Rajdhani,Arial,sans-serif}
 .nap{position:relative;padding:8px 20px 9px 18px;background:linear-gradient(90deg,rgba(4,10,18,.9),rgba(4,10,18,.78));
   border-left:4px solid var(--c);border-radius:0 6px 6px 0;box-shadow:0 4px 18px rgba(0,0,0,.45);
