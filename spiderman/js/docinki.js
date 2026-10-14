@@ -12,7 +12,7 @@
 // hurt_gun hurt_brute hurt_boss lowhp cola room room_<typ: shop cafe bar apt office gym fisk> crime carstop dodge dodge_perfect jump
 // death respawn race_start race_end race_end_gold|silver|bronze chase_start chase_end speed speed_record dive summit outnumbered
 // idle idle_long perch level bag district_<harlem uws ues park hk mid gv ct fin> sunset night day rhino rhino_win fisk fisk_phase2
-// fisk_phase3 fisk_win thug_alert thug_taunt thug_reply
+// fisk_phase3 fisk_win; wg katalogu: rhino_start rhino_phase2 fisk_enter race_win race_lose levelup airhit gun bat brute intro random_thought dialog_NN
 import { G, P, enemies } from './stan.js';
 import { save } from './util.js';
 import { districtAt } from './miasto.js';
@@ -51,7 +51,7 @@ function meta(kind) {
 const FALL = {
   hit_brute: 'hit', hit_gun: 'hit', web_brute: 'web', brute_stun: 'web', hurt_bat: 'hurt', hurt_gun: 'hurt', hurt_brute: 'hurt', hurt_boss: 'hurt',
   race_start: 'swing', race_end: 'hero', chase_start: 'crime', chase_end: 'crime', dive: 'swing', summit: 'perch', speed: 'swing', speed_record: 'speed',
-  idle_long: 'idle', death: 'lowhp', respawn: 'lowhp', thug_reply: 'hit', dodge_perfect: 'dodge', fisk_phase2: 'fisk', fisk_phase3: 'fisk',
+  idle_long: 'idle', death: 'lowhp', respawn: 'lowhp', dodge_perfect: 'dodge', airhit: 'hit', level: 'levelup',
 };
 function linesFor(kind) {
   for (let k = kind, n = 0; k && n < 4; n++) {
@@ -68,6 +68,7 @@ function candidates(kind, c) {
     const e = c.enemy || c.from;
     if (e && e.type && e.type !== 'boss' && kind === 'hit') L.push(e.type === 'brute' ? 'hit_brute' : e.type === 'gun' ? 'hit_gun' : kind);
     if (e && kind === 'hurt') L.push(e.type === 'brute' ? 'hurt_brute' : e.type === 'gun' ? 'hurt_gun' : e.type === 'boss' ? 'hurt_boss' : 'hurt_bat');
+    if (c.fromAir && kind === 'hit') L.unshift('airhit');
     if (e && kind === 'web' && e.type === 'brute') L.push('web_brute');
   }
   L.push(kind); return L;
@@ -77,7 +78,7 @@ function candidates(kind, c) {
 const SPEAKER = { peter: 'SPIDER-MAN', thug: 'BANDYTA', may: 'CIOCIA MAY', mj: 'MARY JANE', yuri: 'POLICJA', fisk: 'KINGPIN', rhino: 'NOSOROŻEC', radio: 'RADIO' };
 export const quipEvents = { onShow: null, onHide: null }; // UI podpina: onShow({ id, text, speaker, voice, mood, kind }), onHide()
 let el = null, now = 0, gcd = 3, startT = 0, prevState = '', idleT = 0, comboSaid = false, lowSaid = false, silence = 0;
-let cur = null, pending = null, replyT = 0, dryT = 0, scanT = 0, distT = 0, lastDist = '', fast = 0, fastSaid = 0, diveSaid = false, summitSaid = false;
+let cur = null, pending = null, reply = null, replyT = 0, dryT = 0, scanT = 0, distT = 0, lastDist = '', fast = 0, fastSaid = 0, diveSaid = false, summitSaid = false;
 let combat = false, aware = 0, bossSeen = null, bossPh = 0;
 const kcdAt = {}, recent = [], bags = {}, lastKey = {};
 
@@ -129,11 +130,14 @@ function hideLine() {
 }
 function gapFor() { return (combat ? 3.2 : G.chase || G.race || P.state === 'swing' || P.state === 'air' ? 6 : 10) * (0.8 + Math.random() * 0.5); }
 function playKind(kind, c, found, prio) {
-  const m = meta(kind), l = pick(found, wantMood(m, c));
-  if (cur) glosStop();
-  const speaker = SPEAKER[l.voice || 'peter'] || SPEAKER.peter, me = cur = { id: l.id, kind, prio, age: 0, min: 1.4 + l.text.length * 0.045, audioEnd: false, voice: l.voice || 'peter' };
+  const m = meta(kind);
   kcdAt[kind] = now + m.cd * (0.85 + Math.random() * 0.35);
-  if (m.fam === 'hurt' || m.fam === 'death') dryT = 8;
+  return playLine(pick(found, wantMood(m, c)), kind, prio, m);
+}
+function playLine(l, kind, prio, m, next) {
+  if (cur) glosStop();
+  const speaker = SPEAKER[l.voice || 'peter'] || SPEAKER.peter, me = cur = { id: l.id, kind, prio, age: 0, min: 1.4 + l.text.length * 0.045, audioEnd: false, voice: l.voice || 'peter', next };
+  if (m && (m.fam === 'hurt' || m.fam === 'death')) dryT = 8;
   silence = 0; pending = null;
   showLine(l, speaker);
   try { glosPlay(l.id, { priority: prio, text: l.text, voice: l.voice || 'peter', onEnd: () => { me.audioEnd = true; } }); } catch (e) { me.audioEnd = true; }
@@ -141,7 +145,16 @@ function playKind(kind, c, found, prio) {
 }
 function finish() {
   const c = cur; cur = null; hideLine(); gcd = gapFor();
-  if (c && c.voice === 'thug' && Math.random() < 0.65) replyT = 0.45; // Peter odpowiada bandycie
+  if (c && c.next) { reply = c.next; replyT = 0.4; } // Peter odpowiada bandycie
+}
+// rozmowa z wrogiem: pary dialog_NN (a = bandyta, b = Peter), losowane bez zwracania
+let dlgBag = [];
+function dialogStart() {
+  if (G.state !== 'play' || G.cine || cur || gcd > 0 || (kcdAt.dialog || 0) > now || Math.random() > 0.35) return false;
+  if (!dlgBag.length) { for (const k of byKind.keys()) if (k.startsWith('dialog_')) dlgBag.push(k); for (let i = dlgBag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = dlgBag[i]; dlgBag[i] = dlgBag[j]; dlgBag[j] = t; } }
+  const k = dlgBag.pop(); if (!k) return false;
+  const a = byKind.get(k).find(l => l.voice === 'thug'), b = byKind.get(k).find(l => l.voice !== 'thug'); if (!a || !b) return false;
+  kcdAt.dialog = now + 45; return playLine(a, 'dialog', 1, null, b);
 }
 
 // kolejka: jedno miejsce, wyzszy priorytet wypiera nizszy
@@ -177,14 +190,14 @@ export function updateQuips(dt) {
     cur.age += dt;
     const talking = glosState.speaking && glosState.id === cur.id;
     if (cur.age > 16 || (cur.age >= cur.min && (cur.audioEnd || !talking))) finish();
-  } else if (replyT > 0) { replyT -= dt; if (replyT <= 0) request('thug_reply', { noqueue: true, prio: 2 }, true); }
+  } else if (replyT > 0) { replyT -= dt; if (replyT <= 0 && reply) { const l = reply; reply = null; playLine(l, 'dialog', 1, null); } }
   if (G.state !== 'play' || G.cine) { prevState = ''; pending = null; return; }
   if (pending) {
     pending.ttl -= dt;
     if (pending.ttl <= 0) pending = null;
     else if (!cur && (gcd <= 0 || pending.prio >= 3)) { const p = pending; pending = null; request(p.kind, p.c, true); }
   }
-  if (startT > 0) { startT -= dt; if (startT <= 0) say(save.tod === 'night' ? 'night' : save.tod === 'day' ? 'day' : 'sunset', true); }
+  if (startT > 0) { startT -= dt; if (startT <= 0) if (!save.introSaid && byKind.has('intro')) { save.introSaid = true; say('intro', true); } else say(save.tod === 'night' ? 'night' : save.tod === 'day' ? 'day' : 'sunset', true); }
   const st = P.state;
   if (st === 'swing' && prevState !== 'swing') say('swing');
   prevState = st;
@@ -207,7 +220,7 @@ export function updateQuips(dt) {
   if (st === 'air' && P.vel.y < -28 && P.pos.y > 50) { if (!diveSaid) { diveSaid = true; say('dive'); } } else if (st !== 'air' || P.vel.y > -5) diveSaid = false;
   if (P.pos.y > 130 && st !== 'air') { if (!summitSaid) { summitSaid = true; say('summit'); } } else if (P.pos.y < 80) summitSaid = false;
   // dluga cisza (poza walka)
-  if (silence > 55 && !combat && !G.boss) { silence = 30; say('idle_long'); }
+  if (!combat && !G.boss) { if (silence > 75) { silence = 40; say('idle_long'); } else if (silence > 40 && say('random_thought')) silence = 20; }
 
   // wolniejsze skanowanie: wrogowie, boss, dzielnica
   scanT -= dt;
@@ -220,17 +233,16 @@ export function updateQuips(dt) {
       const d = Math.abs(e.pos.x - P.pos.x) + Math.abs(e.pos.z - P.pos.z);
       if (d > 60) continue;
       anyAwake = true; if (d < 28) n++;
-      if (!e._qa && d < 40) { e._qa = true; if (byKind.has('thug_alert')) request('thug_alert', { prio: 2 }); }
-      if ((s === 'windup' || s === 'aim') && !e._qw && d < 22) { e._qw = true; request('thug_taunt', { prio: 2 }); } else if (s !== 'windup' && s !== 'aim') e._qw = false;
+      if (!e._qa && d < 40) { e._qa = true; if (!request(e.type === 'gun' ? 'gun' : e.type === 'brute' ? 'brute' : 'bat')) dialogStart(); }
     }
     aware = n; combat = anyAwake || P.hurtT > 0 || !!G.boss;
     if (n >= 3) request('outnumbered');
     // boss: wejscie, fazy Kingpina, wygrana
     const b = G.boss;
-    if (b && !bossSeen) { bossSeen = b; bossPh = 0; request(b.name === 'KINGPIN' ? 'fisk' : 'rhino', { prio: 3 }, true); }
-    else if (b && b === bossSeen && b.max && b.name === 'KINGPIN') {
-      const ph = b.hp > b.max * 0.66 ? 0 : b.hp > b.max * 0.33 ? 1 : 2;
-      if (ph > bossPh) { bossPh = ph; request('fisk_phase' + (ph + 1), { prio: 3 }, true); }
+    if (b && !bossSeen) { bossSeen = b; bossPh = 0; request(b.name === 'KINGPIN' ? 'fisk_enter' : 'rhino_start', { prio: 3 }, true); }
+    else if (b && b === bossSeen && b.max) {
+      const king = b.name === 'KINGPIN', ph = king ? (b.hp > b.max * 0.66 ? 0 : b.hp > b.max * 0.33 ? 1 : 2) : (b.hp > b.max * 0.5 ? 0 : 1);
+      if (ph > bossPh) { bossPh = ph; request((king ? 'fisk_phase' : 'rhino_phase') + (ph + 1), { prio: 3 }, true); }
     } else if (!b && bossSeen) { const w = bossSeen; bossSeen = null; if (w.dead) request(w.name === 'KINGPIN' ? 'fisk_win' : 'rhino_win', { prio: 3 }, true); }
     // dzielnica (raz na sekunde, nie we wnetrzu)
     if ((distT -= 0.4) <= 0) {

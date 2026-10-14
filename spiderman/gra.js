@@ -8075,15 +8075,15 @@ ${GLSL_NOISE}
           this.q([[x0, y, z1], [x1, y, z1], [x1, y, z0], [x0, y, z0]], [0, 1, 0], this.rgb(col2, o), o);
         }
         // odcinek (kabel, rura, szczebel) miedzy dwoma punktami
-        seg(P2, Q2, t, col2, o = {}) {
-          const dx = Q2[0] - P2[0], dy = Q2[1] - P2[1], dz = Q2[2] - P2[2], hz = Math.hypot(dx, dz), L3 = Math.hypot(hz, dy);
+        seg(P2, Q, t, col2, o = {}) {
+          const dx = Q[0] - P2[0], dy = Q[1] - P2[1], dz = Q[2] - P2[2], hz = Math.hypot(dx, dz), L3 = Math.hypot(hz, dy);
           if (L3 < 0.01) return;
-          this.xbox((P2[0] + Q2[0]) / 2, (P2[1] + Q2[1]) / 2, (P2[2] + Q2[2]) / 2, t / 2, t / 2, L3 / 2, Math.atan2(dx, dz), -Math.atan2(dy, hz), col2, o);
+          this.xbox((P2[0] + Q[0]) / 2, (P2[1] + Q[1]) / 2, (P2[2] + Q[2]) / 2, t / 2, t / 2, L3 / 2, Math.atan2(dx, dz), -Math.atan2(dy, hz), col2, o);
         }
-        cable(P2, Q2, sag, t, col2, o = {}) {
+        cable(P2, Q, sag, t, col2, o = {}) {
           let prev = P2;
           for (let i = 1; i <= 4; i++) {
-            const f = i / 4, nx = P2[0] + (Q2[0] - P2[0]) * f, ny = P2[1] + (Q2[1] - P2[1]) * f - sag * 4 * f * (1 - f), nz2 = P2[2] + (Q2[2] - P2[2]) * f;
+            const f = i / 4, nx = P2[0] + (Q[0] - P2[0]) * f, ny = P2[1] + (Q[1] - P2[1]) * f - sag * 4 * f * (1 - f), nz2 = P2[2] + (Q[2] - P2[2]) * f;
             this.seg(prev, [nx, ny, nz2], t, col2, o);
             prev = [nx, ny, nz2];
           }
@@ -8783,11 +8783,11 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     const dockStrip = (side, v0, v1, spacing) => {
       for (let v = v0; v < v1; v += spacing * (0.8 + R3() * 0.6)) {
         const [x, z] = FM(20, v, side), ang = side === "W" ? Math.PI / 2 : side === "E" ? -Math.PI / 2 : 0;
-        const pick7 = R3();
-        if (pick7 < 0.3) {
+        const pick8 = R3();
+        if (pick8 < 0.3) {
           const [cx, cz] = FM(5, v, side);
           farG.append(craneT, cx, 0.5, cz, ang, 1);
-        } else if (pick7 < 0.75) {
+        } else if (pick8 < 0.75) {
           for (let i = 0; i < 5; i++) for (let j = 0; j < 4; j++) {
             const hgt = 1 + (R3() * 4 | 0), [qx, qz] = FM(8 + j * 6.6, v + i * 2.5 - 6, side);
             for (let y = 0; y < hgt; y++) farG.box(qx - 3, qx + 3, 0.5 + y * 2.6, 3 + y * 2.6, qz - 1.15, qz + 1.15, hexRGB(CONT[R3() * CONT.length | 0]));
@@ -9000,10 +9000,10 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
         o.rotation.set(pitch, head, roll, "YXZ");
         o.updateMatrix();
         m.ms.setMatrixAt(b.n, o.matrix);
-        const L3 = b.L, big = b.k === "cargo" ? 1 : 0, fast = b.k === "speed" ? 1.6 : 1;
+        const L3 = b.L, big = b.k === "cargo" ? 1 : 0, fast2 = b.k === "speed" ? 1.6 : 1;
         ow.position.set(x - Math.sin(head) * L3 * 0.5, -1.15, z - Math.cos(head) * L3 * 0.5);
         ow.rotation.set(0, head, 0);
-        ow.scale.set(L3 * 0.55 * fast + 2, 1, L3 * (b.k === "sail" ? 2.2 : 3.4) * (b.v > 12 ? 1.4 : 1));
+        ow.scale.set(L3 * 0.55 * fast2 + 2, 1, L3 * (b.k === "sail" ? 2.2 : 3.4) * (b.v > 12 ? 1.4 : 1));
         ow.updateMatrix();
         state.wake.setMatrixAt(b.i, ow.matrix);
         const co = Math.cos(head), si = Math.sin(head);
@@ -9726,8 +9726,8 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     const uv = uvr(tile, 0.012);
     let prev = pt(0), pr = r02;
     for (let s = 1; s <= n; s++) {
-      const cur2 = pt(s / n), rr5 = r02 + (r1 - r02) * s / n;
-      const d = norm2([cur2[0] - prev[0], cur2[1] - prev[1], cur2[2] - prev[2]]);
+      const cur3 = pt(s / n), rr5 = r02 + (r1 - r02) * s / n;
+      const d = norm2([cur3[0] - prev[0], cur3[1] - prev[1], cur3[2] - prev[2]]);
       let u1 = norm2([d[1] * 0 - d[2] * 1, d[2] * 0 - d[0] * 0, d[0] * 1 - d[1] * 0]);
       if (Math.abs(d[1]) > 0.98) u1 = [1, 0, 0];
       const u2 = [d[1] * u1[2] - d[2] * u1[1], d[2] * u1[0] - d[0] * u1[2], d[0] * u1[1] - d[1] * u1[0]];
@@ -9736,13 +9736,13 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
         const ang = q / sides * 6.2832, c = Math.cos(ang), sn = Math.sin(ang), nx = u1[0] * c + u2[0] * sn, ny = u1[1] * c + u2[1] * sn, nz2 = u1[2] * c + u2[2] * sn;
         const uu = uv[0] + (uv[2] - uv[0]) * q / sides;
         g.vert(prev[0] + nx * pr, prev[1] + ny * pr, prev[2] + nz2 * pr, nx, ny, nz2, uu, vu, bcol[0], bcol[1], bcol[2], 0);
-        g.vert(cur2[0] + nx * rr5, cur2[1] + ny * rr5, cur2[2] + nz2 * rr5, nx, ny, nz2, uu, vd, bcol[0], bcol[1], bcol[2], 0);
+        g.vert(cur3[0] + nx * rr5, cur3[1] + ny * rr5, cur3[2] + nz2 * rr5, nx, ny, nz2, uu, vd, bcol[0], bcol[1], bcol[2], 0);
       }
       for (let q = 0; q < sides; q++) {
         const i = k + q * 2;
         g.quad(i, i + 2, i + 3, i + 1);
       }
-      prev = cur2;
+      prev = cur3;
       pr = rr5;
     }
     return b;
@@ -9780,10 +9780,10 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     for (let b = 0; b < nb; b++) {
       const az = b / nb * 6.2832 + R3.r(-0.4, 0.4), el3 = R3.r(P2.el[0], P2.el[1]), len = R3.r(P2.len[0], P2.len[1]);
       const st = [top2[0], th - R3.r(0, 0.9), top2[2]], dir = [Math.cos(az) * Math.cos(el3), Math.sin(el3), Math.sin(az) * Math.cos(el3)];
-      const mid = [st[0] + dir[0] * len * 0.5, st[1] + dir[1] * len * 0.5, st[2] + dir[2] * len * 0.5], end = [st[0] + dir[0] * len, st[1] + dir[1] * len + 0.5, st[2] + dir[2] * len];
+      const mid = [st[0] + dir[0] * len * 0.5, st[1] + dir[1] * len * 0.5, st[2] + dir[2] * len * 0.5], end2 = [st[0] + dir[0] * len, st[1] + dir[1] * len + 0.5, st[2] + dir[2] * len];
       limb(g, st, mid, P2.tr * 0.45, P2.tr * 0.3, bk, sides, [0, 0.15, 0], bc);
-      limb(g, mid, end, P2.tr * 0.3, P2.tr * 0.12, bk, sides, [0, 0.35, 0], bc);
-      cluster(g, R3, end[0], end[1] + size * 0.15, end[2], size * (hi ? 1 : 1.3) * R3.r(0.9, 1.1), P2.tile, cr2);
+      limb(g, mid, end2, P2.tr * 0.3, P2.tr * 0.12, bk, sides, [0, 0.35, 0], bc);
+      cluster(g, R3, end2[0], end2[1] + size * 0.15, end2[2], size * (hi ? 1 : 1.3) * R3.r(0.9, 1.1), P2.tile, cr2);
       if (hi) {
         for (let s = 0; s < 2; s++) {
           const az2 = az + (s ? 1 : -1) * R3.r(0.5, 1.1), el22 = el3 * 0.7 + 0.1, l2 = R3.r(1.6, 2.6);
@@ -11738,11 +11738,11 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
   }
   function sfx(n, v = 1, pos = null, surf = null) {
     if (!live()) return;
-    const now = AC.currentTime;
-    if (last[n] !== void 0 && now >= last[n] && now - last[n] < 0.03) return;
-    last[n] = now;
+    const now2 = AC.currentTime;
+    if (last[n] !== void 0 && now2 >= last[n] && now2 - last[n] < 0.03) return;
+    last[n] = now2;
     v = Math.max(0.01, v) * (BOOST[n] || 1);
-    let out = mix, t = now;
+    let out = mix, t = now2;
     if (pos) {
       const s = spatial(getPos(pos));
       out = s.out;
@@ -12472,66 +12472,872 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     }
   });
 
+  // js/glos.js
+  function end() {
+    const f = onEndCb;
+    onEndCb = null;
+    glosState.speaking = false;
+    glosState.level = 0;
+    glosState.id = "";
+    if (f) try {
+      f();
+    } catch (e) {
+    }
+  }
+  function glosStop() {
+    try {
+      window.speechSynthesis && window.speechSynthesis.cancel();
+    } catch (e) {
+    }
+    onEndCb = null;
+    glosState.speaking = false;
+    glosState.level = 0;
+    glosState.id = "";
+  }
+  function glosPlayText(text, opt = {}) {
+    try {
+      const ss = window.speechSynthesis;
+      if (!save.voice || !ss || !text) return false;
+      const v = ss.getVoices().find((x) => /^pl/i.test(x.lang));
+      if (!v) return false;
+      ss.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.voice = v;
+      u.lang = v.lang;
+      u.rate = 1.06;
+      u.pitch = 1.25;
+      u.volume = 0.9;
+      glosState.speaking = true;
+      glosState.speaker = opt.voice || "peter";
+      glosState.id = opt.id || "";
+      onEndCb = opt.onEnd || null;
+      u.onend = u.onerror = end;
+      ss.speak(u);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  function glosPlay(id, opt = {}) {
+    return glosPlayText(opt.text, { voice: opt.voice, id, onEnd: opt.onEnd });
+  }
+  var glosState, onEndCb;
+  var init_glos = __esm({
+    "js/glos.js"() {
+      init_util();
+      glosState = { speaking: false, speaker: "", level: 0, id: "" };
+      onEndCb = null;
+    }
+  });
+
+  // js/docinki_teksty.js
+  var LINIE, RODZAJE;
+  var init_docinki_teksty = __esm({
+    "js/docinki_teksty.js"() {
+      LINIE = [
+        { id: "hit_01", kind: "hit", text: "Zostaw to, wygl\u0105dasz na zm\u0119czonego.", voice: "peter", mood: "normal" },
+        { id: "hit_02", kind: "hit", text: "Bez urazy, to tylko przyjacielska pi\u0119\u015B\u0107!", voice: "peter", mood: "normal" },
+        { id: "hit_03", kind: "hit", text: "Przepraszam, \u017Ce przerywam napad.", voice: "peter", mood: "normal" },
+        { id: "hit_04", kind: "hit", text: "Au\u0107, to musia\u0142o bole\u0107. Mnie te\u017C. Troch\u0119.", voice: "peter", mood: "normal" },
+        { id: "hit_05", kind: "hit", text: "Dasz rad\u0119 wsta\u0107? Bo zaraz powt\xF3rka.", voice: "peter", mood: "normal" },
+        { id: "hit_06", kind: "hit", text: "Ej, ja tu tylko przechodzi\u0142em!", voice: "peter", mood: "normal" },
+        { id: "hit_07", kind: "hit", text: "Nie ma za co, to cz\u0119\u015B\u0107 pakietu.", voice: "peter", mood: "dry" },
+        { id: "hit_08", kind: "hit", text: "Wiem, wiem, jestem przesadnie uprzejmy.", voice: "peter", mood: "dry" },
+        { id: "hit_09", kind: "hit", text: "Spokojnie, bij si\u0119 dalej, ja poczekam.", voice: "peter", mood: "normal" },
+        { id: "hit_10", kind: "hit", text: "Do\u0142o\u017C\u0119 jeszcze jedn\u0105, na zach\u0119t\u0119!", voice: "peter", mood: "excited" },
+        { id: "hit_11", kind: "hit", text: "Fajny cios. Teraz m\xF3j, je\u015Bli pozwolisz.", voice: "peter", mood: "dry" },
+        { id: "hit_12", kind: "hit", text: "Nic osobistego, po prostu lubi\u0119 porz\u0105dek.", voice: "peter", mood: "normal" },
+        { id: "hit_13", kind: "hit", text: "Cze\u015B\u0107, jestem s\u0105siad. Przyszed\u0142em prosi\u0107 o cisz\u0119.", voice: "peter", mood: "normal" },
+        { id: "hit_14", kind: "hit", text: "Czy to by\u0142o na serio? Bo ja \u017Cartowa\u0142em.", voice: "peter", mood: "dry" },
+        { id: "hit_15", kind: "hit", text: "Mam dla ciebie dobr\u0105 wiadomo\u015B\u0107. I kolejn\u0105 pi\u0119\u015B\u0107.", voice: "peter", mood: "normal" },
+        { id: "hit_16", kind: "hit", text: "Zaraz kto\u015B zadzwoni po taks\xF3wk\u0119, ale nie dla mnie.", voice: "peter", mood: "dry" },
+        { id: "hit_17", kind: "hit", text: "Wiesz, \u017Ce za to si\u0119 nie p\u0142aci? No w\u0142a\u015Bnie.", voice: "peter", mood: "normal" },
+        { id: "hit_18", kind: "hit", text: "Raz, dwa, i trzeci gratis!", voice: "peter", mood: "excited" },
+        { id: "hit_19", kind: "hit", text: "Przepraszam, czy to tw\xF3j nos? Bo trafi\u0142em.", voice: "peter", mood: "normal" },
+        { id: "hit_20", kind: "hit", text: "Dawno nie widzia\u0142em tak entuzjastycznej obrony.", voice: "peter", mood: "dry" },
+        { id: "finisher_01", kind: "finisher", text: "I po zawodach!", voice: "peter", mood: "excited" },
+        { id: "finisher_02", kind: "finisher", text: "Zapakowany na prezent!", voice: "peter", mood: "excited" },
+        { id: "finisher_03", kind: "finisher", text: "Efektowne, prawda? Nie klaszcz, nie trzeba.", voice: "peter", mood: "excited" },
+        { id: "finisher_04", kind: "finisher", text: "Teraz mo\u017Cesz sobie odpocz\u0105\u0107 w sieci.", voice: "peter", mood: "excited" },
+        { id: "finisher_05", kind: "finisher", text: "Dobranoc, panie bandyto!", voice: "peter", mood: "excited" },
+        { id: "finisher_06", kind: "finisher", text: "I to by\u0142 ostatni numer programu!", voice: "peter", mood: "excited" },
+        { id: "finisher_07", kind: "finisher", text: "Za du\u017Co gadania, za ma\u0142o przysiad\xF3w.", voice: "peter", mood: "dry" },
+        { id: "finisher_08", kind: "finisher", text: "Dostawa na komisariat, bez op\u0142aty za przesy\u0142k\u0119!", voice: "peter", mood: "excited" },
+        { id: "finisher_09", kind: "finisher", text: "Zamkni\u0119te do odwo\u0142ania!", voice: "peter", mood: "excited" },
+        { id: "finisher_10", kind: "finisher", text: "I tak oto ko\u0144cz\u0105 si\u0119 z\u0142e pomys\u0142y.", voice: "peter", mood: "dry" },
+        { id: "finisher_11", kind: "finisher", text: "Paj\u0119cza robota, czysta i szybka!", voice: "peter", mood: "excited" },
+        { id: "finisher_12", kind: "finisher", text: "Spokojnie, nie ruszaj si\u0119. No dobra, ruszaj si\u0119, i tak nie dojdziesz.", voice: "peter", mood: "excited" },
+        { id: "finisher_13", kind: "finisher", text: "Gratulacje, wygra\u0142e\u015B dwa dni w areszcie.", voice: "peter", mood: "dry" },
+        { id: "finisher_14", kind: "finisher", text: "Nokaut! Czekaj, to chyba nie ten sport.", voice: "peter", mood: "excited" },
+        { id: "finisher_15", kind: "finisher", text: "Czas na drzemk\u0119, kolego!", voice: "peter", mood: "excited" },
+        { id: "finisher_16", kind: "finisher", text: "Zosta\u0142o po tobie tylko wspomnienie i kokon.", voice: "peter", mood: "excited" },
+        { id: "finisher_17", kind: "finisher", text: "Kto nast\u0119pny? Zapraszam, kolejka si\u0119 skraca!", voice: "peter", mood: "excited" },
+        { id: "finisher_18", kind: "finisher", text: "Nie wstawaj, nie warto.", voice: "peter", mood: "dry" },
+        { id: "finisher_19", kind: "finisher", text: "Jeden problem z g\u0142owy. Ile jeszcze zosta\u0142o?", voice: "peter", mood: "excited" },
+        { id: "finisher_20", kind: "finisher", text: "Strike! Kr\u0119gle w wersji miejskiej!", voice: "peter", mood: "excited" },
+        { id: "web_01", kind: "web", text: "Sie\u0107 paj\u0105ka, lepsza ni\u017C kajdanki!", voice: "peter", mood: "normal" },
+        { id: "web_02", kind: "web", text: "Zosta\u0144 tu, zaraz wracam!", voice: "peter", mood: "normal" },
+        { id: "web_03", kind: "web", text: "Mam ich ca\u0142\u0105 kolekcj\u0119. Sieci, nie bandyt\xF3w.", voice: "peter", mood: "normal" },
+        { id: "web_04", kind: "web", text: "Dostawa paj\u0119czyny, bez kolejki!", voice: "peter", mood: "excited" },
+        { id: "web_05", kind: "web", text: "Wytrzyma\u0142a jak nigdy, polecam.", voice: "peter", mood: "dry" },
+        { id: "web_06", kind: "web", text: "Receptura w\u0142asna, bez konserwant\xF3w.", voice: "peter", mood: "normal" },
+        { id: "web_07", kind: "web", text: "Nie wierzgaj, tylko si\u0119 bardziej oklejasz.", voice: "peter", mood: "dry" },
+        { id: "web_08", kind: "web", text: "Jeszcze jeden rzut i zrobi\u0119 z ciebie ozdob\u0119 latarni.", voice: "peter", mood: "normal" },
+        { id: "web_09", kind: "web", text: "Spokojnie, to tylko troch\u0119 kleju.", voice: "peter", mood: "normal" },
+        { id: "web_10", kind: "web", text: "\u0141ap, to prezent od firmy!", voice: "peter", mood: "excited" },
+        { id: "web_11", kind: "web", text: "Sto procent naturalnego w\u0142\xF3kna. No, prawie.", voice: "peter", mood: "dry" },
+        { id: "web_12", kind: "web", text: "Lepkie rozwi\u0105zania na trudne czasy!", voice: "peter", mood: "normal" },
+        { id: "web_13", kind: "web", text: "Idealnie przyklejony. Jak do pracy w poniedzia\u0142ek.", voice: "peter", mood: "normal" },
+        { id: "web_14", kind: "web", text: "Wiem, \u017Ce to s\u0142aby \u017Cart. Jest na\u0142o\u017Cony warstwowo.", voice: "peter", mood: "dry" },
+        { id: "combo_01", kind: "combo", text: "Rozgrzewka zaliczona!", voice: "peter", mood: "excited" },
+        { id: "combo_02", kind: "combo", text: "Czuj\u0119 si\u0119 dzi\u015B w formie!", voice: "peter", mood: "excited" },
+        { id: "combo_03", kind: "combo", text: "Kto\u015B tu zas\u0142u\u017Cy\u0142 na ocen\u0119 dziesi\u0119\u0107!", voice: "peter", mood: "excited" },
+        { id: "combo_04", kind: "combo", text: "Seria trwa, publiczno\u015B\u0107 szaleje!", voice: "peter", mood: "excited" },
+        { id: "combo_05", kind: "combo", text: "Jeszcze chwila i dostan\u0119 puchar!", voice: "peter", mood: "excited" },
+        { id: "combo_06", kind: "combo", text: "Przypominam, \u017Ce to wszystko bez rozgrzewki.", voice: "peter", mood: "dry" },
+        { id: "combo_07", kind: "combo", text: "Ciocia May pyta\u0142a, czy mam jakie\u015B hobby. Mam. Teraz.", voice: "peter", mood: "excited" },
+        { id: "combo_08", kind: "combo", text: "Rytm jak w dobrej piosence, tylko ze szturcha\u0144cami!", voice: "peter", mood: "excited" },
+        { id: "combo_09", kind: "combo", text: "Kto liczy punkty? Bo ja ju\u017C zgubi\u0142em rachub\u0119.", voice: "peter", mood: "dry" },
+        { id: "combo_10", kind: "combo", text: "Czuj\u0119 to, jestem w strefie!", voice: "peter", mood: "excited" },
+        { id: "combo_11", kind: "combo", text: "Czterdzie\u015Bci godzin si\u0142owni nie posz\u0142o na marne!", voice: "peter", mood: "excited" },
+        { id: "combo_12", kind: "combo", text: "Dalej, dalej, jeszcze nie sko\u0144czy\u0142em!", voice: "peter", mood: "excited" },
+        { id: "swing_01", kind: "swing", text: "Uwielbiam to bujanie!", voice: "peter", mood: "normal" },
+        { id: "swing_02", kind: "swing", text: "Tarzan m\xF3g\u0142by si\u0119 czego\u015B nauczy\u0107.", voice: "peter", mood: "normal" },
+        { id: "swing_03", kind: "swing", text: "Wiatr we w\u0142osach... gdyby nie maska.", voice: "peter", mood: "normal" },
+        { id: "swing_04", kind: "swing", text: "Pi\u0119kne miasto. Szkoda, \u017Ce nie da si\u0119 go zaparkowa\u0107.", voice: "peter", mood: "normal" },
+        { id: "swing_05", kind: "swing", text: "Kto potrzebuje metra?", voice: "peter", mood: "normal" },
+        { id: "swing_06", kind: "swing", text: "\u017Badnych kork\xF3w, \u017Cadnych bilet\xF3w!", voice: "peter", mood: "excited" },
+        { id: "swing_07", kind: "swing", text: "Jeszcze troch\u0119 i zaczn\u0119 bra\u0107 op\u0142at\u0119 za przejazd.", voice: "peter", mood: "dry" },
+        { id: "swing_08", kind: "swing", text: "Szybciej ni\u017C taks\xF3wka, taniej ni\u017C rower.", voice: "peter", mood: "normal" },
+        { id: "swing_09", kind: "swing", text: "Ha! Tak si\u0119 doje\u017Cd\u017Ca do pracy!", voice: "peter", mood: "excited" },
+        { id: "swing_10", kind: "swing", text: "Dzi\u015B wszystkie \u015Bwiat\u0142a s\u0105 zielone. Bo je omijam.", voice: "peter", mood: "normal" },
+        { id: "swing_11", kind: "swing", text: "Ciekawe, czy kto\u015B filmuje. Pewnie tak.", voice: "peter", mood: "dry" },
+        { id: "swing_12", kind: "swing", text: "Dobry zasi\u0119g sieci, jeszcze lepszy widok!", voice: "peter", mood: "normal" },
+        { id: "swing_13", kind: "swing", text: "Lecimy, lecimy, lecimy!", voice: "peter", mood: "excited" },
+        { id: "swing_14", kind: "swing", text: "Fizyka mnie lubi. Zwykle.", voice: "peter", mood: "normal" },
+        { id: "swing_15", kind: "swing", text: "Nikt nie powinien si\u0119 tak dobrze bawi\u0107 w poniedzia\u0142ek.", voice: "peter", mood: "dry" },
+        { id: "swing_16", kind: "swing", text: "Z g\xF3ry wszystkie problemy wydaj\u0105 si\u0119 mniejsze. Ale nadal tam s\u0105.", voice: "peter", mood: "normal" },
+        { id: "swing_17", kind: "swing", text: "Czy kto\u015B widzia\u0142, jak szybko mi to idzie? Bo ja widzia\u0142em.", voice: "peter", mood: "normal" },
+        { id: "swing_18", kind: "swing", text: "Jeszcze zakr\u0119t i b\u0119d\u0119 na miejscu. Prawie na pewno.", voice: "peter", mood: "normal" },
+        { id: "hero_01", kind: "hero", text: "L\u0105dowanie na dziesi\u0105tk\u0119! No, mo\u017Ce na \xF3semk\u0119.", voice: "peter", mood: "dry" },
+        { id: "hero_02", kind: "hero", text: "Tak mia\u0142o by\u0107. Zaplanowa\u0142em to.", voice: "peter", mood: "dry" },
+        { id: "hero_03", kind: "hero", text: "Nic si\u0119 nie sta\u0142o! Naprawd\u0119!", voice: "peter", mood: "dry" },
+        { id: "hero_04", kind: "hero", text: "Nie patrzcie, \u0107wicz\u0119 elegancj\u0119.", voice: "peter", mood: "dry" },
+        { id: "hero_05", kind: "hero", text: "Dobra, kolana jeszcze dzia\u0142aj\u0105.", voice: "peter", mood: "dry" },
+        { id: "hero_06", kind: "hero", text: "Nikt tego nie widzia\u0142. Prawda?", voice: "peter", mood: "dry" },
+        { id: "hero_07", kind: "hero", text: "Dwa punkty za styl, minus pi\u0119\u0107 za d\u017Awi\u0119k.", voice: "peter", mood: "dry" },
+        { id: "hero_08", kind: "hero", text: "Jestem ca\u0142y. Mniej wi\u0119cej.", voice: "peter", mood: "dry" },
+        { id: "hurt_01", kind: "hurt", text: "Au! To mia\u0142o by\u0107 na niby!", voice: "peter", mood: "strained" },
+        { id: "hurt_02", kind: "hurt", text: "Ej! Mam kruchy kr\u0119gos\u0142up... teoretycznie.", voice: "peter", mood: "strained" },
+        { id: "hurt_03", kind: "hurt", text: "To bola\u0142o bardziej ni\u017C kolejka do kasy.", voice: "peter", mood: "strained" },
+        { id: "hurt_04", kind: "hurt", text: "Dobra, teraz ju\u017C si\u0119 zdenerwowa\u0142em.", voice: "peter", mood: "strained" },
+        { id: "hurt_05", kind: "hurt", text: "Uff, to by\u0142o blisko. I troch\u0119 za mocno.", voice: "peter", mood: "strained" },
+        { id: "hurt_06", kind: "hurt", text: "Ciocia May b\u0119dzie w\u015Bciek\u0142a o ten kostium.", voice: "peter", mood: "strained" },
+        { id: "hurt_07", kind: "hurt", text: "Hej, takich rzeczy nie robi si\u0119 s\u0105siadom!", voice: "peter", mood: "strained" },
+        { id: "hurt_08", kind: "hurt", text: "Au\u0107! Jutro mam egzamin. Nie psuj mi tego.", voice: "peter", mood: "strained" },
+        { id: "hurt_09", kind: "hurt", text: "Sk\u0105d on ma tak\u0105 si\u0142\u0119? Co on jada?", voice: "peter", mood: "strained" },
+        { id: "hurt_10", kind: "hurt", text: "Dzi\u0119kuj\u0119 za uwag\u0119, naprawd\u0119 mocn\u0105.", voice: "peter", mood: "dry" },
+        { id: "hurt_11", kind: "hurt", text: "Ech, \u017Cebra jeszcze chwil\u0119 si\u0119 pogniewaj\u0105.", voice: "peter", mood: "strained" },
+        { id: "hurt_12", kind: "hurt", text: "To by\u0142 dobry cios. Nie m\xF3wi\u0119 tego cz\u0119sto.", voice: "peter", mood: "strained" },
+        { id: "hurt_13", kind: "hurt", text: "Wola\u0142bym dosta\u0107 mandat.", voice: "peter", mood: "strained" },
+        { id: "hurt_14", kind: "hurt", text: "Spokojnie, Peter, to tylko siniak. Du\u017Cy.", voice: "peter", mood: "strained" },
+        { id: "lowhp_01", kind: "lowhp", text: "Dobra, mo\u017Ce jednak trzeba by\u0142o zosta\u0107 w \u0142\xF3\u017Cku.", voice: "peter", mood: "strained" },
+        { id: "lowhp_02", kind: "lowhp", text: "Czy kto\u015B ma jeszcze col\u0119?", voice: "peter", mood: "strained" },
+        { id: "lowhp_03", kind: "lowhp", text: "Jeszcze tylko chwilk\u0119, wytrzyma\u0107.", voice: "peter", mood: "strained" },
+        { id: "lowhp_04", kind: "lowhp", text: "Nie jest dobrze. Ale bywa\u0142o gorzej.", voice: "peter", mood: "strained" },
+        { id: "lowhp_05", kind: "lowhp", text: "Oddychaj, Peter. Raz, dwa, trzy.", voice: "peter", mood: "strained" },
+        { id: "lowhp_06", kind: "lowhp", text: "Zaraz sko\u0144czy mi si\u0119 zapas bohaterstwa.", voice: "peter", mood: "strained" },
+        { id: "lowhp_07", kind: "lowhp", text: "Chyba przesadzi\u0142em z samodzielno\u015Bci\u0105.", voice: "peter", mood: "strained" },
+        { id: "lowhp_08", kind: "lowhp", text: "Gdzie jest sklep, gdy cz\u0142owiek potrzebuje napoju?", voice: "peter", mood: "strained" },
+        { id: "lowhp_09", kind: "lowhp", text: "Musz\u0119 przeczeka\u0107, a potem nadrobi\u0107, jak zawsze.", voice: "peter", mood: "strained" },
+        { id: "lowhp_10", kind: "lowhp", text: "Czuj\u0119 ka\u017Cdy kawa\u0142ek siebie. Wszystkie bol\u0105.", voice: "peter", mood: "strained" },
+        { id: "cola_01", kind: "cola", text: "Zimna cola, najlepsza bro\u0144 w arsenale!", voice: "peter", mood: "excited" },
+        { id: "cola_02", kind: "cola", text: "Cola za darmo? Kocham to miasto!", voice: "peter", mood: "excited" },
+        { id: "cola_03", kind: "cola", text: "To si\u0119 nazywa pe\u0142ne zdrowie. Dzi\u0119ki, szefie!", voice: "peter", mood: "excited" },
+        { id: "cola_04", kind: "cola", text: "B\u0105belki lecz\u0105 wszystko, to naukowo udowodnione!", voice: "peter", mood: "excited" },
+        { id: "cola_05", kind: "cola", text: "Lekarz m\xF3wi, \u017Ce to niezdrowe. Lekarz nie buja\u0142 si\u0119 dzi\u015B na sieci.", voice: "peter", mood: "dry" },
+        { id: "cola_06", kind: "cola", text: "Aaa, to by\u0142o potrzebne.", voice: "peter", mood: "excited" },
+        { id: "cola_07", kind: "cola", text: "Znowu w formie! Dzi\u0119kuj\u0119, prosz\u0119 pana!", voice: "peter", mood: "excited" },
+        { id: "cola_08", kind: "cola", text: "Orze\u017Awiaj\u0105ca chwila. Mo\u017Cna wraca\u0107 do ratowania \u015Bwiata.", voice: "peter", mood: "excited" },
+        { id: "room_01", kind: "room", text: "Dzie\u0144 dobry, tylko ogl\u0105dam!", voice: "peter", mood: "normal" },
+        { id: "room_02", kind: "room", text: "Spokojnie, niczego nie b\u0119d\u0119 \u0142apa\u0142, sieciami.", voice: "peter", mood: "normal" },
+        { id: "room_03", kind: "room", text: "Czy tu mo\u017Cna zaparkowa\u0107 sie\u0107?", voice: "peter", mood: "normal" },
+        { id: "room_04", kind: "room", text: "Przepraszam za naj\u015Bcie. Jestem z s\u0105siedztwa.", voice: "peter", mood: "normal" },
+        { id: "room_05", kind: "room", text: "Drzwi by\u0142y otwarte. Teraz ju\u017C wiem, dlaczego.", voice: "peter", mood: "dry" },
+        { id: "room_06", kind: "room", text: "Nie przeszkadzajcie sobie, ja tylko przejazdem.", voice: "peter", mood: "normal" },
+        { id: "crime_01", kind: "crime", text: "Kolejny dzie\u0144, kolejny z\u0142odziej.", voice: "peter", mood: "normal" },
+        { id: "crime_02", kind: "crime", text: "Nie dzi\u0119kuj, to moja praca. Niezap\u0142acona.", voice: "peter", mood: "normal" },
+        { id: "crime_03", kind: "crime", text: "Wszystko pod kontrol\u0105. Mniej wi\u0119cej.", voice: "peter", mood: "normal" },
+        { id: "crime_04", kind: "crime", text: "Przyjazny paj\u0105k z s\u0105siedztwa na posterunku!", voice: "peter", mood: "normal" },
+        { id: "crime_05", kind: "crime", text: "S\u0142ysz\u0119 k\u0142opoty. Jad\u0119!", voice: "peter", mood: "excited" },
+        { id: "crime_06", kind: "crime", text: "Znowu? Ludzie nie maj\u0105 hobby?", voice: "peter", mood: "dry" },
+        { id: "crime_07", kind: "crime", text: "Kto\u015B tu zapomnia\u0142, \u017Ce miasto ma paj\u0105ka.", voice: "peter", mood: "normal" },
+        { id: "crime_08", kind: "crime", text: "Dzwoni obowi\u0105zek, nie mog\u0119 nie odebra\u0107!", voice: "peter", mood: "excited" },
+        { id: "crime_09", kind: "crime", text: "Przepraszam wszystkich, to potrwa chwil\u0119.", voice: "peter", mood: "normal" },
+        { id: "crime_10", kind: "crime", text: "Na szcz\u0119\u015Bcie dzi\u015B nie mam nic w kalendarzu. Poza wszystkim.", voice: "peter", mood: "dry" },
+        { id: "crime_11", kind: "crime", text: "Zaraz b\u0119d\u0119. Nie ruszajcie si\u0119 nigdzie. Bez urazy.", voice: "peter", mood: "normal" },
+        { id: "crime_12", kind: "crime", text: "Plan jest prosty: pom\xF3c, nie oberwa\u0107. Zobaczymy, jak wyjdzie.", voice: "peter", mood: "excited" },
+        { id: "carstop_01", kind: "carstop", text: "Dzi\u0119ki, \u017Ce si\u0119 zatrzyma\u0142e\u015B! Zazwyczaj tylko mnie tr\u0105bi\u0105.", voice: "peter", mood: "normal" },
+        { id: "carstop_02", kind: "carstop", text: "Nowy Jork i kierowcy, kt\xF3rzy hamuj\u0105? Cud!", voice: "peter", mood: "normal" },
+        { id: "carstop_03", kind: "carstop", text: "Spokojnie, panie taks\xF3wkarzu, nie rzucam si\u0119 pod ko\u0142a. Dzi\u015B.", voice: "peter", mood: "normal" },
+        { id: "carstop_04", kind: "carstop", text: "Mi\u0142o, \u017Ce kto\u015B tu przestrzega przepis\xF3w.", voice: "peter", mood: "normal" },
+        { id: "carstop_05", kind: "carstop", text: "Jeszcze mi pan ust\u0105pi pierwsze\u0144stwa. Wzruszaj\u0105ce.", voice: "peter", mood: "dry" },
+        { id: "carstop_06", kind: "carstop", text: "Dzi\u0119kuj\u0119, panie kierowco! Ruszam dalej, ju\u017C mnie nie ma.", voice: "peter", mood: "normal" },
+        { id: "carstop_07", kind: "carstop", text: "Rzadki gatunek: kierowca z kultur\u0105.", voice: "peter", mood: "dry" },
+        { id: "carstop_08", kind: "carstop", text: "Do widzenia, \u017Cycz\u0119 zielonego \u015Bwiat\u0142a do ko\u0144ca \u017Cycia.", voice: "peter", mood: "normal" },
+        { id: "horn_01", kind: "horn", text: "Tak, ja te\u017C pana pozdrawiam.", voice: "peter", mood: "dry" },
+        { id: "horn_02", kind: "horn", text: "No dobra, ju\u017C schodz\u0119 z jezdni!", voice: "peter", mood: "dry" },
+        { id: "horn_03", kind: "horn", text: "Nowy Jork wita serdecznie.", voice: "peter", mood: "dry" },
+        { id: "horn_04", kind: "horn", text: "Przepraszam, nie zauwa\u017Cy\u0142em, \u017Ce to pa\u0144ska ulica.", voice: "peter", mood: "dry" },
+        { id: "horn_05", kind: "horn", text: "Z t\u0105 tr\u0105bk\u0105 m\xF3g\u0142by pan gra\u0107 w orkiestrze.", voice: "peter", mood: "dry" },
+        { id: "horn_06", kind: "horn", text: "Rozumiem, spieszy si\u0119 pan. Mnie te\u017C, a nie tr\u0105bi\u0119.", voice: "peter", mood: "dry" },
+        { id: "horn_07", kind: "horn", text: "Spokojnie, dzi\u015B nikogo nie przejad\u0119. Ani nie dam si\u0119 przejecha\u0107.", voice: "peter", mood: "dry" },
+        { id: "horn_08", kind: "horn", text: "To chyba pochwa\u0142a. Albo nie.", voice: "peter", mood: "dry" },
+        { id: "idle_01", kind: "idle", text: "Wiesz, \u017Ce nic nie robi\u0119? To te\u017C praca.", voice: "peter", mood: "dry" },
+        { id: "idle_02", kind: "idle", text: "Czy kto\u015B widzia\u0142 moj\u0105 kaw\u0119?", voice: "peter", mood: "dry" },
+        { id: "idle_03", kind: "idle", text: "Tak sobie my\u015Bl\u0119, mo\u017Ce zmieni\u0107 kostium na \u017C\xF3\u0142ty?", voice: "peter", mood: "dry" },
+        { id: "idle_04", kind: "idle", text: "To miasto nigdy nie \u015Bpi. Ja te\u017C nie. Niestety.", voice: "peter", mood: "dry" },
+        { id: "idle_05", kind: "idle", text: "Stoj\u0119 i czekam. Przygoda sama mnie znajdzie.", voice: "peter", mood: "dry" },
+        { id: "idle_06", kind: "idle", text: "Hmm. Zapomnia\u0142em, co mia\u0142em zrobi\u0107. Ale wygl\u0105dam przy tym \u015Bwietnie.", voice: "peter", mood: "dry" },
+        { id: "idle_07", kind: "idle", text: "Je\u015Bli kto\u015B b\u0119dzie potrzebowa\u0142 paj\u0105ka, to jestem tutaj.", voice: "peter", mood: "dry" },
+        { id: "idle_08", kind: "idle", text: "Chwila ciszy w mie\u015Bcie. Podejrzane.", voice: "peter", mood: "dry" },
+        { id: "idle_09", kind: "idle", text: "Gdybym mia\u0142 czynsz za ka\u017Cd\u0105 tak\u0105 chwil\u0119, by\u0142bym bogaty.", voice: "peter", mood: "dry" },
+        { id: "idle_10", kind: "idle", text: "Zastanawiam si\u0119, czy pizza jest ju\u017C gotowa. Zawsze o tym my\u015Bl\u0119.", voice: "peter", mood: "dry" },
+        { id: "idle_11", kind: "idle", text: "Czas na szybkie przemy\u015Blenia: co dzi\u015B jad\u0142em? Nic.", voice: "peter", mood: "dry" },
+        { id: "idle_12", kind: "idle", text: "Dobra, wystarczy tej medytacji, miasto czeka.", voice: "peter", mood: "dry" },
+        { id: "idle_13", kind: "idle", text: "Gdyby kto\u015B mnie szuka\u0142, jestem w trybie oczekiwania.", voice: "peter", mood: "dry" },
+        { id: "idle_14", kind: "idle", text: "W g\u0142owie robi\u0119 list\u0119 rzeczy do zrobienia. Jest d\u0142u\u017Csza ni\u017C ulica.", voice: "peter", mood: "dry" },
+        { id: "idle_15", kind: "idle", text: "Dobra, pora rusza\u0107. Albo jeszcze minutk\u0119 postoj\u0119.", voice: "peter", mood: "dry" },
+        { id: "idle_16", kind: "idle", text: "Jak kto\u015B pyta, to \u0107wicz\u0119 cierpliwo\u015B\u0107.", voice: "peter", mood: "dry" },
+        { id: "perch_01", kind: "perch", text: "Z tej wysoko\u015Bci wszystko wygl\u0105da lepiej.", voice: "peter", mood: "normal" },
+        { id: "perch_02", kind: "perch", text: "Chwila oddechu, i znowu do roboty.", voice: "peter", mood: "normal" },
+        { id: "perch_03", kind: "perch", text: "\u0141adny widok, prawda?", voice: "peter", mood: "normal" },
+        { id: "perch_04", kind: "perch", text: "St\u0105d wida\u0107 nawet moj\u0105 ulic\u0119. I moje zaleg\u0142o\u015Bci.", voice: "peter", mood: "normal" },
+        { id: "perch_05", kind: "perch", text: "Najlepsze miejsce w mie\u015Bcie, bez czynszu.", voice: "peter", mood: "dry" },
+        { id: "perch_06", kind: "perch", text: "Ciekawe, czy kto\u015B tam w dole te\u017C teraz patrzy w g\xF3r\u0119.", voice: "peter", mood: "normal" },
+        { id: "perch_07", kind: "perch", text: "Siedz\u0119 sobie nad \u015Bwiatem. Cichutko. Prawie.", voice: "peter", mood: "normal" },
+        { id: "perch_08", kind: "perch", text: "Go\u0142\u0119bie patrz\u0105 na mnie krzywo. To ich dach.", voice: "peter", mood: "normal" },
+        { id: "perch_09", kind: "perch", text: "Je\u015Bli si\u0119 nie ruszam, to znaczy, \u017Ce planuj\u0119. Albo odpoczywam.", voice: "peter", mood: "dry" },
+        { id: "perch_10", kind: "perch", text: "Lubi\u0119, kiedy miasto brz\u0119czy, a ja jestem ponad nim.", voice: "peter", mood: "normal" },
+        { id: "perch_11", kind: "perch", text: "Wiatr, \u015Bwiat\u0142a i spok\xF3j. Dwie trzecie z tego mi wystarczy.", voice: "peter", mood: "normal" },
+        { id: "perch_12", kind: "perch", text: "M\xF3g\u0142bym tu mieszka\u0107. Ale nie sta\u0107 mnie na dach.", voice: "peter", mood: "normal" },
+        { id: "sunset_01", kind: "sunset", text: "Z\u0142ota godzina nad Nowym Jorkiem. Mo\u017Cna si\u0119 zakocha\u0107.", voice: "peter", mood: "normal" },
+        { id: "sunset_02", kind: "sunset", text: "Taki zach\xF3d s\u0142o\u0144ca i jeszcze mam prac\u0119. \u017Bycie jest pi\u0119kne.", voice: "peter", mood: "normal" },
+        { id: "sunset_03", kind: "sunset", text: "Ca\u0142e miasto si\u0119 pali na pomara\u0144czowo. Na szcz\u0119\u015Bcie bez po\u017Caru.", voice: "peter", mood: "normal" },
+        { id: "sunset_04", kind: "sunset", text: "Dobre \u015Bwiat\u0142o. Szkoda, \u017Ce nie robi\u0119 zdj\u0119\u0107 na powa\u017Cnie.", voice: "peter", mood: "normal" },
+        { id: "night_01", kind: "night", text: "Noc w mie\u015Bcie. Idealny czas na k\u0142opoty.", voice: "peter", mood: "normal" },
+        { id: "night_02", kind: "night", text: "\u015Awiat\u0142a, kamera, paj\u0105k!", voice: "peter", mood: "normal" },
+        { id: "night_03", kind: "night", text: "Teraz miasto \u015Bwieci jak choinka. A ja jako ozdoba.", voice: "peter", mood: "normal" },
+        { id: "night_04", kind: "night", text: "Nocna zmiana. Kawy by si\u0119 napi\u0142 ka\u017Cdy.", voice: "peter", mood: "normal" },
+        { id: "day_01", kind: "day", text: "Pi\u0119kny dzie\u0144 na ratowanie miasta.", voice: "peter", mood: "normal" },
+        { id: "day_02", kind: "day", text: "S\u0142o\u0144ce \u015Bwieci, ptaki \u015Bpiewaj\u0105, a ja bujam si\u0119 na sieci.", voice: "peter", mood: "normal" },
+        { id: "day_03", kind: "day", text: "Dzie\u0144 jak z poczt\xF3wki. Mo\u017Ce uda si\u0119 nie zepsu\u0107.", voice: "peter", mood: "normal" },
+        { id: "day_04", kind: "day", text: "Pe\u0142ne \u015Bwiat\u0142o dzienne. Teraz nikt si\u0119 nie schowa.", voice: "peter", mood: "normal" },
+        { id: "intro_01", kind: "intro", text: "Dobra, Nowy Jorku, jestem. Niech si\u0119 dzieje.", voice: "peter", mood: "normal" },
+        { id: "intro_02", kind: "intro", text: "Pierwsza zmiana w tym stroju. Nie \u015Bmia\u0107 si\u0119 z maski.", voice: "peter", mood: "normal" },
+        { id: "intro_03", kind: "intro", text: "Miasto czeka, a ja ledwie zd\u0105\u017Cy\u0142em na czas.", voice: "peter", mood: "normal" },
+        { id: "intro_04", kind: "intro", text: "Kamera dzia\u0142a, kostium dzia\u0142a, mo\u017Cna zaczyna\u0107!", voice: "peter", mood: "excited" },
+        { id: "intro_05", kind: "intro", text: "Spokojnie, Peter. Jedno miasto, jeden paj\u0105k, \u017Cadnej presji.", voice: "peter", mood: "normal" },
+        { id: "intro_06", kind: "intro", text: "Dzie\u0144 dobry, Nowy Jorku. Jeszcze chwila i b\u0119dziesz mnie zna\u0142.", voice: "peter", mood: "normal" },
+        { id: "outnumbered_01", kind: "outnumbered", text: "Okej, fajnie, zrobi\u0142 si\u0119 t\u0142ok.", voice: "peter", mood: "dry" },
+        { id: "outnumbered_02", kind: "outnumbered", text: "Wi\u0119cej was, ni\u017C mia\u0142em w planie.", voice: "peter", mood: "dry" },
+        { id: "outnumbered_03", kind: "outnumbered", text: "Wiecie, \u017Ce ka\u017Cdy doros\u0142y potrzebuje w\u0142asnej przestrzeni?", voice: "peter", mood: "dry" },
+        { id: "outnumbered_04", kind: "outnumbered", text: "Po jednym! Tylko si\u0119 nie przepychajcie.", voice: "peter", mood: "dry" },
+        { id: "outnumbered_05", kind: "outnumbered", text: "Zrobi\u0142o si\u0119 ciekawie, lubi\u0119 to!", voice: "peter", mood: "excited" },
+        { id: "outnumbered_06", kind: "outnumbered", text: "Nie zaprosi\u0142em tylu os\xF3b, ale dobra, wchod\u017Acie.", voice: "peter", mood: "dry" },
+        { id: "outnumbered_07", kind: "outnumbered", text: "Czyli kolejka do bicia? Dobrze, \u017Ce jestem zorganizowany.", voice: "peter", mood: "dry" },
+        { id: "outnumbered_08", kind: "outnumbered", text: "Liczy\u0142em, \u017Ce dzi\u015B b\u0119dzie spokojnie. B\u0142\u0105d.", voice: "peter", mood: "dry" },
+        { id: "outnumbered_09", kind: "outnumbered", text: "Troch\u0119 ich du\u017Co. Spokojnie, Peter, po kolei.", voice: "peter", mood: "strained" },
+        { id: "outnumbered_10", kind: "outnumbered", text: "Wszyscy naraz? Dobra, przyjmuj\u0119 rezerwacje!", voice: "peter", mood: "excited" },
+        { id: "dodge_01", kind: "dodge", text: "Pud\u0142o! Spr\xF3buj jeszcze raz!", voice: "peter", mood: "excited" },
+        { id: "dodge_02", kind: "dodge", text: "Zmys\u0142 paj\u0105ka dzia\u0142a, zanim ja pomy\u015Bl\u0119.", voice: "peter", mood: "excited" },
+        { id: "dodge_03", kind: "dodge", text: "Za wolno, kolego!", voice: "peter", mood: "excited" },
+        { id: "dodge_04", kind: "dodge", text: "Ups, ten cios by\u0142 dla kogo\u015B innego.", voice: "peter", mood: "dry" },
+        { id: "dodge_05", kind: "dodge", text: "Ma\u0142o brakowa\u0142o. Ciesz\u0119 si\u0119, \u017Ce nie jestem niski.", voice: "peter", mood: "excited" },
+        { id: "dodge_06", kind: "dodge", text: "Ha! Wolniej, ja nie nad\u0105\u017Cam, \u017Ceby ci\u0119 unika\u0107!", voice: "peter", mood: "excited" },
+        { id: "dodge_07", kind: "dodge", text: "Czuj\u0119 ci\u0119 z drugiego ko\u0144ca ulicy.", voice: "peter", mood: "excited" },
+        { id: "dodge_08", kind: "dodge", text: "Kto ci\u0119 uczy\u0142 celowa\u0107? Pytam z ciekawo\u015Bci.", voice: "peter", mood: "dry" },
+        { id: "dodge_09", kind: "dodge", text: "Uff, nawet nie zauwa\u017Cy\u0142em, \u017Ce drgn\u0105\u0142em!", voice: "peter", mood: "excited" },
+        { id: "dodge_10", kind: "dodge", text: "Dobry refleks. Tym razem m\xF3j.", voice: "peter", mood: "excited" },
+        { id: "airhit_01", kind: "airhit", text: "Spadam z nieba i nie mam biletu!", voice: "peter", mood: "excited" },
+        { id: "airhit_02", kind: "airhit", text: "Cze\u015B\u0107, lec\u0119 do ciebie z dostaw\u0105!", voice: "peter", mood: "excited" },
+        { id: "airhit_03", kind: "airhit", text: "Uwaga, nadlatuje paj\u0105k!", voice: "peter", mood: "excited" },
+        { id: "airhit_04", kind: "airhit", text: "Wygl\u0105da\u0142em w tym bardzo efektownie.", voice: "peter", mood: "dry" },
+        { id: "airhit_05", kind: "airhit", text: "Z lotu ptaka wszystko jest \u0142atwiejsze.", voice: "peter", mood: "excited" },
+        { id: "airhit_06", kind: "airhit", text: "Niespodzianka z g\xF3ry!", voice: "peter", mood: "excited" },
+        { id: "airhit_07", kind: "airhit", text: "Zawsze podziwia\u0142em prawo grawitacji. Dzi\u015B pomaga.", voice: "peter", mood: "excited" },
+        { id: "airhit_08", kind: "airhit", text: "Powinienem by\u0142 zadzwoni\u0107 przed l\u0105dowaniem.", voice: "peter", mood: "excited" },
+        { id: "throw_01", kind: "throw", text: "Le\u0107, ptaszku, le\u0107!", voice: "peter", mood: "excited" },
+        { id: "throw_02", kind: "throw", text: "Zamawia\u0142e\u015B lot? Prosz\u0119 bardzo.", voice: "peter", mood: "excited" },
+        { id: "throw_03", kind: "throw", text: "Wiem, \u017Ce nie wygl\u0105dasz na lekkiego, ale daj\u0119 rad\u0119.", voice: "peter", mood: "dry" },
+        { id: "throw_04", kind: "throw", text: "Do widzenia, i mi\u0142ego lotu!", voice: "peter", mood: "excited" },
+        { id: "throw_05", kind: "throw", text: "Dalej od mojej ulicy!", voice: "peter", mood: "excited" },
+        { id: "throw_06", kind: "throw", text: "Transport powietrzny bez dop\u0142at!", voice: "peter", mood: "dry" },
+        { id: "throw_07", kind: "throw", text: "Pi\u0142ka do ciebie! Ups, to nie pi\u0142ka.", voice: "peter", mood: "excited" },
+        { id: "throw_08", kind: "throw", text: "Mocny rzut, prosto w dal!", voice: "peter", mood: "excited" },
+        { id: "webface_01", kind: "webface", text: "Przepraszam, masz co\u015B na twarzy. Mnie to nie przeszkadza.", voice: "peter", mood: "dry" },
+        { id: "webface_02", kind: "webface", text: "Prosto w oczy, bez rozgrzewki!", voice: "peter", mood: "excited" },
+        { id: "webface_03", kind: "webface", text: "Nie wida\u0107? Tym lepiej, dla obu stron.", voice: "peter", mood: "dry" },
+        { id: "webface_04", kind: "webface", text: "Nowy kosmetyk, polecam. Zmywa si\u0119 trudno.", voice: "peter", mood: "dry" },
+        { id: "webface_05", kind: "webface", text: "Maseczka paj\u0119cza, efekt natychmiastowy!", voice: "peter", mood: "dry" },
+        { id: "webface_06", kind: "webface", text: "Celny strza\u0142, jeszcze tego nie by\u0142o!", voice: "peter", mood: "excited" },
+        { id: "webface_07", kind: "webface", text: "\u0141adnie ci w tym. Prawie jak z reklamy.", voice: "peter", mood: "dry" },
+        { id: "webface_08", kind: "webface", text: "Teraz mo\u017Cesz odpocz\u0105\u0107 od patrzenia na mnie.", voice: "peter", mood: "dry" },
+        { id: "gun_01", kind: "gun", text: "Pistolet? Powa\u017Cnie? Dopiero si\u0119 rozgrzewam.", voice: "peter", mood: "dry" },
+        { id: "gun_02", kind: "gun", text: "Hej, ostro\u017Cnie z tym, ludzie tu mieszkaj\u0105!", voice: "peter", mood: "strained" },
+        { id: "gun_03", kind: "gun", text: "Spokojnie z palcem na spu\u015Bcie, to nie reklama.", voice: "peter", mood: "dry" },
+        { id: "gun_04", kind: "gun", text: "No to teraz jest nieuczciwie, ale dla ciebie.", voice: "peter", mood: "dry" },
+        { id: "gun_05", kind: "gun", text: "Bro\u0144 na st\xF3\u0142, r\u0119ce do g\xF3ry, najlepiej pod sufit!", voice: "peter", mood: "excited" },
+        { id: "gun_06", kind: "gun", text: "Zawsze si\u0119 zastanawiam, kto im to sprzedaje.", voice: "peter", mood: "dry" },
+        { id: "gun_07", kind: "gun", text: "Fajna zabawka. Nie jest twoja, wi\u0119c j\u0105 oddasz.", voice: "peter", mood: "dry" },
+        { id: "gun_08", kind: "gun", text: "Musz\u0119 si\u0119 szybciej porusza\u0107. Du\u017Co szybciej.", voice: "peter", mood: "strained" },
+        { id: "gun_09", kind: "gun", text: "Czy ty w og\xF3le masz pozwolenie? Pytam dla policji.", voice: "peter", mood: "dry" },
+        { id: "gun_10", kind: "gun", text: "Kule s\u0105 szybkie. Paj\u0105k szybszy. Prawdopodobnie.", voice: "peter", mood: "dry" },
+        { id: "bat_01", kind: "bat", text: "Kij baseballowy? Jeste\u015B fanem Jankes\xF3w?", voice: "peter", mood: "dry" },
+        { id: "bat_02", kind: "bat", text: "Dobrze, \u017Ce wybra\u0142e\u015B sport, a nie co\u015B gorszego.", voice: "peter", mood: "dry" },
+        { id: "bat_03", kind: "bat", text: "Zaraz zagramy w baseball. Ja b\u0119d\u0119 pi\u0142k\u0105?", voice: "peter", mood: "dry" },
+        { id: "bat_04", kind: "bat", text: "Pa\u0142ka! No to zobaczymy, kto szybszy.", voice: "peter", mood: "excited" },
+        { id: "bat_05", kind: "bat", text: "Kto ci da\u0142 ten kij? Oddaj, to nie tw\xF3j mecz.", voice: "peter", mood: "dry" },
+        { id: "bat_06", kind: "bat", text: "Odbijanie to ty, ja robi\u0119 uniki.", voice: "peter", mood: "dry" },
+        { id: "bat_07", kind: "bat", text: "Mam uczulenie na drewno w r\u0119kach agresywnych ludzi.", voice: "peter", mood: "dry" },
+        { id: "bat_08", kind: "bat", text: "Spokojnie, od\u0142\xF3\u017C to, zanim zrobisz komu\u015B krzywd\u0119.", voice: "peter", mood: "dry" },
+        { id: "brute_01", kind: "brute", text: "Wielki jeste\u015B. Pewnie du\u017Co jesz.", voice: "peter", mood: "dry" },
+        { id: "brute_02", kind: "brute", text: "Aha, tym razem rozmiar XXL.", voice: "peter", mood: "dry" },
+        { id: "brute_03", kind: "brute", text: "\u0141atwo ci si\u0119 przeciska przez drzwi? Pytam grzecznie.", voice: "peter", mood: "dry" },
+        { id: "brute_04", kind: "brute", text: "Troch\u0119 za du\u017Cy na m\xF3j gust. Dobra, zaraz co\u015B wymy\u015Bl\u0119.", voice: "peter", mood: "strained" },
+        { id: "brute_05", kind: "brute", text: "Si\u0142a to nie wszystko. Czasem trzeba te\u017C troch\u0119 rozumu.", voice: "peter", mood: "dry" },
+        { id: "brute_06", kind: "brute", text: "Jedno jego uderzenie i b\u0119d\u0119 szuka\u0142 w\u0142asnych \u017Ceber.", voice: "peter", mood: "dry" },
+        { id: "brute_07", kind: "brute", text: "Du\u017Cy przeciwnik, du\u017Ca satysfakcja!", voice: "peter", mood: "excited" },
+        { id: "brute_08", kind: "brute", text: "Rzadko bywam tym mniejszym, ale dam rad\u0119.", voice: "peter", mood: "dry" },
+        { id: "dive_01", kind: "dive", text: "Skaczemy! Kto na pok\u0142ad?!", voice: "peter", mood: "excited" },
+        { id: "dive_02", kind: "dive", text: "Spokojnie, sie\u0107 mam, tylko jeszcze nie teraz.", voice: "peter", mood: "excited" },
+        { id: "dive_03", kind: "dive", text: "Tu si\u0119 nie \u0142apie ziemi, tu si\u0119 ni\u0105 gardzi!", voice: "peter", mood: "excited" },
+        { id: "dive_04", kind: "dive", text: "Nie pr\xF3bujcie tego w domu. Ani na dachu.", voice: "peter", mood: "dry" },
+        { id: "dive_05", kind: "dive", text: "Spadam i uwielbiam to uczucie!", voice: "peter", mood: "excited" },
+        { id: "dive_06", kind: "dive", text: "Grawitacjo, robimy to jeszcze raz!", voice: "peter", mood: "excited" },
+        { id: "dive_07", kind: "dive", text: "Ciekawe, ile sekund mam do wyci\u0105gni\u0119cia sieci. Du\u017Co!", voice: "peter", mood: "excited" },
+        { id: "dive_08", kind: "dive", text: "Mam to pod kontrol\u0105, w teorii.", voice: "peter", mood: "dry" },
+        { id: "dive_09", kind: "dive", text: "Ziemia jest tam w dole. Tak na wszelki wypadek.", voice: "peter", mood: "excited" },
+        { id: "dive_10", kind: "dive", text: "Najlepszy spos\xF3b, \u017Ceby zej\u015B\u0107 z dachu!", voice: "peter", mood: "excited" },
+        { id: "speed_01", kind: "speed", text: "Nowy rekord! Kto\u015B zapisze?", voice: "peter", mood: "excited" },
+        { id: "speed_02", kind: "speed", text: "\u0141ami\u0119 w\u0142asne limity. I troch\u0119 prawa fizyki.", voice: "peter", mood: "excited" },
+        { id: "speed_03", kind: "speed", text: "Szybciej ni\u017C samoch\xF3d, szybciej ni\u017C my\u015Bl!", voice: "peter", mood: "excited" },
+        { id: "speed_04", kind: "speed", text: "Gdybym mia\u0142 fotoradar, zrobi\u0142by mi dziesi\u0119\u0107 zdj\u0119\u0107.", voice: "peter", mood: "dry" },
+        { id: "speed_05", kind: "speed", text: "Czuj\u0119 wiatr nawet przez mask\u0119!", voice: "peter", mood: "excited" },
+        { id: "speed_06", kind: "speed", text: "To si\u0119 nazywa pr\u0119dko\u015B\u0107 podr\xF3\u017Cna!", voice: "peter", mood: "excited" },
+        { id: "speed_07", kind: "speed", text: "Jeszcze troch\u0119 i dogoni\u0119 w\u0142asny cie\u0144.", voice: "peter", mood: "excited" },
+        { id: "speed_08", kind: "speed", text: "Wow! A to dopiero rozgrzewka!", voice: "peter", mood: "excited" },
+        { id: "summit_01", kind: "summit", text: "Szczyt miasta! St\u0105d wida\u0107 wszystko, nawet moj\u0105 pizzeri\u0119.", voice: "peter", mood: "excited" },
+        { id: "summit_02", kind: "summit", text: "Najwy\u017Cej, jak si\u0119 da. Dalej ju\u017C tylko chmury.", voice: "peter", mood: "excited" },
+        { id: "summit_03", kind: "summit", text: "Tu jest cicho i pi\u0119knie. Mog\u0119 zosta\u0107 na chwil\u0119.", voice: "peter", mood: "excited" },
+        { id: "summit_04", kind: "summit", text: "Tak, wiem, dotar\u0142em tu bez windy. Nikt nie klaska\u0142.", voice: "peter", mood: "dry" },
+        { id: "summit_05", kind: "summit", text: "Najwy\u017Csza wie\u017Ca zaliczona. Poprosz\u0119 o certyfikat.", voice: "peter", mood: "excited" },
+        { id: "summit_06", kind: "summit", text: "Ca\u0142y Nowy Jork u moich st\xF3p!", voice: "peter", mood: "excited" },
+        { id: "bag_01", kind: "bag", text: "Plecak! Moja ulubiona kategoria zakup\xF3w.", voice: "peter", mood: "normal" },
+        { id: "bag_02", kind: "bag", text: "Ooo, to mi si\u0119 przyda!", voice: "peter", mood: "excited" },
+        { id: "bag_03", kind: "bag", text: "Zbieram wszystko, co le\u017Cy. Taki nawyk po studiach.", voice: "peter", mood: "normal" },
+        { id: "bag_04", kind: "bag", text: "Dobre znalezisko, nawet je\u015Bli nie wiem, co to jest.", voice: "peter", mood: "normal" },
+        { id: "bag_05", kind: "bag", text: "Wci\u0105\u017C nosz\u0119 rzeczy po ca\u0142ym mie\u015Bcie. Jak dostawca.", voice: "peter", mood: "dry" },
+        { id: "bag_06", kind: "bag", text: "Jeszcze jeden skarb do kolekcji!", voice: "peter", mood: "normal" },
+        { id: "bag_07", kind: "bag", text: "Nigdy nie wiadomo, co si\u0119 przyda w paj\u0119czej robocie.", voice: "peter", mood: "normal" },
+        { id: "bag_08", kind: "bag", text: "Uzbiera\u0142em tyle rupieci, \u017Ce ju\u017C prawie mam dom.", voice: "peter", mood: "dry" },
+        { id: "race_start_01", kind: "race_start", text: "Pier\u015Bcienie? Do roboty!", voice: "peter", mood: "excited" },
+        { id: "race_start_02", kind: "race_start", text: "Okej, tor gotowy. Przynajmniej wiem, gdzie lecie\u0107.", voice: "peter", mood: "excited" },
+        { id: "race_start_03", kind: "race_start", text: "Raz, dwa, trzy, start!", voice: "peter", mood: "excited" },
+        { id: "race_start_04", kind: "race_start", text: "Znowu kto\u015B wymy\u015Bli\u0142 wyzwanie. Nie powiem nie.", voice: "peter", mood: "dry" },
+        { id: "race_start_05", kind: "race_start", text: "Biegn\u0119, lec\u0119, goni\u0119, pe\u0142na pr\u0119dko\u015B\u0107!", voice: "peter", mood: "excited" },
+        { id: "race_start_06", kind: "race_start", text: "\u015Acigam si\u0119 sam ze sob\u0105. Ale si\u0119 liczy.", voice: "peter", mood: "excited" },
+        { id: "race_win_01", kind: "race_win", text: "Meta! Czas niez\u0142y jak na paj\u0105ka!", voice: "peter", mood: "excited" },
+        { id: "race_win_02", kind: "race_win", text: "Wygra\u0142em! Dla porz\u0105dku: \u015Bciga\u0142em si\u0119 z zegarem.", voice: "peter", mood: "excited" },
+        { id: "race_win_03", kind: "race_win", text: "Tak jest! Pier\u015Bcienie pokonane!", voice: "peter", mood: "excited" },
+        { id: "race_win_04", kind: "race_win", text: "Rekord! Teraz tylko \u017Ceby kto\u015B go zapisa\u0142.", voice: "peter", mood: "dry" },
+        { id: "race_win_05", kind: "race_win", text: "Dobra robota, Peter. Id\u017A zje\u015B\u0107 pizz\u0119.", voice: "peter", mood: "excited" },
+        { id: "race_win_06", kind: "race_win", text: "Moja trasa, m\xF3j czas, moje miasto!", voice: "peter", mood: "excited" },
+        { id: "race_lose_01", kind: "race_lose", text: "Nie wysz\u0142o. Przynajmniej nikt nie widzia\u0142.", voice: "peter", mood: "dry" },
+        { id: "race_lose_02", kind: "race_lose", text: "Za wolno. Nast\u0119pnym razem si\u0119 zdrzemn\u0119 mniej.", voice: "peter", mood: "dry" },
+        { id: "race_lose_03", kind: "race_lose", text: "Pier\u015Bcienie wygra\u0142y. Szanuj\u0119 ich determinacj\u0119.", voice: "peter", mood: "dry" },
+        { id: "race_lose_04", kind: "race_lose", text: "Dobra, podej\u015Bcie numer dwa za chwil\u0119.", voice: "peter", mood: "dry" },
+        { id: "race_lose_05", kind: "race_lose", text: "Czas mnie pokona\u0142. Zdarza si\u0119 najlepszym.", voice: "peter", mood: "dry" },
+        { id: "race_lose_06", kind: "race_lose", text: "Okej, po\u015Blizg. Zwalmy to na wiatr.", voice: "peter", mood: "dry" },
+        { id: "chase_01", kind: "chase", text: "Kierowco, prosz\u0119 si\u0119 zatrzyma\u0107! No dobrze, nie prosz\u0119!", voice: "peter", mood: "excited" },
+        { id: "chase_02", kind: "chase", text: "Szybko jedzie, ale ja jad\u0119 szybciej!", voice: "peter", mood: "excited" },
+        { id: "chase_03", kind: "chase", text: "Tak, \u015Bcigam samoch\xF3d. Mam dziwne hobby.", voice: "peter", mood: "dry" },
+        { id: "chase_04", kind: "chase", text: "Trzymam si\u0119! Trzymam si\u0119!", voice: "peter", mood: "excited" },
+        { id: "chase_05", kind: "chase", text: "Panie z\u0142odzieju, obiecuj\u0119, \u017Ce to nie boli. Za bardzo.", voice: "peter", mood: "excited" },
+        { id: "chase_06", kind: "chase", text: "Czwarty raz w tym miesi\u0105cu goni\u0119 jakie\u015B auto. Kiepskie tempo.", voice: "peter", mood: "dry" },
+        { id: "chase_07", kind: "chase", text: "Ruszaj, ruszaj, ju\u017C ci\u0119 mam!", voice: "peter", mood: "excited" },
+        { id: "chase_08", kind: "chase", text: "Zjed\u017A na pobocze, bo mam jutro egzamin!", voice: "peter", mood: "excited" },
+        { id: "chase_09", kind: "chase", text: "Nawet nie spojrza\u0142e\u015B w lusterko. B\u0142\u0105d.", voice: "peter", mood: "dry" },
+        { id: "chase_10", kind: "chase", text: "Zatrzymam ci\u0119, cho\u0107bym mia\u0142 goni\u0107 do rana!", voice: "peter", mood: "excited" },
+        { id: "rhino_start_01", kind: "rhino_start", text: "Rogaty kolega! Kto\u015B tu potrzebuje urlopu.", voice: "peter", mood: "dry" },
+        { id: "rhino_start_02", kind: "rhino_start", text: "Nosoro\u017Cec? Dawno nie widzia\u0142em takiej g\xF3ry mi\u0119\u015Bni.", voice: "peter", mood: "dry" },
+        { id: "rhino_start_03", kind: "rhino_start", text: "Spokojnie, wielkoludzie, rozmawiajmy jak cywilizowani... no dobra, nie.", voice: "peter", mood: "dry" },
+        { id: "rhino_start_04", kind: "rhino_start", text: "Zbroja, r\xF3g i zero poczucia humoru. Typowe.", voice: "peter", mood: "dry" },
+        { id: "rhino_start_05", kind: "rhino_start", text: "Jak mam to powstrzyma\u0107? Nie ma instrukcji obs\u0142ugi.", voice: "peter", mood: "strained" },
+        { id: "rhino_start_06", kind: "rhino_start", text: "Dobra, plan: nie da\u0107 si\u0119 staranowa\u0107.", voice: "peter", mood: "dry" },
+        { id: "rhino_phase2_01", kind: "rhino_phase2", text: "Z\u0142ama\u0142em mu zbroj\u0119, ale on jest tylko bardziej z\u0142y.", voice: "peter", mood: "strained" },
+        { id: "rhino_phase2_02", kind: "rhino_phase2", text: "Okej, teraz b\u0119dzie szybciej. \u015Awietnie.", voice: "peter", mood: "strained" },
+        { id: "rhino_phase2_03", kind: "rhino_phase2", text: "Chyba si\u0119 nie przestraszy\u0142. Szkoda.", voice: "peter", mood: "strained" },
+        { id: "rhino_phase2_04", kind: "rhino_phase2", text: "Ten r\xF3g robi wra\u017Cenie. Niestety.", voice: "peter", mood: "dry" },
+        { id: "rhino_phase2_05", kind: "rhino_phase2", text: "Jeszcze nie sko\u0144czy\u0142e\u015B? Bo ja si\u0119 zaczynam m\u0119czy\u0107.", voice: "peter", mood: "strained" },
+        { id: "rhino_win_01", kind: "rhino_win", text: "Rogacz le\u017Cy! Dzi\u0119kuj\u0119 za wsp\xF3ln\u0105 zabaw\u0119!", voice: "peter", mood: "excited" },
+        { id: "rhino_win_02", kind: "rhino_win", text: "Du\u017Cy, silny i teraz \u015Bpi. Mam to w CV.", voice: "peter", mood: "excited" },
+        { id: "rhino_win_03", kind: "rhino_win", text: "Nie ruszaj si\u0119, r\xF3g nie jest ju\u017C gro\u017Any.", voice: "peter", mood: "dry" },
+        { id: "rhino_win_04", kind: "rhino_win", text: "Zam\xF3wcie d\u017Awig. I plaster.", voice: "peter", mood: "excited" },
+        { id: "rhino_win_05", kind: "rhino_win", text: "Jedno wielkie zwyci\u0119stwo, jeden ma\u0142y paj\u0105k!", voice: "peter", mood: "excited" },
+        { id: "fisk_enter_01", kind: "fisk_enter", text: "Panie Fisk, \u0142adna wie\u017Ca. Szkoda by\u0142oby jej nie zburzy\u0107.", voice: "peter", mood: "dry" },
+        { id: "fisk_enter_02", kind: "fisk_enter", text: "Kingpin? Wola\u0142em pana, kiedy pan jad\u0142 obiad.", voice: "peter", mood: "dry" },
+        { id: "fisk_enter_03", kind: "fisk_enter", text: "Niez\u0142a laska. Szkoda, \u017Ce tylko do chodzenia.", voice: "peter", mood: "dry" },
+        { id: "fisk_enter_04", kind: "fisk_enter", text: "Oho, szef ca\u0142ego miasta zszed\u0142 z fotela. Wzruszaj\u0105ce.", voice: "peter", mood: "dry" },
+        { id: "fisk_enter_05", kind: "fisk_enter", text: "Du\u017Cy, drogi garnitur i ani grama lito\u015Bci. \u015Awietnie.", voice: "peter", mood: "strained" },
+        { id: "fisk_enter_06", kind: "fisk_enter", text: "Dobry wiecz\xF3r, panie Fisk. Przyszed\u0142em pom\xF3c w sprz\u0105taniu.", voice: "peter", mood: "dry" },
+        { id: "fisk_phase2_01", kind: "fisk_phase2", text: "Oj, ma wi\u0119cej si\u0142y, ni\u017C wygl\u0105da\u0142.", voice: "peter", mood: "strained" },
+        { id: "fisk_phase2_02", kind: "fisk_phase2", text: "Dobra, \u017Carty si\u0119 sko\u0144czy\u0142y. No, prawie.", voice: "peter", mood: "strained" },
+        { id: "fisk_phase2_03", kind: "fisk_phase2", text: "Ten go\u015B\u0107 uderza jak ci\u0119\u017Car\xF3wka.", voice: "peter", mood: "strained" },
+        { id: "fisk_phase2_04", kind: "fisk_phase2", text: "Pan Fisk traci cierpliwo\u015B\u0107. Mnie te\u017C.", voice: "peter", mood: "dry" },
+        { id: "fisk_phase2_05", kind: "fisk_phase2", text: "Trzymaj si\u0119, Peter, jeszcze troch\u0119.", voice: "peter", mood: "strained" },
+        { id: "fisk_phase3_01", kind: "fisk_phase3", text: "Jeszcze stoi. Podziwiam i boj\u0119 si\u0119 jednocze\u015Bnie.", voice: "peter", mood: "strained" },
+        { id: "fisk_phase3_02", kind: "fisk_phase3", text: "Nie odpuszcz\u0119, nawet je\u015Bli to potrwa do rana.", voice: "peter", mood: "strained" },
+        { id: "fisk_phase3_03", kind: "fisk_phase3", text: "Wszystko mnie boli, ale on te\u017C ju\u017C dyszy.", voice: "peter", mood: "strained" },
+        { id: "fisk_phase3_04", kind: "fisk_phase3", text: "Panie Fisk, czas na zako\u0144czenie spotkania.", voice: "peter", mood: "dry" },
+        { id: "fisk_phase3_05", kind: "fisk_phase3", text: "Ostatnia runda. Daj z siebie wszystko, Peter.", voice: "peter", mood: "strained" },
+        { id: "fisk_win_01", kind: "fisk_win", text: "Koniec z Kingpinem! Miasto odetchnie.", voice: "peter", mood: "excited" },
+        { id: "fisk_win_02", kind: "fisk_win", text: "Panie Fisk, dzi\u0119kuj\u0119 za wizyt\u0119. Policja zaprasza dalej.", voice: "peter", mood: "excited" },
+        { id: "fisk_win_03", kind: "fisk_win", text: "Nikt nie jest ponad prawem. Nawet ten w drogim garniturze.", voice: "peter", mood: "dry" },
+        { id: "fisk_win_04", kind: "fisk_win", text: "Dobra robota, Nowy Jorku. Ja tylko pomog\u0142em.", voice: "peter", mood: "excited" },
+        { id: "fisk_win_05", kind: "fisk_win", text: "Zwyci\u0119stwo! Ciocia May b\u0119dzie dumna, a ja nadal g\u0142odny.", voice: "peter", mood: "excited" },
+        { id: "district_harlem_01", kind: "district_harlem", text: "Harlem. Muzyka z ka\u017Cdej strony, to lubi\u0119.", voice: "peter", mood: "normal" },
+        { id: "district_harlem_02", kind: "district_harlem", text: "Dobry kawa\u0142 miasta, pe\u0142en \u017Cycia.", voice: "peter", mood: "normal" },
+        { id: "district_harlem_03", kind: "district_harlem", text: "Tu zawsze co\u015B gra. Mo\u017Ce gdzie\u015B maj\u0105 koncert.", voice: "peter", mood: "dry" },
+        { id: "district_uws_01", kind: "district_uws", text: "Upper West Side. Spokojnie, eleganckie ulice i drzewa.", voice: "peter", mood: "normal" },
+        { id: "district_uws_02", kind: "district_uws", text: "Tu mieszkaj\u0105 ludzie z ksi\u0105\u017Ckami i psami. Lubi\u0119 tych ludzi.", voice: "peter", mood: "normal" },
+        { id: "district_uws_03", kind: "district_uws", text: "Czynsz tu wystarczy\u0142by mi na dziesi\u0119\u0107 lat. Albo na jedn\u0105 \u0142azienk\u0119.", voice: "peter", mood: "dry" },
+        { id: "district_ues_01", kind: "district_ues", text: "Upper East Side. Wszyscy w garniturach, nawet psy.", voice: "peter", mood: "dry" },
+        { id: "district_ues_02", kind: "district_ues", text: "Tu nawet go\u0142\u0119bie maj\u0105 lepsze mieszkania ode mnie.", voice: "peter", mood: "dry" },
+        { id: "district_ues_03", kind: "district_ues", text: "Muzea, eleganckie schody, drogie parasole. Wygl\u0105da to pi\u0119knie.", voice: "peter", mood: "dry" },
+        { id: "district_park_01", kind: "district_park", text: "Central Park. Drzew pe\u0142no, sie\u0107 w sam raz.", voice: "peter", mood: "normal" },
+        { id: "district_park_02", kind: "district_park", text: "Ach, troch\u0119 zieleni. Mog\u0119 tu zosta\u0107 na p\xF3\u0142 dnia.", voice: "peter", mood: "normal" },
+        { id: "district_park_03", kind: "district_park", text: "Spok\xF3j, ptaki i ani jednego dachu. Dziwne uczucie.", voice: "peter", mood: "normal" },
+        { id: "district_hk_01", kind: "district_hk", text: "Hell's Kitchen. Dobre jedzenie i kiepskie pomys\u0142y.", voice: "peter", mood: "normal" },
+        { id: "district_hk_02", kind: "district_hk", text: "Podobno tu mieszka jaki\u015B prawnik w masce. Nie znam go.", voice: "peter", mood: "dry" },
+        { id: "district_hk_03", kind: "district_hk", text: "Kuchnia piekielna, jak dla mnie same plusy: pizza za rogiem.", voice: "peter", mood: "normal" },
+        { id: "district_mid_01", kind: "district_mid", text: "Midtown! Najwy\u017Csze budynki i najlepsze skoki.", voice: "peter", mood: "excited" },
+        { id: "district_mid_02", kind: "district_mid", text: "Tu jest najwi\u0119cej wie\u017Cowc\xF3w na kilometr. M\xF3j raj.", voice: "peter", mood: "excited" },
+        { id: "district_mid_03", kind: "district_mid", text: "Biurowce, reklamy i t\u0142umy. Lubi\u0119 to zgie\u0142kowe miejsce.", voice: "peter", mood: "excited" },
+        { id: "district_gv_01", kind: "district_gv", text: "Greenwich Village. Kawiarnie, kluby i niska zabudowa.", voice: "peter", mood: "normal" },
+        { id: "district_gv_02", kind: "district_gv", text: "W\u0105skie uliczki, w sam raz na paj\u0119cze spacery.", voice: "peter", mood: "normal" },
+        { id: "district_gv_03", kind: "district_gv", text: "Studenci, gitary i herbata z cytryn\u0105. Czuj\u0119 si\u0119 jak w domu.", voice: "peter", mood: "dry" },
+        { id: "district_ct_01", kind: "district_ct", text: "Chinatown. Zapachy tak dobre, \u017Ce a\u017C mi burczy.", voice: "peter", mood: "normal" },
+        { id: "district_ct_02", kind: "district_ct", text: "Neony, stragany i najlepsze piero\u017Cki w mie\u015Bcie.", voice: "peter", mood: "normal" },
+        { id: "district_ct_03", kind: "district_ct", text: "Gdybym tu mieszka\u0142, nie wychodzi\u0142bym z jadalni.", voice: "peter", mood: "dry" },
+        { id: "district_fin_01", kind: "district_fin", text: "Dzielnica Finansowa. Mn\xF3stwo pieni\u0119dzy, ma\u0142o mnie.", voice: "peter", mood: "dry" },
+        { id: "district_fin_02", kind: "district_fin", text: "Tutaj wszyscy licz\u0105, ile maj\u0105. Ja licz\u0119, ile mi brakuje.", voice: "peter", mood: "dry" },
+        { id: "district_fin_03", kind: "district_fin", text: "Wie\u017Cowce, gie\u0142da i krawaty. Wszystko si\u0119 b\u0142yszczy.", voice: "peter", mood: "dry" },
+        { id: "room_shop_01", kind: "room_shop", text: "Dzie\u0144 dobry! Tylko si\u0119 rozgl\u0105dam, nie bior\u0119 niczego.", voice: "peter", mood: "normal" },
+        { id: "room_shop_02", kind: "room_shop", text: "Ceny wygl\u0105daj\u0105 znajomo, czyli za wysokie.", voice: "peter", mood: "dry" },
+        { id: "room_shop_03", kind: "room_shop", text: "Poprosz\u0119 co\u015B do jedzenia i promocj\u0119 na wszystko.", voice: "peter", mood: "normal" },
+        { id: "room_shop_04", kind: "room_shop", text: "Jest tu cola? Pytam s\u0142u\u017Cbowo.", voice: "peter", mood: "normal" },
+        { id: "room_shop_05", kind: "room_shop", text: "Spokojnie, nie zamierzam nic \u0142apa\u0107 w sie\u0107. Tym razem.", voice: "peter", mood: "normal" },
+        { id: "room_cafe_01", kind: "room_cafe", text: "Kawa! Najlepszy wynalazek, zaraz po sieci.", voice: "peter", mood: "normal" },
+        { id: "room_cafe_02", kind: "room_cafe", text: "Pachnie wspaniale. Da\u0142bym wszystko za du\u017Ce latte.", voice: "peter", mood: "normal" },
+        { id: "room_cafe_03", kind: "room_cafe", text: "Poprosz\u0119 kaw\u0119. Albo dwie. Plan na dzi\u015B jest ambitny.", voice: "peter", mood: "dry" },
+        { id: "room_cafe_04", kind: "room_cafe", text: "Dzie\u0144 dobry, jestem z s\u0105siedztwa. Mog\u0119 usi\u0105\u015B\u0107?", voice: "peter", mood: "normal" },
+        { id: "room_cafe_05", kind: "room_cafe", text: "Przyjemnie tu. Szkoda, \u017Ce nie mam portfela przy sobie.", voice: "peter", mood: "normal" },
+        { id: "room_bar_01", kind: "room_bar", text: "Bar? Dzi\u0119kuj\u0119, jestem s\u0142u\u017Cbowo. Wezm\u0119 sok.", voice: "peter", mood: "dry" },
+        { id: "room_bar_02", kind: "room_bar", text: "Przepraszam, szukam kogo\u015B, kto zna odpowiedzi.", voice: "peter", mood: "dry" },
+        { id: "room_bar_03", kind: "room_bar", text: "Ha\u0142as jak na meczu. Dobra, tylko si\u0119 przejd\u0119.", voice: "peter", mood: "dry" },
+        { id: "room_bar_04", kind: "room_bar", text: "Zero alkoholu, zero k\u0142opot\xF3w. Zasady s\u0105 proste.", voice: "peter", mood: "dry" },
+        { id: "room_bar_05", kind: "room_bar", text: "Cze\u015B\u0107 wszystkim. Nie, nie odbieram zam\xF3wie\u0144.", voice: "peter", mood: "dry" },
+        { id: "room_apt_01", kind: "room_apt", text: "Przepraszam, pomyli\u0142em okno!", voice: "peter", mood: "normal" },
+        { id: "room_apt_02", kind: "room_apt", text: "\u0141adnie tu. Zw\u0142aszcza w por\xF3wnaniu z moim pokojem.", voice: "peter", mood: "normal" },
+        { id: "room_apt_03", kind: "room_apt", text: "Tak, wiem, nieproszony go\u015B\u0107. Zaraz znikn\u0119.", voice: "peter", mood: "dry" },
+        { id: "room_apt_04", kind: "room_apt", text: "Nie krzycze\u0107, to tylko paj\u0105k z s\u0105siedztwa.", voice: "peter", mood: "normal" },
+        { id: "room_apt_05", kind: "room_apt", text: "Ciep\u0142o i przytulnie. Zaraz uciekn\u0119, obiecuj\u0119.", voice: "peter", mood: "normal" },
+        { id: "room_office_01", kind: "room_office", text: "Dzie\u0144 dobry, przynios\u0142em zdj\u0119cia dla Daily Bugle! No, prawie.", voice: "peter", mood: "dry" },
+        { id: "room_office_02", kind: "room_office", text: "Biuro. Czyli jak codziennie, tylko bez umowy.", voice: "peter", mood: "dry" },
+        { id: "room_office_03", kind: "room_office", text: "Czy tu jest drukarka? Musz\u0119 wydrukowa\u0107 rachunek za czynsz.", voice: "peter", mood: "dry" },
+        { id: "room_office_04", kind: "room_office", text: "Cisza, zegar i szum klimatyzacji. Znajome.", voice: "peter", mood: "dry" },
+        { id: "room_office_05", kind: "room_office", text: "Przepraszam, szukam szefa, kt\xF3ry nie krzyczy.", voice: "peter", mood: "dry" },
+        { id: "room_gym_01", kind: "room_gym", text: "Si\u0142ownia! Moje mi\u0119\u015Bnie ci\u0119 pozdrawiaj\u0105.", voice: "peter", mood: "normal" },
+        { id: "room_gym_02", kind: "room_gym", text: "Sprz\u0119t wygl\u0105da gro\u017Anie. Ale ja jestem gro\u017Aniejszy.", voice: "peter", mood: "dry" },
+        { id: "room_gym_03", kind: "room_gym", text: "Ch\u0119tnie pomog\u0119, ale nie z hantlami. Z sieciami.", voice: "peter", mood: "normal" },
+        { id: "room_gym_04", kind: "room_gym", text: "Dobra, pora na szybki trening z przeszkodami!", voice: "peter", mood: "excited" },
+        { id: "room_gym_05", kind: "room_gym", text: "Poprosz\u0119 karnet do ko\u0144ca \u017Cycia. Dam rad\u0119 zap\u0142aci\u0107? Zobaczymy.", voice: "peter", mood: "normal" },
+        { id: "death_01", kind: "death", text: "Niedobrze... tym razem nie wysz\u0142o.", voice: "peter", mood: "strained" },
+        { id: "death_02", kind: "death", text: "Ciocia May mnie zabije. Dos\u0142ownie.", voice: "peter", mood: "strained" },
+        { id: "death_03", kind: "death", text: "Musz\u0119... jeszcze raz.", voice: "peter", mood: "strained" },
+        { id: "death_04", kind: "death", text: "Czarno przed oczami. Do zobaczenia za chwil\u0119.", voice: "peter", mood: "strained" },
+        { id: "death_05", kind: "death", text: "Ach. To tak si\u0119 ko\u0144czy dzie\u0144.", voice: "peter", mood: "strained" },
+        { id: "respawn_01", kind: "respawn", text: "Dobra, jeszcze raz. Wiem ju\u017C, czego unika\u0107.", voice: "peter", mood: "dry" },
+        { id: "respawn_02", kind: "respawn", text: "Wr\xF3ci\u0142em. Jeszcze lepszy ni\u017C wcze\u015Bniej. Prawie.", voice: "peter", mood: "dry" },
+        { id: "respawn_03", kind: "respawn", text: "Nic si\u0119 nie sta\u0142o. Naprawd\u0119, nic.", voice: "peter", mood: "dry" },
+        { id: "respawn_04", kind: "respawn", text: "Przerwa na regeneracj\u0119 zaliczona. Do dzie\u0142a!", voice: "peter", mood: "dry" },
+        { id: "respawn_05", kind: "respawn", text: "Gotowy do kolejnej rundy, pierwsza by\u0142a pr\xF3bna!", voice: "peter", mood: "excited" },
+        { id: "levelup_01", kind: "levelup", text: "Nowy poziom! Czuj\u0119 si\u0119 silniejszy.", voice: "peter", mood: "excited" },
+        { id: "levelup_02", kind: "levelup", text: "Awans! Tylko podwy\u017Cki nie widz\u0119.", voice: "peter", mood: "excited" },
+        { id: "levelup_03", kind: "levelup", text: "Do\u015Bwiadczenie ro\u015Bnie, kondycja te\u017C.", voice: "peter", mood: "excited" },
+        { id: "levelup_04", kind: "levelup", text: "Jeszcze chwila i dostan\u0119 dyplom z paj\u0119czej akademii.", voice: "peter", mood: "dry" },
+        { id: "levelup_05", kind: "levelup", text: "Awans zaliczony, kolejne wyzwania mog\u0105 przyj\u015B\u0107.", voice: "peter", mood: "excited" },
+        { id: "idle_long_01", kind: "idle_long", text: "Halo? Jest tu kto\u015B? Miasto zasn\u0119\u0142o?", voice: "peter", mood: "dry" },
+        { id: "idle_long_02", kind: "idle_long", text: "Mog\u0142em ju\u017C dawno ruszy\u0107 dalej, prawda?", voice: "peter", mood: "dry" },
+        { id: "idle_long_03", kind: "idle_long", text: "Stoj\u0119 tu tak d\u0142ugo, \u017Ce go\u0142\u0119bie zacz\u0119\u0142y mnie przyjmowa\u0107.", voice: "peter", mood: "dry" },
+        { id: "idle_long_04", kind: "idle_long", text: "Zaraz zasn\u0119 na stoj\u0105co. Ruszamy!", voice: "peter", mood: "dry" },
+        { id: "idle_long_05", kind: "idle_long", text: "Czy kto\u015B zauwa\u017Cy\u0142, \u017Ce nic si\u0119 nie dzieje? Bo ja tak.", voice: "peter", mood: "dry" },
+        { id: "idle_long_06", kind: "idle_long", text: "Dobra, przerwa si\u0119 przeci\u0105gn\u0119\u0142a. Czas wr\xF3ci\u0107 do pracy.", voice: "peter", mood: "dry" },
+        { id: "idle_long_07", kind: "idle_long", text: "Paj\u0105k w trybie oszcz\u0119dzania energii. Budzenie za pi\u0119\u0107 minut.", voice: "peter", mood: "dry" },
+        { id: "random_thought_01", kind: "random_thought", text: "Je\u015Bli kto\u015B pyta, to tak, jem pizz\u0119 trzy razy w tygodniu.", voice: "peter", mood: "dry" },
+        { id: "random_thought_02", kind: "random_thought", text: "Musz\u0119 oddzwoni\u0107 do MJ. Zaraz po tym, jak uratuj\u0119 miasto.", voice: "peter", mood: "dry" },
+        { id: "random_thought_03", kind: "random_thought", text: "Harry znowu zaprosi\u0142 mnie na kolacj\u0119. Czynsz nie czeka.", voice: "peter", mood: "dry" },
+        { id: "random_thought_04", kind: "random_thought", text: "Mam nadziej\u0119, \u017Ce szef z Daily Bugle nie widzi moich zdj\u0119\u0107. Albo widzi i narzeka.", voice: "peter", mood: "dry" },
+        { id: "random_thought_05", kind: "random_thought", text: "Fizyka bywa dziwna: wz\xF3r na sie\u0107 wymaga trzech r\xF3wna\u0144 i u\u015Bmiechu.", voice: "peter", mood: "dry" },
+        { id: "random_thought_06", kind: "random_thought", text: "M\xF3j laptop ma wi\u0119cej naklejek ni\u017C mocy obliczeniowej.", voice: "peter", mood: "dry" },
+        { id: "random_thought_07", kind: "random_thought", text: "Kiedy\u015B zrobi\u0119 porz\u0105dek w pokoju. Kiedy\u015B.", voice: "peter", mood: "dry" },
+        { id: "random_thought_08", kind: "random_thought", text: "Ciocia May m\xF3wi, \u017Cebym si\u0119 wysypia\u0142. Pomys\u0142 \u015Bwietny, wykonanie trudne.", voice: "peter", mood: "dry" },
+        { id: "random_thought_09", kind: "random_thought", text: "Kto wymy\u015Bli\u0142 czynsz? Chcia\u0142bym z nim porozmawia\u0107.", voice: "peter", mood: "dry" },
+        { id: "random_thought_10", kind: "random_thought", text: "Pizza z ananasem to zbrodnia, ale i tak j\u0105 lubi\u0119.", voice: "peter", mood: "dry" },
+        { id: "random_thought_11", kind: "random_thought", text: "Zawsze wiedzia\u0142em, \u017Ce chemia na studiach si\u0119 przyda. Nie do ko\u0144ca tak.", voice: "peter", mood: "dry" },
+        { id: "random_thought_12", kind: "random_thought", text: "Czy sie\u0107 paj\u0119cza jest biodegradowalna? Pytam dla \u015Brodowiska.", voice: "peter", mood: "dry" },
+        { id: "random_thought_13", kind: "random_thought", text: "Wyobra\u017A sobie, \u017Ce masz moc i musisz jeszcze zda\u0107 egzamin.", voice: "peter", mood: "dry" },
+        { id: "random_thought_14", kind: "random_thought", text: "Dzi\u015B uratuj\u0119 miasto. Jutro wr\xF3c\u0119 do kolokwium.", voice: "peter", mood: "dry" },
+        { id: "random_thought_15", kind: "random_thought", text: "Gdybym mia\u0142 dolara za ka\u017Cdy uratowany tramwaj, kupi\u0142bym pizz\u0119. Raz.", voice: "peter", mood: "dry" },
+        { id: "random_thought_16", kind: "random_thought", text: "Te maski dziwnie si\u0119 nosz\u0105. Szczeg\xF3lnie przy upale.", voice: "peter", mood: "dry" },
+        { id: "random_thought_17", kind: "random_thought", text: "Znowu zapomnia\u0142em kupi\u0107 mleko. Jakie to ma znaczenie dla paj\u0105k\xF3w?", voice: "peter", mood: "dry" },
+        { id: "random_thought_18", kind: "random_thought", text: "Dobry dzie\u0144 na zdj\u0119cia. Szkoda, \u017Ce nikt ich nie kupi.", voice: "peter", mood: "dry" },
+        { id: "random_thought_19", kind: "random_thought", text: "Je\u015Bli zobacz\u0119 kolejnego bandyt\u0119 z broni\u0105, otworz\u0119 kiosk.", voice: "peter", mood: "dry" },
+        { id: "random_thought_20", kind: "random_thought", text: "Kto\u015B musi si\u0119 zaj\u0105\u0107 tym miastem. Najwyra\u017Aniej ja.", voice: "peter", mood: "dry" },
+        { id: "random_thought_21", kind: "random_thought", text: "W szkole nie uczyli, jak si\u0119 wstaje po stu uderzeniach.", voice: "peter", mood: "dry" },
+        { id: "random_thought_22", kind: "random_thought", text: "Czy jest sens uczy\u0107 si\u0119 fizyki, je\u015Bli i tak si\u0119 bujam?", voice: "peter", mood: "dry" },
+        { id: "random_thought_23", kind: "random_thought", text: "Tak, ludzie ci\u0105gle m\xF3wi\u0105, \u017Ce jestem mi\u0142y. Co za problem.", voice: "peter", mood: "dry" },
+        { id: "random_thought_24", kind: "random_thought", text: "Pracuj\u0119 na dwa etaty: paj\u0105k i student. Obie prace bez wynagrodzenia.", voice: "peter", mood: "dry" },
+        { id: "random_thought_25", kind: "random_thought", text: "Lubi\u0119 to miasto. Nawet z korkami, ha\u0142asem i bandytami.", voice: "peter", mood: "dry" },
+        { id: "random_thought_26", kind: "random_thought", text: "Pewnego dnia opowiem komu\u015B o tym wszystkim. Pewnie nikt nie uwierzy.", voice: "peter", mood: "dry" }
+      ];
+      RODZAJE = {
+        hit: { p: 0.12, cd: 12, prio: 0, opis: "zwykly cios w walce" },
+        finisher: { p: 0.55, cd: 8, prio: 1, opis: "wykonczenie wroga" },
+        web: { p: 0.1, cd: 14, prio: 0, opis: "strzal siecia" },
+        combo: { p: 0.6, cd: 25, prio: 1, opis: "dluga seria ciosow" },
+        swing: { p: 0.08, cd: 30, prio: 0, opis: "bujanie po miescie" },
+        hero: { p: 0.5, cd: 20, prio: 1, opis: "twarde ladowanie" },
+        hurt: { p: 0.2, cd: 10, prio: 1, opis: "oberwanie" },
+        lowhp: { p: 0.9, cd: 40, prio: 2, opis: "niskie zdrowie" },
+        cola: { p: 1, cd: 5, prio: 1, opis: "cola w sklepie, leczenie" },
+        room: { p: 0.45, cd: 30, prio: 1, opis: "wejscie do wnetrza, ogolne" },
+        crime: { p: 0.7, cd: 15, prio: 1, opis: "zauwazone przestepstwo" },
+        carstop: { p: 0.8, cd: 35, prio: 0, opis: "auto zatrzymuje sie przed graczem" },
+        horn: { p: 0.5, cd: 25, prio: 0, opis: "trabienie aut" },
+        idle: { p: 1, cd: 40, prio: 0, opis: "dluzsza chwila bez ruchu" },
+        perch: { p: 0.5, cd: 40, prio: 0, opis: "przysiadniecie na krawedzi" },
+        sunset: { p: 1, cd: 999, prio: 2, opis: "zachod slonca, poczatek" },
+        night: { p: 1, cd: 999, prio: 2, opis: "noc, poczatek" },
+        day: { p: 1, cd: 999, prio: 2, opis: "dzien, poczatek" },
+        intro: { p: 1, cd: 999, prio: 3, opis: "pierwszy raz w miescie" },
+        outnumbered: { p: 0.7, cd: 30, prio: 2, opis: "walka z wieloma wrogami naraz" },
+        dodge: { p: 0.35, cd: 12, prio: 1, opis: "unik w ostatniej chwili" },
+        airhit: { p: 0.35, cd: 12, prio: 0, opis: "cios z powietrza" },
+        throw: { p: 0.4, cd: 12, prio: 0, opis: "rzut lub odrzucenie wroga" },
+        webface: { p: 0.5, cd: 12, prio: 0, opis: "siec prosto w twarz" },
+        gun: { p: 0.8, cd: 20, prio: 2, opis: "wrog z bronia palna" },
+        bat: { p: 0.8, cd: 20, prio: 1, opis: "wrog z kijem" },
+        brute: { p: 0.8, cd: 20, prio: 1, opis: "osilek" },
+        dive: { p: 0.5, cd: 25, prio: 0, opis: "duza wysokosc i skok z wiezowca" },
+        speed: { p: 0.6, cd: 40, prio: 1, opis: "rekord predkosci bujania" },
+        summit: { p: 1, cd: 120, prio: 2, opis: "wejscie na najwyzsza wieze" },
+        bag: { p: 0.8, cd: 15, prio: 0, opis: "plecak i zbieranki" },
+        race_start: { p: 1, cd: 30, prio: 2, opis: "start wyscigu przez pierscienie" },
+        race_win: { p: 1, cd: 30, prio: 2, opis: "wygrana w wyscigu" },
+        race_lose: { p: 1, cd: 30, prio: 2, opis: "przegrana w wyscigu" },
+        chase: { p: 0.7, cd: 25, prio: 1, opis: "poscig za autem" },
+        rhino_start: { p: 1, cd: 60, prio: 3, opis: "start walki z Nosorozcem" },
+        rhino_phase2: { p: 1, cd: 60, prio: 3, opis: "druga faza Nosorozca" },
+        rhino_win: { p: 1, cd: 60, prio: 3, opis: "pokonanie Nosorozca" },
+        fisk_enter: { p: 1, cd: 60, prio: 3, opis: "spotkanie z Kingpinem" },
+        fisk_phase2: { p: 1, cd: 60, prio: 3, opis: "druga faza Kingpina" },
+        fisk_phase3: { p: 1, cd: 60, prio: 3, opis: "trzecia faza Kingpina" },
+        fisk_win: { p: 1, cd: 60, prio: 3, opis: "pokonanie Kingpina" },
+        district_harlem: { p: 1, cd: 120, prio: 0, opis: "wejscie do Harlemu" },
+        district_uws: { p: 1, cd: 120, prio: 0, opis: "wejscie na Upper West Side" },
+        district_ues: { p: 1, cd: 120, prio: 0, opis: "wejscie na Upper East Side" },
+        district_park: { p: 1, cd: 120, prio: 0, opis: "wejscie do Central Parku" },
+        district_hk: { p: 1, cd: 120, prio: 0, opis: "wejscie do Hell's Kitchen" },
+        district_mid: { p: 1, cd: 120, prio: 0, opis: "wejscie na Midtown" },
+        district_gv: { p: 1, cd: 120, prio: 0, opis: "wejscie do Greenwich Village" },
+        district_ct: { p: 1, cd: 120, prio: 0, opis: "wejscie do Chinatown" },
+        district_fin: { p: 1, cd: 120, prio: 0, opis: "wejscie do Dzielnicy Finansowej" },
+        room_shop: { p: 0.6, cd: 30, prio: 1, opis: "wejscie do sklepu" },
+        room_cafe: { p: 0.6, cd: 30, prio: 1, opis: "wejscie do kawiarni" },
+        room_bar: { p: 0.6, cd: 30, prio: 1, opis: "wejscie do baru" },
+        room_apt: { p: 0.6, cd: 30, prio: 1, opis: "wejscie do mieszkania" },
+        room_office: { p: 0.6, cd: 30, prio: 1, opis: "wejscie do biura" },
+        room_gym: { p: 0.6, cd: 30, prio: 1, opis: "wejscie na silownie" },
+        death: { p: 1, cd: 5, prio: 3, opis: "smierc" },
+        respawn: { p: 1, cd: 5, prio: 2, opis: "odrodzenie" },
+        levelup: { p: 1, cd: 10, prio: 2, opis: "nowy poziom" },
+        idle_long: { p: 1, cd: 90, prio: 0, opis: "bardzo dluga cisza" },
+        random_thought: { p: 0.6, cd: 60, prio: 0, opis: "luzne uwagi" }
+      };
+    }
+  });
+
+  // js/docinki_dialogi.js
+  var PARY, LINIE2, RODZAJE2;
+  var init_docinki_dialogi = __esm({
+    "js/docinki_dialogi.js"() {
+      PARY = [
+        ["Hej, paj\u0105ku! Oddaj mi to miasto!", "Przykro mi, jest na wynajem tylko dla uczciwych.", "dry"],
+        ["Nie masz z nami szans, jest nas wi\u0119cej!", "Wiem. Dlatego jestem ju\u017C rozgrzany.", "dry"],
+        ["Zobaczymy, kto tu jest szybszy!", "Zak\u0142ad? Stawiam pizz\u0119.", "excited"],
+        ["Co to ma by\u0107, jaki\u015B kostium na Halloween?", "Nie, na ca\u0142oroczne przedsi\u0119wzi\u0119cie.", "dry"],
+        ["St\xF3j! Gdzie ci si\u0119 tak spieszy?", "Do pracy. Dwie ulice st\u0105d.", "normal"],
+        ["Szef nas zabije, je\u015Bli ci\u0119 wypu\u015Bcimy!", "Szef was zabije i tak. Mog\u0119 pom\xF3c to op\xF3\u017Ani\u0107.", "dry"],
+        ["Tym razem ci\u0119 dorwiemy!", "M\xF3wisz tak ka\u017Cdego wieczoru. Zaczynam si\u0119 przyzwyczaja\u0107.", "dry"],
+        ["Zostaw nas w spokoju, przecie\u017C nic ci nie zrobili\u015Bmy!", "Opr\xF3cz tego, \u017Ce napadli\u015Bcie na sklep. Drobiazg.", "dry"],
+        ["Ej, ludzie, ten typ znowu si\u0119 pojawi\u0142!", "Dzie\u0144 dobry, panowie. Mi\u0142o by\u0107 zauwa\u017Conym.", "normal"],
+        ["Mam bro\u0144, paj\u0105ku! Nie podchod\u017A!", "Spokojnie, od\u0142\xF3\u017C to, zanim zrobisz co\u015B g\u0142upiego.", "strained"],
+        ["Zamknij si\u0119 i walcz!", "Ja mog\u0119 oba na raz. Kto lepiej?", "excited"],
+        ["Czemu nas ci\u0105gle gonisz?", "Bo wy ci\u0105gle uciekacie. Sami wiecie, jak to wygl\u0105da.", "normal"],
+        ["Zaraz przywo\u0142amy posi\u0142ki!", "\u015Awietnie, to wreszcie b\u0119dzie jaka\u015B zabawa.", "excited"],
+        ["Nie wejdziesz tu, ta ulica jest nasza!", "Dzi\u0119kuj\u0119 za go\u015Bcin\u0119, nie zostaj\u0119 d\u0142ugo.", "dry"],
+        ["Kim ty w\u0142a\u015Bciwie jeste\u015B pod t\u0105 mask\u0105?", "Przyjacielem z s\u0105siedztwa. Bardzo upartym.", "normal"],
+        ["Ruszaj si\u0119, bo ci\u0119 z\u0142apiemy!", "Wol\u0119, \u017Ceby\u015B ty ruszy\u0142 si\u0119 z tej ulicy.", "dry"],
+        ["Co on robi na tej \u015Bcianie?!", "Wisz\u0119. To moja specjalno\u015B\u0107.", "dry"],
+        ["Zabierz t\u0119 swoj\u0105 paj\u0119czyn\u0119!", "Sorry, to dostawa bez prawa zwrotu.", "dry"]
+      ];
+      LINIE2 = [];
+      RODZAJE2 = {};
+      PARY.forEach(([a, b, mood], i) => {
+        const nn = String(i + 1).padStart(2, "0"), kind = "dialog_" + nn;
+        LINIE2.push({ id: "dlg_" + nn + "_a", kind, text: a, voice: "thug", mood: "normal" });
+        LINIE2.push({ id: "dlg_" + nn + "_b", kind, text: b, voice: "peter", mood });
+        RODZAJE2[kind] = { p: 0.35, cd: 45, prio: 1, opis: "dialog z wrogiem (para: wrog, Peter)" };
+      });
+    }
+  });
+
   // js/docinki.js
+  function quipAdd(list) {
+    for (const l of list || []) {
+      if (!l || !l.id || !l.kind || !l.text || byId.has(l.id)) continue;
+      byId.set(l.id, l);
+      let a = byKind.get(l.kind);
+      if (!a) byKind.set(l.kind, a = []);
+      a.push(l);
+    }
+  }
+  function meta(kind) {
+    let m = metaCache[kind];
+    if (m) return m;
+    const fam = kind.split("_")[0], d = DEF[kind] || DEF[fam] || [1, 0.5, 20], r = RODZAJE && (RODZAJE[kind] || RODZAJE[fam]) || {};
+    return metaCache[kind] = { prio: r.prio != null ? r.prio : d[0], p: r.p != null ? r.p : d[1], cd: r.cd != null ? r.cd : d[2], fam };
+  }
+  function linesFor(kind) {
+    for (let k = kind, n = 0; k && n < 4; n++) {
+      const a = byKind.get(k);
+      if (a && a.length) return { key: k, all: a };
+      k = FALL[k] || (k.lastIndexOf("_") > 0 ? k.slice(0, k.lastIndexOf("_")) : null);
+    }
+    return null;
+  }
+  function candidates(kind, c) {
+    const L3 = [];
+    if (c) {
+      if (c.variant) L3.push(kind + "_" + c.variant);
+      const e = c.enemy || c.from;
+      if (e && e.type && e.type !== "boss" && kind === "hit") L3.push(e.type === "brute" ? "hit_brute" : e.type === "gun" ? "hit_gun" : kind);
+      if (e && kind === "hurt") L3.push(e.type === "brute" ? "hurt_brute" : e.type === "gun" ? "hurt_gun" : e.type === "boss" ? "hurt_boss" : "hurt_bat");
+      if (c.fromAir && kind === "hit") L3.unshift("airhit");
+      if (e && kind === "web" && e.type === "brute") L3.push("web_brute");
+    }
+    L3.push(kind);
+    return L3;
+  }
   function bar() {
     const st = document.createElement("style");
-    st.textContent = "#quip{position:fixed;left:50%;bottom:190px;transform:translateX(-50%);z-index:6;max-width:720px;padding:9px 20px 10px;background:rgba(5,16,26,.82);border-left:4px solid #e8232b;font:600 20px/1.3 Rajdhani,Arial,sans-serif;color:#fff;opacity:0;transition:opacity .35s;pointer-events:none;text-shadow:0 1px 6px rgba(0,0,0,.6)}#quip b{display:block;font-size:12px;letter-spacing:3px;color:#ff5a5f;margin-bottom:1px}";
+    st.textContent = "#quip{position:fixed;left:50%;bottom:190px;transform:translateX(-50%);z-index:6;max-width:720px;padding:9px 20px 10px;background:rgba(5,16,26,.82);border-left:4px solid #e8232b;font:600 20px/1.3 Rajdhani,Arial,sans-serif;color:#fff;opacity:0;transition:opacity .35s;pointer-events:none;text-shadow:0 1px 6px rgba(0,0,0,.6)}#quip b{display:block;font-size:12px;letter-spacing:3px;color:#ff5a5f;margin-bottom:1px}#quip[data-v=thug]{border-left-color:#e8a02b}#quip[data-v=thug] b{color:#ffc15a}";
     document.head.appendChild(st);
     el = document.createElement("div");
     el.id = "quip";
     el.innerHTML = "<b>SPIDER-MAN</b><span></span>";
     document.body.appendChild(el);
   }
-  function speak(t) {
-    try {
-      const ss = window.speechSynthesis;
-      if (!save.voice || !ss) return;
-      const v = ss.getVoices().find((x) => /^pl/i.test(x.lang));
-      if (!v) return;
-      ss.cancel();
-      const u = new SpeechSynthesisUtterance(t);
-      u.voice = v;
-      u.lang = v.lang;
-      u.rate = 1.06;
-      u.pitch = 1.25;
-      u.volume = 0.9;
-      ss.speak(u);
+  function wantMood(m, c) {
+    if (c && c.mood) return c.mood;
+    if (P.hp <= 35 && !P.dead) return "strained";
+    if (dryT > 0 || m.fam === "hurt" || m.fam === "death" || m.fam === "respawn") return "dry";
+    if (P.combo >= 5 || fast > 1 || m.fam === "combo" || m.fam === "finisher" || m.fam === "speed" || m.fam === "dive") return "excited";
+    return "normal";
+  }
+  function pick4(found, mood) {
+    const key2 = found.key;
+    let bag = bags[key2];
+    if (!bag || !bag.length) {
+      bag = bags[key2] = found.all.slice();
+      for (let i = bag.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const t = bag[i];
+        bag[i] = bag[j];
+        bag[j] = t;
+      }
+      if (bag.length > 1 && lastKey[key2] === bag[0].id) {
+        const t = bag[0];
+        bag[0] = bag[bag.length - 1];
+        bag[bag.length - 1] = t;
+      }
+    }
+    let bi = 0, bs = -99;
+    for (let i = 0; i < bag.length; i++) {
+      const l2 = bag[i];
+      let s = Math.random() * 0.5;
+      s += l2.mood === mood ? 3 : !l2.mood || l2.mood === "normal" ? 1 : 0;
+      if (combat && l2.text.length <= 48) s += 1;
+      if (recent.indexOf(l2.id) >= 0) s -= 5;
+      if (s > bs) {
+        bs = s;
+        bi = i;
+      }
+    }
+    const l = bag.splice(bi, 1)[0];
+    lastKey[key2] = l.id;
+    recent.push(l.id);
+    if (recent.length > 10) recent.shift();
+    return l;
+  }
+  function showLine(l, speaker) {
+    if (save.subs === false) return;
+    if (!el) bar();
+    el.dataset.v = l.voice || "peter";
+    el.firstChild.textContent = speaker;
+    el.lastChild.textContent = l.text;
+    el.style.opacity = 1;
+    if (quipEvents.onShow) try {
+      quipEvents.onShow({ id: l.id, text: l.text, speaker, voice: l.voice || "peter", mood: l.mood || "normal", kind: l.kind });
     } catch (e) {
     }
   }
-  function show(t) {
-    if (!el) bar();
-    el.querySelector("span").textContent = t;
-    el.style.opacity = 1;
-    hideT = 3.2 + t.length * 0.045;
-    speak(t);
+  function hideLine() {
+    if (el) el.style.opacity = 0;
+    if (quipEvents.onHide) try {
+      quipEvents.onHide();
+    } catch (e) {
+    }
   }
-  function say(kind, force) {
-    const q = Q[kind];
-    if (!q || G.state !== "play" || G.cine) return false;
-    if (!force && (gcd > 0 || (kcd[kind] || 0) > 0 || Math.random() > q.p)) return false;
-    let i = Math.floor(Math.random() * q.l.length);
-    if (q.l.length > 1 && i === lastIdx[kind]) i = (i + 1) % q.l.length;
-    lastIdx[kind] = i;
-    show(q.l[i]);
-    kcd[kind] = q.cd;
-    gcd = 6;
+  function gapFor() {
+    return (combat ? 3.2 : G.chase || G.race || P.state === "swing" || P.state === "air" ? 6 : 10) * (0.8 + Math.random() * 0.5);
+  }
+  function playKind(kind, c, found, prio) {
+    const m = meta(kind);
+    kcdAt[kind] = now + m.cd * (0.85 + Math.random() * 0.35);
+    return playLine(pick4(found, wantMood(m, c)), kind, prio, m);
+  }
+  function playLine(l, kind, prio, m, next) {
+    if (cur) glosStop();
+    const speaker = SPEAKER[l.voice || "peter"] || SPEAKER.peter, me = cur = { id: l.id, kind, prio, age: 0, min: 1.4 + l.text.length * 0.045, audioEnd: false, voice: l.voice || "peter", next };
+    if (m && (m.fam === "hurt" || m.fam === "death")) dryT = 8;
+    silence = 0;
+    pending = null;
+    showLine(l, speaker);
+    try {
+      glosPlay(l.id, { priority: prio, text: l.text, voice: l.voice || "peter", onEnd: () => {
+        me.audioEnd = true;
+      } });
+    } catch (e) {
+      me.audioEnd = true;
+    }
     return true;
   }
+  function finish() {
+    const c = cur;
+    cur = null;
+    hideLine();
+    gcd = gapFor();
+    if (c && c.next) {
+      reply = c.next;
+      replyT = 0.4;
+    }
+  }
+  function dialogStart() {
+    if (G.state !== "play" || G.cine || cur || gcd > 0 || (kcdAt.dialog || 0) > now || Math.random() > 0.35) return false;
+    if (!dlgBag.length) {
+      for (const k2 of byKind.keys()) if (k2.startsWith("dialog_")) dlgBag.push(k2);
+      for (let i = dlgBag.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const t = dlgBag[i];
+        dlgBag[i] = dlgBag[j];
+        dlgBag[j] = t;
+      }
+    }
+    const k = dlgBag.pop();
+    if (!k) return false;
+    const a = byKind.get(k).find((l) => l.voice === "thug"), b = byKind.get(k).find((l) => l.voice !== "thug");
+    if (!a || !b) return false;
+    kcdAt.dialog = now + 45;
+    return playLine(a, "dialog", 1, null, b);
+  }
+  function enqueue(kind, c, prio, ttl) {
+    if (pending && pending.prio >= prio) return false;
+    pending = { kind, c, prio, ttl };
+    return true;
+  }
+  function request(kind, c, force) {
+    if (G.state !== "play" || G.cine) return false;
+    const m = meta(kind), prio = c && c.prio != null ? c.prio : m.prio;
+    let found = null;
+    for (const k of candidates(kind, c)) if (found = linesFor(k)) break;
+    if (!found) return false;
+    if (!force) {
+      if ((kcdAt[kind] || 0) > now) return false;
+      if (Math.random() > m.p) return false;
+    }
+    if (cur) {
+      if (prio > cur.prio && (prio >= 3 || force) || force && prio >= cur.prio && cur.age > 0.5) return playKind(kind, c, found, prio);
+      return prio >= 2 && !(c && c.noqueue) ? enqueue(kind, c, prio, prio >= 3 ? 4 : 2) : false;
+    }
+    if (!force && prio < 3 && gcd > 0) return prio >= 2 && !(c && c.noqueue) ? enqueue(kind, c, prio, 2) : false;
+    return playKind(kind, c, found, prio);
+  }
+  function say(kind, force) {
+    return request(kind, null, force);
+  }
+  function sayCtx(kind, ctx) {
+    return request(kind, ctx || null, ctx && ctx.force);
+  }
   function updateQuips(dt) {
+    now += dt;
     gcd -= dt;
-    for (const k in kcd) kcd[k] -= dt;
-    if (hideT > 0) {
-      hideT -= dt;
-      if (hideT <= 0 && el) el.style.opacity = 0;
+    dryT -= dt;
+    silence += dt;
+    if (cur) {
+      cur.age += dt;
+      const talking = glosState.speaking && glosState.id === cur.id;
+      if (cur.age > 16 || cur.age >= cur.min && (cur.audioEnd || !talking)) finish();
+    } else if (replyT > 0) {
+      replyT -= dt;
+      if (replyT <= 0 && reply) {
+        const l = reply;
+        reply = null;
+        playLine(l, "dialog", 1, null);
+      }
     }
     if (G.state !== "play" || G.cine) {
       prevState = "";
+      pending = null;
       return;
+    }
+    if (pending) {
+      pending.ttl -= dt;
+      if (pending.ttl <= 0) pending = null;
+      else if (!cur && (gcd <= 0 || pending.prio >= 3)) {
+        const p = pending;
+        pending = null;
+        request(p.kind, p.c, true);
+      }
     }
     if (startT > 0) {
       startT -= dt;
-      if (startT <= 0) say(save.tod === "night" ? "night" : save.tod === "day" ? "day" : "sunset", true);
+      if (startT <= 0) if (!save.introSaid && byKind.has("intro")) {
+        save.introSaid = true;
+        say("intro", true);
+      } else say(save.tod === "night" ? "night" : save.tod === "day" ? "day" : "sunset", true);
     }
     const st = P.state;
     if (st === "swing" && prevState !== "swing") say("swing");
@@ -12556,43 +13362,192 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
         say("lowhp");
       }
     } else if (P.hp > 60) lowSaid = false;
+    const sp2 = P.vel.length();
+    if ((st === "swing" || st === "air") && sp2 > 40) {
+      fast += dt;
+      if (fast > 1.1 && now - fastSaid > 5) {
+        fastSaid = now;
+        const rec = sp2 > 48 && sp2 > (save.recSpeed || 0) + 1.5;
+        if (rec) save.recSpeed = sp2;
+        sayCtx("speed", { variant: rec ? "record" : "" });
+      }
+    } else if (fast > 0) fast = Math.max(0, fast - dt * 2);
+    if (st === "air" && P.vel.y < -28 && P.pos.y > 50) {
+      if (!diveSaid) {
+        diveSaid = true;
+        say("dive");
+      }
+    } else if (st !== "air" || P.vel.y > -5) diveSaid = false;
+    if (P.pos.y > 130 && st !== "air") {
+      if (!summitSaid) {
+        summitSaid = true;
+        say("summit");
+      }
+    } else if (P.pos.y < 80) summitSaid = false;
+    if (!combat && !G.boss) {
+      if (silence > 75) {
+        silence = 40;
+        say("idle_long");
+      } else if (silence > 40 && say("random_thought")) silence = 20;
+    }
+    scanT -= dt;
+    if (scanT <= 0) {
+      scanT = 0.4;
+      let n = 0, anyAwake = false;
+      for (const e of enemies) {
+        if (e.dead || e.gone || e.type === "boss") continue;
+        const s = e.state, hot = s === "fight" || s === "windup" || s === "aim" || s === "recover" || s === "hurt" || s === "stun";
+        if (!hot) {
+          e._qa = false;
+          continue;
+        }
+        const d = Math.abs(e.pos.x - P.pos.x) + Math.abs(e.pos.z - P.pos.z);
+        if (d > 60) continue;
+        anyAwake = true;
+        if (d < 28) n++;
+        if (!e._qa && d < 40) {
+          e._qa = true;
+          if (!request(e.type === "gun" ? "gun" : e.type === "brute" ? "brute" : "bat")) dialogStart();
+        }
+      }
+      aware = n;
+      combat = anyAwake || P.hurtT > 0 || !!G.boss;
+      if (n >= 3) request("outnumbered");
+      const b = G.boss;
+      if (b && !bossSeen) {
+        bossSeen = b;
+        bossPh = 0;
+        request(b.name === "KINGPIN" ? "fisk_enter" : "rhino_start", { prio: 3 }, true);
+      } else if (b && b === bossSeen && b.max) {
+        const king = b.name === "KINGPIN", ph = king ? b.hp > b.max * 0.66 ? 0 : b.hp > b.max * 0.33 ? 1 : 2 : b.hp > b.max * 0.5 ? 0 : 1;
+        if (ph > bossPh) {
+          bossPh = ph;
+          request((king ? "fisk_phase" : "rhino_phase") + (ph + 1), { prio: 3 }, true);
+        }
+      } else if (!b && bossSeen) {
+        const w = bossSeen;
+        bossSeen = null;
+        if (w.dead) request(w.name === "KINGPIN" ? "fisk_win" : "rhino_win", { prio: 3 }, true);
+      }
+      if ((distT2 -= 0.4) <= 0) {
+        distT2 = 1;
+        if (!G.interior) {
+          const d = districtAt(P.pos.x, P.pos.z);
+          if (d !== lastDist) {
+            if (lastDist) say("district_" + d);
+            lastDist = d;
+          }
+        }
+      }
+    }
   }
-  var Q, el, hideT, gcd, startT, prevState, idleT, comboSaid, lowSaid, kcd, lastIdx, quipStart;
+  var byKind, byId, DEF, metaCache, FALL, SPEAKER, quipEvents, el, now, gcd, startT, prevState, idleT, comboSaid, lowSaid, silence, cur, pending, reply, replyT, dryT, scanT, distT2, lastDist, fast, fastSaid, diveSaid, summitSaid, combat, aware, bossSeen, bossPh, kcdAt, recent, bags, lastKey, dlgBag, quipStart;
   var init_docinki = __esm({
     "js/docinki.js"() {
       init_stan();
       init_util();
-      Q = {
-        hit: { p: 0.1, cd: 12, l: ["Zostaw to, wygl\u0105dasz na zm\u0119czonego.", "Bez urazy, to tylko przyjacielska pi\u0119\u015B\u0107!", "Przepraszam, \u017Ce przerywam napad.", "Au\u0107, to musia\u0142o bole\u0107. Mnie te\u017C. Troch\u0119.", "Dasz rad\u0119 wsta\u0107? Bo zaraz powt\xF3rka.", "Ej, ja tu tylko przechodzi\u0142em!"] },
-        finisher: { p: 0.55, cd: 8, l: ["I po zawodach!", "Zapakowany na prezent!", "Efektowne, prawda? Nie klaszcz, nie trzeba.", "Teraz mo\u017Cesz sobie odpocz\u0105\u0107 w sieci.", "Dobranoc, panie bandyto!"] },
-        web: { p: 0.08, cd: 14, l: ["Sie\u0107 paj\u0105ka \u2014 lepsza ni\u017C kajdanki!", "Zosta\u0144 tu, zaraz wracam!", "Mam ich ca\u0142\u0105 kolekcj\u0119. Sieci, nie bandyt\xF3w."] },
-        combo: { p: 0.6, cd: 25, l: ["Rozgrzewka zaliczona!", "Czuj\u0119 si\u0119 dzi\u015B w formie!", "Kto\u015B tu zas\u0142u\u017Cy\u0142 na ocen\u0119 dziesi\u0119\u0107!"] },
-        swing: { p: 0.07, cd: 30, l: ["Uwielbiam to bujanie!", "Tarzan m\xF3g\u0142by si\u0119 czego\u015B nauczy\u0107.", "Wiatr we w\u0142osach... gdyby nie maska.", "Pi\u0119kne miasto. Szkoda, \u017Ce nie da si\u0119 go zaparkowa\u0107.", "Kto potrzebuje metra?"] },
-        hero: { p: 0.5, cd: 20, l: ["L\u0105dowanie na dziesi\u0105tk\u0119! No, mo\u017Ce na \xF3semk\u0119.", "Tak mia\u0142o by\u0107. Zaplanowa\u0142em to.", "Nic si\u0119 nie sta\u0142o! Naprawd\u0119!"] },
-        hurt: { p: 0.18, cd: 10, l: ["Au! To mia\u0142o by\u0107 na niby!", "Ej! Mam kruchy kr\u0119gos\u0142up... teoretycznie.", "To bola\u0142o bardziej ni\u017C kolejka do kasy.", "Dobra, teraz ju\u017C si\u0119 zdenerwowa\u0142em."] },
-        lowhp: { p: 0.9, cd: 40, l: ["Dobra, mo\u017Ce jednak trzeba by\u0142o zosta\u0107 w \u0142\xF3\u017Cku.", "Czy kto\u015B ma jeszcze col\u0119?", "Jeszcze tylko chwilk\u0119... wytrzyma\u0107."] },
-        cola: { p: 1, cd: 5, l: ["Zimna cola \u2014 najlepsza bro\u0144 w arsenale!", "Cola za darmo? Kocham to miasto!", "To si\u0119 nazywa pe\u0142ne zdrowie. Dzi\u0119ki, szefie!"] },
-        room: { p: 0.45, cd: 30, l: ["Dzie\u0144 dobry, tylko ogl\u0105dam!", "Spokojnie, niczego nie b\u0119d\u0119 \u0142apa\u0142... sieciami.", "Czy tu mo\u017Cna zaparkowa\u0107 sie\u0107?", "Przepraszam za naj\u015Bcie. Jestem z s\u0105siedztwa."] },
-        crime: { p: 0.7, cd: 15, l: ["Kolejny dzie\u0144, kolejny z\u0142odziej.", "Nie dzi\u0119kuj, to moja praca. Niezap\u0142acona.", "Wszystko pod kontrol\u0105. Mniej wi\u0119cej.", "Przyjazny paj\u0105k z s\u0105siedztwa na posterunku!"] },
-        carstop: { p: 0.8, cd: 35, l: ["Dzi\u0119ki, \u017Ce si\u0119 zatrzyma\u0142e\u015B! Zazwyczaj tylko mnie tr\u0105bi\u0105.", "Nowy Jork i kierowcy, kt\xF3rzy hamuj\u0105? Cud!", "Spokojnie, panie taks\xF3wkarzu, nie rzucam si\u0119 pod ko\u0142a. Dzi\u015B.", "Mi\u0142o, \u017Ce kto\u015B tu przestrzega przepis\xF3w."] },
-        rhino: { p: 1, cd: 60, l: ["Rogaty kolega! Kto\u015B tu potrzebuje urlopu.", "Nosoro\u017Cec? Dawno nie widzia\u0142em takiej g\xF3ry mi\u0119\u015Bni.", "Spokojnie, wielkoludzie, rozmawiajmy jak cywilizowani... no dobra, nie."] },
-        fisk: { p: 1, cd: 60, l: ["Panie Fisk, \u0142adna wie\u017Ca. Szkoda by\u0142oby jej nie zburzy\u0107.", "Kingpin? Wola\u0142em pana, kiedy pan jad\u0142 obiad.", "Niez\u0142a laska. Szkoda, \u017Ce tylko do chodzenia."] },
-        idle: { p: 1, cd: 40, l: ["Wiesz, \u017Ce nic nie robi\u0119? To te\u017C praca.", "Czy kto\u015B widzia\u0142 moj\u0105 kaw\u0119?", "Tak sobie my\u015Bl\u0119... mo\u017Ce zmieni\u0107 kostium na \u017C\xF3\u0142ty?", "To miasto nigdy nie \u015Bpi. Ja te\u017C nie. Niestety."] },
-        perch: { p: 0.5, cd: 40, l: ["Z tej wysoko\u015Bci wszystko wygl\u0105da lepiej.", "Chwila oddechu... i znowu do roboty.", "\u0141adny widok, prawda?"] },
-        sunset: { p: 1, cd: 999, l: ["Z\u0142ota godzina nad Nowym Jorkiem. Mo\u017Cna si\u0119 zakocha\u0107.", "Taki zach\xF3d s\u0142o\u0144ca i jeszcze mam prac\u0119. \u017Bycie jest pi\u0119kne."] },
-        night: { p: 1, cd: 999, l: ["Noc w mie\u015Bcie. Idealny czas na k\u0142opoty.", "\u015Awiat\u0142a, kamera... paj\u0105k!"] },
-        day: { p: 1, cd: 999, l: ["Pi\u0119kny dzie\u0144 na ratowanie miasta.", "S\u0142o\u0144ce \u015Bwieci, ptaki \u015Bpiewaj\u0105, a ja bujam si\u0119 na sieci."] }
+      init_miasto();
+      init_glos();
+      init_docinki_teksty();
+      init_docinki_dialogi();
+      byKind = /* @__PURE__ */ new Map();
+      byId = /* @__PURE__ */ new Map();
+      quipAdd(LINIE);
+      quipAdd(LINIE2);
+      DEF = {
+        death: [3, 1, 20],
+        respawn: [3, 1, 20],
+        rhino: [3, 1, 60],
+        fisk: [3, 1, 60],
+        boss: [3, 1, 20],
+        hit: [2, 0.1, 12],
+        finisher: [2, 0.55, 8],
+        web: [2, 0.08, 14],
+        combo: [2, 0.6, 25],
+        hurt: [2, 0.18, 10],
+        lowhp: [2, 0.9, 40],
+        dodge: [2, 0.15, 18],
+        brute: [2, 0.5, 20],
+        outnumbered: [2, 0.7, 35],
+        crime: [2, 0.7, 15],
+        cola: [2, 1, 5],
+        thug: [2, 1, 6],
+        swing: [1, 0.07, 30],
+        speed: [1, 0.7, 45],
+        hero: [1, 0.5, 20],
+        jump: [1, 0.03, 30],
+        dive: [1, 0.7, 40],
+        summit: [1, 0.8, 60],
+        race: [1, 1, 10],
+        chase: [1, 1, 20],
+        room: [1, 0.45, 30],
+        level: [1, 1, 10],
+        bag: [1, 1, 10],
+        carstop: [1, 0.8, 35],
+        district: [1, 0.7, 90],
+        idle: [0, 1, 40],
+        perch: [0, 0.5, 40],
+        sunset: [0, 1, 999],
+        night: [0, 1, 999],
+        day: [0, 1, 999]
       };
+      metaCache = {};
+      FALL = {
+        hit_brute: "hit",
+        hit_gun: "hit",
+        web_brute: "web",
+        brute_stun: "web",
+        hurt_bat: "hurt",
+        hurt_gun: "hurt",
+        hurt_brute: "hurt",
+        hurt_boss: "hurt",
+        race_start: "swing",
+        race_end: "hero",
+        chase_start: "crime",
+        chase_end: "crime",
+        dive: "swing",
+        summit: "perch",
+        speed: "swing",
+        speed_record: "speed",
+        idle_long: "idle",
+        death: "lowhp",
+        respawn: "lowhp",
+        dodge_perfect: "dodge",
+        airhit: "hit",
+        level: "levelup"
+      };
+      SPEAKER = { peter: "SPIDER-MAN", thug: "BANDYTA", may: "CIOCIA MAY", mj: "MARY JANE", yuri: "POLICJA", fisk: "KINGPIN", rhino: "NOSORO\u017BEC", radio: "RADIO" };
+      quipEvents = { onShow: null, onHide: null };
       el = null;
-      hideT = 0;
-      gcd = 4;
+      now = 0;
+      gcd = 3;
       startT = 0;
       prevState = "";
       idleT = 0;
       comboSaid = false;
       lowSaid = false;
-      kcd = {};
-      lastIdx = {};
+      silence = 0;
+      cur = null;
+      pending = null;
+      reply = null;
+      replyT = 0;
+      dryT = 0;
+      scanT = 0;
+      distT2 = 0;
+      lastDist = "";
+      fast = 0;
+      fastSaid = 0;
+      diveSaid = false;
+      summitSaid = false;
+      combat = false;
+      aware = 0;
+      bossSeen = null;
+      bossPh = 0;
+      kcdAt = {};
+      recent = [];
+      bags = {};
+      lastKey = {};
+      dlgBag = [];
       quipStart = () => {
         startT = 5;
       };
@@ -12749,7 +13704,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
       const parts = [], cols = [12068383, 2908072, 14262302, 3111498, 15262936, 1907997, 6953850];
       const n = 3 + Math.floor(rr3() * 3);
       for (let k = 0; k < n; k++) {
-        const x = (k - (n - 1) / 2) * 0.56, h = rb(0.85, 1.1), c = pick4(cols);
+        const x = (k - (n - 1) / 2) * 0.56, h = rb(0.85, 1.1), c = pick5(cols);
         parts.push([B2(0.5, h, 0.46, x, h / 2, 0), c, "p"], [B2(0.38, 0.3, 0.02, x, h * 0.66, 0.235), 15328466, "gl"], [B2(0.52, 0.05, 0.48, x, h + 0.02, 0), 2829099, "mt"], [B2(0.2, 0.04, 0.04, x, h * 0.45, 0.24), 10066329, "mt"]);
       }
       return tpl(parts);
@@ -12782,8 +13737,8 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
       [B2(2, 0.08, 0.1, 0, 2, 0.55), 16773328, "light"]
     ];
     const mag = [12597547, 15320170, 2792847, 16052702, 15167313, 4553629, 9279918, 6986062, 14034984, 2236962];
-    for (let r = 0; r < 3; r++) for (let k = 0; k < 9; k++) kiosk.push([B2(0.2, 0.28, 0.02, -0.96 + k * 0.24, 1.05 + r * 0.34, 0.75), pick4(mag), "pl"]);
-    for (let k = 0; k < 7; k++) kiosk.push([B2(0.26, 0.04, 0.2, -0.85 + k * 0.28, 0.98, 0.86), pick4(mag), "pl"]);
+    for (let r = 0; r < 3; r++) for (let k = 0; k < 9; k++) kiosk.push([B2(0.2, 0.28, 0.02, -0.96 + k * 0.24, 1.05 + r * 0.34, 0.75), pick5(mag), "pl"]);
+    for (let k = 0; k < 7; k++) kiosk.push([B2(0.26, 0.04, 0.2, -0.85 + k * 0.28, 0.98, 0.86), pick5(mag), "pl"]);
     kiosk.push(
       [B2(2.2, 1.3, 0.03, 0, 1.35, -0.735), 15260872, "light"],
       [B2(2.3, 1.4, 0.02, 0, 1.35, -0.73), 1776671, "mt"],
@@ -12834,7 +13789,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
       const parts = [], n = 3 + Math.floor(rr3() * 5);
       for (let k = 0; k < n; k++) {
         const s = rb(0.26, 0.4);
-        parts.push([new THREE.IcosahedronGeometry(s, 1).scale(rb(1, 1.3), rb(0.75, 1), rb(0.9, 1.2)).translate(rb(-0.7, 0.7), s * 0.8 + (k > 3 ? 0.35 : 0), rb(-0.35, 0.35)), pick4([1316120, 1316120, 1776922, 2042398, 10988201]), "pl"]);
+        parts.push([new THREE.IcosahedronGeometry(s, 1).scale(rb(1, 1.3), rb(0.75, 1), rb(0.9, 1.2)).translate(rb(-0.7, 0.7), s * 0.8 + (k > 3 ? 0.35 : 0), rb(-0.35, 0.35)), pick5([1316120, 1316120, 1776922, 2042398, 10988201]), "pl"]);
       }
       return tpl(parts);
     });
@@ -13084,7 +14039,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
         const S = sides[side], [x, z] = S.P(t, ins);
         if (!opt.force && !free(x, z, r)) return false;
         take(x, z, r);
-        place(Array.isArray(T2) ? pick4(T2) : T2, x, opt.road ? 0.02 : SW, z, S.yaw + (opt.yaw || 0), (_a5 = opt.tint) != null ? _a5 : null);
+        place(Array.isArray(T2) ? pick5(T2) : T2, x, opt.road ? 0.02 : SW, z, S.yaw + (opt.yaw || 0), (_a5 = opt.tint) != null ? _a5 : null);
         return [x, z];
       };
       const k = 0.26, cc = 11051927;
@@ -13134,9 +14089,9 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
           trees.push({ x, y: SW, z, s: rb(1.4, 2), h: rb(2.2, 3), pit: 1 });
         }
       }
-      put4(PT.hydrant, Math.floor(rr3() * 4), rb(5, 40), 0.6, 0.5, { tint: pick4([11740702, 11740702, 11740702, 13214247, 10133670, 3107645]) });
+      put4(PT.hydrant, Math.floor(rr3() * 4), rb(5, 40), 0.6, 0.5, { tint: pick5([11740702, 11740702, 11740702, 13214247, 10133670, 3107645]) });
       for (let s = 0; s < 4; s++) if (rr3() < 0.55) {
-        put4(PT.trash, s, rr3() < 0.5 ? rb(2.2, 3.5) : sides[s].len - rb(2.2, 3.5), 0.75, 0.4, { tint: pick4([3497531, 3497531, 1974564]) });
+        put4(PT.trash, s, rr3() < 0.5 ? rb(2.2, 3.5) : sides[s].len - rb(2.2, 3.5), 0.75, 0.4, { tint: pick5([3497531, 3497531, 1974564]) });
       }
       if (rr3() < 0.25) put4(PT.bigbelly, Math.floor(rr3() * 4), rb(3, 9), 0.7, 0.45);
       for (let s = 0; s < 2; s++) {
@@ -13148,10 +14103,10 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
       if (rr3() < 0.3) put4(PT.phone, Math.floor(rr3() * 4), rb(6, 30), 0.6, 0.45);
       if (rr3() < 0.35) put4(PT.bikes, Math.floor(rr3() * 2), rb(12, BW - 12), 0.85, 1.7);
       if (rr3() < 0.5) for (let n = 0; n < 1 + Math.floor(rr3() * 2); n++) put4(PT.bags, Math.floor(rr3() * 4), rb(5, 38), 0.65, 0.9);
-      if (rr3() < 0.16) put4(PT.kiosk, 2 + Math.floor(rr3() * 2), rb(8, BD - 8), 0.95, 1.6, { tint: pick4([3100474, 6120553, 2830131, 7023138]), yaw: Math.PI });
+      if (rr3() < 0.16) put4(PT.kiosk, 2 + Math.floor(rr3() * 2), rb(8, BD - 8), 0.95, 1.6, { tint: pick5([3100474, 6120553, 2830131, 7023138]), yaw: Math.PI });
       if (rr3() < 0.2) {
         const s = Math.floor(rr3() * 4);
-        put4(PT.hotdog, s, rr3() < 0.5 ? rb(4, 8) : sides[s].len - rb(4, 8), 1, 1.3, { tint: pick4([15908879, 2056112, 12593183, 3111498]), yaw: Math.PI });
+        put4(PT.hotdog, s, rr3() < 0.5 ? rb(4, 8) : sides[s].len - rb(4, 8), 1, 1.3, { tint: pick5([15908879, 2056112, 12593183, 3111498]), yaw: Math.PI });
       }
       if (rr3() < 0.14) put4(PT.shelter, 2 + Math.floor(rr3() * 2), rb(10, BD - 10), 1, 2);
       if (rr3() < 0.12 && dk !== "harlem") {
@@ -13161,7 +14116,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
       if (rr3() < 0.08) put4(PT.bench, Math.floor(rr3() * 4), rb(8, 30), 2.4, 1);
       if (rr3() < 0.45) {
         const s = Math.floor(rr3() * 4);
-        put4(PT.dumpster, s, rb(6, sides[s].len - 6), 2.65, 1.3, { tint: pick4([3107645, 2903946, 8010274, 3882820]), yaw: rr3() < 0.5 ? 0 : Math.PI });
+        put4(PT.dumpster, s, rb(6, sides[s].len - 6), 2.65, 1.3, { tint: pick5([3107645, 2903946, 8010274, 3882820]), yaw: rr3() < 0.5 ? 0 : Math.PI });
       }
       if (rr3() < 0.3) put4(PT.crates, Math.floor(rr3() * 4), rb(6, 38), 2.6, 0.9, { yaw: rr3() * 6 });
       if (rr3() < 0.55) {
@@ -13170,7 +14125,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
       }
       if ((dk === "mid" || dk === "fin") && rr3() < 0.5) {
         const s = Math.floor(rr3() * 4), t0 = rb(8, sides[s].len - 16);
-        for (let n = 0; n < 5; n++) put4(PT.bollard, s, t0 + n * 1.6, 2.3, 0.25, { tint: pick4([2763823, 9212310]) });
+        for (let n = 0; n < 5; n++) put4(PT.bollard, s, t0 + n * 1.6, 2.3, 0.25, { tint: pick5([2763823, 9212310]) });
       }
       if (rr3() < 0.3) {
         const inX = rr3() < 0.5, x = inX ? b.x0 + rr3() * (b.x1 - b.x0) : rr3() < 0.5 ? b.x0 - 4.5 : b.x1 + 4.5, z = inX ? rr3() < 0.5 ? b.z0 - 4.5 : b.z1 + 4.5 : b.z0 + rr3() * (b.z1 - b.z0);
@@ -13195,7 +14150,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
         const len = F2.a1 - F2.a0;
         if (len < 8) continue;
         if (f.h > 12 && rr3() < 0.13) {
-          const L3 = Math.min(len - 2, rb(12, 32)), s0 = F2.a0 + 1 + rr3() * (len - 2 - L3), nb = Math.max(2, Math.floor(L3 / 2.4)), tint = pick4([2969399, 2969399, 4150630, 3159098, 7040842]);
+          const L3 = Math.min(len - 2, rb(12, 32)), s0 = F2.a0 + 1 + rr3() * (len - 2 - L3), nb = Math.max(2, Math.floor(L3 / 2.4)), tint = pick5([2969399, 2969399, 4150630, 3159098, 7040842]);
           for (let k = 0; k < nb; k++) {
             const [x, z] = F2.P(s0 + 1.2 + k * 2.4, 0);
             place(PT.shedBay, x, SW, z, F2.yaw, tint);
@@ -13335,7 +14290,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     const v = { type, hl: VT[type].hl, v: 0, brake: 0, x: 0, z: 0, yaw: 0, sc: [1, 1, 1], ...extra };
     if (type === "sedan" || type === "suv" || type === "crown") v.sc = [rb(0.97, 1.03), rb(0.97, 1.04), rb(0.96, 1.04)];
     v.hl *= v.sc[2];
-    const hex = type === "taxi" ? pick4(TAXI) : type === "bus" ? 2054056 : type === "truck" ? pick4(TRKC) : type === "suv" ? pick4(SUVC) : pick4(CARC);
+    const hex = type === "taxi" ? pick5(TAXI) : type === "bus" ? 2054056 : type === "truck" ? pick5(TRKC) : type === "suv" ? pick5(SUVC) : pick5(CARC);
     v.col = new THREE.Color(hex).convertSRGBToLinear();
     return v;
   }
@@ -13407,7 +14362,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     tailL = glowPoints(new Array(nMoving * 4 * 3).fill(0), 16719904, 1.1);
   }
   function stepLane(L3, dt) {
-    const n = L3.list.length, Q0 = L3.ax === "z" ? Z0 : X0, Q2 = L3.ax === "z" ? CZ : CX, NQ = L3.ax === "z" ? NZ : NX;
+    const n = L3.list.length, Q0 = L3.ax === "z" ? Z0 : X0, Q = L3.ax === "z" ? CZ : CX, NQ = L3.ax === "z" ? NZ : NX;
     for (let k = 0; k < n; k++) {
       const c = L3.list[k], ld = L3.list[(k + 1) % n];
       let gap = n > 1 ? ((ld.s - c.s) % L3.len + L3.len) % L3.len - ld.hl - c.hl : 1e9;
@@ -13421,9 +14376,9 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
         }
       }
       let vt = c.vmax;
-      const k2 = L3.dir > 0 ? Math.ceil((front - 0.5 + 13.5 - Q0) / Q2) : Math.floor((front + 0.5 - 13.5 - Q0) / Q2);
+      const k2 = L3.dir > 0 ? Math.ceil((front - 0.5 + 13.5 - Q0) / Q) : Math.floor((front + 0.5 - 13.5 - Q0) / Q);
       if (k2 >= 0 && k2 <= NQ) {
-        const q = Q0 + k2 * Q2, dS = L3.dir > 0 ? q - 13.5 - front : front - (q + 13.5);
+        const q = Q0 + k2 * Q, dS = L3.dir > 0 ? q - 13.5 - front : front - (q + 13.5);
         const ii = L3.ax === "z" ? L3.i : k2, jj = L3.ax === "z" ? k2 : L3.j;
         if (dS < 70 && !parkIsec(ii, jj)) {
           const st = sigState(ii, jj, L3.ax);
@@ -13531,7 +14486,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     tailL.geometry.setDrawRange(0, nt2);
     hp.needsUpdate = tp.needsUpdate = true;
   }
-  var rs2, rr3, rb, pick4, LC2, lin5, U2, LAMPS, MT, B2, C6, Sph, SCH, chunks3, grow, boxAt, PT, lampList, poles, lensMesh, lensGlow, CYC, sigOff, SIGC, GLOWC, BLADES, bladeMat, sheds, inShed, capped, shadowQ, lanes, parked, hornT, VT, vehMat, headL, tailL, nMoving, TAXI, CARC, SUVC, TRKC, parkIsec, _f;
+  var rs2, rr3, rb, pick5, LC2, lin5, U2, LAMPS, MT, B2, C6, Sph, SCH, chunks3, grow, boxAt, PT, lampList, poles, lensMesh, lensGlow, CYC, sigOff, SIGC, GLOWC, BLADES, bladeMat, sheds, inShed, capped, shadowQ, lanes, parked, hornT, VT, vehMat, headL, tailL, nMoving, TAXI, CARC, SUVC, TRKC, parkIsec, _f;
   var init_ulica = __esm({
     "js/ulica.js"() {
       init_stan();
@@ -13544,7 +14499,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
         return (rs2 - 1) / 2147483646;
       };
       rb = (a, b) => a + rr3() * (b - a);
-      pick4 = (a) => a[Math.floor(rr3() * a.length)];
+      pick5 = (a) => a[Math.floor(rr3() * a.length)];
       LC2 = /* @__PURE__ */ new Map();
       lin5 = (hex) => {
         let c = LC2.get(hex);
@@ -13958,17 +14913,17 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
   }
   function randomBuildingLook() {
     const L3 = 0.58 + srand() * 0.42;
-    cur.tint = [L3 * (1 + (srand() - 0.5) * 0.14), L3 * (1 + (srand() - 0.5) * 0.1), L3 * (1 + (srand() - 0.5) * 0.14)];
-    cur.us = 13 + srand() * 5;
-    cur.vs = 12 + srand() * 4;
-    cur.uo = Math.floor(srand() * 4) / 4;
-    cur.vo = Math.floor(srand() * 4) / 4;
+    cur2.tint = [L3 * (1 + (srand() - 0.5) * 0.14), L3 * (1 + (srand() - 0.5) * 0.1), L3 * (1 + (srand() - 0.5) * 0.14)];
+    cur2.us = 13 + srand() * 5;
+    cur2.vs = 12 + srand() * 4;
+    cur2.uo = Math.floor(srand() * 4) / 4;
+    cur2.vo = Math.floor(srand() * 4) / 4;
   }
   function styleLook(st) {
-    cur.tile = STY[st].tile || 1;
+    cur2.tile = STY[st].tile || 1;
     if (STY[st].glassy) {
       const t = GLASS_TINTS[Math.floor(srand() * GLASS_TINTS.length)], L3 = 0.8 + srand() * 0.25;
-      cur.tint = t.map((v) => v * L3);
+      cur2.tint = t.map((v) => v * L3);
     }
   }
   function newGeo() {
@@ -13981,20 +14936,20 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
       s = { p: [], n: [], u: [], c: [] };
       g.chunks.set(key2, s);
     }
-    for (const [Q2, U3] of [[a, ua], [b, ub], [c, uc], [a, ua], [c, uc], [d, ud]]) {
-      s.p.push(Q2[0], Q2[1], Q2[2]);
+    for (const [Q, U3] of [[a, ua], [b, ub], [c, uc], [a, ua], [c, uc], [d, ud]]) {
+      s.p.push(Q[0], Q[1], Q[2]);
       s.n.push(n[0], n[1], n[2]);
       s.u.push(U3[0], U3[1]);
-      s.c.push(cur.tint[0], cur.tint[1], cur.tint[2]);
+      s.c.push(cur2.tint[0], cur2.tint[1], cur2.tint[2]);
     }
   }
   function wallsFaces(g, x0, x1, y0, y1, z0, z1, us, vs, faces) {
     let uo = 0, vo = 0;
     if (us === 16 && vs === 14) {
-      us = cur.us * cur.tile;
-      vs = cur.vs * cur.tile;
-      uo = cur.uo;
-      vo = cur.vo;
+      us = cur2.us * cur2.tile;
+      vs = cur2.vs * cur2.tile;
+      uo = cur2.uo;
+      vo = cur2.vo;
     }
     const v0 = y0 / vs + vo, v1 = y1 / vs + vo, X02 = x0 / us + uo, X1 = x1 / us + uo, Z02 = z0 / us + uo, Z1 = z1 / us + uo;
     if (faces.includes("s")) quad(g, [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1], [0, 0, 1], [X02, v0], [X1, v0], [X1, v1], [X02, v1]);
@@ -14031,10 +14986,10 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     nz2 /= l;
     let uo = 0, vo = 0;
     if (us === 16 && vs === 14) {
-      us = cur.us * cur.tile;
-      vs = cur.vs * cur.tile;
-      uo = cur.uo;
-      vo = cur.vo;
+      us = cur2.us * cur2.tile;
+      vs = cur2.vs * cur2.tile;
+      uo = cur2.uo;
+      vo = cur2.vo;
     }
     let tx = nz2, tz = -nx;
     const tl = Math.hypot(tx, tz);
@@ -15122,7 +16077,7 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     return { x0, x1, y0, y1, z0, z1 };
   }
   function solid(x0, x1, y0, y1, z0, z1, st, door, plain) {
-    cur.tile = STY[st].tile || 1;
+    cur2.tile = STY[st].tile || 1;
     if (door) carveWalls(facGeo[st], x0, x1, y0, y1, z0, z1, door);
     else walls(facGeo[st], x0, x1, y0, y1, z0, z1, 16, 14);
     top(roofGeo, x0, x1, y1, z0, z1, 10);
@@ -15297,11 +16252,11 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     else fullBox(g, lo, hi, ya, yb, a0, a1, 4);
   }
   function addSills(x0, x1, z0, z1, h, bk, dr) {
-    const ch = cur.vs / 4;
+    const ch = cur2.vs / 4;
     for (const face of streetFaces(x0, x1, z0, z1, bk)) {
       const ns = face === "n" || face === "s", a0 = (ns ? x0 : z0) + 0.3, a1 = (ns ? x1 : z1) - 0.3;
       for (let m = 1; m * ch < Math.min(h - 3, 19); m++) {
-        const y = ((m + 0.25) / 4 - cur.vo) * cur.vs;
+        const y = ((m + 0.25) / 4 - cur2.vo) * cur2.vs;
         if (y < 5 || y > Math.min(h - 3, 19)) continue;
         if (dr && dr.face === face && y < 7) continue;
         wallBox(trimGeo, face, x0, x1, z0, z1, a0, a1, y - 0.04, y + 0.1, 0, 0.17);
@@ -15311,12 +16266,12 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
   function addFireEscape(x0, x1, z0, z1, h, bk, dr) {
     const faces = streetFaces(x0, x1, z0, z1, bk).filter((q) => !dr || dr.face !== q);
     if (!faces.length) return;
-    const face = faces[Math.floor(srand() * faces.length)], ns = face === "n" || face === "s", len = ns ? x1 - x0 : z1 - z0, ch = cur.vs / 4;
+    const face = faces[Math.floor(srand() * faces.length)], ns = face === "n" || face === "s", len = ns ? x1 - x0 : z1 - z0, ch = cur2.vs / 4;
     const c = (ns ? x0 : z0) + 5 + srand() * Math.max(0.1, len - 10);
     const B3 = (a0, a1, ya, yb, d0, d1) => wallBox(ironGeo, face, x0, x1, z0, z1, a0, a1, ya, yb, d0, d1);
     let prev = null;
     for (let m = 1; m * ch < h - 3; m++) {
-      const y = ((m + 0.25) / 4 - cur.vo) * cur.vs;
+      const y = ((m + 0.25) / 4 - cur2.vo) * cur2.vs;
       if (y < 5.5 || y > h - 3.5) continue;
       B3(c - 1.5, c + 1.5, y, y + 0.07, 0, 1.1);
       B3(c - 1.5, c + 1.5, y + 0.95, y + 1, 1.04, 1.1);
@@ -15333,14 +16288,14 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     }
   }
   function addBalconies(x0, x1, z0, z1, h, bk, dr) {
-    const ch = cur.vs / 4, cw = cur.us / 4;
+    const ch = cur2.vs / 4, cw = cur2.us / 4;
     for (const face of streetFaces(x0, x1, z0, z1, bk)) {
       const ns = face === "n" || face === "s", lo = (ns ? x0 : z0) + 1.5, hi = (ns ? x1 : z1) - 1.5;
       for (let k = -2; k < Math.ceil((hi - lo) / cw) + 3; k++) {
-        const a = ((k + 0.5) / 4 - cur.uo) * cur.us;
+        const a = ((k + 0.5) / 4 - cur2.uo) * cur2.us;
         if (a < lo || a > hi) continue;
         for (let m = 2; m * ch < h - 4 && balconyCount < 420; m++) {
-          const y = ((m + 0.25) / 4 - cur.vo) * cur.vs;
+          const y = ((m + 0.25) / 4 - cur2.vo) * cur2.vs;
           if (y < 6 || y > h - 3.5 || srand() > 0.07) continue;
           if (dr && dr.face === face && Math.abs(a - dr.c) < 3) continue;
           balconyCount++;
@@ -15357,13 +16312,13 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
   function addAC(x0, x1, z0, z1, h, dr) {
     const per = 0.07 + srand() * 0.05;
     for (const face of ["n", "s", "w", "e"]) {
-      const ns = face === "n" || face === "s", len = ns ? x1 - x0 : z1 - z0, cw = cur.us / 4, ch = cur.vs / 4;
+      const ns = face === "n" || face === "s", len = ns ? x1 - x0 : z1 - z0, cw = cur2.us / 4, ch = cur2.vs / 4;
       for (let k = -2; k < Math.ceil(len / cw) + 2; k++) {
-        const a = ((k + 0.5) / 4 - cur.uo) * cur.us;
+        const a = ((k + 0.5) / 4 - cur2.uo) * cur2.us;
         const pos = ns ? a : a;
         if (pos < (ns ? x0 : z0) + 1.2 || pos > (ns ? x1 : z1) - 1.2) continue;
         for (let m = 1; m * ch < h - 4 && acUnits.length < 2600; m++) {
-          const y = ((m + 0.54) / 4 - cur.vo) * cur.vs + cur.vs / 4 * 0;
+          const y = ((m + 0.54) / 4 - cur2.vo) * cur2.vs + cur2.vs / 4 * 0;
           if (y < 5.2 || y > h - 2) continue;
           if (srand() > per) continue;
           if (dr && dr.face === face && Math.abs(pos - dr.c) < 3 && y < 8) continue;
@@ -15417,7 +16372,7 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     }
   }
   function chamferTower(x0, x1, z0, z1, y0, y1, c, st, dk) {
-    cur.tile = STY[st].tile || 1;
+    cur2.tile = STY[st].tile || 1;
     polyPrism(facGeo[st], chamferPts(x0, x1, z0, z1, c), y0, y1, null, 16, 14, roofGeo);
     polyPrism(metalGeo, chamferPts(x0 - 0.15, x1 + 0.15, z0 - 0.15, z1 + 0.15, c), y1 - 0.7, y1 + 0.05, null, 4, 4);
     addBox({ x0: x0 + c, x1: x1 - c, y0, y1, z0, z1 });
@@ -15426,7 +16381,7 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     return addBox({ x0: x0 + c / 2, x1: x1 - c / 2, y0, y1, z0: z0 + c / 2, z1: z1 - c / 2 });
   }
   function wedgeCrown(x0, x1, z0, z1, y, R3, st, dir) {
-    cur.tile = STY[st].tile || 1;
+    cur2.tile = STY[st].tile || 1;
     const H3 = (x, z) => y + R3 * (dir === 0 ? (z1 - z) / (z1 - z0) : dir === 2 ? (z - z0) / (z1 - z0) : dir === 1 ? (x - x0) / (x1 - x0) : (x1 - x) / (x1 - x0));
     const g = facGeo[st];
     polyQuad(facGeo[6], [x0, H3(x0, z1), z1], [x1, H3(x1, z1), z1], [x1, H3(x1, z0), z0], [x0, H3(x0, z0), z0], 16, 14);
@@ -15465,11 +16420,11 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, r = srand();
     if (r < 0.45) spire(cx, cz, y, y + sr(14, 38), Math.min(1.6, (x1 - x0) / 5));
     else if (r < 0.8) {
-      const t = cur.tint;
-      cur.tint = [0.42, 0.72, 0.6];
+      const t = cur2.tint;
+      cur2.tint = [0.42, 0.72, 0.6];
       const ph = Math.min(x1 - x0, z1 - z0) * sr(0.5, 0.9);
       polyPrism(metalGeo, [[x0, z1], [x1, z1], [x1, z0], [x0, z0]], y, y + ph, [[cx - 0.4, cz + 0.4], [cx + 0.4, cz + 0.4], [cx + 0.4, cz - 0.4], [cx - 0.4, cz - 0.4]], 4, 4);
-      cur.tint = t;
+      cur2.tint = t;
       addBox({ x0: x0 + (x1 - x0) * 0.25, x1: x1 - (x1 - x0) * 0.25, y0: y, y1: y + ph * 0.5, z0: z0 + (z1 - z0) * 0.25, z1: z1 - (z1 - z0) * 0.25 });
       if (srand() < 0.6) spire(cx, cz, y + ph * 0.9, y + ph + sr(6, 16), 0.5);
     }
@@ -15612,7 +16567,7 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     return b;
   }
   function obelisk(cx, cz, a, b, y0, y1, st, dk) {
-    cur.tile = STY[st].tile || 1;
+    cur2.tile = STY[st].tile || 1;
     const C7 = [[-a, a], [a, a], [a, -a], [-a, -a]].map(([x, z]) => [cx + x, y0, cz + z]);
     const T2 = [[0, b], [b, 0], [0, -b], [-b, 0]].map(([x, z]) => [cx + x, y1, cz + z]);
     const g = facGeo[st];
@@ -16363,7 +17318,7 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     updateCars(dt);
     updatePeds(dt);
   }
-  var BW, BD, ST, NX, NZ, CX, CZ, CW, CD, X0, Z0, LAND, PK, POND, isPark, inPark, isecPos, DIST, doors, boxes, roofs, footprints, spots, perches, START, START_H, HC2, hash, stamp, hk, _s1, _s2, _rl, rayN, _rbN, CHUNK, cur, GLASS_TINTS, ngon, chamferPts, STY, isGlassy, isOld, CURT2, RM, RM_TOD, SHOPS, SIGNC, SHOP_DECL, SHOP_BLOCK, LOBBY_NAMES, sunDir, sun, sky, skyFX, hemi, amb, water, pondM, waterNormal, TOD, TOD_NAMES, skyU, fogEnc, lastTOD, lin32, pmrem, envRT, skyScene, shopU, facMats, shopMat, lampMat, boardMats, glowPts, todName, savedL, facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo, ironGeo, pitchGeo, metalGeo, slateGeo, SW, tanks, awnings, masts, boards, DOOR_TYPES, ROOMSPEC, acUnits, balconyCount, streetFaces, FISK_DOOR, LANDMARKS, legacyParkTrees, export_arena, ARENA, ventList, _o4, _c2, steam2, birds2, BIRD_N, birdData, _bo, PED_N, PED_R, PED_HI, peds, pedSets, _fw2, pedsFresh;
+  var BW, BD, ST, NX, NZ, CX, CZ, CW, CD, X0, Z0, LAND, PK, POND, isPark, inPark, isecPos, DIST, doors, boxes, roofs, footprints, spots, perches, START, START_H, HC2, hash, stamp, hk, _s1, _s2, _rl, rayN, _rbN, CHUNK, cur2, GLASS_TINTS, ngon, chamferPts, STY, isGlassy, isOld, CURT2, RM, RM_TOD, SHOPS, SIGNC, SHOP_DECL, SHOP_BLOCK, LOBBY_NAMES, sunDir, sun, sky, skyFX, hemi, amb, water, pondM, waterNormal, TOD, TOD_NAMES, skyU, fogEnc, lastTOD, lin32, pmrem, envRT, skyScene, shopU, facMats, shopMat, lampMat, boardMats, glowPts, todName, savedL, facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo, ironGeo, pitchGeo, metalGeo, slateGeo, SW, tanks, awnings, masts, boards, DOOR_TYPES, ROOMSPEC, acUnits, balconyCount, streetFaces, FISK_DOOR, LANDMARKS, legacyParkTrees, export_arena, ARENA, ventList, _o4, _c2, steam2, birds2, BIRD_N, birdData, _bo, PED_N, PED_R, PED_HI, peds, pedSets, _fw2, pedsFresh;
   var init_miasto = __esm({
     "js/miasto.js"() {
       init_util();
@@ -16423,7 +17378,7 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
       rayN = new V3();
       _rbN = new V3();
       CHUNK = +new URLSearchParams(location.search).get("chunk") || 330;
-      cur = { tint: [1, 1, 1], us: 16, vs: 14, uo: 0, vo: 0, tile: 1 };
+      cur2 = { tint: [1, 1, 1], us: 16, vs: 14, uo: 0, vo: 0, tile: 1 };
       GLASS_TINTS = [[0.72, 0.84, 1], [0.74, 0.95, 0.92], [1, 0.86, 0.7], [0.9, 0.93, 0.97], [0.6, 0.64, 0.7], [0.82, 0.9, 1]];
       ngon = (cx, cz, r, n, rot = 0) => Array.from({ length: n }, (_, i) => {
         const a = rot - i / n * Math.PI * 2;
@@ -16671,7 +17626,7 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
         },
         "2,16": (b, cx, cz) => {
           randomBuildingLook();
-          cur.tint = [0.8, 0.9, 1.05];
+          cur2.tint = [0.8, 0.9, 1.05];
           const a = 19.5, bb = a * 0.8, y0 = 50, y1 = 402, st = 6;
           solid(cx - a, cx + a, 0, y0, cz - a, cz + a, st, null, true);
           footprints.push({ x0: cx - a, x1: cx + a, z0: cz - a, z1: cz + a, h: y0, dk: "fin" });
@@ -18985,6 +19940,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
         if (r02.visible && P.pos.distanceTo(R4.start) < 5.5) {
           race = { R: R4, idx: 1, t: 0 };
           sfx("ring");
+          say("race_start");
           R4.rings.forEach((m, k) => {
             m.visible = k >= 1 && k <= 3;
             m.material.color.setHex(4187135);
@@ -19018,6 +19974,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     }
     if (race.t > R3.par * 3 || P.pos.distanceTo(next) > 260 || P.dead) {
       showMsg("WYZWANIE PRZERWANE", "Spr\xF3buj jeszcze raz \u2014 wr\xF3\u0107 do \u017C\xF3\u0142tego pier\u015Bcienia", 3);
+      if (!P.dead) say("race_lose");
       endRace();
     }
   }
@@ -19029,6 +19986,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     doSave();
     addXP(xp);
     sfx("win");
+    say("race_win");
     showMsg(`${medal}! ${fmtTime(s)}`, `${R3.name} \xB7 +${xp} PD${!best || s < best ? " \xB7 NOWY REKORD!" : ""}`, 4);
     endRace();
   }
@@ -19109,6 +20067,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     police.blue.position.set(-0.5, 2, -0.2);
     showMsg("PO\u015ACIG!", "Z\u0142odzieje uciekaj\u0105 autem. Wskocz na dach i bij, \u017Ceby je zatrzyma\u0107!", 4);
     sfx("alarm");
+    say("chase");
   }
   function carPunch() {
     const c = chase;
@@ -19293,6 +20252,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       init_wejscie();
       init_ui();
       init_scenki();
+      init_docinki();
       init_fisk();
       init_miasto();
       _t = new V3();
@@ -19360,7 +20320,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
   __export(wrogowie_exports, {
     BAGS_N: () => BAGS_N,
     addXP: () => addXP,
-    bags: () => bags,
+    bags: () => bags2,
     burst: () => burst,
     finishEnemy: () => finishEnemy,
     hitEnemy: () => hitEnemy,
@@ -19391,6 +20351,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     }
     if (up) {
       sfx("level");
+      say("levelup", true);
       const nu = SUITS.filter((s) => s.lvl === save.lvl).map((s) => s.name);
       showMsg("AWANS! POZIOM " + save.lvl, (nu.length ? "Nowy str\xF3j: " + nu.join(", ") + " \xB7 " : "") + `Punkty umiej\u0119tno\u015Bci: ${skillPoints()} (Pauza \u2192 Umiej\u0119tno\u015Bci)`, 4);
       doSave();
@@ -19444,8 +20405,8 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     return best;
   }
   function shootWeb() {
-    say("web");
     const best = webTarget();
+    sayCtx("web", { enemy: best });
     P.H.handR.getWorldPosition(_h);
     const pt = new V3();
     let n = null;
@@ -19577,7 +20538,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
   }
   function makeBat() {
     const pts = [[0.012, 0], [0.016, 0.02], [0.014, 0.05], [0.017, 0.3], [0.03, 0.55], [0.036, 0.72], [0.034, 0.78], [0, 0.79]].map(([r, y]) => new THREE.Vector2(r, y));
-    const bat = new THREE.Mesh(new THREE.LatheGeometry(pts, 14), new THREE.MeshStandardMaterial({ color: pick5([9068601, 10132899, 5978658]), roughness: 0.5, metalness: 0.1 }));
+    const bat = new THREE.Mesh(new THREE.LatheGeometry(pts, 14), new THREE.MeshStandardMaterial({ color: pick6([9068601, 10132899, 5978658]), roughness: 0.5, metalness: 0.1 }));
     bat.rotation.x = Math.PI;
     bat.position.set(0, -0.26, 0);
     bat.castShadow = true;
@@ -19668,7 +20629,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
   }
   function hitEnemy(e, dmg, kx, ky, kz, launch, fromAir) {
     if (e.dead || e.gone) return false;
-    say("hit");
+    sayCtx("hit", { enemy: e, fromAir });
     if (e.type === "boss") return (e.hit || bossHit)(e, dmg * dmgMul(), launch);
     if (e.type === "brute" && e.stunT <= 0 && !fromAir && e.state !== "hurt") {
       burst(e.pos.x, e.pos.y + 1.6, e.pos.z, 8, 10475775, 3);
@@ -20089,11 +21050,11 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       const got = save.bags.includes(i);
       g.visible = !got;
       scene.add(g);
-      bags.push({ g, got, i });
+      bags2.push({ g, got, i });
     }
   }
   function updateBags(dt) {
-    for (const b of bags) {
+    for (const b of bags2) {
       if (b.got) continue;
       b.g.rotation.y += dt * 1.5;
       const d = b.g.position.distanceTo(_t2.set(P.pos.x, P.pos.y + 0.9, P.pos.z));
@@ -20104,12 +21065,13 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
         doSave();
         addXP(150);
         sfx("pickup");
+        say("bag");
         rumble(0.1, 0.2, 0.4);
         showMsg("PLECAK ZNALEZIONY", `${save.bags.length} / ${BAGS_N}   +150 PD`, 2.5);
       }
     }
   }
-  var _t2, _h, _cf, _a3, need, saveT, trGeo, trMat, tracers, shotGeo, shotMat, glowTex2, shots, pick5, bags, BAGS_N;
+  var _t2, _h, _cf, _a3, need, saveT, trGeo, trMat, tracers, shotGeo, shotMat, glowTex2, shots, pick6, bags2, BAGS_N;
   var init_wrogowie = __esm({
     "js/wrogowie.js"() {
       init_util();
@@ -20135,8 +21097,8 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       trMat = new THREE.MeshBasicMaterial({ color: 16769162 });
       tracers = [];
       shots = [];
-      pick5 = (a) => a[Math.floor(Math.random() * a.length)];
-      bags = [];
+      pick6 = (a) => a[Math.floor(Math.random() * a.length)];
+      bags2 = [];
       BAGS_N = 20;
     }
   });
@@ -20283,7 +21245,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       x.arc(e.pos.x, e.pos.z, (e.type === "boss" ? 7 : 3.5) / Z, 0, 7);
       x.fill();
     }
-    for (const b of bags) if (!b.got && Math.abs(b.g.position.x - P.pos.x) < 200 && Math.abs(b.g.position.z - P.pos.z) < 200) icoBag(x, b.g.position.x, b.g.position.z, 9 / Z);
+    for (const b of bags2) if (!b.got && Math.abs(b.g.position.x - P.pos.x) < 200 && Math.abs(b.g.position.z - P.pos.z) < 200) icoBag(x, b.g.position.x, b.g.position.z, 9 / Z);
     x.restore();
     const cs = Math.cos(cam.yaw), sn = Math.sin(cam.yaw);
     const toMini = (wx, wz) => {
@@ -20421,17 +21383,17 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     distChk -= dt;
     if (distChk <= 0) {
       distChk = 0.4;
-      const d = G.interior ? lastDist : districtAt(P.pos.x, P.pos.z);
-      if (d !== lastDist) {
-        lastDist = d;
+      const d = G.interior ? lastDist2 : districtAt(P.pos.x, P.pos.z);
+      if (d !== lastDist2) {
+        lastDist2 = d;
         $("distName").textContent = DIST[d].name;
         $("district").style.opacity = 1;
-        distT2 = 3;
+        distT3 = 3;
       }
     }
-    if (distT2 > 0) {
-      distT2 -= dt;
-      if (distT2 <= 0) $("district").style.opacity = 0;
+    if (distT3 > 0) {
+      distT3 -= dt;
+      if (distT3 <= 0) $("district").style.opacity = 0;
     }
     promptT -= dt;
     if (promptT <= 0) {
@@ -20789,7 +21751,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     drawCity(x, dk);
     x.setTransform(1, 0, 0, 1, 0, 0);
     const S = (wx, wz) => [W2 / 2 + (wx - mapV.cx) * z, H3 / 2 + (wz - mapV.cz) * z];
-    for (const b of bags) if (!b.got) {
+    for (const b of bags2) if (!b.got) {
       const [a, q] = S(b.g.position.x, b.g.position.z);
       icoBag(x, a, q, 11);
     }
@@ -20858,13 +21820,13 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     refreshSkills();
   }
   function updateSkills(N) {
-    const cur2 = SKILLS[G.skillIdx];
-    const col2 = SKILLS.filter((s) => s.col === cur2.col), ri2 = col2.indexOf(cur2);
+    const cur3 = SKILLS[G.skillIdx];
+    const col2 = SKILLS.filter((s) => s.col === cur3.col), ri2 = col2.indexOf(cur3);
     let t = null;
     if (N.up && ri2 > 0) t = col2[ri2 - 1];
     if (N.down && ri2 < col2.length - 1) t = col2[ri2 + 1];
     if (N.left || N.right) {
-      const nc = clamp(cur2.col + (N.left ? -1 : 1), 0, COLS.length - 1), c2 = SKILLS.filter((s) => s.col === nc);
+      const nc = clamp(cur3.col + (N.left ? -1 : 1), 0, COLS.length - 1), c2 = SKILLS.filter((s) => s.col === nc);
       t = c2[Math.min(ri2, c2.length - 1)];
     }
     if (t) {
@@ -21173,7 +22135,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     $("menu").classList.toggle("hidden", on);
     if (!on) renderMenu();
   }
-  var CSS, HTML, GLY, kk, msgT, dmgT, distT2, distChk, promptT, lastPrompt, lastDist, popT, hintT, hintsShown, icoCrime, icoWP, progress, miniBase, MM, LN, _p3, set, _sf, _so, flareK, gfxLabel, todLabel, voiceLabel, musLabel, SLOTS, slotKey, fmtT, askNew, newLabel, footTxt, TABS, mapV, SV;
+  var CSS, HTML, GLY, kk, msgT, dmgT, distT3, distChk, promptT, lastPrompt, lastDist2, popT, hintT, hintsShown, icoCrime, icoWP, progress, miniBase, MM, LN, _p3, set, _sf, _so, flareK, gfxLabel, todLabel, voiceLabel, musLabel, SLOTS, slotKey, fmtT, askNew, newLabel, footTxt, TABS, mapV, SV;
   var init_ui = __esm({
     "js/ui.js"() {
       init_util();
@@ -21372,11 +22334,11 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       kk = (t) => `<span class="key">${t}</span>`;
       msgT = 0;
       dmgT = 0;
-      distT2 = 0;
+      distT3 = 0;
       distChk = 0;
       promptT = 0;
       lastPrompt = "";
-      lastDist = "";
+      lastDist2 = "";
       popT = 0;
       hintT = 0;
       hintsShown = /* @__PURE__ */ new Set();
@@ -21696,14 +22658,14 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     const greens = ["#3d6a2c", "#4f7d34", "#2f5a28", "#5d8a3a"];
     if (kind === "bush") for (let i = 0; i < 7; i++) {
       const a = R2() * 6.28, d = rr4(0, 0.18) * sz;
-      c.Sp(u + Math.cos(a) * d, rr4(0.6, 1.05) * sz, v + Math.sin(a) * d, rr4(0.14, 0.24) * sz, rr4(0.12, 0.2) * sz, rr4(0.14, 0.24) * sz, "matte", pick6(greens), { seg: 8 });
+      c.Sp(u + Math.cos(a) * d, rr4(0.6, 1.05) * sz, v + Math.sin(a) * d, rr4(0.14, 0.24) * sz, rr4(0.12, 0.2) * sz, rr4(0.14, 0.24) * sz, "matte", pick7(greens), { seg: 8 });
     }
     const n = kind === "palm" ? 10 : 9;
     for (let i = 0; i < n; i++) {
       const yaw = i / n * 6.28 + rr4(-0.2, 0.2), tilt = kind === "palm" ? rr4(0.9, 1.3) : kind === "snake" ? rr4(0.05, 0.25) : rr4(0.5, 0.9), len = (kind === "palm" ? rr4(0.7, 1) : kind === "snake" ? rr4(0.5, 0.8) : rr4(0.35, 0.5)) * sz;
       const eb = new THREE.Euler(tilt, yaw, 0, "YXZ"), dir = new V3(0, 1, 0).applyEuler(eb), y0 = kind === "palm" ? 1.5 * sz : 0.42 * sz;
       const m4 = new THREE.Matrix4().compose(new V3(c.s * u + dir.x * len / 2, y0 + dir.y * len / 2, v + dir.z * len / 2), new THREE.Quaternion().setFromEuler(eb), new V3(kind === "snake" ? 0.07 * sz : 0.16 * sz, len, 0.012)).premultiply(c.F);
-      emitM(c, matFor("matte", c.env), "box", m4, pick6(greens), 1, null);
+      emitM(c, matFor("matte", c.env), "box", m4, pick7(greens), 1, null);
     }
     if (kind === "palm") c.Cy(u, v, 0.4 * sz, 1.55 * sz, 0.05 * sz, "grain", "#6a5038", { rt: 0.7 });
   }
@@ -21762,8 +22724,8 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       c.LB(L3, s0 + 0.02, s0 + cw - 0.02, 0.2, 0.36, 0.55, 0.86, "fabric", col2);
     }
     for (const s0 of [a0 + 0.08, a1 - 0.08]) for (const d of [0.08, dep - 0.08]) c.LC(L3, s0, d, 0, 0.1, 0.025, "grain", "#2a1a10", { seg: 6 });
-    c.LB(L3, a0 + 0.3, a0 + 0.72, 0.3, 0.42, 0.55, 0.92, "fabric", pick6(["#c9a24a", "#a8432f", "#e8dcc0"]));
-    c.LB(L3, a1 - 0.72, a1 - 0.3, 0.3, 0.42, 0.55, 0.92, "fabric", pick6(["#c9a24a", "#2f4a6a", "#e8dcc0"]));
+    c.LB(L3, a0 + 0.3, a0 + 0.72, 0.3, 0.42, 0.55, 0.92, "fabric", pick7(["#c9a24a", "#a8432f", "#e8dcc0"]));
+    c.LB(L3, a1 - 0.72, a1 - 0.3, 0.3, 0.42, 0.55, 0.92, "fabric", pick7(["#c9a24a", "#2f4a6a", "#e8dcc0"]));
     const [p0, q0] = c.at(L3, a0, 0), [p1, q1] = c.at(L3, a1, dep);
     c.solid(Math.min(p0, p1), Math.max(p0, p1), Math.min(q0, q1), Math.max(q0, q1), 0, 0.88);
     c.blob(Math.min(p0, p1), Math.max(p0, p1), Math.min(q0, q1), Math.max(q0, q1), 8e-3, 0.2);
@@ -21771,8 +22733,8 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
   function goodsRow(c, L3, a0, a1, dF, y, hMax, kinds, drink = false) {
     let a = a0 + 0.03;
     while (a < a1 - 0.1) {
-      const k = pick6(kinds), [w0, w1, h0, h1] = GOODS[k], w = rr4(w0, w1), h = Math.min(hMax, rr4(h0, h1)), cell = cellUV(drink || k === "can" ? ri(0, 8) : ri(8, 64), 8, 8);
-      const tint = pick6(["#ffffff", "#f2eee8", "#e8eef2"]);
+      const k = pick7(kinds), [w0, w1, h0, h1] = GOODS[k], w = rr4(w0, w1), h = Math.min(hMax, rr4(h0, h1)), cell = cellUV(drink || k === "can" ? ri(0, 8) : ri(8, 64), 8, 8);
+      const tint = pick7(["#ffffff", "#f2eee8", "#e8eef2"]);
       let n = ri(2, 7);
       while (n-- > 0 && a + w < a1 - 0.02) {
         item(c, L3, k, a + w / 2, dF, y, w, h, cell, tint);
@@ -21791,13 +22753,13 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       c.LC(L3, a, dF - w / 2 - 0.07, y, y + h, w / 2, "goods", tint, o);
     } else if (k === "jar") {
       c.LC(L3, a, dF - w / 2, y, y + h * 0.85, w / 2, "goods", tint, o);
-      c.LC(L3, a, dF - w / 2, y + h * 0.85, y + h, w * 0.46, "steel", pick6(["#c8a040", "#d0d0d0", "#a02020"]), { seg: 8 });
+      c.LC(L3, a, dF - w / 2, y + h * 0.85, y + h, w * 0.46, "steel", pick7(["#c8a040", "#d0d0d0", "#a02020"]), { seg: 8 });
     } else if (k === "bottle") {
-      const gc = pick6(["#2a5a2a", "#5a3010", "#d8e4e8", "#1a2a4a"]);
+      const gc = pick7(["#2a5a2a", "#5a3010", "#d8e4e8", "#1a2a4a"]);
       c.LC(L3, a, dF - w / 2, y, y + h * 0.6, w / 2, "goods", tint, o);
       c.LC(L3, a, dF - w / 2, y + h * 0.6, y + h * 0.74, w / 2, "bottle", gc, { rt: 0.36, seg: 8 });
       c.LC(L3, a, dF - w / 2, y + h * 0.74, y + h * 0.95, w * 0.18, "bottle", gc, { seg: 6 });
-      c.LC(L3, a, dF - w / 2, y + h * 0.95, y + h, w * 0.2, "gloss", pick6(["#c8102e", "#e8e8e8", "#2b78c5", "#d4a020"]), { seg: 6 });
+      c.LC(L3, a, dF - w / 2, y + h * 0.95, y + h, w * 0.2, "gloss", pick7(["#c8102e", "#e8e8e8", "#2b78c5", "#d4a020"]), { seg: 6 });
     }
   }
   function shelving(c, L3, a0, a1, dep, h, lv, kinds, o = {}) {
@@ -21887,7 +22849,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
         d.rm.entered = true;
         const [t, s] = INTRO[d.type];
         showMsg(t, s, 3.2);
-        say("room");
+        sayCtx("room", { variant: d.type });
         if (d.type !== "fisk") {
           popText("+20 PD");
           Promise.resolve().then(() => (init_wrogowie(), wrogowie_exports)).then((m) => m.addXP(20));
@@ -21901,7 +22863,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       wasInFisk = inF;
     }
   }
-  var INTRO, R2, rr4, ri, pick6, hsl, tcache, txt, TEX, ENVK, ENV_OF, ENVT, AO_GLSL, LIGHTS_INT, MDEF, mats, BASE, cellUV, _m42, _q4, _e2, _p4, _sc, _n3, _v2, _col, civ, GOODS, BUILD, playerInRoom, acc, wasInFisk, canMesh, canT, enterDoor, leaveInterior;
+  var INTRO, R2, rr4, ri, pick7, hsl, tcache, txt, TEX, ENVK, ENV_OF, ENVT, AO_GLSL, LIGHTS_INT, MDEF, mats, BASE, cellUV, _m42, _q4, _e2, _p4, _sc, _n3, _v2, _col, civ, GOODS, BUILD, playerInRoom, acc, wasInFisk, canMesh, canT, enterDoor, leaveInterior;
   var init_wnetrza = __esm({
     "js/wnetrza.js"() {
       init_util();
@@ -21927,7 +22889,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       R2 = Math.random;
       rr4 = (a, b) => a + R2() * (b - a);
       ri = (a, b) => Math.floor(rr4(a, b));
-      pick6 = (a) => a[Math.floor(R2() * a.length)];
+      pick7 = (a) => a[Math.floor(R2() * a.length)];
       hsl = (h, s, l, a = 1) => `hsla(${h},${s}%,${l}%,${a})`;
       tcache = {};
       txt = (x, s, font, col2, X, Y, al = "center") => {
@@ -22011,7 +22973,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
           x.fillStyle = "#34373b";
           x.fillRect(0, 0, s, s);
           for (let i = 0; i < 1800; i++) {
-            x.fillStyle = pick6(["rgba(140,140,140,.35)", "rgba(90,110,150,.3)", "rgba(170,60,50,.25)"]);
+            x.fillStyle = pick7(["rgba(140,140,140,.35)", "rgba(90,110,150,.3)", "rgba(170,60,50,.25)"]);
             x.fillRect(R2() * s, R2() * s, rr4(1, 2.5), rr4(1, 2.5));
           }
           x.fillStyle = "rgba(0,0,0,.6)";
@@ -22221,7 +23183,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
           const base2 = ["#c8102e", "#d6d6d6", "#f28c1a", "#6cbf3a", "#2b78c5", "#161616", "#f2c318", "#7b2d8b", "#0f7a6a", "#d9c7a0", "#8b1a1a", "#1f3f7a", "#efe9dc", "#3a6b2a", "#e85d9c", "#5a3a22"];
           const L3 = "ABCDEFGHIKLMNOPRSTUWZ";
           for (let i = 0; i < 64; i++) {
-            const X = i % 8 * 64, Y = Math.floor(i / 8) * 64, b = i < 16 ? base2[i] : pick6(base2), acc2 = pick6(["#ffffff", "#f2c318", "#c8102e", "#161616", "#2b78c5"]);
+            const X = i % 8 * 64, Y = Math.floor(i / 8) * 64, b = i < 16 ? base2[i] : pick7(base2), acc2 = pick7(["#ffffff", "#f2c318", "#c8102e", "#161616", "#2b78c5"]);
             x.fillStyle = b;
             x.fillRect(X, Y, 64, 64);
             x.fillStyle = acc2;
@@ -22520,7 +23482,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
           x.fillStyle = "#1e1f26";
           x.fillRect(128, 0, 128, 128);
           for (let k = 0; k < 14; k++) {
-            x.fillStyle = pick6(["#7fd0ff", "#ffb070", "#b0e080", "#e0e0e0", "#d090ff"]);
+            x.fillStyle = pick7(["#7fd0ff", "#ffb070", "#b0e080", "#e0e0e0", "#d090ff"]);
             x.fillRect(136 + ri(0, 4) * 6, 8 + k * 8, rr4(20, 90), 3);
           }
           let g = x.createLinearGradient(0, 128, 0, 256);
@@ -22639,7 +23601,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       _n3 = new THREE.Matrix3();
       _v2 = new V3();
       _col = new THREE.Color();
-      civ = () => Object.assign(randomOutfit("thug"), { mask: false, hat: R2() < 0.75 ? "none" : "cap", top: R2() < 0.6 ? "tshirt" : "hoodie", topCol: pick6(["#c9c2b3", "#3a3a3a", "#6b1a1a", "#1d3050", "#5b5f66", "#2d4a3a", "#8a6a3a"]) });
+      civ = () => Object.assign(randomOutfit("thug"), { mask: false, hat: R2() < 0.75 ? "none" : "cap", top: R2() < 0.6 ? "tshirt" : "hoodie", topCol: pick7(["#c9c2b3", "#3a3a3a", "#6b1a1a", "#1d3050", "#5b5f66", "#2d4a3a", "#8a6a3a"]) });
       GOODS = { box: [0.17, 0.25, 0.22, 0.32], bag: [0.18, 0.24, 0.2, 0.3], can: [0.066, 0.066, 0.12, 0.12], bottle: [0.07, 0.09, 0.24, 0.32], jar: [0.09, 0.1, 0.11, 0.15], carton: [0.08, 0.09, 0.18, 0.22] };
       BUILD = {
         shop(c) {
@@ -22728,7 +23690,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
           B3(gu0, gu1, v0 + 0.05, v1 - 0.05, 1.5, 1.53, "steel", "#c8c8c8");
           B3(gu0, gu1, v0 + 0.06, v1 - 0.06, 1.25, 1.26, "glass", "#e8f0f0");
           for (let u = gu0 + 0.2; u < gu1 - 0.15; u += 0.32) {
-            c.Cy(u, (v0 + v1) / 2, 1.06, 1.16, 0.12, "matte", pick6(["#5a3018", "#e8d0b0", "#c86070", "#f0e8d8"]), { seg: 14 });
+            c.Cy(u, (v0 + v1) / 2, 1.06, 1.16, 0.12, "matte", pick7(["#5a3018", "#e8d0b0", "#c86070", "#f0e8d8"]), { seg: 14 });
             c.Sp(u, 1.31, (v0 + v1) / 2, 0.09, 0.04, 0.05, "matte", "#c88a40", { seg: 8 });
           }
           c.B(gu0, gu1, v0 + 0.05, v1 - 0.05, 1.05, 1.06, "lamp", "#ffe0b0", { k: 0.5 });
@@ -22761,7 +23723,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
             if (a1 - a0 < 0.6) continue;
             for (const y of [1.85, 2.35]) {
               c.LB(K3, a0, a1, 0, 0.26, y - 0.03, y, "grainG", "#4a3020");
-              for (let a = a0 + 0.1; a < a1 - 0.1; a += rr4(0.14, 0.24)) R2() < 0.6 ? c.LC(K3, a, 0.13, y, y + rr4(0.08, 0.2), rr4(0.04, 0.06), pick6(["gloss", "bottle"]), pick6(["#f0ece4", "#3a2216", "#c8a060", "#2a5a2a"]), { seg: 10 }) : c.LC(K3, a, 0.13, y, y + 0.1, 0.045, "gloss", "#ffffff", { seg: 10 });
+              for (let a = a0 + 0.1; a < a1 - 0.1; a += rr4(0.14, 0.24)) R2() < 0.6 ? c.LC(K3, a, 0.13, y, y + rr4(0.08, 0.2), rr4(0.04, 0.06), pick7(["gloss", "bottle"]), pick7(["#f0ece4", "#3a2216", "#c8a060", "#2a5a2a"]), { seg: 10 }) : c.LC(K3, a, 0.13, y, y + 0.1, 0.045, "gloss", "#ffffff", { seg: 10 });
             }
           }
           const tc = ["#5a3b25", "#3a2a1e"];
@@ -22770,8 +23732,8 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
             if (v > v0 - 1) continue;
             const round = (Math.round(u + v * 3) & 1) === 0;
             table2(c, u, v, round ? "round" : "rect", "#6a4a30", round ? 0.76 : 0.75, 0.75);
-            chair(c, u - 0.62, v, 1, 0, pick6(tc), round ? "bistro" : "wood");
-            chair(c, u + 0.62, v, -1, 0, pick6(tc), round ? "bistro" : "wood");
+            chair(c, u - 0.62, v, 1, 0, pick7(tc), round ? "bistro" : "wood");
+            chair(c, u + 0.62, v, -1, 0, pick7(tc), round ? "bistro" : "wood");
             c.Cy(u + 0.12, v + 0.05, 0.75, 0.83, 0.04, "gloss", "#f0ece4", { seg: 10 });
             if (R2() < 0.5) c.Cy(u - 0.15, v - 0.1, 0.75, 0.76, 0.09, "gloss", "#f0ece4", { seg: 12 });
             pendant(c, u, v, 1.45, "#1f1f1f", 0.14, 2.6, "#ffc880", 0.65);
@@ -22808,7 +23770,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
           for (let i = 0; i < 4; i++) {
             const u = tu - 0.22 + i * 0.147;
             c.Cv(u, v0 + 0.08, v0 + 0.2, 1.42, 0.014, "chrome", "#d0d0d0");
-            c.B(u - 0.02, u + 0.02, v0 + 0.06, v0 + 0.1, 1.42, 1.62, "gloss", pick6(["#1a1a1a", "#c8a040", "#8a1a14", "#1a3a6a"]));
+            c.B(u - 0.02, u + 0.02, v0 + 0.06, v0 + 0.1, 1.42, 1.62, "gloss", pick7(["#1a1a1a", "#c8a040", "#8a1a14", "#1a3a6a"]));
           }
           for (const u of [u0 + 1.2, -0.6, u1 - 0.9]) {
             c.Cy(u, v0 + 0.1, 1.11, 1.26, 0.04, "glass", "#f0e0b0", { seg: 10 });
@@ -22823,7 +23785,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
             c.LB(K3, -hw + 0.65, hw - 0.65, 0.015, 0.3, y - 0.012, y, "glass", "#f0f0e0");
             c.LB(K3, -hw + 0.65, hw - 0.65, 0.2, 0.29, y - 0.03, y - 0.012, "lamp", "#ffb050", { k: 1.6 });
             for (let a = -hw + 0.75; a < hw - 0.8; a += rr4(0.09, 0.14)) {
-              const t = ri(0, 3), gc = pick6(["#2a4a1a", "#6a3008", "#a85a10", "#d8e0e0", "#1a1a3a", "#5a0a10"]), h = t === 0 ? rr4(0.28, 0.34) : rr4(0.22, 0.27), lab = cellUV(ri(0, 64), 8, 8);
+              const t = ri(0, 3), gc = pick7(["#2a4a1a", "#6a3008", "#a85a10", "#d8e0e0", "#1a1a3a", "#5a0a10"]), h = t === 0 ? rr4(0.28, 0.34) : rr4(0.22, 0.27), lab = cellUV(ri(0, 64), 8, 8);
               if (t === 1) {
                 c.LB(K3, a - 0.04, a + 0.04, 0.1, 0.18, y, y + h * 0.7, "bottle", gc);
                 c.LB(K3, a - 0.041, a + 0.041, 0.099, 0.181, y + h * 0.2, y + h * 0.45, "goods", "#ffffff", { cell: lab });
@@ -22860,7 +23822,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
               B3(pu + a * 0.55 - 0.07, pu + a * 0.55 + 0.07, pv + b * 1.05 - 0.07, pv + b * 1.05 + 0.07, 0, 0.66, "grainG", "#2a160c");
               c.Cy(pu + a * 0.6, pv + b * 1.1, 0.79, 0.812, 0.05, "matte", "#050505");
             }
-            for (let i = 0; i < 9; i++) c.Sp(pu + rr4(-0.45, 0.45), 0.838, pv + rr4(-0.9, 0.9), 0.028, 0.028, 0.028, "gloss", pick6(["#f0f0e8", "#c8202a", "#f2c318", "#1a3a8a", "#1a1a1a", "#2a7a3a"]), { seg: 8 });
+            for (let i = 0; i < 9; i++) c.Sp(pu + rr4(-0.45, 0.45), 0.838, pv + rr4(-0.9, 0.9), 0.028, 0.028, 0.028, "gloss", pick7(["#f0f0e8", "#c8202a", "#f2c318", "#1a3a8a", "#1a1a1a", "#2a7a3a"]), { seg: 8 });
             c.Ch(pu - 0.3, pu + 0.5, pv + 0.4, 0.84, 0.01, "grainG", "#c8a070");
             B3(pu - 0.25, pu + 0.25, pv - 0.8, pv + 0.8, ch - 1.45, ch - 1.3, "gloss", "#1f4a2a");
             B3(pu - 0.22, pu + 0.22, pv - 0.77, pv + 0.77, ch - 1.46, ch - 1.45, "lamp", "#fff0c8", { k: 2.4 });
@@ -22962,12 +23924,12 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
               c.LB(L3.back, b0 + 0.03, b1 - 0.03, 0.02, 0.025, y, y + 0.36, "matte", "#2a2622");
               for (let a = b0 + 0.05; a < b1 - 0.08; ) {
                 if (R2() < 0.08) {
-                  c.LC(L3.back, a + 0.06, 0.15, y, y + 0.2, 0.05, "gloss", pick6(["#2a5a6a", "#c8a060", "#e8e2d6"]), { seg: 10 });
+                  c.LC(L3.back, a + 0.06, 0.15, y, y + 0.2, 0.05, "gloss", pick7(["#2a5a6a", "#c8a060", "#e8e2d6"]), { seg: 10 });
                   a += 0.14;
                   continue;
                 }
                 const w = rr4(0.025, 0.05), h = rr4(0.2, 0.32);
-                c.LB(L3.back, a, a + w, 0.05, 0.27, y, y + h, "matte", pick6(["#7a1e1e", "#1f3f5a", "#2f4a2a", "#c8a060", "#e8e2d6", "#3a2a20", "#5a3a6a", "#a85a20"]));
+                c.LB(L3.back, a, a + w, 0.05, 0.27, y, y + h, "matte", pick7(["#7a1e1e", "#1f3f5a", "#2f4a2a", "#c8a060", "#e8e2d6", "#3a2a20", "#5a3a6a", "#a85a20"]));
                 a += w + 3e-3;
               }
             }
@@ -23011,7 +23973,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
             const kv = vb + fv * 0.45;
             c.B(u - 0.22, u + 0.22, kv - 0.07, kv + 0.07, 0.75, 0.77, "gloss", "#1e1f22");
             c.B(u + 0.3, u + 0.36, kv - 0.04, kv + 0.04, 0.75, 0.77, "gloss", "#1e1f22");
-            if (R2() < 0.6) c.Cy(u - 0.5, vb + fv * 0.35, 0.75, 0.85, 0.04, "gloss", pick6(["#f0ece4", "#c8402a", "#2a5a8a"]), { seg: 10 });
+            if (R2() < 0.6) c.Cy(u - 0.5, vb + fv * 0.35, 0.75, 0.85, 0.04, "gloss", pick7(["#f0ece4", "#c8402a", "#2a5a8a"]), { seg: 10 });
             if (R2() < 0.7) c.B(u + 0.4, u + 0.62, vb + fv * 0.2, vb + fv * 0.5, 0.75, 0.78, "matte", "#e8e6e0");
             const cv_ = vb + fv * 1.05;
             c.B(u - 0.3, u + 0.3, cv_ - 0.03, cv_ + 0.03, 0.04, 0.07, "steel", "#1a1a1a");
@@ -23131,7 +24093,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
             c.Sp(u, 0.11, 0.35, 0.1, 0.1, 0.1, "matte", ["#1a1a1a", "#b3261e", "#1f4a8a", "#2a7a3a", "#c8a020", "#1a1a1a"][i], { seg: 10 });
             c.T(u, 0.24, 0.35, 0.06, "matte", "#1a1a1a", { th: 1 });
           }
-          for (let i = 0; i < 4; i++) c.Ch(-hw + 0.15, -hw + 0.75, cd - 0.5 - i * 0.16, 0.08, 0.075, "fabric", pick6(["#5a2a6a", "#2a6a7a", "#7a3a2a"]));
+          for (let i = 0; i < 4; i++) c.Ch(-hw + 0.15, -hw + 0.75, cd - 0.5 - i * 0.16, 0.08, 0.075, "fabric", pick7(["#5a2a6a", "#2a6a7a", "#7a3a2a"]));
           picture(c, L3.right, 1.6, 1.7, 0.6, 1.2, "poster", cellUV(3, 4, 1), "#111111", 0);
           picture(c, L3.left, cd - 1.6, 1.8, 0.5, 1, "poster", cellUV(3, 4, 1), "#111111", 0);
           c.npc(Math.min(2, pu - 0.8), 4, 0, -1);
@@ -23205,7 +24167,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
                 c.LB(W2, a0 + 0.04, a1 - 0.04, 0.02, 0.025, y, y + 0.52, "matte", "#1a120c");
                 for (let a = a0 + 0.06; a < a1 - 0.1; ) {
                   const w = rr4(0.03, 0.06), h = rr4(0.28, 0.45);
-                  c.LB(W2, a, a + w, 0.08, 0.36, y, y + h, "leather", pick6(["#5a1414", "#1a2a3a", "#2a3a1a", "#4a3a20", "#3a1a2a", "#6a5030"]));
+                  c.LB(W2, a, a + w, 0.08, 0.36, y, y + h, "leather", pick7(["#5a1414", "#1a2a3a", "#2a3a1a", "#4a3a20", "#3a1a2a", "#6a5030"]));
                   a += w + 4e-3;
                 }
               }
@@ -23748,6 +24710,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       P.airT = 0;
       P.landT = 0;
       P.vel.y = P.sprint ? 15 : 12.5;
+      say("jump");
       if (P.sprint) {
         P.vel.x *= 1.1;
         P.vel.z *= 1.1;
@@ -23978,12 +24941,14 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     P.dodgeCD = 0.5;
     P.atk = null;
     P.lunge = null;
+    if (!enemies.some((e) => !e.dead && (e.state === "windup" || e.state === "aim"))) say("dodge");
     for (const e of enemies)
       if (!e.dead && (e.state === "windup" || e.state === "aim") && e.pos.distanceTo(P.pos) < (e.state === "aim" ? 70 : 5 * (e.scale || 1))) {
         G.slowT = has("sense") ? 1.2 : 0.6;
         addFocus(0.3);
         popText("IDEALNY UNIK!");
-        break;
+        say("dodge");
+        return;
       }
     sfx("whoosh");
     if (P.state === "air") P.vel.y = Math.max(P.vel.y, 4);
@@ -24081,7 +25046,8 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     flashDamage();
     rumble(0.25, 0.7, 0.5);
     sfx("hurt");
-    say("hurt");
+    if (P.hp <= 0) say("death", true);
+    else sayCtx("hurt", { from });
     G.shake = Math.max(G.shake, 0.25 + knock / 60);
     if (P.state === "car") {
       carLeave();
@@ -24136,6 +25102,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     P.fin = null;
     P.car = null;
     P.focus = 0;
+    say("respawn", true);
     P.pc.bp = 0;
     P.pc.br = 0;
     P.pc.bw = 0;
@@ -24812,9 +25779,9 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     }
   }
   var last2 = performance.now();
-  function step3(now) {
-    const rdt = Math.min(0.05, Math.max(0, (now - last2) / 1e3));
-    last2 = now;
+  function step3(now2) {
+    const rdt = Math.min(0.05, Math.max(0, (now2 - last2) / 1e3));
+    last2 = now2;
     pollPads();
     let dt = rdt;
     if (G.slowT > 0) {
@@ -24885,11 +25852,11 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     endFrame();
   }
   var zepsute = false;
-  function loop(now) {
+  function loop(now2) {
     requestAnimationFrame(loop);
     if (zepsute) return;
     try {
-      step3(now);
+      step3(now2);
     } catch (e) {
       zepsute = true;
       zglosBlad(e);

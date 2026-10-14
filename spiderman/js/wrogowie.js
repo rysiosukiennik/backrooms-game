@@ -7,7 +7,7 @@ import { hurtPlayer, mkLine, setLine } from './gracz.js';
 import { bossHit, bossWeb, bossFinish } from './misje.js';
 import { websToWrap, dmgMul, skillPoints } from './umiejetnosci.js';
 import { sfx } from './dzwiek.js';
-import { say } from './docinki.js';
+import { say, sayCtx } from './docinki.js';
 import { rumble } from './wejscie.js';
 import { initEfekty, updateEfekty, burst, webSplat, getRope, freeRope, wrapFX, muzzleFlash, bulletImpact } from './efekty.js';
 export { burst };
@@ -22,7 +22,7 @@ export function addXP(n) {
   save.xp += n; let up = false;
   while (save.xp >= need(save.lvl)) { save.xp -= need(save.lvl); save.lvl++; up = true; }
   if (up) {
-    sfx('level');
+    sfx('level'); say('levelup', true);
     const nu = SUITS.filter(s => s.lvl === save.lvl).map(s => s.name);
     showMsg('AWANS! POZIOM ' + save.lvl, (nu.length ? 'Nowy strój: ' + nu.join(', ') + ' · ' : '') + `Punkty umiejętności: ${skillPoints()} (Pauza → Umiejętności)`, 4);
     doSave();
@@ -67,8 +67,7 @@ export function webTarget() {
   return best;
 }
 export function shootWeb() {
-  say('web');
-  const best = webTarget();
+  const best = webTarget(); sayCtx('web', { enemy: best });
   P.H.handR.getWorldPosition(_h);
   const pt = new V3(); let n = null;
   if (best) pt.set(best.pos.x, best.pos.y + 1.1 * (best.scale || 1), best.pos.z);
@@ -193,7 +192,7 @@ export function spawnStreetThugs(x, z, n) {
 // trafienie. Zwraca 'block', gdy cios zostal zablokowany.
 export function hitEnemy(e, dmg, kx, ky, kz, launch, fromAir) {
   if (e.dead || e.gone) return false;
-  say('hit');
+  sayCtx('hit', { enemy: e, fromAir });
   if (e.type === 'boss') return (e.hit || bossHit)(e, dmg * dmgMul(), launch);
   if (e.type === 'brute' && e.stunT <= 0 && !fromAir && e.state !== 'hurt') {
     burst(e.pos.x, e.pos.y + 1.6, e.pos.z, 8, 0x9fd8ff, 3); sfx('block'); rumble(0.06, 0.2, 0.2);
@@ -408,7 +407,7 @@ export function updateBags(dt) {
     const d = b.g.position.distanceTo(_t.set(P.pos.x, P.pos.y + 0.9, P.pos.z));
     if (d < 2.4) {
       b.got = true; b.g.visible = false; save.bags.push(b.i); doSave();
-      addXP(150); sfx('pickup'); rumble(0.1, 0.2, 0.4);
+      addXP(150); sfx('pickup'); say('bag'); rumble(0.1, 0.2, 0.4);
       showMsg('PLECAK ZNALEZIONY', `${save.bags.length} / ${BAGS_N}   +150 PD`, 2.5);
     }
   }
