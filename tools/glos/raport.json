@@ -1,7 +1,7 @@
 {
  "format": "mulaw12",
- "linii": 512,
- "sekundy": 1477.1,
+ "linii": 573,
+ "sekundy": 1780.1,
  "paczki": [
   {
    "name": "p01",
@@ -65,35 +65,122 @@
   },
   {
    "name": "p13",
-   "bytes": 1191782,
-   "n": 29
+   "bytes": 1850383,
+   "n": 37
+  },
+  {
+   "name": "p14",
+   "bytes": 1835953,
+   "n": 22
+  },
+  {
+   "name": "p15",
+   "bytes": 1811005,
+   "n": 21
+  },
+  {
+   "name": "p16",
+   "bytes": 550573,
+   "n": 10
   }
  ],
- "bajty_total": 23722802,
+ "bajty_total": 28582439,
  "presety": {
   "peter": {
-   "linie": 494,
-   "sekundy": 1436.8,
-   "F0_srednie_Hz": 125.59,
-   "F0_std_polton": 3.36,
+   "linie": 518,
+   "sekundy": 1540.5,
+   "F0_srednie_Hz": 125.5,
+   "F0_std_polton": 3.35,
    "skok_F0_polton_10ms": 0.15,
    "peak_max": 0.915,
    "rms_db": -17.34,
-   "centroid_Hz": 433.37,
+   "centroid_Hz": 433.66,
    "udzial_energii_ponad_5k": 0,
    "harmonicznosc": 0.86
   },
   "thug": {
-   "linie": 18,
-   "sekundy": 40.3,
-   "F0_srednie_Hz": 103.07,
-   "F0_std_polton": 3,
-   "skok_F0_polton_10ms": 0.15,
+   "linie": 25,
+   "sekundy": 56.2,
+   "F0_srednie_Hz": 106.18,
+   "F0_std_polton": 3.18,
+   "skok_F0_polton_10ms": 0.16,
    "peak_max": 0.912,
    "rms_db": -16.24,
-   "centroid_Hz": 711.22,
+   "centroid_Hz": 707.56,
    "udzial_energii_ponad_5k": 0.03,
    "harmonicznosc": 0.86
+  },
+  "rhino": {
+   "linie": 1,
+   "sekundy": 4.6,
+   "F0_srednie_Hz": 71.8,
+   "F0_std_polton": 4.3,
+   "skok_F0_polton_10ms": 0.11,
+   "peak_max": 0.913,
+   "rms_db": -15.3,
+   "centroid_Hz": 423,
+   "udzial_energii_ponad_5k": 0.01,
+   "harmonicznosc": 0.81
+  },
+  "yuri": {
+   "linie": 5,
+   "sekundy": 34.4,
+   "F0_srednie_Hz": 177.76,
+   "F0_std_polton": 2.48,
+   "skok_F0_polton_10ms": 0.1,
+   "peak_max": 0.881,
+   "rms_db": -17.26,
+   "centroid_Hz": 593.2,
+   "udzial_energii_ponad_5k": 0.01,
+   "harmonicznosc": 0.93
+  },
+  "fisk": {
+   "linie": 4,
+   "sekundy": 20.9,
+   "F0_srednie_Hz": 74.4,
+   "F0_std_polton": 2.96,
+   "skok_F0_polton_10ms": 0.08,
+   "peak_max": 0.922,
+   "rms_db": -16.22,
+   "centroid_Hz": 339.75,
+   "udzial_energii_ponad_5k": 0,
+   "harmonicznosc": 0.89
+  },
+  "radio": {
+   "linie": 6,
+   "sekundy": 36.7,
+   "F0_srednie_Hz": 136.47,
+   "F0_std_polton": 6.16,
+   "skok_F0_polton_10ms": 0.08,
+   "peak_max": 0.93,
+   "rms_db": -14.87,
+   "centroid_Hz": 898.5,
+   "udzial_energii_ponad_5k": 0,
+   "harmonicznosc": 0.83
+  },
+  "may": {
+   "linie": 9,
+   "sekundy": 61.3,
+   "F0_srednie_Hz": 170.46,
+   "F0_std_polton": 3.76,
+   "skok_F0_polton_10ms": 0.14,
+   "peak_max": 0.73,
+   "rms_db": -17.3,
+   "centroid_Hz": 399.89,
+   "udzial_energii_ponad_5k": 0,
+   "harmonicznosc": 0.92
+  },
+  "mj": {
+   "linie": 5,
+   "sekundy": 25.6,
+   "F0_srednie_Hz": 201.8,
+   "F0_std_polton": 4.2,
+   "skok_F0_polton_10ms": 0.16,
+   "peak_max": 0.759,
+   "rms_db": -17.38,
+   "centroid_Hz": 528.4,
+   "udzial_energii_ponad_5k": 0.01,
+   "harmonicznosc": 0.9
   }
  }
 }
