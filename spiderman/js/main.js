@@ -12,6 +12,7 @@ import { initAudio, setWind, setMusic, cityAmbience, sfx, setMusicMode } from '.
 import { fiskActive } from './fisk.js';
 import { updateRooms } from './wnetrza.js';
 import { updateQuips, quipStart } from './docinki.js';
+import { updateCalls } from './rozmowy.js';
 
 try {
   buildCity();
@@ -209,6 +210,7 @@ function step(now) {
   else if (G.state === 'pause') { updatePause(rdt); setWind(0); }
 
   updateQuips(rdt);
+  updateCalls(rdt);
   { // muzyka reaguje na to, co sie dzieje: boss > walka (wrogowie blisko) > spokoj
     musT -= rdt;
     if (musT <= 0) {

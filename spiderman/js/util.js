@@ -49,13 +49,13 @@ export const linHex = (c, hex) => c.setHex(hex).convertSRGBToLinear();
 const KEY = 'spiderman_nyc_v1';
 export const save = {
   lvl: 1, xp: 0, suit: 'adv', bags: [], crimes: 0, gfx: 'high',
-  skills: [], races: {}, bossWins: 0, chases: 0, fisk: 0, pos: null, hd: 0, hasGame: false, savedAt: 0, tod: 'sunset', music: true, voice: true,
+  skills: [], races: {}, bossWins: 0, chases: 0, fisk: 0, pos: null, hd: 0, hasGame: false, savedAt: 0, tod: 'sunset', music: true, voice: true, calls: {},
 };
 try { Object.assign(save, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) {}
 // nowa gra: kasuje caly postep, ale zostawia ustawienia (grafika, pora dnia, muzyka)
 export function resetProgress() {
   const keep = { gfx: save.gfx, tod: save.tod, music: save.music, voice: save.voice };
-  Object.assign(save, { lvl: 1, xp: 0, suit: 'adv', bags: [], crimes: 0, skills: [], races: {}, bossWins: 0, chases: 0, fisk: 0, pos: null, hd: 0, hasGame: false, savedAt: 0, colas: 0 }, keep);
+  Object.assign(save, { lvl: 1, xp: 0, suit: 'adv', bags: [], crimes: 0, skills: [], races: {}, bossWins: 0, chases: 0, fisk: 0, pos: null, hd: 0, hasGame: false, savedAt: 0, colas: 0, calls: {} }, keep);
   doSave();
 }
 export function doSave() { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) {} }
