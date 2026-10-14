@@ -82,7 +82,7 @@ export function bridgeDeckAt(br, x) { // wysokosc jezdni w punkcie x (0 u brzegu
   return Math.max(0, Math.min(1, e / br.ramp)) * BR_DECK;
 }
 export function bridgeAt(x, z) { // most, na ktorego polowie od strony ladu jest punkt (do ~30 m od osi)
-  for (const br of BRIDGES) if (Math.abs(z - br.z) < 30 && (br.side > 0 ? (x > br.xa - 2 && x <= br.mid) : (x < br.xb + 2 && x >= br.mid))) return br;
+  for (const br of BRIDGES) if (Math.abs(z - br.z) < 30 && (br.side > 0 ? (x > br.xa - 2 && x <= br.mid + 4) : (x < br.xb + 2 && x >= br.mid - 4))) return br; // +4 m zapasu za polowa: granica.js przytnie i zatrzyma
   return null;
 }
 export function supportAt(x, z, maxY, r = 0.3) {
