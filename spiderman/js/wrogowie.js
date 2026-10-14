@@ -21,8 +21,8 @@ export const DIFF = {
   hp: 1.4,            // mnoznik zdrowia (bylo 1.0): bandyta 6, strzelec 4, osilek 14; plus hpLvl za kazdy poziom gracza
   hpLvl: 0.03,        // +3% zdrowia na poziom gracza (maks. 10 poziomow)
   speed: 1.2,         // predkosc biegu wrogow (bylo 1.0): bandyta 5.0 m/s, osilek 3.8 m/s
-  dmg: 1.15,          // obrazenia wrogow (bylo 1.0): bandyta 11.5, osilek 29, pocisk 8
-  cd: 0.65,           // mnoznik przerw miedzy atakami (bylo 1.0; mniej = czesciej)
+  dmg: 1.1,           // obrazenia wrogow (bylo 1.0): bandyta 11, osilek 27.5, pocisk 7.7
+  cd: 0.7,          // mnoznik przerw miedzy atakami (bylo 1.0; mniej = czesciej)
   windup: 0.8,        // mnoznik czasu zamachu / reakcji (bylo 1.0); zamach nie spada ponizej 0.44 s, wiec unik/kontra nadal dziala
   aim: 0.8,           // mnoznik czasu celowania strzelca (bylo 0.75 s -> 0.6 s)
   spread: 0.55,       // mnoznik rozrzutu chybien strzelcow (bylo 1.0)

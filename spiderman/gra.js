@@ -18185,7 +18185,7 @@ vec3 dtPerturb(vec3 sp, vec3 sn, vec2 dH, float fd) {
     return Math.max(0, Math.min(1, e / br.ramp)) * BR_DECK;
   }
   function bridgeAt(x, z) {
-    for (const br of BRIDGES) if (Math.abs(z - br.z) < 30 && (br.side > 0 ? x > br.xa - 2 && x <= br.mid : x < br.xb + 2 && x >= br.mid)) return br;
+    for (const br of BRIDGES) if (Math.abs(z - br.z) < 30 && (br.side > 0 ? x > br.xa - 2 && x <= br.mid + 4 : x < br.xb + 2 && x >= br.mid - 4)) return br;
     return null;
   }
   function supportAt(x, z, maxY, r = 0.3) {
@@ -25917,9 +25917,9 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
         // +3% zdrowia na poziom gracza (maks. 10 poziomow)
         speed: 1.2,
         // predkosc biegu wrogow (bylo 1.0): bandyta 5.0 m/s, osilek 3.8 m/s
-        dmg: 1.15,
-        // obrazenia wrogow (bylo 1.0): bandyta 11.5, osilek 29, pocisk 8
-        cd: 0.65,
+        dmg: 1.1,
+        // obrazenia wrogow (bylo 1.0): bandyta 11, osilek 27.5, pocisk 7.7
+        cd: 0.7,
         // mnoznik przerw miedzy atakami (bylo 1.0; mniej = czesciej)
         windup: 0.8,
         // mnoznik czasu zamachu / reakcji (bylo 1.0); zamach nie spada ponizej 0.44 s, wiec unik/kontra nadal dziala
