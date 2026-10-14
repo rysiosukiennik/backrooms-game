@@ -331,7 +331,7 @@
     return S2;
   }
   function panel(S2, x, y, w, h, o = {}) {
-    var _a5, _b4, _c4;
+    var _a6, _b5, _c5;
     const { col: col2, hgt, orm } = S2, xs = [col2.x, hgt.x, orm.x], B4 = o.base || [112, 116, 124], tone2 = rr(0.8, 1.1), A2 = w * h;
     const gr = col2.x.createLinearGradient(0, y, 0, y + h);
     gr.addColorStop(0, rgb(B4, tone2 * 1.08));
@@ -362,7 +362,7 @@
         hgt.x.stroke();
       }
     }
-    const nd = A2 / 4200 * ((_a5 = o.dents) != null ? _a5 : 1);
+    const nd = A2 / 4200 * ((_a6 = o.dents) != null ? _a6 : 1);
     for (let i = 0; i < nd; i++) {
       const cx = rr(x + 6, x + w - 6), cy = rr(y + 6, y + h - 6), r = rr(4, 13);
       radial(col2.x, cx, cy, r, "rgba(0,0,0,.34)");
@@ -375,7 +375,7 @@
       radial(hgt.x, cx, cy, r, "rgba(0,0,0,.6)");
       radial(orm.x, cx, cy, r * 0.8, "rgba(0,70,225,.5)");
     }
-    if (Math.random() < ((_b4 = o.scorch) != null ? _b4 : 0.34)) {
+    if (Math.random() < ((_b5 = o.scorch) != null ? _b5 : 0.34)) {
       const cx = rr(x + w * 0.2, x + w * 0.8), cy = rr(y + h * 0.2, y + h * 0.8), r = rr(10, 22);
       col2.x.save();
       col2.x.translate(cx, cy);
@@ -384,7 +384,7 @@
       col2.x.restore();
       radial(orm.x, cx, cy, r, "rgba(0,255,60,.5)");
     }
-    const rust = (_c4 = o.rust) != null ? _c4 : 0.9;
+    const rust = (_c5 = o.rust) != null ? _c5 : 0.9;
     for (let i = 0; i < w / 15 * rust + 1; i++) {
       const cx = rr(x, x + w), cy = Math.random() < 0.7 ? y + h - rr(0, 9) : rr(y, y + h), r = rr(5, 17);
       radial(col2.x, cx, cy, r, `rgba(${rr(110, 150) | 0},${rr(55, 80) | 0},${rr(22, 36) | 0},${rr(0.2, 0.45)})`);
@@ -1588,8 +1588,8 @@
     const idx = [];
     for (let i = 0; i < d.idx.length; i += 3) idx.push(d.idx[i], d.idx[i + 2], d.idx[i + 1]);
     return { pos, uv: d.uv.slice(), idx, sk: d.sk.map((b) => {
-      var _a5;
-      return (_a5 = MIRB[b]) != null ? _a5 : b;
+      var _a6;
+      return (_a6 = MIRB[b]) != null ? _a6 : b;
     }), sw: d.sw.slice(), seams: d.seams };
   }
   function merge(list) {
@@ -2514,10 +2514,10 @@
     return _lensCache[key2] = tex(c);
   }
   function suitMats(s) {
-    var _a5;
+    var _a6;
     if (s._mats) return s._mats;
     const cvs2 = suitCanvases(s);
-    const rough = (_a5 = s.rough) != null ? _a5 : s.gloss ? 0.3 : s.metal === "all" ? 0.3 : 0.45, env = s.metal === "all" ? 2 : s.metal ? 1.7 : s.gloss ? 1.6 : 1.5;
+    const rough = (_a6 = s.rough) != null ? _a6 : s.gloss ? 0.3 : s.metal === "all" ? 0.3 : 0.45, env = s.metal === "all" ? 2 : s.metal ? 1.7 : s.gloss ? 1.6 : 1.5;
     const lin9 = (t) => {
       t.encoding = THREE.LinearEncoding;
       return t;
@@ -3590,8 +3590,8 @@
       return m;
     };
     const syncWear = () => {
-      var _a5;
-      suitWear.value = (_a5 = suitWear.force) != null ? _a5 : H3.getWear ? H3.getWear() : 0;
+      var _a6;
+      suitWear.value = (_a6 = suitWear.force) != null ? _a6 : H3.getWear ? H3.getWear() : 0;
     };
     const tr = smooth(spTorsoRings(), 5);
     skinned(sculpt(tubeData(tr, 56, (r) => (r.y - 0.79) / 0.91, wTorso), tr, 56, torsoSculpt), M.torso);
@@ -4662,9 +4662,9 @@
       };
       KEYS = ["y", "rx", "rz", "cx", "cz", "n", "fb", "bb", "pec"];
       norm = (r) => {
-        var _a5;
+        var _a6;
         const o = {};
-        for (const k of KEYS) o[k] = (_a5 = r[k]) != null ? _a5 : k === "n" ? 2 : 0;
+        for (const k of KEYS) o[k] = (_a6 = r[k]) != null ? _a6 : k === "n" ? 2 : 0;
         return o;
       };
       _T = new V3();
@@ -8841,14 +8841,14 @@ ${GLSL_NOISE}
           return (this.sd - 1) / 2147483646;
         }
         rgb(col2, o) {
-          var _a5;
-          const c = lin3(col2), j = 1 + ((_a5 = o.j) != null ? _a5 : 0.12) * (this.jit() * 2 - 1);
+          var _a6;
+          const c = lin3(col2), j = 1 + ((_a6 = o.j) != null ? _a6 : 0.12) * (this.jit() * 2 - 1);
           return [c[0] * j, c[1] * j, c[2] * j];
         }
         // czworokat CCW patrzac z zewnatrz
         q(pts, n, rgb2, o, ox = 0, oy = 0, oz = 0) {
-          var _a5, _b4, _c4;
-          const b = this.k, r = (_a5 = o.r) != null ? _a5 : 0.8, m = (_b4 = o.m) != null ? _b4 : 0, e = (_c4 = o.e) != null ? _c4 : 0, sp2 = o.sp;
+          var _a6, _b5, _c5;
+          const b = this.k, r = (_a6 = o.r) != null ? _a6 : 0.8, m = (_b5 = o.m) != null ? _b5 : 0, e = (_c5 = o.e) != null ? _c5 : 0, sp2 = o.sp;
           for (const p of pts) {
             this.p.push(p[0] + ox, p[1] + oy, p[2] + oz);
             this.n.push(n[0], n[1], n[2]);
@@ -8879,7 +8879,7 @@ ${GLSL_NOISE}
         }
         // walec / stozek: podstawa w (cx,cy,cz), wysokosc h, obrot jak wyzej
         cyl(cx, cy, cz, r02, r1, h, seg, col2, o = {}, yaw = 0, pitch = 0) {
-          var _a5, _b4, _c4;
+          var _a6, _b5, _c5;
           const rgb2 = this.rgb(col2, o), cw = Math.cos(yaw), sw = Math.sin(yaw), cp = Math.cos(pitch), sp2 = Math.sin(pitch);
           const R4 = (x, y, z) => {
             const y1 = y * cp - z * sp2, z1 = y * sp2 + z * cp;
@@ -8889,7 +8889,7 @@ ${GLSL_NOISE}
             const y1 = y * cp - z * sp2, z1 = y * sp2 + z * cp;
             return [x * cw + z1 * sw, y1, -x * sw + z1 * cw];
           };
-          const r = (_a5 = o.r) != null ? _a5 : 0.8, m = (_b4 = o.m) != null ? _b4 : 0, e = (_c4 = o.e) != null ? _c4 : 0, spn = o.sp, base2 = this.k;
+          const r = (_a6 = o.r) != null ? _a6 : 0.8, m = (_b5 = o.m) != null ? _b5 : 0, e = (_c5 = o.e) != null ? _c5 : 0, spn = o.sp, base2 = this.k;
           const push = (p, n) => {
             this.p.push(p[0], p[1], p[2]);
             this.n.push(n[0], n[1], n[2]);
@@ -8920,8 +8920,8 @@ ${GLSL_NOISE}
         }
         // wielokat plaski (poziomy) lezacy na dachu: wachlarz od srodka
         disc(cx, cz, rx, rz, y, seg, col2, o = {}, rot = 0) {
-          var _a5, _b4, _c4;
-          const rgb2 = this.rgb(col2, o), c0 = this.k, r = (_a5 = o.r) != null ? _a5 : 0.9, m = (_b4 = o.m) != null ? _b4 : 0, e = (_c4 = o.e) != null ? _c4 : 0, cr2 = Math.cos(rot), sr3 = Math.sin(rot);
+          var _a6, _b5, _c5;
+          const rgb2 = this.rgb(col2, o), c0 = this.k, r = (_a6 = o.r) != null ? _a6 : 0.9, m = (_b5 = o.m) != null ? _b5 : 0, e = (_c5 = o.e) != null ? _c5 : 0, cr2 = Math.cos(rot), sr3 = Math.sin(rot);
           const push = (x, z) => {
             this.p.push(x, y, z);
             this.n.push(0, 1, 0);
@@ -12614,11 +12614,11 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
   }
   function sfx(n, v = 1, pos = null, surf = null) {
     if (!live()) return;
-    const now3 = AC.currentTime;
-    if (last[n] !== void 0 && now3 >= last[n] && now3 - last[n] < 0.03) return;
-    last[n] = now3;
+    const now4 = AC.currentTime;
+    if (last[n] !== void 0 && now4 >= last[n] && now4 - last[n] < 0.03) return;
+    last[n] = now4;
     v = Math.max(0.01, v) * (BOOST[n] || 1);
-    let out = mix, t = now3;
+    let out = mix, t = now4;
     if (pos) {
       const s = spatial(getPos(pos));
       out = s.out;
@@ -13405,7 +13405,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     });
   }
   function ensureGraph() {
-    var _a5;
+    var _a6;
     const g = audioGraph();
     if (!g) return null;
     if (bus && bus.ac === g.ac) return bus;
@@ -13458,7 +13458,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     b.an.smoothingTimeConstant = 0;
     comp2.connect(b.an);
     b.buf = new Float32Array(b.an.fftSize);
-    b.out = gn(clamp3((_a5 = save.voiceVol) != null ? _a5 : 0.9, 0, 1));
+    b.out = gn(clamp3((_a6 = save.voiceVol) != null ? _a6 : 0.9, 0, 1));
     comp2.connect(b.out);
     b.out.connect(g.master);
     b.rev = gn(0.1);
@@ -13685,7 +13685,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     noteStart(item2);
   }
   function startSynth(l, item2) {
-    var _a5;
+    var _a6;
     if (!ssOK() || !item2.text) return endItem(l, item2, false);
     const sy = SYN[item2.speaker] || SYN.thug, u = new SpeechSynthesisUtterance(item2.text);
     const v = pickVoice(sy.sex);
@@ -13695,7 +13695,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     } else u.lang = "pl-PL";
     u.pitch = sy.pitch;
     u.rate = sy.rate;
-    u.volume = clamp3((_a5 = save.voiceVol) != null ? _a5 : 0.9, 0, 1);
+    u.volume = clamp3((_a6 = save.voiceVol) != null ? _a6 : 0.9, 0, 1);
     u.onend = () => endItem(l, item2, true);
     u.onerror = () => endItem(l, item2, false);
     item2.utt = u;
@@ -13720,10 +13720,10 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     ensureManifest();
   }
   function glosPlay(id, o = {}) {
-    var _a5, _b4;
+    var _a6, _b5;
     initGlos();
-    const sp2 = o.voice || MAN && MAN[id] && MAN[id].voice || "peter", pr = (_a5 = o.priority) != null ? _a5 : 1;
-    return enqueue({ id, text: o.text || "", speaker: sp2, priority: pr, onEnd: o.onEnd, pos: o.pos || null, t: now(), ttl: (_b4 = o.ttl) != null ? _b4 : 3e3 + 3e3 * pr, state: "new" });
+    const sp2 = o.voice || MAN && MAN[id] && MAN[id].voice || "peter", pr = (_a6 = o.priority) != null ? _a6 : 1;
+    return enqueue({ id, text: o.text || "", speaker: sp2, priority: pr, onEnd: o.onEnd, pos: o.pos || null, t: now(), ttl: (_b5 = o.ttl) != null ? _b5 : 3e3 + 3e3 * pr, state: "new" });
   }
   function glosStop(sp2) {
     for (const l of Object.values(lanes)) {
@@ -13748,7 +13748,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     }
   }
   function updateGlos(dt) {
-    var _a5;
+    var _a6;
     const m = modeNow();
     if (m === "wylaczony" && activeLanes().length) glosStop();
     const b = bus;
@@ -13790,7 +13790,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     glosState.level += (lv - glosState.level) * (lv > glosState.level ? 0.6 : 0.25);
     if (!speaking && glosState.level < 0.01) glosState.level = 0;
     if (!b) return;
-    const vol = clamp3((_a5 = save.voiceVol) != null ? _a5 : 0.9, 0, 1);
+    const vol = clamp3((_a6 = save.voiceVol) != null ? _a6 : 0.9, 0, 1);
     if (Math.abs(b.out.gain.value - vol) > 5e-3) b.out.gain.setTargetAtTime(vol, t, 0.05);
     if (speaking) hold = DUCK_HOLD;
     else hold = Math.max(0, hold - dt);
@@ -15040,11 +15040,11 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     }
   }
   function car(P2) {
-    var _a5, _b4, _c4, _d3, _e3, _f5, _g, _h3;
+    var _a6, _b5, _c5, _d4, _e3, _f5, _g, _h3;
     const S2 = prep({ zr: P2.zr, zf: P2.zf, W: P2.W, yb: P2.yb, top: P2.top, n: P2.n || 3.4, tw: P2.tw || 0.93, er: P2.er || 0.3 });
     const p = [shadowQ(P2.W * 2.3, (P2.zf - P2.zr) * 1.08)];
-    const { W: W2 } = S2, belt = P2.belt, roof = curve(P2.roof), hb = (_a5 = P2.hb) != null ? _a5 : 0;
-    p.push([hullGeo(S2, 13, 12), (_b4 = P2.fixed) != null ? _b4 : 16777215, "car", P2.fixed ? 0 : 1]);
+    const { W: W2 } = S2, belt = P2.belt, roof = curve(P2.roof), hb = (_a6 = P2.hb) != null ? _a6 : 0;
+    p.push([hullGeo(S2, 13, 12), (_b5 = P2.fixed) != null ? _b5 : 16777215, "car", P2.fixed ? 0 : 1]);
     p.push([B2(W2 * 1.7, 0.07, (P2.zf - P2.zr) * 0.9, 0, P2.yb + 0.01, (P2.zf + P2.zr) / 2), 723724, "r"]);
     const rk = P2.roof, z0 = Math.min(...rk.map((a) => a[0])), z1 = Math.max(...rk.map((a) => a[0])), gw = P2.gw || 0.87;
     const Rg = [], NG = 8;
@@ -15058,7 +15058,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
       const z = ra + (rb2 - ra) * (0.5 - 0.5 * Math.cos(PI * i / 4)), e = i === 0 || i === 4 ? 0.6 : 1, y = roof(z);
       Rr.push({ z, hw: W2 * gw * 0.93 * e, yb: y - 0.05, yt: y + 0.014, n: 4, tw: 0.86 });
     }
-    p.push([loftRings(Rr, 8), (_c4 = P2.fixed) != null ? _c4 : 16777215, "car", P2.fixed ? 0 : 1]);
+    p.push([loftRings(Rr, 8), (_c5 = P2.fixed) != null ? _c5 : 16777215, "car", P2.fixed ? 0 : 1]);
     const wsz = z1, rbz = z0, hwAt = (y) => W2 * gw * (1 - 0.14 * Math.pow(Math.min(1, (y - belt) / 0.45), 1.6));
     const pil = (za, zb) => {
       const ya = Math.max(belt, roof(za)), yb2 = Math.max(belt, roof(zb));
@@ -15066,7 +15066,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     };
     const bzs = P2.bzs || [P2.bz];
     for (const s of [-1, 1]) {
-      p.push([beam(P3(s * hwAt(belt) * 0.93, belt, wsz - 0.02), P3(s * hwAt(roof(rb2)) * 0.9, roof(rb2) - 0.02, rb2), 0.03), (_d3 = P2.fixed) != null ? _d3 : 16777215, "car", P2.fixed ? 0 : 1]);
+      p.push([beam(P3(s * hwAt(belt) * 0.93, belt, wsz - 0.02), P3(s * hwAt(roof(rb2)) * 0.9, roof(rb2) - 0.02, rb2), 0.03), (_d4 = P2.fixed) != null ? _d4 : 16777215, "car", P2.fixed ? 0 : 1]);
       for (const bz of bzs) p.push([beam(P3(s * hwAt(belt) * 0.98, belt, bz), P3(s * hwAt(roof(bz)) * 0.97, roof(bz) - 0.03, bz), 0.03), 1052947, "pl"]);
       p.push([beam(P3(s * hwAt(belt) * 0.97, belt, rbz + 0.03), P3(s * hwAt(roof(ra)) * 0.93, roof(ra) - 0.04, ra - 0.05), 0.036, 5), (_e3 = P2.fixed) != null ? _e3 : 16777215, "car", P2.fixed ? 0 : 1]);
     }
@@ -16411,11 +16411,11 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     }
     return b;
   }
-  function addDecal(x, y, z, yaw, w, h, cell, flat = false, soft = false) {
+  function addDecal(x, y, z, yaw, w, h, cell, flat2 = false, soft = false) {
     decalLog.push([x, y, z, yaw, cell]);
-    const b = decalBuf(flat || soft ? decalSoft : decalCut, x, z), cs = Math.cos(yaw), sn = Math.sin(yaw), o = b.P.length / 3;
+    const b = decalBuf(flat2 || soft ? decalSoft : decalCut, x, z), cs = Math.cos(yaw), sn = Math.sin(yaw), o = b.P.length / 3;
     const u0 = cell % 4 / 4, v1 = 1 - Math.floor(cell / 4) / 4, v0 = v1 - 0.25;
-    if (flat) {
+    if (flat2) {
       for (const [lx2, lz, u, v] of [[-w / 2, -h / 2, u0, v0], [-w / 2, h / 2, u0, v1], [w / 2, h / 2, u0 + 0.25, v1], [w / 2, -h / 2, u0 + 0.25, v0]]) {
         b.P.push(x + lx2 * cs + lz * sn, y, z - lx2 * sn + lz * cs);
         b.UV.push(u, v);
@@ -16561,11 +16561,11 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
         { len: BD, P: (t, ins) => [b.x1 - ins, b.z0 + t], yaw: Math.PI / 2, ave: true }
       ];
       const put5 = (T2, side, t, ins, r, opt = {}) => {
-        var _a5;
+        var _a6;
         const S2 = sides[side], [x, z] = S2.P(t, ins);
         if (!opt.force && !free(x, z, r)) return false;
         take(x, z, r);
-        place(Array.isArray(T2) ? pick5(T2) : T2, x, opt.road ? 0.02 : SW, z, S2.yaw + (opt.yaw || 0), (_a5 = opt.tint) != null ? _a5 : null);
+        place(Array.isArray(T2) ? pick5(T2) : T2, x, opt.road ? 0.02 : SW, z, S2.yaw + (opt.yaw || 0), (_a6 = opt.tint) != null ? _a6 : null);
         return [x, z];
       };
       const k = 0.26, cc = 11051927;
@@ -16944,12 +16944,12 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     m.geometry.attributes.aBrake.array[k] = v.brake;
   }
   function updateCars(dt) {
-    var _a5;
+    var _a6;
     if (!VT) return;
     dt = Math.min(dt, 0.1);
     hornT -= dt;
     U2.time.value += dt;
-    U2.lamp.value = (_a5 = LAMPS[todName]) != null ? _a5 : 0.6;
+    U2.lamp.value = (_a6 = LAMPS[todName]) != null ? _a6 : 0.6;
     if (bladeMat) bladeMat.emissiveIntensity = 0.12 + U2.lamp.value * 1.3;
     updateSignals(false);
     for (const L3 of lanes2) stepLane(L3, dt);
@@ -18323,15 +18323,15 @@ vec3 dtPerturb(vec3 sp, vec3 sn, vec2 dH, float fd) {
     }
     let tx = nz2, tz = -nx;
     const tl = Math.hypot(tx, tz);
-    const flat = tl < 0.2;
-    if (flat) {
+    const flat2 = tl < 0.2;
+    if (flat2) {
       tx = 1;
       tz = 0;
     } else {
       tx /= tl;
       tz /= tl;
     }
-    const uv = (p) => flat ? [p[0] / us, p[2] / us] : [(p[0] * tx + p[2] * tz) / us + uo, p[1] / vs + vo];
+    const uv = (p) => flat2 ? [p[0] / us, p[2] / us] : [(p[0] * tx + p[2] * tz) / us + uo, p[1] / vs + vo];
     quad(g, A2, B4, C7, D2, [nx, ny, nz2], uv(A2), uv(B4), uv(C7), uv(D2));
   }
   function polyPrism(g, pts0, y0, y1, pts1, us, vs, capG) {
@@ -18779,17 +18779,17 @@ vec3 dtPerturb(vec3 sp, vec3 sn, vec2 dH, float fd) {
     RM.uRmEmi.value = at2.emi;
     at2.map.anisotropy = 1;
     at2.emi.anisotropy = 1;
-    const flat = [], off = [];
+    const flat2 = [], off = [];
     for (let i = 0; i < 16; i++) {
       const inf = ROOM_INFO && ROOM_INFO[i] || null, ty = inf ? String(inf.type || inf.kind || inf.name || "") : i < 8 ? "flat" : "office";
-      (/office|biur/i.test(ty) ? off : flat).push(i);
+      (/office|biur/i.test(ty) ? off : flat2).push(i);
     }
-    if (!flat.length) flat.push(...off);
-    if (!off.length) off.push(...flat);
+    if (!flat2.length) flat2.push(...off);
+    if (!off.length) off.push(...flat2);
     const pad2 = (a) => Array.from({ length: 16 }, (_, i) => a[i % a.length]);
-    RM.uRmFlat.value = pad2(flat);
+    RM.uRmFlat.value = pad2(flat2);
     RM.uRmOff.value = pad2(off);
-    RM.uRmNF.value = flat.length;
+    RM.uRmNF.value = flat2.length;
     RM.uRmNO.value = off.length;
   }
   function roomParams(st) {
@@ -19582,9 +19582,9 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
       scene.environment = null;
     }
     scene.traverse((o) => {
-      var _a5;
+      var _a6;
       const m = o.material;
-      if (m && m.isMeshStandardMaterial) m.envMapIntensity = ((_a5 = m.userData.env) != null ? _a5 : 1) * T2.env;
+      if (m && m.isMeshStandardMaterial) m.envMapIntensity = ((_a6 = m.userData.env) != null ? _a6 : 1) * T2.env;
     });
   }
   function setTOD(name) {
@@ -19629,10 +19629,10 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     updateEnvMap(T2);
   }
   function updateEnv() {
-    var _a5;
+    var _a6;
     sky.position.copy(camera.position);
     updateSky(skyU, G.time);
-    skyFX.update(camera, sunDir, G.time, Math.min(0.1, Math.max(0, G.time - ((_a5 = updateEnv._t) != null ? _a5 : G.time))), !!G.interior);
+    skyFX.update(camera, sunDir, G.time, Math.min(0.1, Math.max(0, G.time - ((_a6 = updateEnv._t) != null ? _a6 : G.time))), !!G.interior);
     updateEnv._t = G.time;
     updateDachy(G.time, P.pos);
     swUpdate(sun, sunDir, hemi, savedL !== null, P.pos);
@@ -20793,14 +20793,14 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     if (!steam2) return;
     const t = G.time;
     ventList.forEach((v, vi) => {
-      var _a5;
+      var _a6;
       for (let k = 0; k < 10; k++) {
         const i = vi * 10 + k;
         steam2.age[i] += dt;
         if (steam2.age[i] > 3.5) steam2.age[i] -= 3.5;
         const a = steam2.age[i], dx = Math.sin(i * 12.9 + a * 1.3) * 0.25 * a, dz = Math.cos(i * 7.7 + a * 1.1) * 0.25 * a;
         steam2.pos[i * 3] = v.x + dx + a * 0.25;
-        steam2.pos[i * 3 + 1] = ((_a5 = v.y0) != null ? _a5 : 1.5) + a * 1.9;
+        steam2.pos[i * 3 + 1] = ((_a6 = v.y0) != null ? _a6 : 1.5) + a * 1.9;
         steam2.pos[i * 3 + 2] = v.z + dz;
       }
     });
@@ -21993,7 +21993,10 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
   function webMaterial() {
     return _webMat || (_webMat = new THREE.MeshStandardMaterial({ map: canvasTex(webCanvas("#ececec", "#9c9c9c"), true), roughness: 0.9 }));
   }
-  var SG, POSEK, _q2, _v, _m3, _x, _f2, _u, ADV, ALLP, SUITS, suitById, _webMat;
+  function flatMat(hex) {
+    return flat[hex] || (flat[hex] = new THREE.MeshStandardMaterial({ color: hex, roughness: 0.8 }));
+  }
+  var SG, POSEK, _q2, _v, _m3, _x, _f2, _u, ADV, ALLP, SUITS, suitById, _webMat, flat;
   var init_postac = __esm({
     "js/postac.js"() {
       init_util();
@@ -22037,6 +22040,7 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
       ];
       suitById = (id) => SUITS.find((s) => s.id === id);
       _webMat = null;
+      flat = {};
     }
   });
 
@@ -22059,7 +22063,7 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     x.fillRect(0, 0, 128, 128);
     return canvasTex(c);
   }
-  function ring(x, y, z, r1, dur, c, a, flat, nx = 0, ny = 1, nz2 = 0) {
+  function ring(x, y, z, r1, dur, c, a, flat2, nx = 0, ny = 1, nz2 = 0) {
     let r = null;
     for (const q of rings) if (!q.m.visible) {
       r = q;
@@ -22070,11 +22074,11 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     r.dur = dur;
     r.r1 = r1;
     r.a = a;
-    r.flat = flat;
+    r.flat = flat2;
     r.m.material.color.setRGB(c[0], c[1], c[2]);
     r.m.position.set(x, y, z);
     r.m.visible = true;
-    if (flat) {
+    if (flat2) {
       r.m.quaternion.setFromUnitVectors(_q3.set(0, 0, 1), _d2.set(nx, ny, nz2).normalize());
     }
   }
@@ -22551,7 +22555,7 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     updateDecals(dt);
     updateWraps(dt);
   }
-  var _c3, _a, _b, _d2, _p1, _p2, _q3, col, T, wind, VS, FS2, PSys, Sparks, rings, ringTex, decals, dIdx, decalTex, RN, ropePool, ropeMat, fiberMat, Rope, wraps, WN, ps, pa, sp, inited2, webTexVariants, tmpN, tmpP, vents, leafAcc, ventAcc, LEAF;
+  var _c3, _a, _b, _d2, _p1, _p2, _q3, col, T, wind, VS, FS2, PSys, Sparks, rings, ringTex, decals, dIdx, decalTex, RN, ropePool, ropeMat, fiberMat, Rope, wraps, WN, ps, pa, sp, inited2, webTexVariants, tmpN, tmpP, vents, leafAcc, ventAcc, LEAF, fxPools;
   var init_efekty = __esm({
     "js/efekty.js"() {
       init_util();
@@ -22937,6 +22941,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       leafAcc = 0;
       ventAcc = 0;
       LEAF = [15130832, 15789280, 9067050, 10517040, 7039786, 14209730];
+      fxPools = () => ({ ps, pa, sp });
     }
   });
 
@@ -22997,6 +23002,53 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     if (K2.KeyA || K2.ArrowLeft) mx2 -= 1;
     if (K2.KeyD || K2.ArrowRight) mx2 += 1;
     const locked = document.pointerLockElement === canvas;
+    const t = now3();
+    let throwP = !!KP.KeyT, webP = locked && !!MP[2] || !!KP.KeyR;
+    if (pp(5)) {
+      if (pad.b[4]) throwP = true;
+      else CB.web = t;
+    }
+    if (pp(4) && CB.web && t - CB.web <= WIN2) {
+      throwP = true;
+      CB.web = 0;
+    }
+    if (CB.web && t - CB.web > WIN2) {
+      CB.web = 0;
+      webP = true;
+    }
+    let punchP = locked && !!MP[0] || !!KP.KeyF, specialP = !!KP.KeyE || !!KP.KeyQ, finisherP = !!KP.KeyE;
+    const waitFin = P.focus >= 1;
+    if (pp(2)) CB.punch = t;
+    if (pp(3)) CB.spec = t;
+    if (CB.punch && CB.spec) {
+      finisherP = true;
+      CB.punch = CB.spec = 0;
+    } else if (!waitFin) {
+      if (CB.punch) {
+        punchP = true;
+        CB.punch = 0;
+      }
+      if (CB.spec) {
+        specialP = true;
+        CB.spec = 0;
+      }
+    } else {
+      if (CB.punch && t - CB.punch > WIN2) {
+        punchP = true;
+        CB.punch = 0;
+      }
+      if (CB.spec && t - CB.spec > WIN2) {
+        specialP = true;
+        CB.spec = 0;
+      }
+    }
+    const both = pad.b[10] && pad.b[11], powerP = both && !CB.bothSt || !!KP.KeyV;
+    CB.bothSt = both;
+    const punchHeld = pad.b[2] || locked && !!MB[0] || !!K2.KeyF;
+    if (punchHeld) {
+      if (!CB.punchDown) CB.punchDown = t;
+    } else CB.punchDown = 0;
+    const launcher = !!CB.punchDown && t - CB.punchDown > 320;
     return {
       mx: clamp(mx2, -1, 1),
       my: clamp(my, -1, 1),
@@ -23004,13 +23056,19 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       ply: ry,
       mdx: locked ? mouse.dx : 0,
       mdy: locked ? mouse.dy : 0,
-      swing: pad.b[7] || !!K2.ShiftLeft || !!K2.ShiftRight,
+      swing: pad.b[6] || !!K2.ShiftLeft || !!K2.ShiftRight,
       jump: pad.b[0] || !!K2.Space,
       jumpP: pp(0) || !!KP.Space,
-      punchP: pp(2) || locked && !!MP[0] || !!KP.KeyF,
-      punch: pad.b[2] || locked && !!MB[0] || !!K2.KeyF,
-      specialP: pp(3) || !!KP.KeyE || !!KP.KeyQ,
-      webP: pp(5) || locked && !!MP[2] || !!KP.KeyR,
+      punchP,
+      punch: punchHeld,
+      launcher,
+      specialP,
+      heavyP: !!KP.KeyG || locked && !!MP[1],
+      finisherP,
+      throwP,
+      powerP,
+      healHeld: pad.b[13] || !!K2.KeyH,
+      webP,
       dodgeP: pp(1) || !!KP.KeyC || !!KP.ControlLeft,
       mapP: pp(8) || !!KP.KeyM || !!KP.Tab,
       pauseP: pp(9) || !!KP.Escape || !!KP.KeyP
@@ -23018,16 +23076,16 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
   }
   function navInput(dt) {
     const [lx2, ly] = stick(pad.a[0], pad.a[1]);
-    const held = {
+    const held2 = {
       up: pad.b[12] || ly < -0.55 || K2.ArrowUp || K2.KeyW,
       down: pad.b[13] || ly > 0.55 || K2.ArrowDown || K2.KeyS,
       left: pad.b[14] || lx2 < -0.55 || K2.ArrowLeft || K2.KeyA,
       right: pad.b[15] || lx2 > 0.55 || K2.ArrowRight || K2.KeyD
     };
     const o = {};
-    for (const d in held) {
+    for (const d in held2) {
       const s = NV[d] || (NV[d] = { t: 0, n: 0 });
-      if (held[d]) {
+      if (held2[d]) {
         if (s.t === 0) {
           o[d] = true;
           s.n = 0.38;
@@ -23054,7 +23112,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     } catch (e) {
     }
   }
-  var K2, KP, MB, MP, mouse, pad, pp, NV;
+  var K2, KP, MB, MP, mouse, pad, pp, WIN2, CB, now3, NV;
   var init_wejscie = __esm({
     "js/wejscie.js"() {
       init_util();
@@ -23100,6 +23158,9 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       }, { passive: true });
       addEventListener("contextmenu", (e) => e.preventDefault());
       pp = (i) => pad.b[i] && !pad.prev[i];
+      WIN2 = 110;
+      CB = { web: 0, punch: 0, spec: 0, bothSt: false, punchDown: 0 };
+      now3 = () => performance.now();
       NV = {};
     }
   });
@@ -25679,6 +25740,477 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     }
   });
 
+  // js/rzucanie.js
+  function plankTex() {
+    const c = cv(128, 128), g = c.getContext("2d");
+    g.fillStyle = "#8a6a3f";
+    g.fillRect(0, 0, 128, 128);
+    for (let i = 0; i < 4; i++) {
+      g.fillStyle = i & 1 ? "#7d5f37" : "#946f42";
+      g.fillRect(0, i * 32 + 2, 128, 28);
+    }
+    g.strokeStyle = "#3d2c17";
+    g.lineWidth = 4;
+    g.strokeRect(2, 2, 124, 124);
+    g.beginPath();
+    g.moveTo(2, 2);
+    g.lineTo(126, 126);
+    g.moveTo(126, 2);
+    g.lineTo(2, 126);
+    g.stroke();
+    for (let i = 0; i < 90; i++) {
+      g.fillStyle = `rgba(40,25,10,${Math.random() * 0.25})`;
+      g.fillRect(Math.random() * 128, Math.random() * 128, 1 + Math.random() * 14, 1);
+    }
+    return canvasTex(c);
+  }
+  function init() {
+    GEO = {
+      crate: new THREE.BoxGeometry(0.9, 0.9, 0.9),
+      barrel: new THREE.CylinderGeometry(0.4, 0.4, 1, 12),
+      bin: new THREE.CylinderGeometry(0.4, 0.3, 0.85, 10),
+      door: new THREE.BoxGeometry(1.25, 0.95, 0.1),
+      tire: new THREE.TorusGeometry(0.32, 0.14, 8, 14),
+      chip: new THREE.BoxGeometry(0.16, 0.16, 0.16)
+    };
+    MAT = {
+      crate: new THREE.MeshStandardMaterial({ map: plankTex(), roughness: 0.9 }),
+      barrelB: flatMat(2976412),
+      barrelR: flatMat(10103586),
+      bin: flatMat(3885631),
+      tire: flatMat(1776413),
+      doorA: flatMat(11607839),
+      doorB: flatMat(14210767),
+      doorC: flatMat(2047598),
+      doorD: flatMat(14725153),
+      chipWood: flatMat(9071167),
+      chipMetal: flatMat(9278619),
+      chipDark: flatMat(2763306)
+    };
+  }
+  function pickKind() {
+    let s = 0;
+    for (const k in KINDS) s += KINDS[k].w;
+    let r = Math.random() * s;
+    for (const k in KINDS) {
+      r -= KINDS[k].w;
+      if (r <= 0) return k;
+    }
+    return "crate";
+  }
+  function registerThrowable(o) {
+    const it = {
+      pos: o.pos || new V3(),
+      mesh: o.mesh,
+      radius: o.radius || 0.5,
+      mass: o.mass || 10,
+      kind: o.kind || "crate",
+      onHit: o.onHit || null,
+      state: "idle",
+      vel: new V3(),
+      t: 0,
+      own: false,
+      dmg: (KINDS[o.kind] || KINDS.crate).dmg * (o.mass ? clamp(o.mass / 12, 0.6, 1.6) : 1),
+      spin: new V3()
+    };
+    if (it.mesh && !it.mesh.parent) scene.add(it.mesh);
+    throwables.push(it);
+    return it;
+  }
+  function spawnThrowable(kind, x, y, z) {
+    if (!GEO) init();
+    const K4 = KINDS[kind] || KINDS.crate;
+    const m = new THREE.Mesh(GEO[K4.geo], K4.mat());
+    m.castShadow = true;
+    m.receiveShadow = true;
+    m.position.set(x, y + K4.y, z);
+    m.rotation.y = rnd(0, 6.28);
+    if (K4.lay) m.rotation.x = 0;
+    if (kind === "tire") m.rotation.x = Math.PI / 2;
+    scene.add(m);
+    const it = registerThrowable({ pos: m.position, mesh: m, radius: K4.r, mass: K4.mass, kind });
+    it.own = true;
+    it.gy = y;
+    return it;
+  }
+  function removeItem(it) {
+    const i = throwables.indexOf(it);
+    if (i >= 0) throwables.splice(i, 1);
+    if (it.own) scene.remove(it.mesh);
+    else it.mesh.visible = false;
+    if (held === it) {
+      held = null;
+      throwState.holding = false;
+      throwState.item = null;
+      if (rope) {
+        freeRope(rope);
+        rope = null;
+      }
+    }
+  }
+  function onScreen(x, y, z) {
+    _d3.set(x, y, z).project(camera);
+    return Math.abs(_d3.x) < 1.08 && Math.abs(_d3.y) < 1.08 && _d3.z < 1;
+  }
+  function ambientTick() {
+    let own = 0;
+    for (let i = throwables.length - 1; i >= 0; i--) {
+      const it = throwables[i];
+      if (!it.own || it.state !== "idle") continue;
+      if (Math.hypot(it.pos.x - P.pos.x, it.pos.z - P.pos.z) > RANGE * 1.7 || Math.abs(it.pos.y - P.pos.y) > 45) removeItem(it);
+      else own++;
+    }
+    if (own >= MAX_AMBIENT || P.pos.y > 130) return;
+    for (let k = 0; k < 6; k++) {
+      const a = Math.random() * 6.283, r = rnd(7, RANGE - 4), x = P.pos.x + Math.cos(a) * r, z = P.pos.z + Math.sin(a) * r;
+      if (x < LAND.x0 + 3 || x > LAND.x1 - 3 || z < LAND.z0 + 3 || z > LAND.z1 - 3) continue;
+      const g = supportAt(x, z, P.pos.y + 0.6, 0.5);
+      if (g < P.pos.y - 6 || solidAt(x, g + 0.3, z)) continue;
+      if (!firstFill && r < 32 && onScreen(x, g + 0.5, z)) continue;
+      spawnThrowable(pickKind(), x, g, z);
+      return;
+    }
+  }
+  function handPos(out) {
+    const H3 = P.H;
+    if (H3 && H3.handR) {
+      H3.handR.getWorldPosition(out);
+      return out;
+    }
+    return out.set(P.pos.x, P.pos.y + 1.4, P.pos.z);
+  }
+  function pickItem() {
+    camera.getWorldDirection(_a4);
+    let best = null, bs = 1e9;
+    for (const it of throwables) {
+      if (it.state !== "idle") continue;
+      const dx = it.pos.x - P.pos.x, dy = it.pos.y - P.pos.y, dz = it.pos.z - P.pos.z, d = Math.hypot(dx, dz);
+      if (d > RANGE || Math.abs(dy) > 22) continue;
+      const dot = (dx * _a4.x + dz * _a4.z) / ((d || 1) * (Math.hypot(_a4.x, _a4.z) || 1));
+      const sc = d * (1.7 - dot);
+      if (sc < bs) {
+        bs = sc;
+        best = it;
+      }
+    }
+    return best;
+  }
+  function startPull(it) {
+    it.state = "pull";
+    it.t = 0;
+    it.from = it.pos.clone();
+    held = it;
+    throwState.holding = true;
+    throwState.item = it;
+    rope = getRope();
+    P.holdThrow = true;
+    P.heading = Math.atan2(it.pos.x - P.pos.x, it.pos.z - P.pos.z);
+    sfx("thwip");
+    rumble(0.06, 0.1, 0.3);
+  }
+  function overhead(out, t) {
+    return out.set(P.pos.x, P.pos.y + 2.55 + Math.sin(t * 3) * 0.08, P.pos.z);
+  }
+  function doThrow() {
+    const it = held;
+    if (!it) return;
+    camera.getWorldDirection(_a4);
+    let tgt = null, bd = 0.94;
+    for (const e of enemies) {
+      if (e.dead || e.gone) continue;
+      _b3.set(e.pos.x - camera.position.x, e.pos.y + 1 * (e.scale || 1) - camera.position.y, e.pos.z - camera.position.z);
+      const L3 = _b3.length();
+      if (L3 > 70 || L3 < 2) continue;
+      const dot = _b3.dot(_a4) / L3;
+      if (dot > bd) {
+        bd = dot;
+        tgt = e;
+      }
+    }
+    overhead(_c4, G.time);
+    it.pos.copy(_c4);
+    it.mesh.position.copy(_c4);
+    if (tgt) {
+      _b3.set(tgt.pos.x, tgt.pos.y + 1 * (tgt.scale || 1), tgt.pos.z).sub(_c4);
+      const T2 = _b3.length() / SPEED;
+      _b3.y += 0.5 * GRAV * T2 * T2 * 0.9;
+      _b3.normalize();
+    } else {
+      _b3.copy(camera.position).addScaledVector(_a4, 60).sub(_c4).normalize();
+      _b3.y += 0.04;
+      _b3.normalize();
+    }
+    it.vel.copy(_b3).multiplyScalar(SPEED);
+    it.state = "fly";
+    it.t = 0;
+    it.spin.set(rnd(-9, 9), rnd(-9, 9), rnd(-9, 9));
+    held = null;
+    throwState.holding = false;
+    throwState.item = null;
+    P.holdThrow = false;
+    P.throwT = 0.34;
+    throwCD = 0.35;
+    if (rope) {
+      freeRope(rope);
+      rope = null;
+    }
+    sfx("whoosh", 0.8);
+    sfx("thwip", 0.5);
+    rumble(0.1, 0.3, 0.5);
+    G.shake = Math.max(G.shake, 0.08);
+  }
+  function shatter(it, x, y, z) {
+    const K4 = KINDS[it.kind] || KINDS.crate;
+    burst(x, y, z, 12, K4.dust, 4);
+    burst(x, y, z, 8, 16773824, 3);
+    sfx(K4.snd, 0.7, null);
+    G.shake = Math.max(G.shake, 0.18);
+    rumble(0.1, 0.4, 0.4);
+    spawnChips(x, y, z, K4.chip, it.kind === "door" ? 5 : 8);
+    removeItem(it);
+  }
+  function spawnChips(x, y, z, mat, n) {
+    const gy = supportAt(x, z, y + 0.6, 0.1);
+    for (let i = 0; i < n; i++) {
+      let c = chips.find((q) => !q.mesh.visible);
+      if (!c) {
+        if (chips.length >= 28) break;
+        const m = new THREE.Mesh(GEO.chip, MAT.chipWood);
+        scene.add(m);
+        c = { mesh: m, vel: new V3(), life: 0, gy: 0, spin: new V3() };
+        chips.push(c);
+      }
+      c.mesh.material = MAT[mat];
+      c.mesh.visible = true;
+      c.mesh.position.set(x, y, z);
+      c.life = rnd(1.1, 1.8);
+      c.gy = gy + 0.08;
+      const s = rnd(0.6, 1.4);
+      c.mesh.scale.set(s, s * rnd(0.4, 1), s * rnd(0.6, 1.6));
+      c.vel.set(rnd(-1, 1) * 5, rnd(2, 7), rnd(-1, 1) * 5);
+      c.spin.set(rnd(-8, 8), rnd(-8, 8), rnd(-8, 8));
+    }
+  }
+  function updateChips(dt) {
+    for (const c of chips) {
+      if (!c.mesh.visible) continue;
+      c.life -= dt;
+      if (c.life <= 0) {
+        c.mesh.visible = false;
+        continue;
+      }
+      if (c.mesh.position.y > c.gy) {
+        c.vel.y -= 22 * dt;
+        c.mesh.position.addScaledVector(c.vel, dt);
+        c.mesh.rotation.x += c.spin.x * dt;
+        c.mesh.rotation.y += c.spin.y * dt;
+        c.mesh.rotation.z += c.spin.z * dt;
+        if (c.mesh.position.y <= c.gy) {
+          c.mesh.position.y = c.gy;
+          c.vel.set(0, 0, 0);
+        }
+      }
+      if (c.life < 0.3) c.mesh.scale.multiplyScalar(1 - dt * 3);
+    }
+  }
+  function flyStep(it, h) {
+    it.vel.y -= GRAV * h;
+    it.pos.addScaledVector(it.vel, h);
+    it.t += h;
+    const m = it.mesh;
+    m.rotation.x += it.spin.x * h;
+    m.rotation.y += it.spin.y * h;
+    m.rotation.z += it.spin.z * h;
+    const p = it.pos;
+    for (const e of enemies) {
+      if (e.dead || e.gone) continue;
+      const sc = e.scale || 1, dx = p.x - e.pos.x, dy = p.y - (e.pos.y + 0.9 * sc), dz = p.z - e.pos.z;
+      if (dx * dx + dy * dy + dz * dz < (it.radius + 0.8 * sc) ** 2) {
+        _a4.copy(it.vel).setY(0).normalize();
+        hitEnemy(e, it.dmg, _a4.x * 12, 6, _a4.z * 12, true, true);
+        if (it.onHit) it.onHit(e);
+        popText("RZUT!");
+        shatter(it, p.x, p.y, p.z);
+        return true;
+      }
+    }
+    for (const t of throwTargets) {
+      let hit2 = false;
+      if (t.box) {
+        const b = t.box, r = it.radius * 0.6;
+        hit2 = p.x > b.x0 - r && p.x < b.x1 + r && p.y > b.y0 - r && p.y < b.y1 + r && p.z > b.z0 - r && p.z < b.z1 + r;
+      } else if (t.pos) hit2 = p.distanceTo(t.pos) < (t.radius || 1) + it.radius;
+      if (hit2) {
+        const pw = it.mass * it.vel.length();
+        if (t.onHit) t.onHit(pw);
+        if (it.onHit) it.onHit(t);
+        shatter(it, p.x, p.y, p.z);
+        return true;
+      }
+    }
+    if (it.t > 0.06 && (solidAt(p.x, p.y, p.z) || p.y <= supportAt(p.x, p.z, p.y + 0.4, 0.1) + it.radius * 0.5)) {
+      shatter(it, p.x, Math.max(p.y, supportAt(p.x, p.z, p.y + 0.5, 0.1)), p.z);
+      return true;
+    }
+    if (it.t > 5 || p.y < -10) {
+      removeItem(it);
+      return true;
+    }
+    return false;
+  }
+  function updateThrow(dt, I) {
+    throwCD -= dt;
+    updateChips(dt);
+    if (P.throwT > 0) P.throwT -= dt;
+    if (G.interior || G.state !== "play") {
+      if (held) dropHeld();
+      return;
+    }
+    if (!GEO) init();
+    spawnT -= dt;
+    if (spawnT <= 0) {
+      spawnT = firstFill ? 0.1 : 0.9;
+      ambientTick();
+      if (firstFill && throwables.filter((t) => t.own).length >= MAX_AMBIENT) firstFill = false;
+    }
+    nearT -= dt;
+    if (nearT <= 0) {
+      nearT = 0.25;
+      throwState.near = !held && !!pickItem();
+    }
+    const busy = P.dead || P.fin || P.healing || P.state === "car" || P.state === "pz";
+    if (held) {
+      if (busy) {
+        dropHeld();
+        return;
+      }
+      if (I && throwCD <= 0 && held.state === "held" && (I.throwP || I.webP || I.punchP)) {
+        I.webP = I.punchP = I.throwP = false;
+        doThrow();
+      }
+    } else if (I && I.throwP && !busy && throwCD <= 0) {
+      const it = pickItem();
+      if (it) startPull(it);
+      else {
+        popText("NIC DO RZUCENIA");
+        throwCD = 0.6;
+      }
+    }
+    for (let i = throwables.length - 1; i >= 0; i--) {
+      const it = throwables[i];
+      if (it.state === "pull") {
+        it.t += dt;
+        const k = clamp(it.t / 0.38, 0, 1), e = k * k * (3 - 2 * k);
+        overhead(_c4, G.time);
+        it.pos.lerpVectors(it.from, _c4, e);
+        it.pos.y += Math.sin(k * Math.PI) * 1.2;
+        it.mesh.position.copy(it.pos);
+        it.mesh.rotation.y += dt * 8;
+        if (k >= 1) {
+          it.state = "held";
+          it.t = 0;
+          sfx("pickup", 0.25);
+        }
+      } else if (it.state === "held") {
+        it.t += dt;
+        overhead(it.pos, G.time);
+        it.mesh.position.copy(it.pos);
+        it.mesh.rotation.y += dt * 1.6;
+        if (it.t > 8) dropHeld();
+      } else if (it.state === "fly") {
+        const n = 3, h = dt / n;
+        for (let k = 0; k < n; k++) if (flyStep(it, h)) break;
+        if (throwables.includes(it)) it.mesh.position.copy(it.pos);
+      }
+    }
+    if (rope && held) {
+      handPos(_b3);
+      rope.set(_b3, held.pos, held.state === "pull" ? 1 : 0.8, held.state === "pull" ? 0.4 : 0.05);
+    }
+  }
+  function dropHeld() {
+    const it = held;
+    if (!it) return;
+    it.state = "fly";
+    it.vel.set(0, 0, 0);
+    it.t = 0;
+    it.spin.set(rnd(-3, 3), 0, rnd(-3, 3));
+    held = null;
+    throwState.holding = false;
+    throwState.item = null;
+    P.holdThrow = false;
+    if (rope) {
+      freeRope(rope);
+      rope = null;
+    }
+  }
+  function throwPose(t) {
+    if (P.throwT > 0) {
+      const k = 1 - P.throwT / 0.34;
+      t.sRx = -2.9 + k * 2.4;
+      t.sLx = -2.7 + k * 2.2;
+      t.eR = -0.2;
+      t.eL = -0.2;
+      t.bp = -0.25 + k * 0.7;
+      t.hx = 0.2;
+      return true;
+    }
+    if (P.holdThrow) {
+      t.sRx = -2.9;
+      t.sLx = -2.8;
+      t.eR = -0.25;
+      t.eL = -0.25;
+      t.sRz = -0.18;
+      t.sLz = 0.18;
+      t.bp = -0.18;
+      t.hx = -0.35;
+      t.by = -0.04;
+      return true;
+    }
+    return false;
+  }
+  var throwables, throwTargets, throwState, MAX_AMBIENT, RANGE, SPEED, GRAV, _a4, _b3, _c4, _d3, GEO, MAT, rope, held, throwCD, spawnT, nearT, firstFill, KINDS, chips;
+  var init_rzucanie = __esm({
+    "js/rzucanie.js"() {
+      init_util();
+      init_stan();
+      init_miasto();
+      init_wrogowie();
+      init_efekty();
+      init_postac();
+      init_dzwiek();
+      init_wejscie();
+      init_ui();
+      throwables = [];
+      throwTargets = [];
+      throwState = { near: false, holding: false, item: null };
+      MAX_AMBIENT = 6;
+      RANGE = 42;
+      SPEED = 38;
+      GRAV = 16;
+      _a4 = new V3();
+      _b3 = new V3();
+      _c4 = new V3();
+      _d3 = new V3();
+      GEO = null;
+      MAT = null;
+      rope = null;
+      held = null;
+      throwCD = 0;
+      spawnT = 0;
+      nearT = 0;
+      firstFill = true;
+      KINDS = {
+        crate: { geo: "crate", mat: () => MAT.crate, r: 0.55, mass: 12, dmg: 2.2, y: 0.45, snd: "hit_wall", dust: 11568730, chip: "chipWood", w: 30 },
+        barrel: { geo: "barrel", mat: () => Math.random() < 0.5 ? MAT.barrelB : MAT.barrelR, r: 0.55, mass: 25, dmg: 3, y: 0.5, snd: "crash", dust: 10525328, chip: "chipMetal", w: 25 },
+        bin: { geo: "bin", mat: () => MAT.bin, r: 0.5, mass: 8, dmg: 1.6, y: 0.43, snd: "hit_wall", dust: 9409931, chip: "chipDark", w: 20 },
+        door: { geo: "door", mat: () => [MAT.doorA, MAT.doorB, MAT.doorC, MAT.doorD][Math.random() * 4 | 0], r: 0.7, mass: 15, dmg: 2.4, y: 0.6, snd: "crash", dust: 11578016, chip: "chipMetal", w: 15, lay: true },
+        tire: { geo: "tire", mat: () => MAT.tire, r: 0.5, mass: 9, dmg: 1.5, y: 0.45, snd: "land", dust: 7829367, chip: "chipDark", w: 10 }
+      };
+      chips = [];
+    }
+  });
+
   // js/ui.js
   function key(a, dev) {
     const g = (dev || G.lastDev) === "pad" ? GLY2[pad.type] : dev && dev !== "kb" ? GLY2[dev] : GLY2.kb;
@@ -25979,7 +26511,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       if (P.colaNear) arr.push(["special", '<b style="color:#ff4a4a">We\u017A col\u0119 z lod\xF3wki</b>']);
       if (P.doorNear) arr.push(["special", `<b style="color:#ffc93c">Wejd\u017A: ${P.doorNear.name}</b>`]);
       else if (P.exitNear) arr.push(["special", '<b style="color:#39ff6a">Wyjd\u017A</b>']);
-      if (P.finReady) arr.push(["special", '<b style="color:#3fe3ff">WYKO\u0143CZENIE</b>']);
+      if (P.finReady) arr.push(["fin", '<b style="color:#3fe3ff">WYKO\u0143CZENIE</b>']);
       if (P.state === "car") arr.push(["punch", "Bij w dach"], ["jump", "Zeskocz"]);
       else if (P.state === "ground") {
         if (P.perchT > 0) arr.push(["jump", '<b style="color:#3fe3ff">WYBICIE</b>']);
@@ -25991,7 +26523,10 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       } else if (P.state === "swing") arr.push(["jump", "Skok z sieci"]);
       else if (P.state === "wall") arr.push(["jump", "Odbicie od \u015Bciany"], ["swing", "Bieg po \u015Bcianie"]);
       else if (P.state === "pz") arr.push(["jump", "Wybicie z zaczepu"]);
-      if (near && P.state !== "car") arr.push(["punch", "Cios (przytrzymaj = wybicie)"], ["web", "Strza\u0142 sieci\u0105"], ["dodge", "Unik"]);
+      if (near && P.state !== "car") arr.push(["punch", "Cios (przytrzymaj = podbicie)"], ["heavy", "Mocny cios"], ["web", "Strza\u0142 sieci\u0105"], ["dodge", "Unik / kontra"]);
+      if (throwState.holding) arr.push(["web", '<b style="color:#3fe3ff">RZU\u0106</b>']);
+      else if (throwState.near && P.state !== "car") arr.push(["throw", "Przyci\u0105gnij i rzu\u0107"]);
+      if (P.focus >= 0.1 && P.hp < maxHp() * 0.85 && P.state === "ground") arr.push(["heal", "Lecz si\u0119 (przytrzymaj)"]);
       arr.push(["map", "Mapa"]);
       const h = arr.map(([a, t]) => `<div>${t}${key(a)}</div>`).join("");
       if (h !== lastPrompt) {
@@ -26588,15 +27123,21 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       ["Bujanie na sieci \u2014 przytrzymaj w powietrzu", key("swing", ps2), kk("SHIFT")],
       ["Bieg parkour \u2014 przytrzymaj na ziemi", key("swing", ps2), kk("SHIFT")],
       ["Bieg po \u015Bcianie \u2014 wbiegnij w \u015Bcian\u0119 trzymaj\u0105c", key("swing", ps2), kk("SHIFT")],
-      ["Zaczep \u2014 lot na kraw\u0119d\u017A dachu (celuj kamer\u0105 w k\xF3\u0142ko)", key("special", ps2), kk("E")],
+      ["Zaczep \u2014 lot na kraw\u0119d\u017A dachu (celuj kamer\u0105 w k\xF3\u0142ko; gdy wr\xF3g blisko, ten przycisk to mocny cios)", key("special", ps2), kk("E")],
       ["Wybicie z zaczepu \u2014 skok w chwili dolotu", key("jump", ps2), kk("SPACJA")],
       ["Skok z sieci / odbicie od \u015Bciany / zip w powietrzu", key("jump", ps2), kk("SPACJA")],
-      ["Cios \u2014 naciskaj szybko, 4. cios to kopni\u0119cie z obrotu", key("punch", ps2), kk("LPM") + kk("F")],
-      ["Wybicie bandyty w g\xF3r\u0119 \u2014 przytrzymaj cios, potem skocz i bij w powietrzu", key("punch", ps2), kk("LPM") + kk("F")],
+      ["Szybki cios \u2014 naciskaj szybko, 4. cios to kopni\u0119cie z obrotu", key("punch", ps2), kk("LPM") + kk("F")],
+      ["Mocny cios \u2014 wolniejszy, wi\u0119kszy odrzut i obra\u017Cenia, przebija blok", key("heavy", ps2), kk("G") + kk("\u015APM")],
+      ["Podbicie wroga w powietrze (launcher) \u2014 przytrzymaj szybki cios; skoczysz za nim i bijesz dalej w powietrzu", key("punch", ps2), kk("LPM") + kk("F")],
+      ["Kopniak w powietrzu \u2014 gdy wr\xF3g jest podbity, w locie", key("jump", ps2), kk("SPACJA")],
       ["Trik w powietrzu (gdy nikogo nie ma obok)", key("punch", ps2), kk("LPM") + kk("F")],
-      ["Wyko\u0144czenie \u2014 gdy pasek skupienia jest pe\u0142ny", key("special", ps2), kk("E")],
+      ["Unik \u2014 dobrze wyczuty tu\u017C przed ciosem daje IDEALNY UNIK i okno kontry", key("dodge", ps2), kk("C") + kk("CTRL")],
+      ["Kontra \u2014 cios (kwadrat lub tr\xF3jk\u0105t) tu\u017C po idealnym uniku: b\u0142yskawiczny kontratak", key("punch", ps2) + key("heavy", ps2), kk("F") + kk("G")],
+      ["Wyko\u0144czenie \u2014 oba przyciski naraz, gdy pasek skupienia jest pe\u0142ny", key("fin", ps2), kk("E")],
       ["Strza\u0142 sieci\u0105 \u2014 zawija bandyt\xF3w, og\u0142usza osi\u0142ki i Nosoro\u017Cca", key("web", ps2), kk("PPM") + kk("R")],
-      ["Unik \u2014 gdy nad g\u0142ow\u0105 b\u0142y\u015Bnie zmys\u0142 paj\u0105ka", key("dodge", ps2), kk("C") + kk("CTRL")],
+      ["Rzucanie \u2014 przyci\u0105gnij pobliski przedmiot (skrzynia, beczka, kosz, drzwi, opona), potem rzu\u0107 (R1 / T / cios)", key("throw", ps2), kk("T")],
+      ["Leczenie \u2014 przytrzymaj, zu\u017Cywa pasek skupienia (+35% zdrowia na pasek)", key("heal", ps2), kk("H")],
+      ["Moc stroju \u2014 ka\u017Cdy str\xF3j ma swoj\u0105", key("power", ps2), kk("V")],
       ["Mapa", key("map", ps2), kk("M") + kk("TAB")],
       ["Pauza", key("pause", ps2), kk("ESC")]
     ];
@@ -26758,6 +27299,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       init_miasto();
       init_postac();
       init_gracz();
+      init_rzucanie();
       init_wrogowie();
       init_misje();
       init_wnetrza();
@@ -26943,9 +27485,9 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
 <div id="tytul"><img src="tytul.jpg" alt="" onerror="this.style.display='none'"><div class="tt"><b>SPIDER<i>-</i>MAN</b><span>NOWY JORK</span></div><div class="tp">NACI\u015ANIJ DOWOLNY PRZYCISK</div></div>
 <div id="fade"></div>`;
       GLY2 = {
-        xbox: { jump: "A", dodge: "B", punch: "X", web: "RB", swing: "RT", special: "Y", map: "VIEW", pause: "MENU", ok: "A", back: "B", y: "Y", lb: "LB", rb: "RB", lt: "LT", rt: "RT" },
-        ps: { jump: "\u2715", dodge: "\u25CB", punch: "\u25A1", web: "R1", swing: "R2", special: "\u25B3", map: "SHARE", pause: "OPTIONS", ok: "\u2715", back: "\u25CB", y: "\u25B3", lb: "L1", rb: "R1", lt: "L2", rt: "R2" },
-        kb: { jump: "SPACJA", dodge: "C", punch: "LPM", web: "PPM", swing: "SHIFT", special: "E", map: "M", pause: "ESC", ok: "ENTER", back: "ESC", y: "X", lb: "Q", rb: "E", lt: "\u2212", rt: "+" }
+        xbox: { heavy: "Y", throw: "LB + RB", heal: "D-PAD \u2193", fin: "X + Y", power: "LS + RS", jump: "A", dodge: "B", punch: "X", web: "RB", swing: "LT", special: "Y", map: "VIEW", pause: "MENU", ok: "A", back: "B", y: "Y", lb: "LB", rb: "RB", lt: "LT", rt: "RT" },
+        ps: { heavy: "\u25B3", throw: "L1 + R1", heal: "D-PAD \u2193", fin: "\u25A1 + \u25B3", power: "L3 + R3", jump: "\u2715", dodge: "\u25CB", punch: "\u25A1", web: "R1", swing: "L2", special: "\u25B3", map: "SHARE", pause: "OPTIONS", ok: "\u2715", back: "\u25CB", y: "\u25B3", lb: "L1", rb: "R1", lt: "L2", rt: "R2" },
+        kb: { heavy: "G", throw: "T", heal: "H", fin: "E", power: "V", jump: "SPACJA", dodge: "C", punch: "LPM", web: "PPM", swing: "SHIFT", special: "E", map: "M", pause: "ESC", ok: "ENTER", back: "ESC", y: "X", lb: "Q", rb: "E", lt: "\u2212", rt: "+" }
       };
       kk = (t) => `<span class="key">${t}</span>`;
       msgT = 0;
@@ -26978,8 +27520,8 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       VMODE_NAMES = { nagrania: "NAGRANIA", syntezator: "SYNTEZATOR", wylaczony: "WY\u0141\u0104CZONY" };
       voiceLabel = () => "G\u0141OS SPIDER-MANA: " + (VMODE_NAMES[save.voiceMode] || "NAGRANIA");
       vvolLabel = () => {
-        var _a5;
-        const n = Math.round(((_a5 = save.voiceVol) != null ? _a5 : 0.9) * 10);
+        var _a6;
+        const n = Math.round(((_a6 = save.voiceVol) != null ? _a6 : 0.9) * 10);
         return 'G\u0141O\u015ANO\u015A\u0106 G\u0141OSU <span class="vbar" style="--n:' + n + '"></span><small>' + n * 10 + "%</small>";
       };
       musLabel = () => "MUZYKA: " + (save.music ? "W\u0141\u0104CZONA" : "WY\u0141\u0104CZONA");
@@ -27159,19 +27701,19 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       if (o === true || oo && oo.col) c.solid(a0, a1, b0, b1, y0, y1);
     };
     c.Cy = (u, v, y0, y1, rad, mn, col2 = "#ffffff", o = {}) => {
-      var _a5;
+      var _a6;
       const m = M(mn);
-      emit(c, m, `cyl_${o.seg || 12}_${(_a5 = o.rt) != null ? _a5 : 1}`, u, (y0 + y1) / 2, v, 2 * rad, y1 - y0, 2 * rad, 0, 0, 0, col2, o.k || 1, uvOf(m, o));
+      emit(c, m, `cyl_${o.seg || 12}_${(_a6 = o.rt) != null ? _a6 : 1}`, u, (y0 + y1) / 2, v, 2 * rad, y1 - y0, 2 * rad, 0, 0, 0, col2, o.k || 1, uvOf(m, o));
     };
     c.Ch = (u0, u1, v, y, rad, mn, col2 = "#ffffff", o = {}) => {
-      var _a5;
+      var _a6;
       const m = M(mn);
-      emit(c, m, `cyl_${o.seg || 10}_${(_a5 = o.rt) != null ? _a5 : 1}`, (u0 + u1) / 2, y, v, 2 * rad, Math.abs(u1 - u0), 2 * rad, 0, 0, Math.PI / 2, col2, o.k || 1, uvOf(m, o));
+      emit(c, m, `cyl_${o.seg || 10}_${(_a6 = o.rt) != null ? _a6 : 1}`, (u0 + u1) / 2, y, v, 2 * rad, Math.abs(u1 - u0), 2 * rad, 0, 0, Math.PI / 2, col2, o.k || 1, uvOf(m, o));
     };
     c.Cv = (u, v0, v1, y, rad, mn, col2 = "#ffffff", o = {}) => {
-      var _a5;
+      var _a6;
       const m = M(mn);
-      emit(c, m, `cyl_${o.seg || 10}_${(_a5 = o.rt) != null ? _a5 : 1}`, u, y, (v0 + v1) / 2, 2 * rad, Math.abs(v1 - v0), 2 * rad, Math.PI / 2, 0, 0, col2, o.k || 1, uvOf(m, o));
+      emit(c, m, `cyl_${o.seg || 10}_${(_a6 = o.rt) != null ? _a6 : 1}`, u, y, (v0 + v1) / 2, 2 * rad, Math.abs(v1 - v0), 2 * rad, Math.PI / 2, 0, 0, col2, o.k || 1, uvOf(m, o));
     };
     c.Sp = (u, y, v, ru, ry, rv, mn, col2 = "#ffffff", o = {}) => {
       const m = M(mn);
@@ -28893,6 +29435,77 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     }
   });
 
+  // js/leczenie.js
+  function canHeal() {
+    return !P.dead && !P.fin && !P.atk && !P.lunge && P.state === "ground" && P.dodgeT <= 0 && P.hurtT <= 0 && P.hp < maxHp() && P.focus > 0.02 && G.state === "play";
+  }
+  function updateHeal(dt, I) {
+    if (!(I && I.healHeld && canHeal())) {
+      if (P.healing) {
+        P.healing = false;
+        sfx("ui", 0.5);
+      }
+      return;
+    }
+    const mh = maxHp(), use = Math.min(P.focus, DRAIN * dt, (mh - P.hp) / (mh * HEAL_PER_FOCUS));
+    if (!P.healing) {
+      P.healing = true;
+      sndT = 0;
+      fxT = 0;
+      sfx("pickup", 0.35);
+    }
+    P.focus -= use;
+    P.hp = Math.min(mh, P.hp + use * HEAL_PER_FOCUS * mh);
+    P.regenT = Math.max(P.regenT, 0.5);
+    P.healT = (P.healT || 0) + dt;
+    fxT -= dt;
+    sndT -= dt;
+    if (fxT <= 0) {
+      fxT = 0.045;
+      const { sp: sp2 } = fxPools();
+      for (let i = 0; i < 3; i++) {
+        const a = Math.random() * 6.283, r = rnd(0.25, 0.7);
+        sp2.e(P.pos.x + Math.cos(a) * r, P.pos.y + rnd(0.1, 1.5), P.pos.z + Math.sin(a) * r, 0, rnd(1.2, 2.6), 0, rnd(0.5, 0.9), GREEN2, 0.14, -0.6, 1.5, 0);
+      }
+    }
+    if (sndT <= 0) {
+      sndT = 0.5;
+      sfx("ring", 0.18);
+      burst(P.pos.x, P.pos.y + 0.9, P.pos.z, 3, 3800938, 1.2);
+    }
+  }
+  function healPose(t) {
+    const k = 0.5 + 0.5 * Math.sin((P.healT || 0) * 6);
+    t.by = -0.28;
+    t.hLx = -0.9;
+    t.kL = 1.5;
+    t.hRx = -0.7;
+    t.kR = 1.3;
+    t.bp = 0.45 + 0.05 * k;
+    t.hx = 0.35;
+    t.sLx = -1;
+    t.sRx = -1;
+    t.eL = -1.7;
+    t.eR = -1.7;
+    t.sLz = 0.35;
+    t.sRz = -0.35;
+  }
+  var HEAL_PER_FOCUS, DRAIN, GREEN2, fxT, sndT;
+  var init_leczenie = __esm({
+    "js/leczenie.js"() {
+      init_util();
+      init_stan();
+      init_umiejetnosci();
+      init_dzwiek();
+      init_efekty();
+      HEAL_PER_FOCUS = 0.35;
+      DRAIN = 0.55;
+      GREEN2 = [0.12, 1, 0.38];
+      fxT = 0;
+      sndT = 0;
+    }
+  });
+
   // js/gracz.js
   function mkLine(mat) {
     const m = new THREE.Mesh(webGeo, mat || webLineMat);
@@ -29097,20 +29710,26 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     P.doorNear = null;
     P.exitNear = false;
     P.perchPt = P.state !== "car" && P.state !== "pz" && !P.finReady && !P.doorNear && !P.colaNear && !G.interior ? findPerch() : null;
-    if (I.specialP) {
+    P.counterT -= dt;
+    updateThrow(dt, I);
+    updateHeal(dt, I);
+    if (I.specialP || I.finisherP) {
+      const heavyFoe = nearestEnemy(6);
       if (P.doorNear) enterDoor(P.doorNear);
       else if (P.exitNear && !P.finReady) leaveInterior();
       else if (P.colaNear && !P.finReady) takeCola();
-      else if (P.finReady) startFinisher(foe);
-      else if (P.perchPt) startPerchZip(P.perchPt);
+      else if (P.finReady && I.finisherP) startFinisher(foe);
+      else if (heavyFoe && I.specialP && !I.finisherP) startHeavy(wx, wz, wl);
+      else if (P.perchPt && I.specialP) startPerchZip(P.perchPt);
     }
+    if (I.heavyP) startHeavy(wx, wz, wl);
     if (I.dodgeP) startDodge(wx, wz, wl);
     if (I.punch) P.punchHold += dt;
     else {
       P.punchHold = 0;
       P.upDone = false;
     }
-    if (P.punchHold > 0.32 && !P.upDone && P.state === "ground") tryUppercut();
+    if (I.launcher && !P.upDone && P.state === "ground") tryUppercut();
     if (I.punchP || P.bufPunch > 0 && P.atkCD <= 0) startPunch(wx, wz, wl);
     if (I.webP && P.webCD <= 0 && P.state !== "pz") {
       P.webCD = 0.2;
@@ -29133,7 +29752,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     if (P.atk && !P.lunge) {
       const a = P.atk;
       a.t += dt;
-      if (!a.hit && a.t >= a.dur * 0.42) {
+      if (!a.hit && a.t >= a.dur * (a.hitAt || 0.42)) {
         a.hit = true;
         landHit(a);
       }
@@ -29218,6 +29837,9 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       } else if (P.atk) {
         tx *= 0.1;
         tz *= 0.1;
+      } else if (P.healing || P.holdThrow) {
+        tx *= 0.3;
+        tz *= 0.3;
       } else if (P.landT > 0 && P.landHard) {
         tx = 0;
         tz = 0;
@@ -29239,7 +29861,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     }
     if (P.state === "air") {
       P.airT += h;
-      P.vel.y -= GRAV * h;
+      P.vel.y -= GRAV2 * h;
       if (P.atk && P.vel.y < -1.5) P.vel.y = -1.5;
       if (P.dodgeT > 0) {
         P.vel.x = P.dodgeDir.x * 14;
@@ -29383,6 +30005,13 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     sfx("land", 0.2);
   }
   function doJump(wx, wz, wl) {
+    if (P.state === "air" && !P.atk) {
+      const ae = airEnemy(6);
+      if (ae) {
+        airKick(ae);
+        return;
+      }
+    }
     if (P.state === "car") {
       carLeave();
       P.state = "air";
@@ -29486,11 +30115,92 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     const e = nearestEnemy(2.8);
     if (!e || e.type === "boss") return;
     P.upDone = true;
-    P.atk = { type: 4, t: 0, dur: 0.38, target: e, hit: false };
+    P.healing = false;
+    P.atk = { type: 4, t: 0, dur: 0.38, target: e, hit: false, launcher: true };
     P.atkCD = 0.4;
     P.heading = Math.atan2(e.pos.x - P.pos.x, e.pos.z - P.pos.z);
   }
+  function startHeavy(wx, wz, wl) {
+    if (P.atkCD > 0 || P.dodgeT > 0 || P.state === "wall" || P.state === "pz" || P.state === "car" || P.state === "swing") return;
+    P.healing = false;
+    let best = null, bs = 1e9;
+    for (const e of enemies) {
+      if (e.dead || e.gone) continue;
+      _t3.subVectors(e.pos, P.pos);
+      const d = _t3.length();
+      if (d > 7 + (e.scale || 1)) continue;
+      let sc = d;
+      if (wl > 0.2) sc -= (_t3.x * wx + _t3.z * wz) / (d || 1) * 2;
+      if (sc < bs) {
+        bs = sc;
+        best = e;
+      }
+    }
+    if (P.counterT > 0) {
+      counterStrike();
+      return;
+    }
+    P.atk = { type: 5, t: 0, dur: 0.62, target: best, hit: false, hitAt: 0.58, heavy: true };
+    P.atkCD = 0.7;
+    P.bufPunch = 0;
+    if (best) {
+      P.heading = Math.atan2(best.pos.x - P.pos.x, best.pos.z - P.pos.z);
+      if (P.pos.distanceTo(best.pos) > 2 * (best.scale || 1)) {
+        P.lunge = { e: best, t: 0 };
+      }
+    }
+    sfx("whoosh", 0.6);
+  }
+  function counterStrike() {
+    const e = P.counterE;
+    P.counterT = 0;
+    P.counterE = null;
+    if (!e || e.dead || e.gone) return;
+    _t3.subVectors(e.pos, P.pos);
+    _t3.y = 0;
+    const d = _t3.length() || 1;
+    _t3.divideScalar(d);
+    const sd = 1.3 * (e.scale || 1);
+    if (d > sd) {
+      P.pos.x = e.pos.x - _t3.x * sd;
+      P.pos.z = e.pos.z - _t3.z * sd;
+      P.pos.y = Math.max(P.pos.y, supportAt(P.pos.x, P.pos.z, e.pos.y + 0.6));
+    }
+    P.heading = Math.atan2(_t3.x, _t3.z);
+    P.dodgeT = 0;
+    P.invT = Math.max(P.invT, 0.5);
+    P.vel.set(0, 0, 0);
+    P.atk = { type: 5, t: 0, dur: 0.34, target: e, hit: false, hitAt: 0.3, heavy: true, counter: true };
+    P.atkCD = 0.35;
+    G.slowT = 0.25;
+    popText("KONTRA!");
+    addFocus(0.25);
+    sfx("fin", 0.5);
+  }
+  function airEnemy(r) {
+    let best = null, bd = r;
+    for (const e of enemies) {
+      if (e.dead || e.gone || !e.air) continue;
+      const d = e.pos.distanceTo(P.pos);
+      if (d < bd) {
+        bd = d;
+        best = e;
+      }
+    }
+    return best;
+  }
+  function airKick(e) {
+    P.heading = Math.atan2(e.pos.x - P.pos.x, e.pos.z - P.pos.z);
+    P.atk = { type: 2, t: 0, dur: 0.34, target: e, hit: false, hitAt: 0.4, kick: true };
+    P.atkCD = 0.4;
+    if (P.pos.distanceTo(e.pos) > 1.6 * (e.scale || 1)) P.lunge = { e, t: 0 };
+    sfx("whoosh", 0.5);
+  }
   function startPunch(wx, wz, wl) {
+    if (P.counterT > 0 && P.state !== "car") {
+      counterStrike();
+      return;
+    }
     if (P.state === "car") {
       carPunch();
       P.atk = { type: P.step++ % 2, t: 0, dur: 0.25, target: null, hit: true };
@@ -29544,12 +30254,12 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
   function landHit(a) {
     const e = a.target;
     if (!e || e.dead) return;
-    if (P.pos.distanceTo(e.pos) > 2.6 * (e.scale || 1)) return;
+    if (P.pos.distanceTo(e.pos) > (a.heavy ? 3.2 : 2.6) * (e.scale || 1)) return;
     _t3.subVectors(e.pos, P.pos);
     _t3.y = 0;
     _t3.normalize();
-    const fin2 = a.type === 3, up = a.type === 4;
-    const r = hitEnemy(e, fin2 ? 2 : 1, _t3.x * (fin2 ? 14 : 3), up ? 13 : fin2 ? 7 : 0, _t3.z * (fin2 ? 14 : 3), up ? "up" : fin2, P.state !== "ground");
+    const fin2 = a.type === 3, up = a.type === 4, hv = !!a.heavy;
+    const r = hitEnemy(e, hv ? 3.2 : a.kick ? 1.6 : fin2 ? 2 : 1, _t3.x * (hv ? 20 : fin2 ? 14 : 3), up ? 13 : hv ? 8 : fin2 ? 7 : 0, _t3.z * (hv ? 20 : fin2 ? 14 : 3), up ? "up" : fin2 || hv, P.state !== "ground" || hv);
     if (r === "block") {
       P.vel.x -= _t3.x * 5;
       P.vel.z -= _t3.z * 5;
@@ -29561,6 +30271,29 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     addFocus(0.12);
     if (up) {
       P.vel.y = 0;
+    }
+    if (a.launcher && r !== "block") {
+      P.state = "air";
+      P.airT = 0.1;
+      P.vel.set(_t3.x * 1.5, 15, _t3.z * 1.5);
+      P.atk = null;
+      P.lunge = null;
+      P.swingCD = 0.4;
+      P.flipT = -1;
+      G.slowT = Math.max(G.slowT || 0, 0.35);
+      popText("PODBICIE!");
+      sfx("whoosh", 0.7);
+    }
+    if (a.kick && r !== "block" && e.air) {
+      e.airHold = 0;
+      e.vel.set(_t3.x * 5, -22, _t3.z * 5);
+      e.spin = rnd(-8, 8);
+      popText("KOPNIAK!");
+    }
+    if (a.heavy && r !== "block") {
+      G.shake = Math.max(G.shake, 0.4);
+      burst(e.pos.x, e.pos.y + 1.2, e.pos.z, 16, 16773824, 6);
+      sfx("hit_body", 0.9);
     }
   }
   function startFinisher(e) {
@@ -29646,6 +30379,10 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
         addFocus(0.3);
         popText("IDEALNY UNIK!");
         say("dodge");
+        if (e.pos.distanceTo(P.pos) < 16) {
+          P.counterT = 1.1;
+          P.counterE = e;
+        }
         return;
       }
     sfx("whoosh");
@@ -29734,6 +30471,8 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
   }
   function hurtPlayer(dmg, from, knock = 6) {
     if (P.invT > 0 || P.dead || P.dodgeT > 0 || P.fin || G.state !== "play") return false;
+    P.healing = false;
+    P.holdThrow = false;
     P.hp -= dmg;
     P.invT = 0.6;
     P.hurtT = 0.3;
@@ -29962,6 +30701,8 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       t.hRz = -0.12;
       t.bp = 0.25;
     } else if (P.flipT >= 0 || P.dodgeT > 0 || P.trickT > 0 && P.trickType < 2) tuckPose(t);
+    if (P.healing) healPose(t);
+    throwPose(t);
     if (P.atk) attackPose(t, P.atk);
     if (P.lunge) {
       t.sRx = -1.4;
@@ -30078,6 +30819,22 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
         t.kL = 0.5;
         t.hLx = -0.4;
         break;
+      case 5: {
+        const w = clamp(a.t / a.dur, 0, 1), wind2 = w < 0.55 ? w / 0.55 : 1, hit2 = w < 0.55 ? 0 : Math.sin(clamp((w - 0.55) / 0.45, 0, 1) * Math.PI);
+        t.sRx = lerp(0.9, -1.75, w < 0.55 ? 0 : clamp((w - 0.55) / 0.2, 0, 1));
+        t.sRz = -0.3 * wind2;
+        t.eR = lerp(-2.2, -0.05, w < 0.55 ? 0 : clamp((w - 0.55) / 0.2, 0, 1));
+        t.sLx = -0.9;
+        t.eL = -1.8;
+        t.spy = lerp(0.6, -0.7, w < 0.55 ? 0 : clamp((w - 0.55) / 0.25, 0, 1));
+        t.bp = 0.2 + 0.2 * hit2 - 0.25 * (1 - wind2);
+        t.by = -0.14 * wind2;
+        t.hLx = -0.9 * wind2;
+        t.kL = 0.9 * wind2;
+        t.hRx = 0.5;
+        t.kR = 0.5;
+        break;
+      }
       case 4:
         t.sRx = lerp(0.4, -2.9, k);
         t.eR = lerp(-2, -0.1, k);
@@ -30090,16 +30847,16 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     }
   }
   function updatePlayerVisual(dt) {
-    var _a5, _b4;
+    var _a6, _b5;
     const H3 = P.H;
     H3.root.position.copy(P.pos);
     const hs = Math.hypot(P.vel.x, P.vel.z);
-    let dh = P.heading - ((_a5 = P.prevH) != null ? _a5 : P.heading);
+    let dh = P.heading - ((_a6 = P.prevH) != null ? _a6 : P.heading);
     dh = Math.atan2(Math.sin(dh), Math.cos(dh));
     P.prevH = P.heading;
     if (dt > 0) {
       P.turn = lerp(P.turn || 0, clamp(dh / dt, -12, 12), damp(9, dt));
-      P.brake = lerp(P.brake || 0, Math.max(0, (((_b4 = P.hsPrev) != null ? _b4 : hs) - hs) / dt), damp(10, dt));
+      P.brake = lerp(P.brake || 0, Math.max(0, (((_b5 = P.hsPrev) != null ? _b5 : hs) - hs) / dt), damp(10, dt));
       P.hsPrev = hs;
       if (P.lvT > 0) P.lvT = Math.max(0, P.lvT - dt);
     }
@@ -30185,7 +30942,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     }
     H3.root.visible = !(P.hurtT > 0 && Math.floor(P.hurtT * 30) % 2 === 0);
   }
-  var GRAV, _t3, _h2, _f3, _u2, _q5, _cf2, GROUND, _lp, webGeo, webLineMat, lineMain, lineZ1, lineZ2, _cl, _res, smooth01;
+  var GRAV2, _t3, _h2, _f3, _u2, _q5, _cf2, GROUND, _lp, webGeo, webLineMat, lineMain, lineZ1, lineZ2, _cl, _res, smooth01;
   var init_gracz = __esm({
     "js/gracz.js"() {
       init_util();
@@ -30202,7 +30959,9 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       init_wejscie();
       init_ui();
       init_efekty();
-      GRAV = 27;
+      init_rzucanie();
+      init_leczenie();
+      GRAV2 = 27;
       _t3 = new V3();
       _h2 = new V3();
       _f3 = new V3();
@@ -30355,8 +31114,8 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     zglosBlad(e);
     throw e;
   }
-  var _a4;
-  (_a4 = document.getElementById("ladowanie")) == null ? void 0 : _a4.remove();
+  var _a5;
+  (_a5 = document.getElementById("ladowanie")) == null ? void 0 : _a5.remove();
   setMusic(save.music);
   var composer = null;
   var bloom = null;
@@ -30501,8 +31260,8 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     dispatchEvent(new Event("glos-settings"));
   };
   hooks.voiceVol = (d = 1, wrap = false) => {
-    var _a5;
-    let n = Math.round(((_a5 = save.voiceVol) != null ? _a5 : 0.9) * 10) + d;
+    var _a6;
+    let n = Math.round(((_a6 = save.voiceVol) != null ? _a6 : 0.9) * 10) + d;
     if (n > 10) n = wrap ? 0 : 10;
     if (n < 0) n = wrap ? 10 : 0;
     save.voiceVol = n / 10;
@@ -30519,7 +31278,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     if (composer) composer.setSize(innerWidth, innerHeight);
   });
   var _f4 = new V3();
-  var _b3 = new V3();
+  var _b4 = new V3();
   var _v3 = new V3();
   var _r = new V3();
   function camLook(dt, I) {
@@ -30542,11 +31301,11 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     cam.dist = lerp(cam.dist, want, damp(3, dt));
     const cp = Math.cos(cam.pitch);
     _f4.set(-Math.sin(cam.yaw) * cp, Math.sin(cam.pitch), -Math.cos(cam.yaw) * cp);
-    _b3.copy(_f4).negate();
+    _b4.copy(_f4).negate();
     let d = cam.dist;
-    const t = raycastCity(cam.tgt, _b3, d + 0.3);
+    const t = raycastCity(cam.tgt, _b4, d + 0.3);
     if (t < d + 0.3) d = Math.max(0.8, t - 0.4);
-    camera.position.copy(cam.tgt).addScaledVector(_b3, d);
+    camera.position.copy(cam.tgt).addScaledVector(_b4, d);
     if (camera.position.y < 0.4) camera.position.y = 0.4;
     if (cam.kick > 1e-3) {
       camera.position.y -= cam.kick * 0.5;
@@ -30611,9 +31370,9 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     }
   }
   var last2 = performance.now();
-  function step3(now3) {
-    const rdt = Math.min(0.05, Math.max(0, (now3 - last2) / 1e3));
-    last2 = now3;
+  function step3(now4) {
+    const rdt = Math.min(0.05, Math.max(0, (now4 - last2) / 1e3));
+    last2 = now4;
     pollPads();
     let dt = rdt;
     if (G.slowT > 0) {
@@ -30688,11 +31447,11 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     endFrame();
   }
   var zepsute = false;
-  function loop(now3) {
+  function loop(now4) {
     requestAnimationFrame(loop);
     if (zepsute) return;
     try {
-      step3(now3);
+      step3(now4);
     } catch (e) {
       zepsute = true;
       zglosBlad(e);

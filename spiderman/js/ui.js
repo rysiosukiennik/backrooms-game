@@ -5,6 +5,7 @@ import { weatherName } from './pogoda.js';
 import { LAND, PK, POND, DIST, districtAt, footprints, TOD_NAMES, ARENA, sunDir, raycastCity } from './miasto.js';
 import { SUITS, suitThumb, buildSpider, newPose, applyPose } from './postac.js';
 import { setSuit } from './gracz.js';
+import { throwState } from './rzucanie.js';
 import { need, bags, BAGS_N, webTarget } from './wrogowie.js';
 import { missionList, fmtTime } from './misje.js';
 import { ROOMS } from './wnetrza.js';
@@ -194,9 +195,9 @@ const HTML = `
 
 // ---------------------------------------------------------------- przyciski
 const GLY = {
-  xbox: { jump: 'A', dodge: 'B', punch: 'X', web: 'RB', swing: 'RT', special: 'Y', map: 'VIEW', pause: 'MENU', ok: 'A', back: 'B', y: 'Y', lb: 'LB', rb: 'RB', lt: 'LT', rt: 'RT' },
-  ps: { jump: '✕', dodge: '○', punch: '□', web: 'R1', swing: 'R2', special: '△', map: 'SHARE', pause: 'OPTIONS', ok: '✕', back: '○', y: '△', lb: 'L1', rb: 'R1', lt: 'L2', rt: 'R2' },
-  kb: { jump: 'SPACJA', dodge: 'C', punch: 'LPM', web: 'PPM', swing: 'SHIFT', special: 'E', map: 'M', pause: 'ESC', ok: 'ENTER', back: 'ESC', y: 'X', lb: 'Q', rb: 'E', lt: '−', rt: '+' },
+  xbox: { heavy: 'Y', throw: 'LB + RB', heal: 'D-PAD ↓', fin: 'X + Y', power: 'LS + RS', jump: 'A', dodge: 'B', punch: 'X', web: 'RB', swing: 'LT', special: 'Y', map: 'VIEW', pause: 'MENU', ok: 'A', back: 'B', y: 'Y', lb: 'LB', rb: 'RB', lt: 'LT', rt: 'RT' },
+  ps: { heavy: '△', throw: 'L1 + R1', heal: 'D-PAD ↓', fin: '□ + △', power: 'L3 + R3', jump: '✕', dodge: '○', punch: '□', web: 'R1', swing: 'L2', special: '△', map: 'SHARE', pause: 'OPTIONS', ok: '✕', back: '○', y: '△', lb: 'L1', rb: 'R1', lt: 'L2', rt: 'R2' },
+  kb: { heavy: 'G', throw: 'T', heal: 'H', fin: 'E', power: 'V', jump: 'SPACJA', dodge: 'C', punch: 'LPM', web: 'PPM', swing: 'SHIFT', special: 'E', map: 'M', pause: 'ESC', ok: 'ENTER', back: 'ESC', y: 'X', lb: 'Q', rb: 'E', lt: '−', rt: '+' },
 };
 const kk = t => `<span class="key">${t}</span>`;
 export function key(a, dev) {
@@ -361,14 +362,17 @@ export function updateHUD(dt) {
     if (P.colaNear) arr.push(['special', '<b style="color:#ff4a4a">Weź colę z lodówki</b>']);
     if (P.doorNear) arr.push(['special', `<b style="color:#ffc93c">Wejdź: ${P.doorNear.name}</b>`]);
     else if (P.exitNear) arr.push(['special', '<b style="color:#39ff6a">Wyjdź</b>']);
-    if (P.finReady) arr.push(['special', '<b style="color:#3fe3ff">WYKOŃCZENIE</b>']);
+    if (P.finReady) arr.push(['fin', '<b style="color:#3fe3ff">WYKOŃCZENIE</b>']);
     if (P.state === 'car') arr.push(['punch', 'Bij w dach'], ['jump', 'Zeskocz']);
     else if (P.state === 'ground') { if (P.perchT > 0) arr.push(['jump', '<b style="color:#3fe3ff">WYBICIE</b>']); arr.push(['swing', 'Parkour (przytrzymaj)'], ['jump', 'Skok']); }
     else if (P.state === 'air') { arr.push(['swing', 'Bujanie (przytrzymaj)']); if (P.zips > 0) arr.push(['jump', 'Zip siecią']); if (!near) arr.push(['punch', 'Trik']); }
     else if (P.state === 'swing') arr.push(['jump', 'Skok z sieci']);
     else if (P.state === 'wall') arr.push(['jump', 'Odbicie od ściany'], ['swing', 'Bieg po ścianie']);
     else if (P.state === 'pz') arr.push(['jump', 'Wybicie z zaczepu']);
-    if (near && P.state !== 'car') arr.push(['punch', 'Cios (przytrzymaj = wybicie)'], ['web', 'Strzał siecią'], ['dodge', 'Unik']);
+    if (near && P.state !== 'car') arr.push(['punch', 'Cios (przytrzymaj = podbicie)'], ['heavy', 'Mocny cios'], ['web', 'Strzał siecią'], ['dodge', 'Unik / kontra']);
+    if (throwState.holding) arr.push(['web', '<b style="color:#3fe3ff">RZUĆ</b>']);
+    else if (throwState.near && P.state !== 'car') arr.push(['throw', 'Przyciągnij i rzuć']);
+    if (P.focus >= 0.1 && P.hp < maxHp() * 0.85 && P.state === 'ground') arr.push(['heal', 'Lecz się (przytrzymaj)']);
     arr.push(['map', 'Mapa']);
     const h = arr.map(([a, t]) => `<div>${t}${key(a)}</div>`).join('');
     if (h !== lastPrompt) { lastPrompt = h; $('prompts').innerHTML = h; }
@@ -751,15 +755,21 @@ function renderMoves() {
     ['Bujanie na sieci — przytrzymaj w powietrzu', key('swing', ps), kk('SHIFT')],
     ['Bieg parkour — przytrzymaj na ziemi', key('swing', ps), kk('SHIFT')],
     ['Bieg po ścianie — wbiegnij w ścianę trzymając', key('swing', ps), kk('SHIFT')],
-    ['Zaczep — lot na krawędź dachu (celuj kamerą w kółko)', key('special', ps), kk('E')],
+    ['Zaczep — lot na krawędź dachu (celuj kamerą w kółko; gdy wróg blisko, ten przycisk to mocny cios)', key('special', ps), kk('E')],
     ['Wybicie z zaczepu — skok w chwili dolotu', key('jump', ps), kk('SPACJA')],
     ['Skok z sieci / odbicie od ściany / zip w powietrzu', key('jump', ps), kk('SPACJA')],
-    ['Cios — naciskaj szybko, 4. cios to kopnięcie z obrotu', key('punch', ps), kk('LPM') + kk('F')],
-    ['Wybicie bandyty w górę — przytrzymaj cios, potem skocz i bij w powietrzu', key('punch', ps), kk('LPM') + kk('F')],
+    ['Szybki cios — naciskaj szybko, 4. cios to kopnięcie z obrotu', key('punch', ps), kk('LPM') + kk('F')],
+    ['Mocny cios — wolniejszy, większy odrzut i obrażenia, przebija blok', key('heavy', ps), kk('G') + kk('ŚPM')],
+    ['Podbicie wroga w powietrze (launcher) — przytrzymaj szybki cios; skoczysz za nim i bijesz dalej w powietrzu', key('punch', ps), kk('LPM') + kk('F')],
+    ['Kopniak w powietrzu — gdy wróg jest podbity, w locie', key('jump', ps), kk('SPACJA')],
     ['Trik w powietrzu (gdy nikogo nie ma obok)', key('punch', ps), kk('LPM') + kk('F')],
-    ['Wykończenie — gdy pasek skupienia jest pełny', key('special', ps), kk('E')],
+    ['Unik — dobrze wyczuty tuż przed ciosem daje IDEALNY UNIK i okno kontry', key('dodge', ps), kk('C') + kk('CTRL')],
+    ['Kontra — cios (kwadrat lub trójkąt) tuż po idealnym uniku: błyskawiczny kontratak', key('punch', ps) + key('heavy', ps), kk('F') + kk('G')],
+    ['Wykończenie — oba przyciski naraz, gdy pasek skupienia jest pełny', key('fin', ps), kk('E')],
     ['Strzał siecią — zawija bandytów, ogłusza osiłki i Nosorożca', key('web', ps), kk('PPM') + kk('R')],
-    ['Unik — gdy nad głową błyśnie zmysł pająka', key('dodge', ps), kk('C') + kk('CTRL')],
+    ['Rzucanie — przyciągnij pobliski przedmiot (skrzynia, beczka, kosz, drzwi, opona), potem rzuć (R1 / T / cios)', key('throw', ps), kk('T')],
+    ['Leczenie — przytrzymaj, zużywa pasek skupienia (+35% zdrowia na pasek)', key('heal', ps), kk('H')],
+    ['Moc stroju — każdy strój ma swoją', key('power', ps), kk('V')],
     ['Mapa', key('map', ps), kk('M') + kk('TAB')],
     ['Pauza', key('pause', ps), kk('ESC')],
   ];

@@ -1,6 +1,6 @@
 // Spider-Man: ruch (bieg, skok, bujanie, bieg po scianach, zip, zaczep), walka (kombo, wybicie,
 // kombo w powietrzu, wykonczenia, uniki), triki i animacja.
-import { V3, UP, clamp, lerp, damp, angLerp, save, doSave } from './util.js';
+import { V3, UP, clamp, lerp, damp, angLerp, rnd, save, doSave } from './util.js';
 import { G, P, cam, scene, camera, enemies } from './stan.js';
 import { supportAt, boxesNear, raycastCity, LAND, START, START_H, roofs, perches, nearestDoor } from './miasto.js';
 import { enterDoor, leaveInterior, nearExit, takeCola } from './wnetrza.js';
@@ -14,6 +14,8 @@ import { say, sayCtx } from './docinki.js';
 import { rumble } from './wejscie.js';
 import { showMsg, flashDamage, popText } from './ui.js';
 import { getRope, heroLand, anchorFX } from './efekty.js';
+import { updateThrow, throwPose } from './rzucanie.js';
+import { updateHeal, healPose } from './leczenie.js';
 
 const GRAV = 27;
 const _t = new V3(), _h = new V3(), _f = new V3(), _u = new V3(), _q = new THREE.Quaternion(), _cf = new V3();
@@ -134,16 +136,22 @@ export function updatePlayer(dt, I) {
   P.doorNear = null; P.exitNear = false; // pokoje sa prawdziwe — wchodzi sie normalnie przez drzwi
   P.perchPt = (P.state !== 'car' && P.state !== 'pz' && !P.finReady && !P.doorNear && !P.colaNear && !G.interior) ? findPerch() : null;
 
-  if (I.specialP) {
+  P.counterT -= dt;
+  updateThrow(dt, I); // rzucanie (L1+R1): moze zuzyc I.webP / I.punchP, gdy przedmiot jest uniesiony
+  updateHeal(dt, I);  // leczenie (przytrzymanie D-pad w dol / H)
+  if (I.specialP || I.finisherP) {
+    const heavyFoe = nearestEnemy(6);
     if (P.doorNear) enterDoor(P.doorNear);
     else if (P.exitNear && !P.finReady) leaveInterior();
     else if (P.colaNear && !P.finReady) takeCola();
-    else if (P.finReady) startFinisher(foe);
-    else if (P.perchPt) startPerchZip(P.perchPt);
+    else if (P.finReady && I.finisherP) startFinisher(foe);
+    else if (heavyFoe && I.specialP && !I.finisherP) startHeavy(wx, wz, wl); // trojkat przy wrogu = mocny cios
+    else if (P.perchPt && I.specialP) startPerchZip(P.perchPt);
   }
+  if (I.heavyP) startHeavy(wx, wz, wl);
   if (I.dodgeP) startDodge(wx, wz, wl);
   if (I.punch) P.punchHold += dt; else { P.punchHold = 0; P.upDone = false; }
-  if (P.punchHold > 0.32 && !P.upDone && P.state === 'ground') tryUppercut();
+  if (I.launcher && !P.upDone && P.state === 'ground') tryUppercut();
   if (I.punchP || (P.bufPunch > 0 && P.atkCD <= 0)) startPunch(wx, wz, wl);
   if (I.webP && P.webCD <= 0 && P.state !== 'pz') { P.webCD = 0.2; shootWeb(); }
   if (I.jumpP) doJump(wx, wz, wl);
@@ -165,7 +173,7 @@ export function updatePlayer(dt, I) {
 
   if (P.atk && !P.lunge) {
     const a = P.atk; a.t += dt;
-    if (!a.hit && a.t >= a.dur * 0.42) { a.hit = true; landHit(a); }
+    if (!a.hit && a.t >= a.dur * (a.hitAt || 0.42)) { a.hit = true; landHit(a); }
     if (a.t >= a.dur) P.atk = null;
   }
 
@@ -218,6 +226,7 @@ function step(h, I, wx, wz, wl) {
     let tx = wx * spd, tz = wz * spd;
     if (P.dodgeT > 0) { tx = P.dodgeDir.x * 15; tz = P.dodgeDir.z * 15; }
     else if (P.atk) { tx *= 0.1; tz *= 0.1; }
+    else if (P.healing || P.holdThrow) { tx *= 0.3; tz *= 0.3; }
     else if (P.landT > 0 && P.landHard) { tx = 0; tz = 0; }
     const k = damp(wl > 0.1 ? 9 : 14, h);
     P.vel.x += (tx - P.vel.x) * k; P.vel.z += (tz - P.vel.z) * k; P.vel.y = 0;
@@ -314,6 +323,7 @@ function enterWall(b, n) {
 }
 
 function doJump(wx, wz, wl) {
+  if (P.state === 'air' && !P.atk) { const ae = airEnemy(6); if (ae) { airKick(ae); return; } } // krzyzyk przy podbitym wrogu = kopniak z powietrza
   if (P.state === 'car') { carLeave(); P.state = 'air'; P.airT = 0; P.vel.y += 11; P.car = null; P.flipT = 0; P.flipDur = 0.6; P.flipBack = true; return; }
   if (P.state === 'pz') { P.launchBuf = 0.5; return; }
   if (P.state === 'ground') {
@@ -358,10 +368,51 @@ function pointLaunch(dir) {
 function tryUppercut() {
   const e = nearestEnemy(2.8);
   if (!e || e.type === 'boss') return;
-  P.upDone = true; P.atk = { type: 4, t: 0, dur: 0.38, target: e, hit: false }; P.atkCD = 0.4;
+  P.upDone = true; P.healing = false; P.atk = { type: 4, t: 0, dur: 0.38, target: e, hit: false, launcher: true }; P.atkCD = 0.4;
   P.heading = Math.atan2(e.pos.x - P.pos.x, e.pos.z - P.pos.z);
 }
+function startHeavy(wx, wz, wl) {
+  if (P.atkCD > 0 || P.dodgeT > 0 || P.state === 'wall' || P.state === 'pz' || P.state === 'car' || P.state === 'swing') return;
+  P.healing = false;
+  let best = null, bs = 1e9;
+  for (const e of enemies) {
+    if (e.dead || e.gone) continue;
+    _t.subVectors(e.pos, P.pos); const d = _t.length(); if (d > 7 + (e.scale || 1)) continue;
+    let sc = d; if (wl > 0.2) sc -= ((_t.x * wx + _t.z * wz) / (d || 1)) * 2;
+    if (sc < bs) { bs = sc; best = e; }
+  }
+  if (P.counterT > 0) { counterStrike(); return; }
+  P.atk = { type: 5, t: 0, dur: 0.62, target: best, hit: false, hitAt: 0.58, heavy: true }; P.atkCD = 0.7; P.bufPunch = 0;
+  if (best) {
+    P.heading = Math.atan2(best.pos.x - P.pos.x, best.pos.z - P.pos.z);
+    if (P.pos.distanceTo(best.pos) > 2.0 * (best.scale || 1)) { P.lunge = { e: best, t: 0 }; }
+  }
+  sfx('whoosh', 0.6);
+}
+// kontra po idealnym uniku: blyskawiczny kontratak (przeskok do wroga i ostry cios)
+function counterStrike() {
+  const e = P.counterE; P.counterT = 0; P.counterE = null;
+  if (!e || e.dead || e.gone) return;
+  _t.subVectors(e.pos, P.pos); _t.y = 0; const d = _t.length() || 1; _t.divideScalar(d);
+  const sd = 1.3 * (e.scale || 1);
+  if (d > sd) { P.pos.x = e.pos.x - _t.x * sd; P.pos.z = e.pos.z - _t.z * sd; P.pos.y = Math.max(P.pos.y, supportAt(P.pos.x, P.pos.z, e.pos.y + 0.6)); }
+  P.heading = Math.atan2(_t.x, _t.z); P.dodgeT = 0; P.invT = Math.max(P.invT, 0.5); P.vel.set(0, 0, 0);
+  P.atk = { type: 5, t: 0, dur: 0.34, target: e, hit: false, hitAt: 0.3, heavy: true, counter: true }; P.atkCD = 0.35;
+  G.slowT = 0.25; popText('KONTRA!'); addFocus(0.25); sfx('fin', 0.5);
+}
+function airEnemy(r) {
+  let best = null, bd = r;
+  for (const e of enemies) { if (e.dead || e.gone || !e.air) continue; const d = e.pos.distanceTo(P.pos); if (d < bd) { bd = d; best = e; } }
+  return best;
+}
+function airKick(e) {
+  P.heading = Math.atan2(e.pos.x - P.pos.x, e.pos.z - P.pos.z);
+  P.atk = { type: 2, t: 0, dur: 0.34, target: e, hit: false, hitAt: 0.4, kick: true }; P.atkCD = 0.4;
+  if (P.pos.distanceTo(e.pos) > 1.6 * (e.scale || 1)) P.lunge = { e, t: 0 };
+  sfx('whoosh', 0.5);
+}
 function startPunch(wx, wz, wl) {
+  if (P.counterT > 0 && P.state !== 'car') { counterStrike(); return; }
   if (P.state === 'car') { carPunch(); P.atk = { type: P.step++ % 2, t: 0, dur: 0.25, target: null, hit: true }; return; }
   if (P.atkCD > 0 || P.state === 'wall' || P.state === 'pz' || P.dodgeT > 0) { P.bufPunch = 0.25; return; }
   P.bufPunch = 0;
@@ -389,13 +440,19 @@ function startTrick() {
 }
 function landHit(a) {
   const e = a.target; if (!e || e.dead) return;
-  if (P.pos.distanceTo(e.pos) > 2.6 * (e.scale || 1)) return;
+  if (P.pos.distanceTo(e.pos) > (a.heavy ? 3.2 : 2.6) * (e.scale || 1)) return;
   _t.subVectors(e.pos, P.pos); _t.y = 0; _t.normalize();
-  const fin = a.type === 3, up = a.type === 4;
-  const r = hitEnemy(e, fin ? 2 : 1, _t.x * (fin ? 14 : 3), up ? 13 : fin ? 7 : 0, _t.z * (fin ? 14 : 3), up ? 'up' : fin, P.state !== 'ground');
+  const fin = a.type === 3, up = a.type === 4, hv = !!a.heavy;
+  const r = hitEnemy(e, hv ? 3.2 : a.kick ? 1.6 : fin ? 2 : 1, _t.x * (hv ? 20 : fin ? 14 : 3), up ? 13 : hv ? 8 : fin ? 7 : 0, _t.z * (hv ? 20 : fin ? 14 : 3), up ? 'up' : (fin || hv), P.state !== 'ground' || hv);
   if (r === 'block') { P.vel.x -= _t.x * 5; P.vel.z -= _t.z * 5; P.combo = 0; return; }
   P.combo++; P.comboT = 2.5; addFocus(0.12);
   if (up) { P.vel.y = 0; }
+  if (a.launcher && r !== 'block') { // Spider-Man wyskakuje za podbitym wrogiem; chwila zwolnienia czasu na szczycie
+    P.state = 'air'; P.airT = 0.1; P.vel.set(_t.x * 1.5, 15, _t.z * 1.5); P.atk = null; P.lunge = null; P.swingCD = 0.4;
+    P.flipT = -1; G.slowT = Math.max(G.slowT || 0, 0.35); popText('PODBICIE!'); sfx('whoosh', 0.7);
+  }
+  if (a.kick && r !== 'block' && e.air) { e.airHold = 0; e.vel.set(_t.x * 5, -22, _t.z * 5); e.spin = rnd(-8, 8); popText('KOPNIAK!'); }
+  if (a.heavy && r !== 'block') { G.shake = Math.max(G.shake, 0.4); burst(e.pos.x, e.pos.y + 1.2, e.pos.z, 16, 0xfff2c0, 6); sfx('hit_body', 0.9); }
 }
 function startFinisher(e) {
   P.focus -= 1; if (P.state === 'swing') release(false);
@@ -427,7 +484,9 @@ function startDodge(wx, wz, wl) {
   P.dodgeT = 0.32; P.invT = Math.max(P.invT, 0.45); P.dodgeCD = 0.5; P.atk = null; P.lunge = null; if (!enemies.some(e => !e.dead && (e.state === 'windup' || e.state === 'aim'))) say('dodge');
   for (const e of enemies) // idealny unik — spowolnienie czasu
     if (!e.dead && (e.state === 'windup' || e.state === 'aim') && e.pos.distanceTo(P.pos) < (e.state === 'aim' ? 70 : 5 * (e.scale || 1))) {
-      G.slowT = has('sense') ? 1.2 : 0.6; addFocus(0.3); popText('IDEALNY UNIK!'); say('dodge'); return;
+      G.slowT = has('sense') ? 1.2 : 0.6; addFocus(0.3); popText('IDEALNY UNIK!'); say('dodge');
+      if (e.pos.distanceTo(P.pos) < 16) { P.counterT = 1.1; P.counterE = e; }
+      return;
     }
   sfx('whoosh');
   if (P.state === 'air') P.vel.y = Math.max(P.vel.y, 4);
@@ -478,7 +537,7 @@ function release(jump) {
 
 export function hurtPlayer(dmg, from, knock = 6) {
   if (P.invT > 0 || P.dead || P.dodgeT > 0 || P.fin || G.state !== 'play') return false;
-  P.hp -= dmg; P.invT = 0.6; P.hurtT = 0.3; P.regenT = 4; P.combo = 0; P.atk = null; P.lunge = null;
+  P.healing = false; P.holdThrow = false; P.hp -= dmg; P.invT = 0.6; P.hurtT = 0.3; P.regenT = 4; P.combo = 0; P.atk = null; P.lunge = null;
   flashDamage(); rumble(0.25, 0.7, 0.5); sfx('hurt'); if (P.hp <= 0) say('death', true); else sayCtx('hurt', { from }); G.shake = Math.max(G.shake, 0.25 + knock / 60);
   if (P.state === 'car') { carLeave(); P.state = 'air'; P.car = null; }
   if (from) {
@@ -556,6 +615,8 @@ function buildPose(t, dt, hs) {
   }
   if (P.flipT >= 0 && P.flipRoll && P.dodgeT <= 0) { t.sLz = 1.35; t.sRz = -1.35; t.sLx = 0.2; t.sRx = 0.2; t.eL = -0.2; t.eR = -0.2; t.hLx = 0.1; t.hRx = 0.25; t.kL = 0.5; t.kR = 0.2; t.hLz = 0.12; t.hRz = -0.12; t.bp = 0.25; }
   else if (P.flipT >= 0 || P.dodgeT > 0 || (P.trickT > 0 && P.trickType < 2)) tuckPose(t);
+  if (P.healing) healPose(t);
+  throwPose(t);
   if (P.atk) attackPose(t, P.atk);
   if (P.lunge) { t.sRx = -1.4; t.sLx = 0.6; t.bp = 0.35; t.hLx = -0.9; t.kL = 1.2; t.hRx = 0.4; t.kR = 0.6; }
   if (P.hurtT > 0) { t.bp -= 0.35; t.hx += 0.25; }
@@ -603,6 +664,12 @@ function attackPose(t, a) {
     case 1: t.sRx = lerp(-0.6, -1.65, k); t.eR = lerp(-1.8, -0.05, k); t.sRz = -0.1; t.sLx = -0.7; t.eL = -1.9; t.spy = 0.4 * k; t.hRx = -0.4; t.kR = 0.4; t.hLx = 0.35; t.kL = 0.3; t.by = -0.08; break;
     case 2: t.hRx = lerp(0, -1.7, k); t.kR = lerp(1, 0.05, k); t.bp = -0.3 * k; t.sLz = 0.8; t.sRz = -0.8; t.spy = 0.3 * k; t.kL = 0.25; break;
     case 3: t.hRz = -1.3 * k; t.hRx = -0.3; t.kR = 0.2; t.sLz = 1.2; t.sRz = -1.2; t.by = 0.15 * k; t.kL = 0.5; t.hLx = -0.4; break;
+    case 5: { // mocny cios: duzy zamach prawa reka z obrotem tulowia, wykrok
+      const w = clamp(a.t / a.dur, 0, 1), wind = w < 0.55 ? w / 0.55 : 1, hit = w < 0.55 ? 0 : Math.sin(clamp((w - 0.55) / 0.45, 0, 1) * Math.PI);
+      t.sRx = lerp(0.9, -1.75, w < 0.55 ? 0 : clamp((w - 0.55) / 0.2, 0, 1)); t.sRz = -0.3 * wind; t.eR = lerp(-2.2, -0.05, w < 0.55 ? 0 : clamp((w - 0.55) / 0.2, 0, 1));
+      t.sLx = -0.9; t.eL = -1.8; t.spy = lerp(0.6, -0.7, w < 0.55 ? 0 : clamp((w - 0.55) / 0.25, 0, 1)); t.bp = 0.2 + 0.2 * hit - 0.25 * (1 - wind); t.by = -0.14 * wind;
+      t.hLx = -0.9 * wind; t.kL = 0.9 * wind; t.hRx = 0.5; t.kR = 0.5; break;
+    }
     case 4: t.sRx = lerp(0.4, -2.9, k); t.eR = lerp(-2, -0.1, k); t.by = lerp(-0.35, 0.1, k); t.hLx = -0.8 * (1 - k); t.kL = 1.2 * (1 - k); t.bp = -0.2 * k; t.sLz = 0.6; break;
   }
 }
