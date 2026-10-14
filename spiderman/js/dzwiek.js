@@ -8,7 +8,7 @@ import { save, V3 } from './util.js';
 import { districtAt, inPark } from './miasto.js';
 
 let AC = null, OFFLINE = false;
-let master, comp, mix, roomLP, revSend, conv, revRet, musBus, musRevSend;
+let master, comp, mix, roomLP, revSend, conv, revRet, musBus, musRevSend, duckMix, duckMus;
 let nWhite, nPink, nBrown;
 const Ly = {}; // warstwy ciagle (petle szumu / oscylatory)
 
@@ -19,6 +19,9 @@ const live = () => AC && (OFFLINE || AC.state === 'running');
 export const audioOK = () => !!(AC && AC.state === 'running');
 
 // ---------------------------------------------------------------- budowa grafu
+// Dla glos.js: kontekst i wezly grafu (null przed initAudio) oraz stan otoczenia (0..1) do pogloszu glosu.
+export function audioGraph() { return AC && !OFFLINE ? { ac: AC, master, conv, duckMix, duckMus } : null; }
+export function audioEnv() { return { indoor: ind, canyon, street: streetF }; }
 export function initAudio() {
   if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
   let ctx;
@@ -78,11 +81,13 @@ function build(ctx, offline) {
   comp.threshold.value = -16; comp.knee.value = 14; comp.ratio.value = 5; comp.attack.value = 0.004; comp.release.value = 0.22;
   master.connect(comp).connect(AC.destination);
   roomLP = AC.createBiquadFilter(); roomLP.type = 'lowpass'; roomLP.frequency.value = 20000; roomLP.Q.value = 0.4; roomLP.connect(master);
-  mix = AC.createGain(); mix.connect(roomLP);
+  duckMix = AC.createGain(); duckMix.connect(roomLP); // duckMix/duckMus: sciszanie tla i muzyki na czas mowy (glos.js)
+  mix = AC.createGain(); mix.connect(duckMix);
   conv = AC.createConvolver(); conv.buffer = makeIR(offline ? 1.6 : 2.4);
   revSend = AC.createGain(); revSend.gain.value = 0.08; mix.connect(revSend).connect(conv);
   revRet = AC.createGain(); revRet.gain.value = 0.9; conv.connect(revRet).connect(roomLP);
-  musBus = AC.createGain(); musBus.gain.value = 0; musBus.connect(master);
+  duckMus = AC.createGain(); duckMus.connect(master);
+  musBus = AC.createGain(); musBus.gain.value = 0; musBus.connect(duckMus);
   musRevSend = AC.createGain(); musRevSend.gain.value = 0.22; musBus.connect(musRevSend).connect(conv);
 
   nWhite = makeNoise('white', 2); nPink = makeNoise('pink', 4); nBrown = makeNoise('brown', 4);

@@ -14,6 +14,7 @@ import { updateRooms } from './wnetrza.js';
 import { updateQuips, quipStart } from './docinki.js';
 import { updateWeather, cycleWeather } from './pogoda.js';
 import { makeFxPass, updateCameraFX } from './kamera_fx.js';
+import { initGlos, updateGlos } from './glos.js';
 
 try {
   buildCity();
@@ -60,7 +61,7 @@ const beacon = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 600, 16, 1, t
 beacon.visible = false; scene.add(beacon);
 
 hooks.start = mode => {
-  G.mode = mode; initAudio(); quipStart();
+  G.mode = mode; initAudio(); initGlos(); quipStart();
   showHUD(true); G.state = 'play';
   if (!G.started && save.pos && save.hasGame) { // kontynuacja: wracamy dokladnie tam, gdzie zapisano
     G.started = true; P.perch = false; P.pos.set(save.pos[0], save.pos[1] + 0.2, save.pos[2]); P.vel.set(0, 0, 0); P.state = 'air'; P.airT = 0.2; P.heading = save.hd || 0;
@@ -212,7 +213,7 @@ function step(now) {
   }
   else if (G.state === 'pause') { updatePause(rdt); setWind(0); }
 
-  updateQuips(rdt);
+  updateQuips(rdt); updateGlos(rdt);
   { // muzyka reaguje na to, co sie dzieje: boss > walka (wrogowie blisko) > spokoj
     musT -= rdt;
     if (musT <= 0) {
