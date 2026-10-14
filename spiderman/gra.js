@@ -13343,7 +13343,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     if (st === "swing" && prevState !== "swing") say("swing");
     prevState = st;
     const hs = Math.hypot(P.vel.x, P.vel.z);
-    if (st === "ground" && hs < 0.5 && !P.atk && !P.dead) {
+    if (st === "ground" && hs < 0.5 && !P.atk && !P.dead && !combat) {
       idleT += dt;
       if (idleT > (P.perchT > 0 ? 6 : 14)) {
         idleT = 0;

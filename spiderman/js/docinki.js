@@ -202,7 +202,7 @@ export function updateQuips(dt) {
   if (st === 'swing' && prevState !== 'swing') say('swing');
   prevState = st;
   const hs = Math.hypot(P.vel.x, P.vel.z);
-  if (st === 'ground' && hs < 0.5 && !P.atk && !P.dead) { idleT += dt; if (idleT > (P.perchT > 0 ? 6 : 14)) { idleT = 0; say(P.perchT > 0 ? 'perch' : 'idle', true); } } else idleT = 0;
+  if (st === 'ground' && hs < 0.5 && !P.atk && !P.dead && !combat) { idleT += dt; if (idleT > (P.perchT > 0 ? 6 : 14)) { idleT = 0; say(P.perchT > 0 ? 'perch' : 'idle', true); } } else idleT = 0;
   if (P.combo >= 6) { if (!comboSaid) { comboSaid = true; say('combo'); } } else if (P.combo < 2) comboSaid = false;
   if (!P.dead && P.hp <= 30) { if (!lowSaid) { lowSaid = true; say('lowhp'); } } else if (P.hp > 60) lowSaid = false;
 
