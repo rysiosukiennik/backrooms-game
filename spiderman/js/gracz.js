@@ -7,7 +7,7 @@ import { checkBounds } from './granica.js';
 import { enterDoor, leaveInterior, nearExit, takeCola } from './wnetrza.js';
 import { updateSpeech, speechPose, speechFace } from './mowa.js';
 import { buildSpider, newPose, zeroPose, blendPose, mixPose, applyPose, idlePose, runPose, crouchPose, tuckPose, heroLandPose, aimArm, basisQ, SUITS, suitById } from './postac.js';
-import { hitEnemy, shootWeb, burst, finishEnemy, addXP } from './wrogowie.js';
+import { hitEnemy, shootWeb, burst, finishEnemy, addXP, regenMul } from './wrogowie.js';
 import { carPunch, carLeave } from './misje.js';
 import { has, maxHp, swingMul, zipMax, perchRange } from './umiejetnosci.js';
 import { sfx } from './dzwiek.js';
@@ -116,7 +116,7 @@ export function updatePlayer(dt, I) {
   if (P.dodgeT > 0) P.dodgeT -= dt;
   if (P.flipT >= 0) { P.flipT += dt; if (P.flipT >= P.flipDur) { P.flipT = -1; P.pc.bp = 0; } }
   const mh = maxHp();
-  P.regenT -= dt; if (P.regenT <= 0 && P.hp < mh) P.hp = Math.min(mh, P.hp + (has('regen') ? 28 : 14) * dt);
+  P.regenT -= dt; if (P.regenT <= 0 && P.hp < mh) P.hp = Math.min(mh, P.hp + (has('regen') ? 28 : 14) * regenMul() * dt);
   if (P.dead) { P.deadT -= dt; if (P.deadT <= 0) respawn(); return; }
 
   // kierunek ruchu wzgledem kamery
