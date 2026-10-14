@@ -7,6 +7,7 @@ import { START_H } from './miasto.js';
 import { sfx } from './dzwiek.js';
 import { sayLine, lineInfo, lineMs, speakerName } from './rozmowy.js';
 import { glosStop } from './rozmowy_glos.js';
+import { sceneFisk5 } from './scenki_fisk.js';
 
 let talk = null, bars = null, sub = null, subT = null, subS = null, cine = null;
 const ease = t => t * t * (3 - 2 * t);
@@ -36,6 +37,7 @@ function ui() {
 // ---------------------------------------------------------------- sceny
 // shot: { dur, at(t 0..1, ctx) -> ustawia camera, text?, sub? }
 const SCENES = {
+  ...sceneFisk5(), // poziom 5 Fisk Tower: wstep, rozbicie szyby, upadek z wiezy (scenki_fisk.js)
   intro: ctx => {
     const f = new V3(Math.sin(START_H), 0, Math.cos(START_H)), r = new V3(f.z, 0, -f.x), p = ctx.p;
     return [
@@ -103,7 +105,7 @@ const SCENES = {
 export function playCine(name, ctx = {}) {
   ui();
   ctx.p = P.pos.clone(); if (ctx.b) ctx.b = ctx.b.clone();
-  cine = { name, shots: SCENES[name](ctx), i: 0, t: 0, onEnd: ctx.onEnd, sk: 0, sid: 0, talking: false, need: 0, h: null };
+  cine = { name, ctx, shots: SCENES[name](ctx), i: 0, t: 0, onEnd: ctx.onEnd, sk: 0, sid: 0, talking: false, need: 0, h: null };
   G.cine = name;
   const h = document.getElementById('hud'); if (h) h.style.visibility = 'hidden';
   bars[0].style.height = bars[1].style.height = '11vh';
@@ -124,12 +126,12 @@ function startTalk(ids) {
   if (me.talking) next(0);
 }
 function setShotText() {
-  const s = cine.shots[cine.i]; startTalk(s.say);
+  const s = cine.shots[cine.i]; startTalk(s.say); if (s.enter) s.enter();
   if (s.text) { subT.textContent = s.text; subS.textContent = s.sub || ''; sub.style.opacity = 1; } else sub.style.opacity = 0;
 }
 export function endCine() {
   if (!cine) return;
-  stopTalk(); const cb = cine.onEnd; cine = null; G.cine = null;
+  stopTalk(); const cb = cine.onEnd, cl = cine.ctx && cine.ctx.cleanup; cine = null; G.cine = null; if (cl) cl();
   bars[0].style.height = bars[1].style.height = '0'; sub.style.opacity = 0; document.getElementById('cSkip').style.opacity = 0;
   const h = document.getElementById('hud'); if (h) h.style.visibility = '';
   if (cb) cb();

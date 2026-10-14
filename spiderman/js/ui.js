@@ -210,6 +210,21 @@ export function showMsg(t, s, dur = 2.5) {
   $('msgT').textContent = t; $('msgS').innerHTML = s || '';
   $('msg').style.opacity = 1; msgT = dur;
 }
+// pasek postepu misji (np. Fisk Tower: POZIOM 3/6); level = 0 chowa pasek
+let mbar = null;
+export function setMissionBar(level, total = 6, label = '') {
+  if (!mbar) {
+    const st = document.createElement('style');
+    st.textContent = '#mbar{position:absolute;left:50%;top:100px;transform:translateX(-50%);text-align:center;opacity:0;transition:opacity .4s;text-shadow:0 2px 6px #000}#mbar b{font-family:"Bebas Neue",Impact,sans-serif;font-size:26px;letter-spacing:4px}#mbar small{display:block;font-weight:700;font-size:12px;letter-spacing:3px;color:#c6a2ff;margin-top:-2px}#mbar .mp{display:flex;gap:5px;justify-content:center;margin-top:3px}#mbar .mp i{width:34px;height:6px;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.45);transform:skewX(-24deg)}#mbar .mp i.on{background:#c6a2ff;box-shadow:0 0 8px #c6a2ff}#mbar .mp i.cur{background:#ffc93c;box-shadow:0 0 8px #ffc93c}';
+    document.head.appendChild(st);
+    mbar = document.createElement('div'); mbar.id = 'mbar'; mbar.innerHTML = '<b></b><small></small><div class="mp"></div>';
+    (document.getElementById('hud') || document.body).appendChild(mbar);
+  }
+  mbar.style.opacity = level > 0 ? 1 : 0; if (level <= 0) return;
+  mbar.querySelector('b').textContent = `POZIOM ${level}/${total}`; mbar.querySelector('small').textContent = label;
+  let h = ''; for (let i = 1; i <= total; i++) h += `<i class="${i < level ? 'on' : i === level ? 'cur' : ''}"></i>`;
+  mbar.querySelector('.mp').innerHTML = h;
+}
 export function flashDamage() { dmgT = 0.25; }
 export function popText(t) { const p = $('pop'); p.textContent = t; p.style.opacity = 1; p.style.transform = 'translate(-50%,-50%) scale(1.1)'; popT = 0.9; }
 const hintsShown = new Set();

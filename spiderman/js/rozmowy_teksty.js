@@ -21,6 +21,15 @@ export const LINIE = [
   { id: 'cine_fisk_03', kind: 'cine', text: 'Ładny gabinet. Zawsze chciałem coś w tym stylu. Z wyjątkiem kolekcji nielegalnych rzeczy.', voice: 'peter', mood: 'dry' },
   { id: 'cine_fisk2_01', kind: 'cine', text: 'Skoro nalegasz… Straże to dopiero rozgrzewka.', voice: 'fisk', mood: 'normal' },
   { id: 'cine_fisk2_02', kind: 'cine', text: 'Bądź gotów. Ja jestem zawsze.', voice: 'fisk', mood: 'dry' },
+  // Fisk Tower, poziom 5 (gabinet za szyba pancerna) i upadek z wiezy
+  { id: 'fisk5_01', kind: 'fisk_cutscene', text: 'Piszesz notatnik? Nie zapomnij o dywizie między Spider a Man.', voice: 'peter', mood: 'dry' },
+  { id: 'fisk5_02', kind: 'fisk_cutscene', text: 'Odpalcie śmigłowiec. Zaraz przyjdę.', voice: 'fisk', mood: 'normal' },
+  { id: 'fisk5_03', kind: 'fisk_cutscene', text: 'Wiesz, że doskonale cię widzę.', voice: 'peter', mood: 'dry' },
+  { id: 'fisk5_04', kind: 'fisk_cutscene', text: 'Osiem lat użerania się z nim.', voice: 'fisk', mood: 'dry' },
+  { id: 'fisk5_05', kind: 'fisk_cutscene', text: 'Jak to możliwe?', voice: 'fisk', mood: 'excited' },
+  { id: 'fisk5_06', kind: 'fisk_cutscene', text: 'Co się stało? Wydajesz się zdenerwowany.', voice: 'peter', mood: 'dry' },
+  { id: 'fisk5_07', kind: 'fisk_cutscene', text: 'Zniszczę cię!', voice: 'fisk', mood: 'excited' },
+
   { id: 'cine_fiskend_01', kind: 'cine', text: 'Pański interes właśnie się skończył, panie Fisk.', voice: 'peter', mood: 'normal' },
   { id: 'cine_fiskend_02', kind: 'cine', text: 'Wszystkie jednostki, Kingpin zatrzymany. Powtarzam, Kingpin zatrzymany.', voice: 'radio', mood: 'normal' },
 
