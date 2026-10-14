@@ -3,6 +3,7 @@
 import { V3, UP, clamp, lerp, damp, angLerp, save, doSave } from './util.js';
 import { G, P, cam, scene, camera, enemies } from './stan.js';
 import { supportAt, boxesNear, raycastCity, LAND, START, START_H, roofs, perches, nearestDoor } from './miasto.js';
+import { checkBounds } from './granica.js';
 import { enterDoor, leaveInterior, nearExit, takeCola } from './wnetrza.js';
 import { updateSpeech, speechPose, speechFace } from './mowa.js';
 import { buildSpider, newPose, zeroPose, blendPose, mixPose, applyPose, idlePose, runPose, crouchPose, tuckPose, heroLandPose, aimArm, basisQ, SUITS, suitById } from './postac.js';
@@ -12,7 +13,7 @@ import { has, maxHp, swingMul, zipMax, perchRange } from './umiejetnosci.js';
 import { sfx } from './dzwiek.js';
 import { say, sayCtx } from './docinki.js';
 import { rumble } from './wejscie.js';
-import { showMsg, flashDamage, popText } from './ui.js';
+import { showMsg, flashDamage, popText, hintNow } from './ui.js';
 import { getRope, heroLand, anchorFX } from './efekty.js';
 
 const GRAV = 27;
@@ -76,8 +77,7 @@ function collide() {
     }
   }
   if (p.y <= 0) { p.y = 0; if (P.vel.y < 0) P.vel.y = 0; _res.top = _res.top || GROUND; }
-  if (p.x < LAND.x0 + 1 || p.x > LAND.x1 - 1) { p.x = clamp(p.x, LAND.x0 + 1, LAND.x1 - 1); P.vel.x *= -0.2; }
-  if (p.z < LAND.z0 + 1 || p.z > LAND.z1 - 1) { p.z = clamp(p.z, LAND.z0 + 1, LAND.z1 - 1); P.vel.z *= -0.2; }
+  checkBounds(p); // granica swiata: LAND i polowa rzeki na mostach (komunikat + powrot, granica.js)
   return _res;
 }
 
@@ -433,27 +433,36 @@ function startDodge(wx, wz, wl) {
   if (P.state === 'air') P.vel.y = Math.max(P.vel.y, 4);
 }
 
+// zasieg zaczepu bujania [m]: near = bazowy, heightBonus = maks. dodatek za wysokosc (0,2 m/m), empty = dodatek w pustej okolicy
+const ATT = { near: 45, heightBonus: 20, empty: 10 };
+let attHintT = 0;
 function tryAttach(wx, wz, wl) {
   const hs = Math.hypot(P.vel.x, P.vel.z); let dx, dz;
   if (wl > 0.3) { dx = wx / wl; dz = wz / wl; } else if (hs > 4) { dx = P.vel.x / hs; dz = P.vel.z / hs; } else { dx = -Math.sin(cam.yaw); dz = -Math.cos(cam.yaw); }
   P.swingSide = -P.swingSide;
   const o = _h.set(P.pos.x, P.pos.y + 1.5, P.pos.z), base = Math.atan2(dx, dz);
-  let best = null, bs = -1e9;
-  for (const el of [0.95, 0.8, 1.1, 0.65, 1.25]) for (const az of [0, 0.3, -0.3, 0.6, -0.6]) {
-    const a = base - az * P.swingSide;
-    const d = _t.set(Math.sin(a) * Math.cos(el), Math.sin(el), Math.cos(a) * Math.cos(el));
-    const t = raycastCity(o, d, 80);
-    if (t < 80 && t > 9) {
-      const y = o.y + d.y * t; if (y < P.pos.y + 5) continue;
-      const sc = -Math.abs(t - 34) - Math.abs(el - 0.9) * 25 - Math.abs(az) * 12;
-      if (sc > bs) { bs = sc; best = (best || new V3()).copy(o).addScaledVector(d, t); }
+  // zasieg zaczepu: tylko BLISKIE budynki (45-65 m, wyzej troche dalej); w pustej okolicy (rzeka, park)
+  // drugi przebieg siega kilka metrow dalej, ale nadal do najblizszego budynku
+  const R1 = ATT.near + Math.min(ATT.heightBonus, Math.max(0, P.pos.y) * 0.2);
+  let best = null;
+  for (const R of [R1, R1 + ATT.empty]) {
+    let bs = -1e9;
+    for (const el of [0.95, 0.8, 1.1, 0.65, 1.25]) for (const az of [0, 0.3, -0.3, 0.6, -0.6]) {
+      const a = base - az * P.swingSide;
+      const d = _t.set(Math.sin(a) * Math.cos(el), Math.sin(el), Math.cos(a) * Math.cos(el));
+      const t = raycastCity(o, d, R);
+      if (t < R && t > 9) {
+        const y = o.y + d.y * t; if (y < P.pos.y + 5) continue; // krawedz/dach musi byc wyzej niz gracz
+        const sc = -t * 0.8 - Math.abs(el - 0.9) * 25 - Math.abs(az) * 12; // najblizsza powierzchnia, ku przodowi
+        if (sc > bs) { bs = sc; best = (best || new V3()).copy(o).addScaledVector(d, t); }
+      }
     }
+    if (best) break;
   }
-  if (!best) {
-    // nad parkiem i niskimi domami: siec "w niebo", zeby nie spasc — ale tylko nisko,
-    // inaczej dalo sie wspinac bez konca
-    if (P.pos.y > 75) return;
-    best = new V3(o.x + Math.sin(base) * Math.cos(0.9) * 34, Math.min(o.y + Math.sin(0.9) * 34, 95), o.z + Math.cos(base) * Math.cos(0.9) * 34);
+  if (!best) { // nic w zasiegu: nie lecimy w pustke, tylko delikatna podpowiedz
+    P.swingCD = 0.3;
+    if (G.time > attHintT) { attHintT = G.time + 4; hintNow('Brak budynku w zasięgu — zbliż się do wieżowca, aby się zaczepić'); }
+    return;
   }
   P.anchor.copy(best); P.state = 'swing'; P.swingT = 0;
   anchorFX(best, P.pos);

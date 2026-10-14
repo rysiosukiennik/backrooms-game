@@ -16,6 +16,7 @@ import { updateWeather, cycleWeather } from './pogoda.js';
 import { makeFxPass, updateCameraFX } from './kamera_fx.js';
 import { initGlos, updateGlos, glosStop } from './glos.js';
 import { updateCalls } from './rozmowy.js';
+import { updateBorder } from './granica.js';
 
 try {
   buildCity();
@@ -224,6 +225,7 @@ function step(now) {
     menuCam(rdt); setWind(0);
   }
   else if (G.state === 'pause') { updatePause(rdt); setWind(0); }
+  else if (G.state === 'border') { updateBorder(rdt); setWind(0); } // granica swiata: komunikat, czekamy na powrot
 
   updateQuips(rdt); updateGlos(rdt);
   updateCalls(rdt);
