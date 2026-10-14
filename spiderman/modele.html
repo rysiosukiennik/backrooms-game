@@ -57,7 +57,8 @@ window.scene = (name) => {
   } else if (name === 'thugs' || name === 'thugback') {
     const yb = name === 'thugback' ? Math.PI : 0, TH = window.THUGOUT || ((k, v) => undefined);
     const mk = (kind, v, x, yaw, sc) => put(buildThug(kind, TH(kind, v)), x, p => idlePose(p, 0), yaw + yb, sc);
-    mk('thug', 'ranged', -1.3, 0.25, 1); const m = mk('thug', 'melee', 0, 0, 1); m.setHands('open', 'fist'); mk('brute', 'brute', 1.4, -0.25, 1.12);
+    mk('thug', 'ranged', -1.3, 0.25, 1); const m = mk('thug', 'melee', 0, 0, 1); m.setHands('open', 'fist');
+    const bat = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.034, 0.7, 12), new THREE.MeshStandardMaterial({ color: 0x25262a, roughness: 0.5 })); bat.position.set(0, -0.12, 0.2); bat.rotation.x = 1.15; m.elR.add(bat); m.elR.rotation.x = -1.4; mk('brute', 'brute', 1.4, -0.25, 1.12);
     cam.fov = 26; cam.updateProjectionMatrix(); cam.position.set(0, 1.25, 7.2); cam.lookAt(0, 0.95, 0);
   } else if (name === 'thugface') {
     const TH = window.THUGOUT || ((k, v) => undefined);

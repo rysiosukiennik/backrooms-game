@@ -2,6 +2,7 @@
 // kolanach i biodrach. Do tego dlonie z palcami (otwarte / piesc / gest "thwip"), buty, glowy
 // z twarzami i czapkami, ubrania i stroje rysowane na teksturach (z wypukla pajeczyna).
 import { V3, cv, canvasTex, clamp } from './util.js';
+import { buildFisk } from './bandyci_model.js';
 
 const TAU = Math.PI * 2;
 const sm = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -368,10 +369,10 @@ function radialWeb(x, cx, cy, col, lw, R = 330, N = 26, step = 25) {
 function drawAdvSpider(x, cx, cy, s, col, sxk = 0.83) {
   x.save(); x.translate(cx, cy); x.scale(sxk, 1); x.fillStyle = col; x.strokeStyle = col; x.lineCap = 'round'; x.lineJoin = 'round';
   const L = [ // nasada, staw, koniec, grubosc
-    [[0.03, -0.2], [0.15, -0.37], [0.2, -0.68], 0.066],
-    [[0.05, -0.16], [0.31, -0.29], [0.58, -0.44], 0.066],
-    [[0.05, -0.1], [0.31, -0.05], [0.5, 0.14], 0.064],
-    [[0.035, -0.05], [0.17, 0.1], [0.21, 0.44], 0.06],
+    [[0.03, -0.2], [0.15, -0.37], [0.2, -0.68], 0.05],
+    [[0.05, -0.16], [0.31, -0.29], [0.58, -0.44], 0.05],
+    [[0.05, -0.1], [0.31, -0.05], [0.5, 0.14], 0.05],
+    [[0.035, -0.05], [0.17, 0.1], [0.21, 0.44], 0.046],
   ];
   for (const g of [-1, 1]) for (const [p0, p1, p2, w] of L) {
     const l1 = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]), l2 = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]), N = 18;
@@ -385,7 +386,7 @@ function drawAdvSpider(x, cx, cy, s, col, sxk = 0.83) {
   }
   ell(x, 0, -0.165 * s, 0.058 * s, 0.065 * s);
   x.beginPath(); x.moveTo(0, -0.12 * s);
-  x.bezierCurveTo(0.1 * s, -0.1 * s, 0.085 * s, 0.1 * s, 0, 0.36 * s); x.bezierCurveTo(-0.085 * s, 0.1 * s, -0.1 * s, -0.1 * s, 0, -0.12 * s); x.fill();
+  x.bezierCurveTo(0.085 * s, -0.1 * s, 0.07 * s, 0.1 * s, 0, 0.36 * s); x.bezierCurveTo(-0.07 * s, 0.1 * s, -0.085 * s, -0.1 * s, 0, -0.12 * s); x.fill();
   x.restore();
 }
 
@@ -1286,8 +1287,10 @@ function addGear(H, o, M) {
     const m = new THREE.Mesh(toGeo(tubeData(smooth(rg, 2), 20, r => 0.95, null)), M.foot); m.castShadow = true; H['ft' + L].add(m);
   }
 }
+// bez podanego stroju: zolnierz Fiska (fioletowa koszulka, harness); outfit z randomOutfit = cywil (wnetrza)
 export function buildThug(kind = 'thug', outfit) {
-  const o = outfit || randomOutfit(kind), M = outfitMats(o);
+  if (!outfit || outfit.fisk) return buildFisk(kind, outfit);
+  const o = outfit, M = outfitMats(o);
   let body;
   if (o.top === 'puffer') { const b0 = BODY[kind]; body = { ...b0, w: b0.w * 1.04, chest: b0.chest * 1.07, waist: b0.waist * 1.12, belly: b0.belly + 0.04, arm: b0.arm * 1.1 }; }
   const H = build(kind, M, { face: true, shoe: o.shoe, body });
@@ -1296,7 +1299,8 @@ export function buildThug(kind = 'thug', outfit) {
 }
 // Bossowie (Nosorozec, Kingpin) maja wlasny plik: tekstury, geometria pancerza/garnituru
 export { buildBoss, buildKingpin } from './bossowie_model.js';
-export { build, C, noise, ell, tex, drawFace, outfitCanvases, toGeo, merge, tubeData, smooth, sweepData, headData, normalFromHeight, HC, SHY, HIPY };
+export { fiskOutfit, buildFisk } from './bandyci_model.js';
+export { torsoRings, build, C, noise, ell, tex, drawFace, outfitCanvases, toGeo, merge, tubeData, smooth, sweepData, headData, normalFromHeight, HC, SHY, HIPY };
 
 // ---------------------------------------------------------------- przechodnie (tlum na instancjach)
 // Kazda sylwetka (mezczyzna, tegi mezczyzna, kobieta) to JEDNA geometria w pozie spoczynkowej z dodatkami
