@@ -66,7 +66,7 @@
   }
   function resetProgress() {
     const keep = { gfx: save.gfx, tod: save.tod, weather: save.weather, music: save.music, voice: save.voice, voiceVol: save.voiceVol, voiceMode: save.voiceMode };
-    Object.assign(save, { lvl: 1, xp: 0, suit: "adv", bags: [], crimes: 0, skills: [], races: {}, bossWins: 0, chases: 0, fisk: 0, pos: null, hd: 0, hasGame: false, savedAt: 0, colas: 0 }, keep);
+    Object.assign(save, { lvl: 1, xp: 0, suit: "adv", bags: [], crimes: 0, skills: [], races: {}, bossWins: 0, chases: 0, fisk: 0, pos: null, hd: 0, hasGame: false, savedAt: 0, colas: 0, calls: {} }, keep);
     doSave();
   }
   function doSave() {
@@ -111,7 +111,8 @@
         music: true,
         voice: true,
         voiceVol: 0.9,
-        voiceMode: "nagrania"
+        voiceMode: "nagrania",
+        calls: {}
       };
       try {
         Object.assign(save, JSON.parse(localStorage.getItem(KEY) || "{}"));
@@ -1305,9 +1306,9 @@
     return KPM = { torso: fabricMat(t.col, t.hgt, 3.4), arm: fabricMat(a.col, a.hgt, 3.4), leg: fabricMat(g.col, g.hgt, 3.4), head, skin, shoe, black, gold, steel, glass };
   }
   function buildKingpin() {
-    const K3 = kingpinMats();
+    const K4 = kingpinMats();
     const body = { w: 1.42, chest: 1.3, waist: 1.55, belly: 0.5, pec: 0.5, hips: 1.32, arm: 1.38, leg: 1.12, neck: 1.7, head: 1.16 };
-    const H3 = build("fisk", { torso: K3.torso, arm: K3.arm, leg: K3.leg, head: K3.head, hand: K3.skin, foot: K3.shoe }, { face: true, shoe: "boot", body });
+    const H3 = build("fisk", { torso: K4.torso, arm: K4.arm, leg: K4.leg, head: K4.head, hand: K4.skin, foot: K4.shoe }, { face: true, shoe: "boot", body });
     H3.setHands("open", "fist");
     for (const L3 of ["L", "R"]) for (const v in H3.hands[L3]) H3.hands[L3][v].scale.setScalar(1.2);
     const hs = body.head;
@@ -1336,7 +1337,7 @@
     const band2 = new THREE.TorusGeometry(0.053, 8e-3, 8, 28);
     band2.rotateX(Math.PI / 2);
     const watch = [put(band2, [0, -0.235, 0], [0, 0, 0], [1.02, 2.1, 1.02]), put(new THREE.CylinderGeometry(0.024, 0.024, 0.012, 24), [0.058, -0.235, 0], [0, 0, Math.PI / 2])];
-    attach(H3.elL, watch, K3.steel);
+    attach(H3.elL, watch, K4.steel);
     for (const v of ["open", "fist"]) {
       const hm = H3.hands.L[v], k = body.arm, s = 1, curl = v === "fist" ? 1 : 0.28, f = 2, Z = [0.028, 9e-3, -0.01, -0.028];
       let th = curl * 0.3;
@@ -1346,7 +1347,7 @@
       const c = p.clone().addScaledVector(d, 0.014 * k), ring2 = new THREE.TorusGeometry(0.0125 * k, 35e-4 * k, 8, 16), q = new THREE.Quaternion().setFromUnitVectors(new V3(0, 0, 1), d);
       const rg = ring2.clone().applyMatrix4(new THREE.Matrix4().compose(c, q, new V3(1, 1, 1)));
       const stone = new THREE.SphereGeometry(85e-4 * k, 10, 8), sg2 = stone.clone().applyMatrix4(new THREE.Matrix4().compose(c.clone().add(new V3(0.0125 * k * 0.9 * -s, 0, 0)), new THREE.Quaternion(), new V3(1, 0.6, 1)));
-      hm.add(new THREE.Mesh(joinGeo([rg, sg2]), K3.gold));
+      hm.add(new THREE.Mesh(joinGeo([rg, sg2]), K4.gold));
     }
     const cane = new THREE.Group();
     const lathe = (pts, seg = 20) => new THREE.LatheGeometry(pts.map((p) => new THREE.Vector2(p[0], p[1])), seg);
@@ -1361,8 +1362,8 @@
       lathe([[0.0425, 0.095], [0.0455, 0.1], [0.0455, 0.11], [0.0425, 0.115]])
       // obreczy
     ];
-    cane.add(new THREE.Mesh(joinGeoNoUv(shaft, knob), K3.black));
-    cane.add(new THREE.Mesh(joinGeoNoUv(...goldGeo), K3.gold));
+    cane.add(new THREE.Mesh(joinGeoNoUv(shaft, knob), K4.black));
+    cane.add(new THREE.Mesh(joinGeoNoUv(...goldGeo), K4.gold));
     cane.position.set(0, -0.3, 0.02);
     cane.traverse((o2) => {
       if (o2.isMesh) o2.castShadow = true;
@@ -5542,15 +5543,15 @@ vec3 pedP = position;
       const rm = ROOMS[r], P2 = rm.P, ox = r % 4 * 256, oy = (r / 4 | 0) * 256;
       rs = 7919 * (r + 1) + 13;
       const tile = (tx, ty, fn) => {
-        for (const ctx of [g, e]) {
-          ctx.save();
-          ctx.translate(ox + tx * 128, oy + ty * 128);
-          ctx.beginPath();
-          ctx.rect(0, 0, 128, 128);
-          ctx.clip();
+        for (const ctx2 of [g, e]) {
+          ctx2.save();
+          ctx2.translate(ox + tx * 128, oy + ty * 128);
+          ctx2.beginPath();
+          ctx2.rect(0, 0, 128, 128);
+          ctx2.clip();
         }
         fn();
-        for (const ctx of [g, e]) ctx.restore();
+        for (const ctx2 of [g, e]) ctx2.restore();
       };
       tile(0, 0, () => {
         wallBack(g, P2);
@@ -9276,8 +9277,8 @@ float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); 
     t.encoding = THREE.sRGBEncoding;
     return t;
   }
-  function setupWater(ctx) {
-    const { water: water2, LAND: LAND2, W0, E0, N0, isl } = ctx;
+  function setupWater(ctx2) {
+    const { water: water2, LAND: LAND2, W0, E0, N0, isl } = ctx2;
     const nm = normalTex();
     const U3 = {
       uT: { value: 0 },
@@ -9467,14 +9468,14 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     }
     return g;
   }
-  function buildRivers(ctx) {
-    CTX = ctx;
-    const { scene: scene2, LAND: LAND2, W0, E0, N0, addBox: addBox2, glowPoints: glowPoints2, glowTexture: glowTexture2, getTOD } = ctx;
+  function buildRivers(ctx2) {
+    CTX = ctx2;
+    const { scene: scene2, LAND: LAND2, W0, E0, N0, addBox: addBox2, glowPoints: glowPoints2, glowTexture: glowTexture2, getTOD } = ctx2;
     const R3 = mulberry2(2018);
     const isl = { x: -300, z: 985, r: 66, g: 62 };
-    ctx.isl = isl;
-    const state = { U: setupWater(ctx), boats: [], tod: "", t: 0 };
-    ctx.state = state;
+    ctx2.isl = isl;
+    const state = { U: setupWater(ctx2), boats: [], tod: "", t: 0 };
+    ctx2.state = state;
     const lights = { pos: [], col: [] };
     const quay = quayTex(), gtex = groundTexFar();
     const quayMat = new THREE.MeshStandardMaterial({ map: quay, roughness: 0.95 }), farGround = new THREE.MeshStandardMaterial({ map: gtex, roughness: 0.92 });
@@ -9742,7 +9743,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     scene2.add(faceM);
     const mS = addMesh(S2, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0.05 }), true);
     glowPoints2(pierLamps.flat(), 16767392, 5);
-    buildFleet(ctx, state, lights);
+    buildFleet(ctx2, state, lights);
     const buoys = [];
     for (let i = 0; i < 26; i++) {
       const west = i % 2 === 0;
@@ -9770,12 +9771,12 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     state.statLights = new THREE.Points(new THREE.BufferGeometry().setAttribute("position", new THREE.Float32BufferAttribute(stat, 3)), new THREE.PointsMaterial({ map: glowTexture2(), color: 16756816, size: 5, sizeAttenuation: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, opacity: 0 }));
     state.statLights.frustumCulled = false;
     scene2.add(state.statLights);
-    buildGulls(ctx, state, R3);
-    buildStatue(ctx, state, isl);
+    buildGulls(ctx2, state, R3);
+    buildStatue(ctx2, state, isl);
     state.update = null;
   }
-  function buildFleet(ctx, state, lights) {
-    const { scene: scene2, glowTexture: glowTexture2 } = ctx;
+  function buildFleet(ctx2, state, lights) {
+    const { scene: scene2, glowTexture: glowTexture2 } = ctx2;
     const T2 = { ferry: buildFerry(), tour: buildTour(), tug: buildTug(), sail: buildSail(), speed: buildSpeed(), cargo: buildCargo() };
     const SPEC2 = [
       // klasa, os x toru, kierunek (+1 = na poludnie), predkosc m/s
@@ -9885,8 +9886,8 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     };
     state.stepBoats(0, 0);
   }
-  function buildGulls(ctx, state, R3) {
-    const { scene: scene2 } = ctx, N = 30;
+  function buildGulls(ctx2, state, R3) {
+    const { scene: scene2 } = ctx2, N = 30;
     const wing = new THREE.BufferGeometry();
     wing.setAttribute("position", new THREE.Float32BufferAttribute([0, 0, 0.18, 0, 0, -0.2, 0.9, 0.04, 0.05, 0.9, 0.04, 0.05, 0, 0, -0.2, 1.4, 0.02, -0.25, 1.4, 0.02, -0.25, 0.9, 0.04, 0.05, 0, 0, -0.2], 3));
     wing.setAttribute("normal", new THREE.Float32BufferAttribute(Array(9).fill([0, 1, 0]).flat(), 3));
@@ -9931,8 +9932,8 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     };
     state.stepGulls(0, 0);
   }
-  function buildStatue(ctx, state, isl) {
-    const { scene: scene2, glowTexture: glowTexture2 } = ctx, g = new Geo(), torch = new Geo();
+  function buildStatue(ctx2, state, isl) {
+    const { scene: scene2, glowTexture: glowTexture2 } = ctx2, g = new Geo(), torch = new Geo();
     const rock = hexRGB(7104349), grass = hexRGB(5663036), stone = hexRGB(11906458), stoneD = hexRGB(10327426), pat = hexRGB(6464917), patD = hexRGB(4883832), gold = hexRGB(15777856);
     const star = (r1, r2) => Array.from({ length: 22 }, (_, i) => {
       const a = i / 22 * Math.PI * 2, r = i % 2 ? r2 : r1;
@@ -10011,7 +10012,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     state.statueMesh = mesh;
   }
   function dressBridge(xa, xb, z, kind) {
-    const ctx = CTX, { scene: scene2, glowPoints: glowPoints2 } = ctx, stone = kind === "stone", deckY = 38, W2 = 13, L3 = xb - xa, tH = stone ? 84 : 92, tx = [xa + L3 * 0.3, xb - L3 * 0.3];
+    const ctx2 = CTX, { scene: scene2, glowPoints: glowPoints2 } = ctx2, stone = kind === "stone", deckY = 38, W2 = 13, L3 = xb - xa, tH = stone ? 84 : 92, tx = [xa + L3 * 0.3, xb - L3 * 0.3];
     const G3 = new Geo(), st = hexRGB(11772038), stD = hexRGB(9075300), seg = [], red = [];
     for (const x of tx) {
       if (stone) {
@@ -10062,14 +10063,14 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     glowPoints2(fl, stone ? 16769192 : 14214399, 9);
   }
   function updateWater(dt) {
-    const ctx = CTX;
-    if (!ctx) return;
-    const st = ctx.state;
+    const ctx2 = CTX;
+    if (!ctx2) return;
+    const st = ctx2.state;
     if (!st) return;
     st.t += dt;
-    const t = st.t, U3 = st.U, tod = ctx.getTOD();
+    const t = st.t, U3 = st.U, tod = ctx2.getTOD();
     U3.uT.value = t;
-    U3.uSun.value.copy(ctx.sunDir);
+    U3.uSun.value.copy(ctx2.sunDir);
     if (tod !== st.tod) {
       st.tod = tod;
       const T2 = WTOD[tod] || WTOD.sunset;
@@ -10581,7 +10582,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
   function card(g, c, a, b, tile, col2, nrm, mask = 0, uvFlip = false) {
     const uv = uvr(tile), k = g.verts;
     const cs = [[-1, -1, 0, 1], [1, -1, 2, 1], [1, 1, 2, 3], [-1, 1, 0, 3]];
-    for (const [sa, sb, ui2, vi] of cs) g.vert(c[0] + a[0] * sa + b[0] * sb, c[1] + a[1] * sa + b[1] * sb, c[2] + a[2] * sa + b[2] * sb, nrm[0], nrm[1], nrm[2], uv[ui2], uv[vi], col2[0], col2[1], col2[2], mask);
+    for (const [sa, sb, ui3, vi] of cs) g.vert(c[0] + a[0] * sa + b[0] * sb, c[1] + a[1] * sa + b[1] * sb, c[2] + a[2] * sa + b[2] * sb, nrm[0], nrm[1], nrm[2], uv[ui3], uv[vi], col2[0], col2[1], col2[2], mask);
     g.quad(k, k + 1, k + 2, k + 3);
   }
   function limb(g, a, b, r02, r1, tile, sides, bend, bcol) {
@@ -10591,8 +10592,8 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     const uv = uvr(tile, 0.012);
     let prev = pt(0), pr = r02;
     for (let s = 1; s <= n; s++) {
-      const cur4 = pt(s / n), rr5 = r02 + (r1 - r02) * s / n;
-      const d = norm2([cur4[0] - prev[0], cur4[1] - prev[1], cur4[2] - prev[2]]);
+      const cur5 = pt(s / n), rr5 = r02 + (r1 - r02) * s / n;
+      const d = norm2([cur5[0] - prev[0], cur5[1] - prev[1], cur5[2] - prev[2]]);
       let u1 = norm2([d[1] * 0 - d[2] * 1, d[2] * 0 - d[0] * 0, d[0] * 1 - d[1] * 0]);
       if (Math.abs(d[1]) > 0.98) u1 = [1, 0, 0];
       const u2 = [d[1] * u1[2] - d[2] * u1[1], d[2] * u1[0] - d[0] * u1[2], d[0] * u1[1] - d[1] * u1[0]];
@@ -10601,13 +10602,13 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
         const ang = q / sides * 6.2832, c = Math.cos(ang), sn = Math.sin(ang), nx = u1[0] * c + u2[0] * sn, ny = u1[1] * c + u2[1] * sn, nz2 = u1[2] * c + u2[2] * sn;
         const uu = uv[0] + (uv[2] - uv[0]) * q / sides;
         g.vert(prev[0] + nx * pr, prev[1] + ny * pr, prev[2] + nz2 * pr, nx, ny, nz2, uu, vu, bcol[0], bcol[1], bcol[2], 0);
-        g.vert(cur4[0] + nx * rr5, cur4[1] + ny * rr5, cur4[2] + nz2 * rr5, nx, ny, nz2, uu, vd, bcol[0], bcol[1], bcol[2], 0);
+        g.vert(cur5[0] + nx * rr5, cur5[1] + ny * rr5, cur5[2] + nz2 * rr5, nx, ny, nz2, uu, vd, bcol[0], bcol[1], bcol[2], 0);
       }
       for (let q = 0; q < sides; q++) {
         const i = k + q * 2;
         g.quad(i, i + 2, i + 3, i + 1);
       }
-      prev = cur4;
+      prev = cur5;
       pr = rr5;
     }
     return b;
@@ -10626,10 +10627,10 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
       else b = norm2([-sn, tl, cs]).map((v) => v * hh * 1.05);
       const jx = R3.r(-0.25, 0.25) * size * 0.3, jz = R3.r(-0.25, 0.25) * size * 0.3, rv = R3.r(0.9, 1.1);
       const k = g.verts;
-      for (const [sa, sb, ui2, vi] of [[-1, -1, 0, 1], [1, -1, 2, 1], [1, 1, 2, 3], [-1, 1, 0, 3]]) {
+      for (const [sa, sb, ui3, vi] of [[-1, -1, 0, 1], [1, -1, 2, 1], [1, 1, 2, 3], [-1, 1, 0, 3]]) {
         const px = x + jx + a[0] * sa + b[0] * sb, py = y + a[1] * sa + b[1] * sb, pz = z + jz + a[2] * sa + b[2] * sb;
         const n = norm2([(px - cr2.x) / cr2.R, (py - cr2.y) / cr2.R * 0.9 + 0.3, (pz - cr2.z) / cr2.R]), sh2 = shadeV(py, px, pz) * rv;
-        g.vert(px, py, pz, n[0], n[1], n[2], uv[ui2], uv[vi], sh2, sh2, sh2, 1);
+        g.vert(px, py, pz, n[0], n[1], n[2], uv[ui3], uv[vi], sh2, sh2, sh2, 1);
       }
       g.quad(k, k + 1, k + 2, k + 3);
     }
@@ -10719,10 +10720,10 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
       const bot = Math.max(0.5, p[1] - L3), cy = (p[1] + 0.4 + bot) / 2, hh = (p[1] + 0.4 - bot) / 2, uv = uvr(T_WILLOW);
       for (let q = 0; q < 2; q++) {
         const t = az + q * 1.5708 + R3.r(-0.25, 0.25), a = [Math.cos(t) * w / 2, 0, Math.sin(t) * w / 2], k = g.verts, rv = R3.r(0.92, 1.08);
-        for (const [sa, sb, ui2, vi] of [[-1, -1, 0, 1], [1, -1, 2, 1], [1, 1, 2, 3], [-1, 1, 0, 3]]) {
+        for (const [sa, sb, ui3, vi] of [[-1, -1, 0, 1], [1, -1, 2, 1], [1, 1, 2, 3], [-1, 1, 0, 3]]) {
           const px = p[0] + a[0] * sa, py = cy + hh * sb, pz = p[2] + a[2] * sa, n = norm2([(px - cr2.x) / cr2.R, 0.15, (pz - cr2.z) / cr2.R]);
           const sh2 = (0.55 + 0.55 * clamp01((py - 0.5) / 7)) * rv;
-          g.vert(px, py, pz, n[0], n[1], n[2], uv[ui2], uv[vi], sh2, sh2, sh2, 1);
+          g.vert(px, py, pz, n[0], n[1], n[2], uv[ui3], uv[vi], sh2, sh2, sh2, 1);
         }
         g.quad(k, k + 1, k + 2, k + 3);
       }
@@ -11277,7 +11278,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     out.dx = (b[0] - a[0]) / l;
     out.dz = (b[1] - a[1]) / l;
   }
-  function initLife(ctx, data) {
+  function initLife(ctx2, data) {
     K = data;
     const R3 = rng2(4711), PK2 = data.bounds, pond = data.pond;
     const gts = walkerGeos(), routes = data.paths.filter((p) => !p.name.startsWith("most") && p.pts.length >= 2).map((p) => route(p.pts, p.closed));
@@ -11818,9 +11819,9 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     }
     for (let i = 0; i < 28; i++) out.i.push(k, k + 2 + i, k + 1 + i);
   }
-  function planPark(ctx) {
-    C5 = ctx;
-    const { PK: PK2, POND: POND2, ARENA: ARENA2 } = ctx;
+  function planPark(ctx2) {
+    C5 = ctx2;
+    const { PK: PK2, POND: POND2, ARENA: ARENA2 } = ctx2;
     const PW = PK2.x1 - PK2.x0, PD = PK2.z1 - PK2.z0, cx = (PK2.x0 + PK2.x1) / 2;
     const ph1z = PK2.z0 + PD * 0.15, ph2z = PK2.z0 + PD * 0.42, paX = cx - 60, pbX = cx + 70;
     const ell2 = (sc, t) => [POND2.x + POND2.rx * sc * Math.cos(t), POND2.z + POND2.rz * sc * Math.sin(t)];
@@ -12333,13 +12334,13 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
       if (AC.state === "suspended") AC.resume();
       return;
     }
-    let ctx;
+    let ctx2;
     try {
-      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      ctx2 = new (window.AudioContext || window.webkitAudioContext)();
     } catch (e) {
       return;
     }
-    build2(ctx, false);
+    build2(ctx2, false);
   }
   function makeNoise(kind, secs) {
     const n = AC.sampleRate * secs | 0, b = AC.createBuffer(1, n, AC.sampleRate), d = b.getChannelData(0);
@@ -12425,8 +12426,8 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     n.pan.value = p;
     return n;
   }
-  function build2(ctx, offline) {
-    AC = ctx;
+  function build2(ctx2, offline) {
+    AC = ctx2;
     OFFLINE = offline;
     master = AC.createGain();
     master.gain.value = 1;
@@ -12573,8 +12574,8 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     } catch (e) {
     }
   }
-  function route2(d, pan, vol = 1) {
-    const g = AC.createGain(), lp = AC.createBiquadFilter(), pn = panner(pan * Math.min(1, 0.25 + d / 4));
+  function route2(d, pan2, vol = 1) {
+    const g = AC.createGain(), lp = AC.createBiquadFilter(), pn = panner(pan2 * Math.min(1, 0.25 + d / 4));
     g.gain.value = vol / (1 + d / 24 * (d / 24));
     lp.type = "lowpass";
     lp.frequency.value = clamp2(18e3 / (1 + d / 16), 700, 18e3);
@@ -12585,8 +12586,8 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
   function spatial(pos) {
     updateListener();
     const dx = pos.x - L2.x, dy = pos.y - L2.y, dz = pos.z - L2.z, d = Math.hypot(dx, dy, dz) || 0.01;
-    const pan = clamp2((dx * L2.rx + dz * L2.rz) / d, -1, 1);
-    return { out: route2(d, pan), delay: d > 30 ? Math.min(0.6, (d - 30) / 343) : 0, d };
+    const pan2 = clamp2((dx * L2.rx + dz * L2.rz) / d, -1, 1);
+    return { out: route2(d, pan2), delay: d > 30 ? Math.min(0.6, (d - 30) / 343) : 0, d };
   }
   function setWind(speed) {
     if (!live()) return;
@@ -13157,8 +13158,8 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     o.stop(t + dur + 0.1);
   }
   function farHorn() {
-    const n = 1 + (Math.random() < 0.4 ? 1 : 0), d = rr2(30, 110), pan = rr2(-1, 1);
-    const o = route2(d, pan, 3), f = rr2(300, 470);
+    const n = 1 + (Math.random() < 0.4 ? 1 : 0), d = rr2(30, 110), pan2 = rr2(-1, 1);
+    const o = route2(d, pan2, 3), f = rr2(300, 470);
     for (let i = 0; i < n; i++) {
       const dl = i * 0.45;
       tone("square", f, f, 0.3, 0.07, dl, o, AC.currentTime, 0.01);
@@ -13207,7 +13208,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     o.stop(t + dur + 0.1);
   }
   function steam() {
-    const t = AC.currentTime, dur = rr2(2.5, 5), pan = rr2(-0.8, 0.8), o = route2(rr2(6, 18), pan, 1.3);
+    const t = AC.currentTime, dur = rr2(2.5, 5), pan2 = rr2(-0.8, 0.8), o = route2(rr2(6, 18), pan2, 1.3);
     const s = AC.createBufferSource();
     s.buffer = nWhite;
     const hp = AC.createBiquadFilter();
@@ -13589,12 +13590,12 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
       fin(item2, false);
       return false;
     }
-    const l = lane(item2.speaker), cur4 = l.cur;
-    if (item2.id && (cur4 && cur4.id === item2.id || l.queue.some((q) => q.id === item2.id))) {
+    const l = lane(item2.speaker), cur5 = l.cur;
+    if (item2.id && (cur5 && cur5.id === item2.id || l.queue.some((q) => q.id === item2.id))) {
       fin(item2, false);
       return false;
     }
-    if (!cur4) {
+    if (!cur5) {
       if (activeLanes().length >= MAXLANES && item2.priority < 2) {
         fin(item2, false);
         return false;
@@ -13602,7 +13603,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
       start(l, item2);
       return true;
     }
-    if (item2.priority > cur4.priority) {
+    if (item2.priority > cur5.priority) {
       l.queue = l.queue.filter((q) => {
         if (q.priority >= item2.priority) return true;
         fin(q, false);
@@ -13612,7 +13613,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
       start(l, item2);
       return true;
     }
-    if (item2.priority < cur4.priority) {
+    if (item2.priority < cur5.priority) {
       fin(item2, false);
       return false;
     }
@@ -14642,8 +14643,8 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
   function say(kind, force) {
     return request(kind, null, force);
   }
-  function sayCtx(kind, ctx) {
-    return request(kind, ctx || null, ctx && ctx.force);
+  function sayCtx(kind, ctx2) {
+    return request(kind, ctx2 || null, ctx2 && ctx2.force);
   }
   function updateQuips(dt) {
     now2 += dt;
@@ -14999,9 +15000,9 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     return g.translate(0, (A2.y + B4.y) / 2 + ny * off, (A2.z + B4.z) / 2 + nz2 * off);
   }
   function noseTube(S2, front, y, hwf, rad, off = 0, seg = 6, rs3 = 4) {
-    const pts = [], K3 = 6;
-    for (let i = 0; i <= K3; i++) {
-      const x = (i / K3 * 2 - 1) * S2.W * hwf;
+    const pts = [], K4 = 6;
+    for (let i = 0; i <= K4; i++) {
+      const x = (i / K4 * 2 - 1) * S2.W * hwf;
       pts.push(P3(x, y, noseZ(S2, x, front) + front * off));
     }
     return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), seg, rad, rs3, false);
@@ -21148,15 +21149,15 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
   }
   function webSplatTexture() {
     const S2 = 256, c = cv(S2, S2), x = c.getContext("2d"), m = S2 / 2;
-    const K3 = 9 + (Math.random() * 3 | 0), ang = [], len = [];
-    for (let i = 0; i < K3; i++) {
-      ang.push(i / K3 * 6.283 + (Math.random() - 0.5) * 0.35);
+    const K4 = 9 + (Math.random() * 3 | 0), ang = [], len = [];
+    for (let i = 0; i < K4; i++) {
+      ang.push(i / K4 * 6.283 + (Math.random() - 0.5) * 0.35);
       len.push(78 + Math.random() * 44);
     }
     const draw = (style, lw, off) => {
       x.strokeStyle = style;
       x.lineCap = "round";
-      for (let i = 0; i < K3; i++) {
+      for (let i = 0; i < K4; i++) {
         const a = ang[i], bend = (Math.random() - 0.5) * 0.18;
         x.lineWidth = lw * (0.8 + Math.random() * 0.5);
         x.beginPath();
@@ -21166,8 +21167,8 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
       }
       for (const r of [20, 38, 58, 80, 102]) {
         x.lineWidth = lw * 0.7;
-        for (let i = 0; i < K3; i++) {
-          const j = (i + 1) % K3, a0 = ang[i], a1 = ang[j] + (j === 0 ? 6.283 : 0);
+        for (let i = 0; i < K4; i++) {
+          const j = (i + 1) % K4, a0 = ang[i], a1 = ang[j] + (j === 0 ? 6.283 : 0);
           if (r > len[i] * 0.97 || r > len[j] * 0.97) continue;
           const am = (a0 + a1) / 2, rr5 = r * (0.8 + Math.random() * 0.06);
           x.beginPath();
@@ -22157,197 +22158,6 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     }
   });
 
-  // js/scenki.js
-  function ui() {
-    if (bars) return;
-    const st = document.createElement("style");
-    st.textContent = `.cbar{position:fixed;left:0;right:0;height:0;background:#000;z-index:8;transition:height .7s ease}
-  #cSub{position:fixed;left:0;right:0;bottom:15vh;text-align:center;z-index:9;opacity:0;transition:opacity .6s;pointer-events:none;color:#fff;text-shadow:0 2px 12px #000}
-  #cSub b{display:block;font-family:'Bebas Neue',Impact,sans-serif;font-size:clamp(34px,6.5vh,64px);letter-spacing:4px;font-weight:400}
-  #cSub span{font-family:'Rajdhani',Arial,sans-serif;font-size:clamp(17px,3vh,26px);font-weight:600;letter-spacing:1px}
-  #cSkip{position:fixed;right:24px;bottom:calc(11vh - 14px);z-index:9;color:#cfe;font:600 15px Rajdhani,Arial;opacity:0;transition:opacity .6s}`;
-    document.head.appendChild(st);
-    bars = [document.createElement("div"), document.createElement("div")];
-    bars[0].className = "cbar";
-    bars[0].style.top = 0;
-    bars[1].className = "cbar";
-    bars[1].style.bottom = 0;
-    sub = document.createElement("div");
-    sub.id = "cSub";
-    sub.innerHTML = "<b></b><span></span>";
-    subT = sub.querySelector("b");
-    subS = sub.querySelector("span");
-    const skip = document.createElement("div");
-    skip.id = "cSkip";
-    skip.textContent = "SPACJA / A \u2014 pomi\u0144";
-    skip.className = "cskip";
-    document.body.append(bars[0], bars[1], sub, skip);
-  }
-  function playCine(name, ctx = {}) {
-    ui();
-    ctx.p = P.pos.clone();
-    if (ctx.b) ctx.b = ctx.b.clone();
-    cine = { name, shots: SCENES[name](ctx), i: 0, t: 0, onEnd: ctx.onEnd, sk: 0 };
-    G.cine = name;
-    const h = document.getElementById("hud");
-    if (h) h.style.visibility = "hidden";
-    bars[0].style.height = bars[1].style.height = "11vh";
-    document.getElementById("cSkip").style.opacity = 0.9;
-    setShotText();
-  }
-  function setShotText() {
-    const s = cine.shots[cine.i];
-    if (s.text) {
-      subT.textContent = s.text;
-      subS.textContent = s.sub || "";
-      sub.style.opacity = 1;
-    } else sub.style.opacity = 0;
-  }
-  function endCine() {
-    if (!cine) return;
-    const cb = cine.onEnd;
-    cine = null;
-    G.cine = null;
-    bars[0].style.height = bars[1].style.height = "0";
-    sub.style.opacity = 0;
-    document.getElementById("cSkip").style.opacity = 0;
-    const h = document.getElementById("hud");
-    if (h) h.style.visibility = "";
-    if (cb) cb();
-  }
-  function updateCine(dt) {
-    if (!cine) return false;
-    cine.sk += dt;
-    if (cine.sk > 0.6 && (KP.Space || KP.Enter || KP.Escape || MP[0] || pp(0) || pp(9))) {
-      endCine();
-      return false;
-    }
-    const s = cine.shots[cine.i];
-    cine.t += dt;
-    const t = clamp(cine.t / s.dur, 0, 1);
-    s.at(t);
-    camera.updateProjectionMatrix();
-    if (cine.t >= s.dur) {
-      if (++cine.i >= cine.shots.length) {
-        endCine();
-        return false;
-      }
-      cine.t = 0;
-      setShotText();
-    }
-    return true;
-  }
-  var bars, sub, subT, subS, cine, ease, _a2, _b2, SCENES;
-  var init_scenki = __esm({
-    "js/scenki.js"() {
-      init_util();
-      init_stan();
-      init_wejscie();
-      init_miasto();
-      init_dzwiek();
-      bars = null;
-      sub = null;
-      subT = null;
-      subS = null;
-      cine = null;
-      ease = (t) => t * t * (3 - 2 * t);
-      _a2 = new V3();
-      _b2 = new V3();
-      SCENES = {
-        intro: (ctx) => {
-          const f = new V3(Math.sin(START_H), 0, Math.cos(START_H)), r = new V3(f.z, 0, -f.x), p = ctx.p;
-          return [
-            { dur: 4.2, text: "NOWY JORK", sub: "Miasto, kt\xF3re nigdy nie \u015Bpi.", at: (t) => {
-              const a = lerp(0.5, -0.7, ease(t));
-              camera.position.copy(p).addScaledVector(f, -Math.cos(a) * 4.4).addScaledVector(r, Math.sin(a) * 4.4);
-              camera.position.y = p.y + 1.1 + t * 0.6;
-              camera.lookAt(p.x, p.y + 0.9, p.z);
-              camera.fov = 50;
-            } },
-            { dur: 4.2, text: "", sub: "", at: (t) => {
-              camera.position.copy(p).addScaledVector(f, lerp(3, 16, ease(t)));
-              camera.position.y = p.y + lerp(0.4, 9, ease(t));
-              camera.lookAt(_a2.copy(p).addScaledVector(f, 320).add(_b2.set(0, -75, 0)));
-              camera.fov = 62;
-            } },
-            { dur: 3.4, text: "Kto\u015B musi go pilnowa\u0107.", sub: "", at: (t) => {
-              camera.position.copy(p).addScaledVector(f, lerp(-3.8, -2.6, t)).addScaledVector(r, 0.9);
-              camera.position.y = p.y + 1.7;
-              camera.lookAt(_a2.copy(p).addScaledVector(f, 40).add(_b2.set(0, -6, 0)));
-              camera.fov = 58;
-            } }
-          ];
-        },
-        boss: (ctx) => {
-          const b = ctx.b, p = ctx.p, d = _a2.subVectors(p, b).setY(0).normalize().clone(), r = new V3(d.z, 0, -d.x);
-          return [
-            { dur: 3.8, text: "NOSORO\u017BEC", sub: "Cz\u0142owiek w pancerzu, kt\xF3rego nic nie zatrzyma.", at: (t) => {
-              camera.position.copy(b).addScaledVector(d, lerp(11, 6.5, ease(t))).addScaledVector(r, lerp(-3, 1, t));
-              camera.position.y = b.y + lerp(0.5, 1.2, t);
-              camera.lookAt(b.x, b.y + 2.6, b.z);
-              camera.fov = lerp(52, 44, t);
-            } },
-            { dur: 2, text: "", sub: "", at: (t) => {
-              camera.position.copy(p).addScaledVector(d, -3.2).addScaledVector(r, 1.2);
-              camera.position.y = p.y + 1.6;
-              camera.lookAt(p.x, p.y + 1.5, p.z);
-              camera.position.y += t * 0.15;
-              camera.fov = 55;
-            } }
-          ];
-        },
-        fisk: (ctx) => {
-          const b = ctx.b, R3 = ctx.room, y = b.y, bv = R3.cd - 3.8;
-          const at2 = (u, v, h) => {
-            const [x, z] = R3.W(u, v);
-            camera.position.set(x, y + h, z);
-          };
-          return [
-            { dur: 4, text: "WILSON FISK", sub: "Kingpin. Prawie ca\u0142e miasto jest jego.", at: (t) => {
-              at2(lerp(-6, -3.5, ease(t)), lerp(R3.cd * 0.3, R3.cd * 0.45, ease(t)), 1.7);
-              camera.lookAt(b.x, y + 1.5, b.z);
-              camera.fov = 50;
-            } },
-            { dur: 3.4, text: "Nie powiniene\u015B tu wchodzi\u0107, paj\u0105ku.", sub: "", at: (t) => {
-              at2(0.9, bv - lerp(5.2, 3.6, ease(t)), 1.6);
-              camera.lookAt(b.x, y + 1.55, b.z);
-              camera.fov = 42;
-            } }
-          ];
-        },
-        fisk2: (ctx) => {
-          const b = ctx.b, R3 = ctx.room, y = b.y, bv = R3.cd - 3.8;
-          return [{ dur: 3.4, text: "Skoro nalegasz\u2026", sub: "B\u0105d\u017A got\xF3w.", at: (t) => {
-            const [x, z] = R3.W(-2.6, bv - lerp(6, 4.4, ease(t)));
-            camera.position.set(x, y + lerp(0.6, 1.3, t), z);
-            camera.lookAt(b.x, y + 1.9, b.z);
-            camera.fov = 46;
-          } }];
-        },
-        fiskEnd: (ctx) => {
-          const b = ctx.b, R3 = ctx.room, y = b.y, bv = R3.cd - 3.8;
-          return [{ dur: 4.2, text: "KINGPIN POKONANY", sub: "Nowy Jork odetchn\u0105\u0142 z ulg\u0105.", at: (t) => {
-            const a = lerp(0.3, 2.6, ease(t)), [x, z] = R3.W(5 * Math.cos(a), bv - 5 * Math.sin(a));
-            camera.position.set(x, y + lerp(1.3, 3, t), z);
-            camera.lookAt(b.x, y + 0.8, b.z);
-            camera.fov = 48;
-          } }];
-        },
-        bossEnd: (ctx) => {
-          const b = ctx.b;
-          return [
-            { dur: 4.2, text: "NOSORO\u017BEC POKONANY", sub: "Central Park zn\xF3w jest bezpieczny.", at: (t) => {
-              const a = lerp(0.3, 2.2, ease(t));
-              camera.position.set(b.x + Math.cos(a) * 9, b.y + lerp(1.4, 4.2, t), b.z + Math.sin(a) * 9);
-              camera.lookAt(b.x, b.y + 0.8, b.z);
-              camera.fov = 48;
-            } }
-          ];
-        }
-      };
-    }
-  });
-
   // js/fisk.js
   function makeKingpin(room2) {
     const H3 = buildKingpin();
@@ -22797,6 +22607,643 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
         return (dx * Math.sin(b.yaw) + dz * Math.cos(b.yaw)) / l < -0.25;
       };
       vulnerable = (b) => b.st === "tired" || b.st === "stun" || behind(b);
+    }
+  });
+
+  // js/rozmowy_teksty.js
+  var LINIE3, K3, ciag, ROZMOWY, KTO, MOWCA;
+  var init_rozmowy_teksty = __esm({
+    "js/rozmowy_teksty.js"() {
+      LINIE3 = [
+        // ---------------------------------------------------------------- scenki
+        { id: "cine_intro_01", kind: "cine", text: "Nowy Jork. Osiem milion\xF3w ludzi, zero miejsc parkingowych.", voice: "peter", mood: "dry" },
+        { id: "cine_intro_02", kind: "cine", text: "Zwyk\u0142y dzie\u0144. Kto\u015B w\u0142a\u015Bnie szykuje co\u015B g\u0142upiego.", voice: "peter", mood: "dry" },
+        { id: "cine_intro_03", kind: "cine", text: "Kto\u015B musi tu pilnowa\u0107. Zawsze wychodzi na mnie.", voice: "peter", mood: "normal" },
+        { id: "cine_boss_01", kind: "cine", text: "Spider-Man! Ten park jest m\xF3j, a ty tu jeste\u015B szkodnikiem!", voice: "rhino", mood: "excited" },
+        { id: "cine_boss_02", kind: "cine", text: "Rogaty kolego, mo\u017Ce pogadamy? Nie? Dobra, tak te\u017C mo\u017Ce by\u0107.", voice: "peter", mood: "dry" },
+        { id: "cine_bossend_01", kind: "cine", text: "Gotowy do transportu. Tylko kto\u015B musi naprawi\u0107 ogrodzenie. I po\u0142ow\u0119 parku.", voice: "peter", mood: "dry" },
+        { id: "cine_bossend_02", kind: "cine", text: "Spider-Man, tu Watanabe. Odbieramy go z parku. Dobra robota.", voice: "yuri", mood: "normal" },
+        { id: "cine_fisk_01", kind: "cine", text: "Drzwi s\u0105 zamkni\u0119te, panie Parker. Nikt nam nie przeszkodzi.", voice: "fisk", mood: "dry" },
+        { id: "cine_fisk_02", kind: "cine", text: "Nie powiniene\u015B tu wchodzi\u0107, paj\u0105ku.", voice: "fisk", mood: "normal" },
+        { id: "cine_fisk_03", kind: "cine", text: "\u0141adny gabinet. Zawsze chcia\u0142em co\u015B w tym stylu. Z wyj\u0105tkiem kolekcji nielegalnych rzeczy.", voice: "peter", mood: "dry" },
+        { id: "cine_fisk2_01", kind: "cine", text: "Skoro nalegasz\u2026 Stra\u017Ce to dopiero rozgrzewka.", voice: "fisk", mood: "normal" },
+        { id: "cine_fisk2_02", kind: "cine", text: "B\u0105d\u017A got\xF3w. Ja jestem zawsze.", voice: "fisk", mood: "dry" },
+        { id: "cine_fiskend_01", kind: "cine", text: "Pa\u0144ski interes w\u0142a\u015Bnie si\u0119 sko\u0144czy\u0142, panie Fisk.", voice: "peter", mood: "normal" },
+        { id: "cine_fiskend_02", kind: "cine", text: "Wszystkie jednostki, Kingpin zatrzymany. Powtarzam, Kingpin zatrzymany.", voice: "radio", mood: "normal" },
+        // ---------------------------------------------------------------- ciocia May
+        { id: "may_hello_01", kind: "call", text: "Peter? Tu ciocia May. Jeste\u015B tam?", voice: "may", mood: "normal" },
+        { id: "may_hello_02", kind: "call", text: "Cze\u015B\u0107, ciociu. Jestem\u2026 w drodze.", voice: "peter", mood: "strained" },
+        { id: "may_hello_03", kind: "call", text: "W drodze dok\u0105d? S\u0142ysz\u0119 wiatr. Znowu jeste\u015B na jakim\u015B dachu?", voice: "may", mood: "normal" },
+        { id: "may_hello_04", kind: "call", text: "Na jakim dachu? To tylko s\u0142uchawka. Ona tak ma.", voice: "peter", mood: "strained" },
+        { id: "may_hello_05", kind: "call", text: "Peter. Wracaj na kolacj\u0119, upiek\u0142am zapiekank\u0119. I prosz\u0119, uwa\u017Caj na siebie.", voice: "may", mood: "normal" },
+        { id: "may_hello_06", kind: "call", text: "Obiecuj\u0119. Zjawi\u0119 si\u0119. Prawie na pewno.", voice: "peter", mood: "normal" },
+        { id: "may_obiad_01", kind: "call", text: "Peter, kochanie, ros\xF3\u0142 stygnie. Wiem, \u017Ce miasto ci\u0119 potrzebuje, ale \u017Co\u0142\u0105dek te\u017C.", voice: "may", mood: "normal" },
+        { id: "may_obiad_02", kind: "call", text: "Ciociu, ju\u017C lec\u0119. No, bujam si\u0119. To znaczy id\u0119, id\u0119.", voice: "peter", mood: "strained" },
+        { id: "may_obiad_03", kind: "call", text: "Bujasz si\u0119? Ty si\u0119 z kim\u015B bujasz? Opowiesz mi przy zupie.", voice: "may", mood: "normal" },
+        { id: "may_obiad_04", kind: "call", text: "Przy zupie opowiem wszystko. Poza prawd\u0105.", voice: "peter", mood: "dry" },
+        { id: "may_zakupy_01", kind: "call", text: "Peter, sko\u0144czy\u0142o mi si\u0119 mleko i chleb. Skoczysz do sklepu, jak b\u0119dziesz w okolicy?", voice: "may", mood: "normal" },
+        { id: "may_zakupy_02", kind: "call", text: "Mleko i chleb. Zapisane. Mam nawet idealn\u0105 torb\u0119. Tak\u0105 z siatki.", voice: "peter", mood: "dry" },
+        { id: "may_zakupy_03", kind: "call", text: "Tylko nie kupuj najta\u0144szego. I nie r\xF3b niczego g\u0142upiego po drodze.", voice: "may", mood: "normal" },
+        { id: "may_zakupy_04", kind: "call", text: "Ja? Nigdy. Najwy\u017Cej co\u015B m\u0105drego, ale z du\u017Cym hukiem.", voice: "peter", mood: "dry" },
+        { id: "may_plecak_01", kind: "call", text: "Kochanie, dzwoni\u0142 pan z biura rzeczy znalezionych. Kto\u015B odda\u0142 tw\xF3j plecak. Znowu!", voice: "may", mood: "normal" },
+        { id: "may_plecak_02", kind: "call", text: "To d\u0142uga historia. W\u0142a\u015Bciwie kr\xF3tka. Wiatr.", voice: "peter", mood: "strained" },
+        { id: "may_plecak_03", kind: "call", text: "Wiatr zabiera ci plecaki, a ty mi nic nie m\xF3wisz. Dobrze, dobrze. Do zobaczenia.", voice: "may", mood: "dry" },
+        // ---------------------------------------------------------------- Mary Jane
+        { id: "mj_art_01", kind: "call", text: "Cze\u015B\u0107, Parker. Widzia\u0142am w wiadomo\u015Bciach paj\u0119cz\u0105 robot\u0119 przy ulicy. Zbieg okoliczno\u015Bci, \u017Ce by\u0142e\u015B nieosi\u0105galny?", voice: "mj", mood: "dry" },
+        { id: "mj_art_02", kind: "call", text: "Telefon mi si\u0119 roz\u0142adowa\u0142. Ca\u0142y dzie\u0144. Bardzo pechowo.", voice: "peter", mood: "strained" },
+        { id: "mj_art_03", kind: "call", text: "Jasne. Potrzebuj\u0119 cytatu do artyku\u0142u. Czy on w og\xF3le sypia?", voice: "mj", mood: "normal" },
+        { id: "mj_art_04", kind: "call", text: "S\u0142ysza\u0142em, \u017Ce nie. Podobno \u017Cyje na zimnej coli i uporze.", voice: "peter", mood: "dry" },
+        { id: "mj_art_05", kind: "call", text: "Wezm\u0119 to jako bez komentarza. Ale kawa jutro jest twoja.", voice: "mj", mood: "normal" },
+        { id: "mj_art_06", kind: "call", text: "Kawa, jasne. Postaram si\u0119 przyj\u015B\u0107 z obiema r\u0119kami i bez sieci.", voice: "peter", mood: "dry" },
+        { id: "mj_10_01", kind: "call", text: "Parker, rozmawiasz z kobiet\u0105, kt\xF3ra dosta\u0142a wst\u0119pniak. Tytu\u0142 roboczy: bohater czy utrapienie.", voice: "mj", mood: "excited" },
+        { id: "mj_10_02", kind: "call", text: "Mam nadziej\u0119, \u017Ce bohater. Ale utrapienie te\u017C brzmi sympatycznie.", voice: "peter", mood: "dry" },
+        { id: "mj_10_03", kind: "call", text: "Jeszcze nie zdecydowa\u0142am. Zale\u017Cy, czy zjesz ze mn\u0105 obiad.", voice: "mj", mood: "normal" },
+        { id: "mj_10_04", kind: "call", text: "Obiad. Zawsze. Daj mi dwadzie\u015Bcia minut i jeden wysoki budynek.", voice: "peter", mood: "normal" },
+        // ---------------------------------------------------------------- Yuri Watanabe
+        { id: "yuri_pomoc_01", kind: "call", text: "Spider-Man, tu Watanabe. Na ulicach robi si\u0119 gor\u0105co, a moi ludzie nie wyrabiaj\u0105.", voice: "yuri", mood: "normal" },
+        { id: "yuri_pomoc_02", kind: "call", text: "S\u0142ysz\u0119. Gdzie mam by\u0107?", voice: "peter", mood: "normal" },
+        { id: "yuri_pomoc_03", kind: "call", text: "Wsz\u0119dzie. Ale zacznij od miejsc, gdzie s\u0142ycha\u0107 strza\u0142y. Reszta jest na ciebie.", voice: "yuri", mood: "normal" },
+        { id: "yuri_pomoc_04", kind: "call", text: "Przyj\u0105\u0142em. Zostaw dla mnie kaw\u0119.", voice: "peter", mood: "dry" },
+        { id: "yuri_rhino_01", kind: "call", text: "Spider-Man, tu Watanabe. Park wygl\u0105da jak po tornadzie, ale nikt nie ucierpia\u0142. Dobra robota.", voice: "yuri", mood: "normal" },
+        { id: "yuri_rhino_02", kind: "call", text: "Zawsze do us\u0142ug. Mog\u0119 prosi\u0107 o odszkodowanie dla ogrodnika?", voice: "peter", mood: "dry" },
+        { id: "yuri_rhino_03", kind: "call", text: "Zobacz\u0119, co si\u0119 da zrobi\u0107. I uwa\u017Caj. Takie typy maj\u0105 szef\xF3w. Kto\u015B wi\u0119kszy to wszystko organizuje.", voice: "yuri", mood: "normal" },
+        { id: "yuri_rhino_04", kind: "call", text: "Domy\u015Blam si\u0119. Sprawdz\u0119, kto lubi wysokie wie\u017Ce.", voice: "peter", mood: "normal" },
+        // ---------------------------------------------------------------- radio policyjne
+        { id: "radio_napad_01", kind: "radio", text: "Wszystkie jednostki, zg\u0142oszenie napadu w okolicy. Podejrzani uzbrojeni. Zachowa\u0107 ostro\u017Cno\u015B\u0107.", voice: "radio", mood: "normal" },
+        { id: "radio_bojka_01", kind: "radio", text: "Centrala do wszystkich patroli. Awantura na ulicy, kilku m\u0119\u017Cczyzn z kijami. Potrzebne wsparcie.", voice: "radio", mood: "normal" },
+        { id: "radio_kradziez_01", kind: "radio", text: "Uwaga, wszystkie jednostki. Kradzie\u017C w toku. Sprawcy w ciemnych kurtkach, mo\u017Cliwa bro\u0144.", voice: "radio", mood: "normal" },
+        { id: "radio_pajak_01", kind: "radio", text: "Wszystkie jednostki, \u015Bwiadkowie widzieli cz\u0142owieka w czerwono-niebieskim kostiumie. Nie przeszkadza\u0107.", voice: "radio", mood: "dry" },
+        { id: "radio_porzadek_01", kind: "radio", text: "Centrala, zg\u0142oszenie podejrzanych os\xF3b w pobli\u017Cu. Kto jest najbli\u017Cej, niech sprawdzi.", voice: "radio", mood: "normal" },
+        // ---------------------------------------------------------------- bandyci (okrzyki)
+        { id: "thug_spot_01", kind: "thug", text: "To Spider-Man! Uciekamy!", voice: "thug", mood: "excited" },
+        { id: "thug_spot_02", kind: "thug", text: "Cholera, paj\u0105k! Wszyscy do mnie!", voice: "thug", mood: "excited" },
+        { id: "thug_spot_03", kind: "thug", text: "Tylko nie on! Nie dzisiaj!", voice: "thug", mood: "strained" },
+        { id: "thug_spot_04", kind: "thug", text: "Ej, szefie m\xF3wi\u0142, \u017Ce go tu nie b\u0119dzie!", voice: "thug", mood: "strained" },
+        { id: "thug_spot_05", kind: "thug", text: "No to mamy go\u015Bcia. Bra\u0107 go!", voice: "thug", mood: "normal" },
+        { id: "thug_brute_01", kind: "thug", text: "Zgniot\u0119 ci\u0119 jak puszk\u0119!", voice: "thug", mood: "excited" },
+        { id: "thug_brute_02", kind: "thug", text: "Chod\u017A tu, paj\u0105ku, pogadamy na pi\u0119\u015Bci!", voice: "thug", mood: "excited" }
+      ];
+      K3 = (...ids) => ids.map((id_linii) => ({ id_linii, pauza_ms: 350 }));
+      ciag = (prefix, n) => K3(...Array.from({ length: n }, (_, i) => prefix + String(i + 1).padStart(2, "0")));
+      ROZMOWY = {
+        may_hello: { kto: "may", warunek: (c) => c.t > 25, kroki: ciag("may_hello_", 6) },
+        mj_art: { kto: "mj", warunek: (c) => c.crimes >= 1 && c.t > 40, kroki: ciag("mj_art_", 6) },
+        may_plecak: { kto: "may", warunek: (c) => c.bags >= 2, kroki: ciag("may_plecak_", 3) },
+        yuri_pomoc: { kto: "yuri", warunek: (c) => c.crimes >= 4, kroki: ciag("yuri_pomoc_", 4) },
+        may_obiad: { kto: "may", warunek: (c) => c.crimes >= 6, kroki: ciag("may_obiad_", 4) },
+        yuri_rhino: { kto: "yuri", warunek: (c) => c.save.bossWins >= 1, kroki: ciag("yuri_rhino_", 4) },
+        may_zakupy: { kto: "may", warunek: (c) => c.lvl >= 5, kroki: ciag("may_zakupy_", 4) },
+        mj_10: { kto: "mj", warunek: (c) => c.lvl >= 10, kroki: ciag("mj_10_", 4) },
+        // komunikaty radiowe o przestepstwie w okolicy (powtarzalne, z przerwa)
+        radio_napad: { kto: "radio", warunek: (c) => c.crime < 260 && c.crime > 45, powtarzalna: true, cd: 150, kroki: K3("radio_napad_01") },
+        radio_bojka: { kto: "radio", warunek: (c) => c.crime < 260 && c.crime > 45, powtarzalna: true, cd: 150, kroki: K3("radio_bojka_01") },
+        radio_kradziez: { kto: "radio", warunek: (c) => c.crime < 260 && c.crime > 45, powtarzalna: true, cd: 150, kroki: K3("radio_kradziez_01") },
+        radio_pajak: { kto: "radio", warunek: (c) => c.crime < 260 && c.crime > 45 && c.crimes >= 2, powtarzalna: true, cd: 150, kroki: K3("radio_pajak_01") },
+        radio_porzadek: { kto: "radio", warunek: (c) => c.crime < 260 && c.crime > 45, powtarzalna: true, cd: 150, kroki: K3("radio_porzadek_01") }
+      };
+      KTO = {
+        may: "Ciocia May",
+        mj: "MJ",
+        yuri: "Yuri Watanabe",
+        radio: "Radio policyjne"
+      };
+      MOWCA = {
+        peter: "TY",
+        may: "CIOCIA MAY",
+        mj: "MJ",
+        yuri: "WATANABE",
+        fisk: "FISK",
+        rhino: "NOSORO\u017BEC",
+        thug: "BANDYTA",
+        radio: "RADIO"
+      };
+    }
+  });
+
+  // js/rozmowy_glos.js
+  var glosMs;
+  var init_rozmowy_glos = __esm({
+    "js/rozmowy_glos.js"() {
+      init_glos();
+      glosMs = (id, text) => {
+        const m = window.GLOS_MANIFEST && window.GLOS_MANIFEST[id];
+        return m && m.ms ? m.ms : Math.max(1200, 450 + (text || "").length * 62);
+      };
+    }
+  });
+
+  // js/rozmowy.js
+  function sayLine(id, onEnd, priority = 3) {
+    const l = BY.get(id);
+    let done = false, fb = 0;
+    const fin2 = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(fb);
+      if (onEnd) onEnd();
+    };
+    if (!l) {
+      fb = setTimeout(fin2, 0);
+      return { ms: 0, line: null, cancel() {
+        done = true;
+        clearTimeout(fb);
+      } };
+    }
+    const ms = glosMs(id, l.text);
+    fb = setTimeout(fin2, ms + 2500);
+    try {
+      glosPlay(id, { priority, text: l.text, voice: l.voice, onEnd: fin2 });
+    } catch (e) {
+    }
+    return { ms, line: l, cancel() {
+      done = true;
+      clearTimeout(fb);
+    } };
+  }
+  function ui() {
+    if (pan) return;
+    const st = document.createElement("style");
+    st.textContent = `#callPan{position:fixed;right:28px;top:118px;width:330px;z-index:6;padding:10px 14px 12px;background:linear-gradient(180deg,rgba(7,18,30,.9),rgba(4,12,20,.86));border-left:4px solid var(--cc,#f2b36a);border-radius:2px 8px 8px 2px;box-shadow:0 6px 22px rgba(0,0,0,.5);color:#fff;font:600 17px/1.3 Rajdhani,Arial,sans-serif;opacity:0;transform:translateX(30px);transition:opacity .35s,transform .35s;pointer-events:none}
+#callPan.on{opacity:1;transform:none}
+#callPan .ch{display:flex;align-items:center;gap:9px;margin-bottom:6px}
+#callPan svg{width:22px;height:22px;flex:none;fill:var(--cc,#f2b36a)}
+#callPan.ring svg{animation:cpr .22s linear infinite alternate}
+@keyframes cpr{from{transform:rotate(-16deg)}to{transform:rotate(16deg)}}
+#callPan .cn{flex:1;font-size:19px;letter-spacing:2px;text-transform:uppercase;color:var(--cc,#f2b36a);white-space:nowrap}
+#callPan .cs{font-size:12px;letter-spacing:2px;color:#9fb4c4;margin-top:-3px}
+#callPan .cb{display:flex;align-items:flex-end;gap:3px;height:20px}
+#callPan .cb i{display:block;width:4px;height:4px;border-radius:2px;background:var(--cc,#f2b36a);transition:height .06s}
+#callPan .cw{font-size:12px;letter-spacing:3px;color:#ff7a80;margin-bottom:1px}
+#callPan .ct{min-height:2.6em;text-shadow:0 1px 5px rgba(0,0,0,.7)}
+#thugSay{position:fixed;left:50%;bottom:235px;transform:translateX(-50%);z-index:6;padding:6px 18px;background:rgba(20,6,6,.8);border-left:4px solid #d44;font:700 19px Rajdhani,Arial,sans-serif;color:#fff;opacity:0;transition:opacity .25s;pointer-events:none}
+#thugSay b{color:#ff7a70;letter-spacing:3px;font-size:12px;margin-right:10px}`;
+    document.head.appendChild(st);
+    pan = document.createElement("div");
+    pan.id = "callPan";
+    pan.innerHTML = '<div class="ch"><svg viewBox="0 0 24 24"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z"/></svg><div style="flex:1"><div class="cn"></div><div class="cs"></div></div><div class="cb"><i></i><i></i><i></i><i></i><i></i></div></div><div class="cw"></div><div class="ct"></div>';
+    document.body.appendChild(pan);
+    bars = [...pan.querySelectorAll(".cb i")];
+    eName = pan.querySelector(".cn");
+    eSub = pan.querySelector(".cs");
+    eWho = pan.querySelector(".cw");
+    eTxt = pan.querySelector(".ct");
+    thugEl = document.createElement("div");
+    thugEl.id = "thugSay";
+    thugEl.innerHTML = "<b></b><span></span>";
+    document.body.appendChild(thugEl);
+  }
+  function showPan(on) {
+    ui();
+    pan.classList.toggle("on", on);
+    if (!on) pan.classList.remove("ring");
+  }
+  function inCombat() {
+    if (G.boss || G.race || G.chase || G.interior || fiskActive()) return true;
+    if (P.atk || P.comboT > 0 && P.combo > 0 || P.hp < 35 || P.dead) return true;
+    for (const e of enemies) if (!e.dead && !e.gone && !e.webbed && e.pos.distanceTo(P.pos) < 24) return true;
+    return false;
+  }
+  function nearCrime() {
+    let d = 9999;
+    for (const c of crimes) if (c.active) d = Math.min(d, Math.hypot(c.x - P.pos.x, c.z - P.pos.z));
+    return d;
+  }
+  function setCaller(def) {
+    ui();
+    pan.style.setProperty("--cc", COL[def.kto] || "#f2b36a");
+    eName.textContent = KTO[def.kto] || def.kto;
+  }
+  function setLine(id) {
+    const l = BY.get(id);
+    if (!l) return;
+    eWho.textContent = MOWCA[l.voice] || "";
+    eTxt.textContent = l.text;
+    pan.style.setProperty("--cc", l.voice === "peter" ? "#e8232b" : COL[cur4.def.kto] || "#f2b36a");
+  }
+  function start2(id) {
+    const def = ROZMOWY[id];
+    if (!def) return false;
+    if (cur4) abort(false);
+    const radio = def.kto === "radio";
+    cur4 = { id, def, i: 0, phase: radio ? "talk" : "ring", t: 0, h: null, pauseMs: 0, waitT: 0 };
+    setCaller(def);
+    eSub.textContent = radio ? "KOMUNIKAT" : "DZWONI\u2026";
+    eWho.textContent = "";
+    eTxt.textContent = radio ? "" : def.kto === "may" ? "\u260E" : "";
+    showPan(true);
+    pan.classList.toggle("ring", !radio);
+    if (radio) playStep2();
+    else sfx("ring", 0.6);
+    return true;
+  }
+  function playStep2() {
+    const k = cur4.def.kroki[cur4.i], me = cur4;
+    cur4.phase = "talk";
+    cur4.t = 0;
+    pan.classList.remove("ring");
+    eSub.textContent = cur4.def.kto === "radio" ? "KOMUNIKAT" : "PO\u0141\u0104CZENIE";
+    setLine(k.id_linii);
+    cur4.h = sayLine(k.id_linii, () => {
+      if (cur4 === me && me.phase === "talk") {
+        me.phase = "pause";
+        me.t = 0;
+        me.pauseMs = k.pauza_ms || 300;
+      }
+    });
+  }
+  function finish3() {
+    const me = cur4, def = me.def;
+    calls()[me.id] = Date.now();
+    doSave();
+    if (def.powtarzalna) cdUntil[me.id] = playT + (def.cd || 120);
+    gapT = def.kto === "radio" ? 45 : 80;
+    me.phase = "end";
+    me.t = 0;
+    eSub.textContent = def.kto === "radio" ? "" : "ROZMOWA ZAKO\u0143CZONA";
+    eWho.textContent = "";
+    eTxt.textContent = "";
+    for (const b of bars) b.style.height = "4px";
+  }
+  function abort(requeue = true) {
+    if (!cur4) return;
+    const id = cur4.id, ended = cur4.phase === "end";
+    if (cur4.h) cur4.h.cancel();
+    if (cur4.phase === "talk") glosStop();
+    cur4 = null;
+    showPan(false);
+    if (requeue && !ended && !queue.includes(id)) queue.unshift(id);
+  }
+  function eligible() {
+    const c = ctx(), out = [], rad = [], done = calls();
+    for (const id in ROZMOWY) {
+      const d = ROZMOWY[id];
+      if (queue.includes(id) || cur4 && cur4.id === id) continue;
+      if (d.powtarzalna) {
+        if ((cdUntil[id] || 0) > playT) continue;
+      } else if (done[id]) continue;
+      let ok = false;
+      try {
+        ok = !!d.warunek(c);
+      } catch (e) {
+      }
+      if (ok) (d.kto === "radio" ? rad : out).push(id);
+    }
+    return out.length ? out : rad.length ? [rad[Math.floor(Math.random() * rad.length)]] : [];
+  }
+  function triggerCheck(force = false) {
+    if (!force && gapT > 0) return [];
+    const e = eligible();
+    if (e.length) queue.push(e[0]);
+    return e.slice(0, 1);
+  }
+  function thugShout(brute = false) {
+    const ids = LINIE3.filter((l2) => l2.id.startsWith(brute ? "thug_brute_" : "thug_spot_")).map((l2) => l2.id);
+    const id = ids[Math.floor(Math.random() * ids.length)], l = BY.get(id);
+    ui();
+    thugEl.querySelector("b").textContent = "BANDYTA";
+    thugEl.querySelector("span").textContent = l.text;
+    thugEl.style.opacity = 1;
+    thugT = 2.6 + l.text.length * 0.04;
+    try {
+      glosPlay(id, { priority: 1, text: l.text, voice: l.voice });
+    } catch (e) {
+    }
+    return id;
+  }
+  function updateCalls(dt) {
+    if (G.state === "menu") {
+      if (cur4) abort();
+      playT = 0;
+      return;
+    }
+    if (thugT > 0) {
+      thugT -= dt;
+      if (thugT <= 0 && thugEl) thugEl.style.opacity = 0;
+    }
+    if (G.state !== "play") {
+      if (pan && pan.classList.contains("on")) pan.style.opacity = 0;
+      return;
+    }
+    if (pan) pan.style.opacity = "";
+    if (G.cine || P.dead) {
+      if (cur4) abort();
+      return;
+    }
+    playT += dt;
+    gapT -= dt;
+    shoutCD -= dt;
+    if (cur4) {
+      cur4.t += dt;
+      if (cur4.phase === "talk") {
+        const lv = glosState.level, on = glosState.speaking;
+        for (let i = 0; i < bars.length; i++) bars[i].style.height = on ? Math.round(4 + 16 * clamp(lv * (0.55 + 0.45 * Math.abs(Math.sin(performance.now() / (70 + i * 23) + i))), 0, 1)) + "px" : "4px";
+      } else for (const b of bars) b.style.height = "4px";
+      if (cur4.phase === "ring") {
+        if (Math.floor((cur4.t + dt) / 1.1) > Math.floor(cur4.t / 1.1) && cur4.t < 2.2) sfx("ring", 0.6);
+        if (cur4.t > 2.4) playStep2();
+      } else if (cur4.phase === "pause") {
+        if (cur4.t * 1e3 >= cur4.pauseMs) {
+          if (++cur4.i >= cur4.def.kroki.length) finish3();
+          else if (inCombat()) {
+            cur4.phase = "wait";
+            cur4.t = 0;
+            eSub.textContent = "ZAWIESZONA";
+          } else playStep2();
+        }
+      } else if (cur4.phase === "wait") {
+        if (!inCombat()) playStep2();
+        else if (cur4.t > 25) abort();
+      } else if (cur4.phase === "end") {
+        if (cur4.t > 0.9) {
+          showPan(false);
+          cur4 = null;
+        }
+      }
+      return;
+    }
+    pollT -= dt;
+    if (pollT <= 0) {
+      pollT = 0.7;
+      if (gapT <= 0 && playT > 3 && !queue.length) triggerCheck(false);
+    }
+    if (queue.length && gapT <= 0 && !inCombat()) start2(queue.shift());
+    if (shoutCD <= 0 && !cur4) {
+      for (const e of enemies) {
+        if (e.dead || e.gone || e.webbed || e.type === "boss") continue;
+        if (e.pos.distanceTo(P.pos) < 15 && Math.random() < 0.5) {
+          thugShout(e.type === "brute");
+          shoutCD = 30;
+          break;
+        }
+      }
+      if (shoutCD <= 0) shoutCD = 3;
+    }
+  }
+  var BY, lineInfo, lineMs, speakerName, COL, pan, bars, eName, eWho, eTxt, eSub, thugEl, thugT, cur4, queue, cdUntil, playT, gapT, pollT, calls, ctx, shoutCD;
+  var init_rozmowy = __esm({
+    "js/rozmowy.js"() {
+      init_stan();
+      init_util();
+      init_dzwiek();
+      init_fisk();
+      init_rozmowy_teksty();
+      init_rozmowy_glos();
+      BY = new Map(LINIE3.map((l) => [l.id, l]));
+      lineInfo = (id) => BY.get(id) || null;
+      lineMs = (id) => {
+        const l = BY.get(id);
+        return l ? glosMs(id, l.text) : 0;
+      };
+      speakerName = (v) => MOWCA[v] || "";
+      COL = { may: "#f2b36a", mj: "#ff7aa5", yuri: "#62b9ff", radio: "#9ee37d" };
+      pan = null;
+      bars = [];
+      eName = null;
+      eWho = null;
+      eTxt = null;
+      eSub = null;
+      thugEl = null;
+      thugT = 0;
+      cur4 = null;
+      queue = [];
+      cdUntil = {};
+      playT = 0;
+      gapT = 0;
+      pollT = 0;
+      calls = () => save.calls || (save.calls = {});
+      ctx = () => ({ save, G, P, t: playT, crime: nearCrime(), bags: save.bags.length, crimes: save.crimes, lvl: save.lvl });
+      shoutCD = 12;
+    }
+  });
+
+  // js/scenki.js
+  function ui2() {
+    if (bars2) return;
+    const st = document.createElement("style");
+    st.textContent = `.cbar{position:fixed;left:0;right:0;height:0;background:#000;z-index:8;transition:height .7s ease}
+  #cSub{position:fixed;left:0;right:0;bottom:15vh;text-align:center;z-index:9;opacity:0;transition:opacity .6s;pointer-events:none;color:#fff;text-shadow:0 2px 12px #000}
+  #cSub b{display:block;font-family:'Bebas Neue',Impact,sans-serif;font-size:clamp(34px,6.5vh,64px);letter-spacing:4px;font-weight:400}
+  #cSub span{font-family:'Rajdhani',Arial,sans-serif;font-size:clamp(17px,3vh,26px);font-weight:600;letter-spacing:1px}
+  #cTalk{position:fixed;left:0;right:0;top:13vh;text-align:center;z-index:9;opacity:0;transition:opacity .3s;pointer-events:none;color:#fff;text-shadow:0 2px 10px #000;padding:0 8vw}
+  #cTalk b{display:block;font:400 clamp(16px,2.6vh,24px) 'Bebas Neue',Impact,sans-serif;letter-spacing:4px;color:#ff6a6f}
+  #cTalk span{font:600 clamp(19px,3.3vh,30px) Rajdhani,Arial,sans-serif}
+  #cSkip{position:fixed;right:24px;bottom:calc(11vh - 14px);z-index:9;color:#cfe;font:600 15px Rajdhani,Arial;opacity:0;transition:opacity .6s}`;
+    document.head.appendChild(st);
+    bars2 = [document.createElement("div"), document.createElement("div")];
+    bars2[0].className = "cbar";
+    bars2[0].style.top = 0;
+    bars2[1].className = "cbar";
+    bars2[1].style.bottom = 0;
+    sub = document.createElement("div");
+    sub.id = "cSub";
+    sub.innerHTML = "<b></b><span></span>";
+    subT = sub.querySelector("b");
+    subS = sub.querySelector("span");
+    const skip = document.createElement("div");
+    skip.id = "cSkip";
+    skip.textContent = "SPACJA / A \u2014 pomi\u0144";
+    skip.className = "cskip";
+    talk = document.createElement("div");
+    talk.id = "cTalk";
+    talk.innerHTML = "<b></b><span></span>";
+    document.body.append(bars2[0], bars2[1], sub, talk, skip);
+  }
+  function playCine(name, ctx2 = {}) {
+    ui2();
+    ctx2.p = P.pos.clone();
+    if (ctx2.b) ctx2.b = ctx2.b.clone();
+    cine = { name, shots: SCENES[name](ctx2), i: 0, t: 0, onEnd: ctx2.onEnd, sk: 0, sid: 0, talking: false, need: 0, h: null };
+    G.cine = name;
+    const h = document.getElementById("hud");
+    if (h) h.style.visibility = "hidden";
+    bars2[0].style.height = bars2[1].style.height = "11vh";
+    document.getElementById("cSkip").style.opacity = 0.9;
+    setShotText();
+  }
+  function stopTalk() {
+    if (!cine) return;
+    cine.sid++;
+    cine.talking = false;
+    if (cine.h) cine.h.cancel();
+    cine.h = null;
+    glosStop();
+    if (talk) talk.style.opacity = 0;
+  }
+  function startTalk(ids) {
+    stopTalk();
+    const me = cine, sid = me.sid;
+    me.talking = !!(ids && ids.length);
+    me.need = ids ? ids.reduce((a, id) => a + lineMs(id) + 250, 0) / 1e3 : 0;
+    const next = (k) => {
+      if (cine !== me || me.sid !== sid) return;
+      if (k >= ids.length) {
+        me.talking = false;
+        talk.style.opacity = 0;
+        return;
+      }
+      const l = lineInfo(ids[k]);
+      talk.querySelector("b").textContent = l ? speakerName(l.voice) : "";
+      talk.querySelector("span").textContent = l ? l.text : "";
+      talk.style.opacity = 1;
+      me.h = sayLine(ids[k], () => setTimeout(() => next(k + 1), 250));
+    };
+    if (me.talking) next(0);
+  }
+  function setShotText() {
+    const s = cine.shots[cine.i];
+    startTalk(s.say);
+    if (s.text) {
+      subT.textContent = s.text;
+      subS.textContent = s.sub || "";
+      sub.style.opacity = 1;
+    } else sub.style.opacity = 0;
+  }
+  function endCine() {
+    if (!cine) return;
+    stopTalk();
+    const cb = cine.onEnd;
+    cine = null;
+    G.cine = null;
+    bars2[0].style.height = bars2[1].style.height = "0";
+    sub.style.opacity = 0;
+    document.getElementById("cSkip").style.opacity = 0;
+    const h = document.getElementById("hud");
+    if (h) h.style.visibility = "";
+    if (cb) cb();
+  }
+  function updateCine(dt) {
+    if (!cine) return false;
+    cine.sk += dt;
+    if (cine.sk > 0.6 && (KP.Space || KP.Enter || KP.Escape || MP[0] || pp(0) || pp(9))) {
+      endCine();
+      return false;
+    }
+    const s = cine.shots[cine.i];
+    cine.t += dt;
+    const t = clamp(cine.t / s.dur, 0, 1);
+    s.at(t);
+    camera.updateProjectionMatrix();
+    if (cine.t >= s.dur && cine.t >= Math.min(s.dur + 3, cine.need || 0)) {
+      if (++cine.i >= cine.shots.length) {
+        endCine();
+        return false;
+      }
+      cine.t = 0;
+      setShotText();
+    }
+    return true;
+  }
+  var talk, bars2, sub, subT, subS, cine, ease, _a2, _b2, SCENES;
+  var init_scenki = __esm({
+    "js/scenki.js"() {
+      init_util();
+      init_stan();
+      init_wejscie();
+      init_miasto();
+      init_dzwiek();
+      init_rozmowy();
+      init_rozmowy_glos();
+      talk = null;
+      bars2 = null;
+      sub = null;
+      subT = null;
+      subS = null;
+      cine = null;
+      ease = (t) => t * t * (3 - 2 * t);
+      _a2 = new V3();
+      _b2 = new V3();
+      SCENES = {
+        intro: (ctx2) => {
+          const f = new V3(Math.sin(START_H), 0, Math.cos(START_H)), r = new V3(f.z, 0, -f.x), p = ctx2.p;
+          return [
+            { dur: 4.2, say: ["cine_intro_01"], text: "NOWY JORK", sub: "Miasto, kt\xF3re nigdy nie \u015Bpi.", at: (t) => {
+              const a = lerp(0.5, -0.7, ease(t));
+              camera.position.copy(p).addScaledVector(f, -Math.cos(a) * 4.4).addScaledVector(r, Math.sin(a) * 4.4);
+              camera.position.y = p.y + 1.1 + t * 0.6;
+              camera.lookAt(p.x, p.y + 0.9, p.z);
+              camera.fov = 50;
+            } },
+            { dur: 4.2, say: ["cine_intro_02"], text: "", sub: "", at: (t) => {
+              camera.position.copy(p).addScaledVector(f, lerp(3, 16, ease(t)));
+              camera.position.y = p.y + lerp(0.4, 9, ease(t));
+              camera.lookAt(_a2.copy(p).addScaledVector(f, 320).add(_b2.set(0, -75, 0)));
+              camera.fov = 62;
+            } },
+            { dur: 3.4, say: ["cine_intro_03"], text: "", sub: "", at: (t) => {
+              camera.position.copy(p).addScaledVector(f, lerp(-3.8, -2.6, t)).addScaledVector(r, 0.9);
+              camera.position.y = p.y + 1.7;
+              camera.lookAt(_a2.copy(p).addScaledVector(f, 40).add(_b2.set(0, -6, 0)));
+              camera.fov = 58;
+            } }
+          ];
+        },
+        boss: (ctx2) => {
+          const b = ctx2.b, p = ctx2.p, d = _a2.subVectors(p, b).setY(0).normalize().clone(), r = new V3(d.z, 0, -d.x);
+          return [
+            { dur: 3.8, say: ["cine_boss_01"], text: "NOSORO\u017BEC", sub: "Cz\u0142owiek w pancerzu, kt\xF3rego nic nie zatrzyma.", at: (t) => {
+              camera.position.copy(b).addScaledVector(d, lerp(11, 6.5, ease(t))).addScaledVector(r, lerp(-3, 1, t));
+              camera.position.y = b.y + lerp(0.5, 1.2, t);
+              camera.lookAt(b.x, b.y + 2.6, b.z);
+              camera.fov = lerp(52, 44, t);
+            } },
+            { dur: 2, say: ["cine_boss_02"], text: "", sub: "", at: (t) => {
+              camera.position.copy(p).addScaledVector(d, -3.2).addScaledVector(r, 1.2);
+              camera.position.y = p.y + 1.6;
+              camera.lookAt(p.x, p.y + 1.5, p.z);
+              camera.position.y += t * 0.15;
+              camera.fov = 55;
+            } }
+          ];
+        },
+        fisk: (ctx2) => {
+          const b = ctx2.b, R3 = ctx2.room, y = b.y, bv = R3.cd - 3.8;
+          const at2 = (u, v, h) => {
+            const [x, z] = R3.W(u, v);
+            camera.position.set(x, y + h, z);
+          };
+          return [
+            { dur: 4, say: ["cine_fisk_01"], text: "WILSON FISK", sub: "Kingpin. Prawie ca\u0142e miasto jest jego.", at: (t) => {
+              at2(lerp(-6, -3.5, ease(t)), lerp(R3.cd * 0.3, R3.cd * 0.45, ease(t)), 1.7);
+              camera.lookAt(b.x, y + 1.5, b.z);
+              camera.fov = 50;
+            } },
+            { dur: 3.4, say: ["cine_fisk_02", "cine_fisk_03"], text: "", sub: "", at: (t) => {
+              at2(0.9, bv - lerp(5.2, 3.6, ease(t)), 1.6);
+              camera.lookAt(b.x, y + 1.55, b.z);
+              camera.fov = 42;
+            } }
+          ];
+        },
+        fisk2: (ctx2) => {
+          const b = ctx2.b, R3 = ctx2.room, y = b.y, bv = R3.cd - 3.8;
+          return [{ dur: 3.4, say: ["cine_fisk2_01", "cine_fisk2_02"], text: "", sub: "", at: (t) => {
+            const [x, z] = R3.W(-2.6, bv - lerp(6, 4.4, ease(t)));
+            camera.position.set(x, y + lerp(0.6, 1.3, t), z);
+            camera.lookAt(b.x, y + 1.9, b.z);
+            camera.fov = 46;
+          } }];
+        },
+        fiskEnd: (ctx2) => {
+          const b = ctx2.b, R3 = ctx2.room, y = b.y, bv = R3.cd - 3.8;
+          return [{ dur: 4.2, say: ["cine_fiskend_01", "cine_fiskend_02"], text: "KINGPIN POKONANY", sub: "Nowy Jork odetchn\u0105\u0142 z ulg\u0105.", at: (t) => {
+            const a = lerp(0.3, 2.6, ease(t)), [x, z] = R3.W(5 * Math.cos(a), bv - 5 * Math.sin(a));
+            camera.position.set(x, y + lerp(1.3, 3, t), z);
+            camera.lookAt(b.x, y + 0.8, b.z);
+            camera.fov = 48;
+          } }];
+        },
+        bossEnd: (ctx2) => {
+          const b = ctx2.b;
+          return [
+            { dur: 4.2, say: ["cine_bossend_01", "cine_bossend_02"], text: "NOSORO\u017BEC POKONANY", sub: "Central Park zn\xF3w jest bezpieczny.", at: (t) => {
+              const a = lerp(0.3, 2.2, ease(t));
+              camera.position.set(b.x + Math.cos(a) * 9, b.y + lerp(1.4, 4.2, t), b.z + Math.sin(a) * 9);
+              camera.lookAt(b.x, b.y + 0.8, b.z);
+              camera.fov = 48;
+            } }
+          ];
+        }
+      };
     }
   });
 
@@ -23553,7 +24000,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       t = { m: mkLine(trMat), life: 0 };
       tracers.push(t);
     }
-    setLine(t.m, a, b);
+    setLine2(t.m, a, b);
     t.life = 0.07;
   }
   function updateFX(dt) {
@@ -25023,13 +25470,13 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     refreshSkills();
   }
   function updateSkills(N) {
-    const cur4 = SKILLS[G.skillIdx];
-    const col2 = SKILLS.filter((s) => s.col === cur4.col), ri2 = col2.indexOf(cur4);
+    const cur5 = SKILLS[G.skillIdx];
+    const col2 = SKILLS.filter((s) => s.col === cur5.col), ri2 = col2.indexOf(cur5);
     let t = null;
     if (N.up && ri2 > 0) t = col2[ri2 - 1];
     if (N.down && ri2 < col2.length - 1) t = col2[ri2 + 1];
     if (N.left || N.right) {
-      const nc = clamp(cur4.col + (N.left ? -1 : 1), 0, COLS.length - 1), c2 = SKILLS.filter((s) => s.col === nc);
+      const nc = clamp(cur5.col + (N.left ? -1 : 1), 0, COLS.length - 1), c2 = SKILLS.filter((s) => s.col === nc);
       t = c2[Math.min(ri2, c2.length - 1)];
     }
     if (t) {
@@ -26931,29 +27378,29 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
           c.Cy(ku - 0.5, v0 + 0.2, 1.05, 1.22, 0.06, "glass", "#e0f0e8");
           for (const u of [u0 + 0.15, (u0 + u1) / 2, u1 - 0.15]) pendant(c, u, v0 + 0.25, 1.15, "#b88a3e", 0.17, 3, "#ffcf90", 0.8, "brass");
           if (u1 - u0 > 3) pendant(c, (u0 * 3 + u1) / 4 + 0.6, v0 + 0.25, 1.15, "#b88a3e", 0.17, 3, "#ffcf90", 0.8, "brass");
-          const K3 = L3.back;
-          c.LB(K3, -hw + 0.4, hw - 0.4, 0, 0.6, 0, 0.9, "grain", "#4a3020", true);
-          c.LB(K3, -hw + 0.38, hw - 0.38, 0, 0.62, 0.9, 0.94, "gloss", "#2a2725");
-          c.LB(K3, -hw + 0.4, hw - 0.4, 0, 0.012, 0.94, 1.5, "subway", "#ffffff");
+          const K4 = L3.back;
+          c.LB(K4, -hw + 0.4, hw - 0.4, 0, 0.6, 0, 0.9, "grain", "#4a3020", true);
+          c.LB(K4, -hw + 0.38, hw - 0.38, 0, 0.62, 0.9, 0.94, "gloss", "#2a2725");
+          c.LB(K4, -hw + 0.4, hw - 0.4, 0, 0.012, 0.94, 1.5, "subway", "#ffffff");
           const eu = -0.4;
-          c.LB(K3, eu - 0.6, eu + 0.6, 0.12, 0.58, 0.94, 1.45, "chrome", "#d6d6d6");
-          c.LB(K3, eu - 0.58, eu + 0.58, 0.58, 0.6, 1, 1.38, "gloss", "#8a1a14");
+          c.LB(K4, eu - 0.6, eu + 0.6, 0.12, 0.58, 0.94, 1.45, "chrome", "#d6d6d6");
+          c.LB(K4, eu - 0.58, eu + 0.58, 0.58, 0.6, 1, 1.38, "gloss", "#8a1a14");
           for (const a of [eu - 0.3, eu + 0.3]) {
-            c.LC(K3, a, 0.66, 1.16, 1.24, 0.05, "chrome", "#d6d6d6");
-            c.LB(K3, a - 0.02, a + 0.02, 0.66, 0.84, 1.14, 1.18, "gloss", "#111111");
+            c.LC(K4, a, 0.66, 1.16, 1.24, 0.05, "chrome", "#d6d6d6");
+            c.LB(K4, a - 0.02, a + 0.02, 0.66, 0.84, 1.14, 1.18, "gloss", "#111111");
           }
-          c.LB(K3, eu - 0.5, eu + 0.5, 0.58, 0.72, 0.94, 0.98, "chrome", "#c8c8c8");
-          c.LD(K3, eu + 0.5, 0.58, 0.72, 1.15, 8e-3, "chrome", "#d6d6d6");
-          for (let i = 0; i < 6; i++) c.LC(K3, eu - 0.45 + i * 0.18, 0.3, 1.45, 1.53, 0.04, "gloss", "#f0ece4", { seg: 10 });
-          c.LB(K3, 0.6, 0.85, 0.15, 0.4, 0.94, 1.25, "gloss", "#1a1a1a");
-          c.LC(K3, 0.725, 0.28, 1.25, 1.5, 0.11, "bottle", "#3a2216", { rt: 1.35, seg: 12 });
-          picture(c, K3, 0, 2.4, 3.2, 1, "menu", null, "#2a1a10", 0);
+          c.LB(K4, eu - 0.5, eu + 0.5, 0.58, 0.72, 0.94, 0.98, "chrome", "#c8c8c8");
+          c.LD(K4, eu + 0.5, 0.58, 0.72, 1.15, 8e-3, "chrome", "#d6d6d6");
+          for (let i = 0; i < 6; i++) c.LC(K4, eu - 0.45 + i * 0.18, 0.3, 1.45, 1.53, 0.04, "gloss", "#f0ece4", { seg: 10 });
+          c.LB(K4, 0.6, 0.85, 0.15, 0.4, 0.94, 1.25, "gloss", "#1a1a1a");
+          c.LC(K4, 0.725, 0.28, 1.25, 1.5, 0.11, "bottle", "#3a2216", { rt: 1.35, seg: 12 });
+          picture(c, K4, 0, 2.4, 3.2, 1, "menu", null, "#2a1a10", 0);
           for (const s of [-1, 1]) {
             const a0 = s < 0 ? -hw + 0.5 : 2, a1 = s < 0 ? -2 : hw - 0.5;
             if (a1 - a0 < 0.6) continue;
             for (const y of [1.85, 2.35]) {
-              c.LB(K3, a0, a1, 0, 0.26, y - 0.03, y, "grainG", "#4a3020");
-              for (let a = a0 + 0.1; a < a1 - 0.1; a += rr4(0.14, 0.24)) R2() < 0.6 ? c.LC(K3, a, 0.13, y, y + rr4(0.08, 0.2), rr4(0.04, 0.06), pick7(["gloss", "bottle"]), pick7(["#f0ece4", "#3a2216", "#c8a060", "#2a5a2a"]), { seg: 10 }) : c.LC(K3, a, 0.13, y, y + 0.1, 0.045, "gloss", "#ffffff", { seg: 10 });
+              c.LB(K4, a0, a1, 0, 0.26, y - 0.03, y, "grainG", "#4a3020");
+              for (let a = a0 + 0.1; a < a1 - 0.1; a += rr4(0.14, 0.24)) R2() < 0.6 ? c.LC(K4, a, 0.13, y, y + rr4(0.08, 0.2), rr4(0.04, 0.06), pick7(["gloss", "bottle"]), pick7(["#f0ece4", "#3a2216", "#c8a060", "#2a5a2a"]), { seg: 10 }) : c.LC(K4, a, 0.13, y, y + 0.1, 0.045, "gloss", "#ffffff", { seg: 10 });
             }
           }
           const tc = ["#5a3b25", "#3a2a1e"];
@@ -27006,28 +27453,28 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
             c.Cy(u, v0 + 0.1, 1.11, 1.26, 0.04, "glass", "#f0e0b0", { seg: 10 });
             c.Cy(u, v0 + 0.1, 1.11, 1.22, 0.035, "bottle", "#c88a20", { seg: 10 });
           }
-          const K3 = L3.back;
-          c.LB(K3, -hw + 0.6, hw - 0.6, 0, 0.55, 0, 0.95, "panel", "#5a3a26", true);
-          c.LB(K3, -hw + 0.58, hw - 0.58, 0, 0.58, 0.95, 1, "grainG", "#2a1810");
-          c.LB(K3, -hw + 0.6, hw - 0.6, 0, 0.015, 1, 2.62, "mirror", "#8a8478");
-          c.LB(K3, -hw + 0.55, hw - 0.55, 0, 0.04, 2.62, 2.7, "grainG", "#2a1810");
+          const K4 = L3.back;
+          c.LB(K4, -hw + 0.6, hw - 0.6, 0, 0.55, 0, 0.95, "panel", "#5a3a26", true);
+          c.LB(K4, -hw + 0.58, hw - 0.58, 0, 0.58, 0.95, 1, "grainG", "#2a1810");
+          c.LB(K4, -hw + 0.6, hw - 0.6, 0, 0.015, 1, 2.62, "mirror", "#8a8478");
+          c.LB(K4, -hw + 0.55, hw - 0.55, 0, 0.04, 2.62, 2.7, "grainG", "#2a1810");
           for (const y of [1.35, 1.82, 2.29]) {
-            c.LB(K3, -hw + 0.65, hw - 0.65, 0.015, 0.3, y - 0.012, y, "glass", "#f0f0e0");
-            c.LB(K3, -hw + 0.65, hw - 0.65, 0.2, 0.29, y - 0.03, y - 0.012, "lamp", "#ffb050", { k: 1.6 });
+            c.LB(K4, -hw + 0.65, hw - 0.65, 0.015, 0.3, y - 0.012, y, "glass", "#f0f0e0");
+            c.LB(K4, -hw + 0.65, hw - 0.65, 0.2, 0.29, y - 0.03, y - 0.012, "lamp", "#ffb050", { k: 1.6 });
             for (let a = -hw + 0.75; a < hw - 0.8; a += rr4(0.09, 0.14)) {
               const t = ri(0, 3), gc = pick7(["#2a4a1a", "#6a3008", "#a85a10", "#d8e0e0", "#1a1a3a", "#5a0a10"]), h = t === 0 ? rr4(0.28, 0.34) : rr4(0.22, 0.27), lab = cellUV(ri(0, 64), 8, 8);
               if (t === 1) {
-                c.LB(K3, a - 0.04, a + 0.04, 0.1, 0.18, y, y + h * 0.7, "bottle", gc);
-                c.LB(K3, a - 0.041, a + 0.041, 0.099, 0.181, y + h * 0.2, y + h * 0.45, "goods", "#ffffff", { cell: lab });
+                c.LB(K4, a - 0.04, a + 0.04, 0.1, 0.18, y, y + h * 0.7, "bottle", gc);
+                c.LB(K4, a - 0.041, a + 0.041, 0.099, 0.181, y + h * 0.2, y + h * 0.45, "goods", "#ffffff", { cell: lab });
               } else {
-                c.LC(K3, a, 0.14, y, y + h * 0.65, 0.038, "bottle", gc, { seg: 8 });
-                c.LC(K3, a, 0.14, y + h * 0.25, y + h * 0.5, 0.039, "goods", "#ffffff", { cell: lab, seg: 8 });
-                c.LC(K3, a, 0.14, y + h * 0.65, y + h * 0.75, 0.038, "bottle", gc, { rt: 0.35, seg: 8 });
+                c.LC(K4, a, 0.14, y, y + h * 0.65, 0.038, "bottle", gc, { seg: 8 });
+                c.LC(K4, a, 0.14, y + h * 0.25, y + h * 0.5, 0.039, "goods", "#ffffff", { cell: lab, seg: 8 });
+                c.LC(K4, a, 0.14, y + h * 0.65, y + h * 0.75, 0.038, "bottle", gc, { rt: 0.35, seg: 8 });
               }
-              c.LC(K3, a, 0.14, y + h * 0.7, y + h, 0.012, "bottle", gc, { seg: 6 });
+              c.LC(K4, a, 0.14, y + h * 0.7, y + h, 0.012, "bottle", gc, { seg: 6 });
             }
           }
-          c.LP(K3, 0, 0.05, 3.1, 2, 1, "neon", "#ffffff", { k: 1.4 });
+          c.LP(K4, 0, 0.05, 3.1, 2, 1, "neon", "#ffffff", { k: 1.4 });
           c.pool(0, cd - 1, 4, 2, "#ff60c0", 0.12);
           for (const u of [u0 + 0.4, 0, u1 - 0.4]) pendant(c, u, (v0 + v1) / 2, 1.25, "#7a3a10", 0.14, 3.2, "#ffb060", 0.9, "brass");
           for (let a = 1.5; a + 1.9 < v0 - 0.6; a += 2.4) {
@@ -27109,41 +27556,41 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
             c.LB(L3.front, (t0 + t1) / 2 - 0.65, (t0 + t1) / 2 + 0.65, 0.18, 0.23, 0.6, 1.36, "gloss", "#101012");
             c.LP(L3.front, (t0 + t1) / 2, 0.232, 0.98, 1.22, 0.69, "screen", "#ffffff", { cell: cellUV(2, 2, 2), k: 0.9 });
           }
-          const K3 = L3.right, k0 = Math.max(1.6, cd - 3.4), k1 = cd - 0.05;
-          c.LB(K3, k0, k1, 0, 0.6, 0.1, 0.88, "paint", "#e2ddd2", true);
-          c.LB(K3, k0, k1, 0.04, 0.56, 0, 0.1, "matte", "#1a1816");
+          const K4 = L3.right, k0 = Math.max(1.6, cd - 3.4), k1 = cd - 0.05;
+          c.LB(K4, k0, k1, 0, 0.6, 0.1, 0.88, "paint", "#e2ddd2", true);
+          c.LB(K4, k0, k1, 0.04, 0.56, 0, 0.1, "matte", "#1a1816");
           for (let a = k0; a < k1 - 0.1; a += 0.6) {
-            c.LB(K3, a + 5e-3, a + 0.01, 0.6, 0.605, 0.12, 0.86, "matte", "#6a665e");
-            c.LB(K3, a + 0.25, a + 0.35, 0.6, 0.625, 0.78, 0.8, "chrome", "#c8c8c8");
+            c.LB(K4, a + 5e-3, a + 0.01, 0.6, 0.605, 0.12, 0.86, "matte", "#6a665e");
+            c.LB(K4, a + 0.25, a + 0.35, 0.6, 0.625, 0.78, 0.8, "chrome", "#c8c8c8");
           }
-          c.LB(K3, k0, k1, 0, 0.63, 0.88, 0.92, "gloss", "#2b2b2b");
-          c.LB(K3, k0, k1, 0, 0.012, 0.92, 1.45, "subway", "#ffffff");
-          c.LB(K3, k0, k1, 0, 0.35, 1.45, 2.25, "paint", "#e2ddd2");
-          for (let a = k0; a < k1 - 0.1; a += 0.5) c.LB(K3, a + 5e-3, a + 0.01, 0.35, 0.355, 1.47, 2.23, "matte", "#6a665e");
-          c.LB(K3, k0, k1, 0.3, 0.34, 1.44, 1.45, "lamp", "#fff0d0", { k: 2 });
+          c.LB(K4, k0, k1, 0, 0.63, 0.88, 0.92, "gloss", "#2b2b2b");
+          c.LB(K4, k0, k1, 0, 0.012, 0.92, 1.45, "subway", "#ffffff");
+          c.LB(K4, k0, k1, 0, 0.35, 1.45, 2.25, "paint", "#e2ddd2");
+          for (let a = k0; a < k1 - 0.1; a += 0.5) c.LB(K4, a + 5e-3, a + 0.01, 0.35, 0.355, 1.47, 2.23, "matte", "#6a665e");
+          c.LB(K4, k0, k1, 0.3, 0.34, 1.44, 1.45, "lamp", "#fff0d0", { k: 2 });
           {
-            const [pu, pv] = c.at(K3, (k0 + k1) / 2, 0.4);
+            const [pu, pv] = c.at(K4, (k0 + k1) / 2, 0.4);
             c.pool(pu, pv, 1.4, k1 - k0, "#ffe0b0", 0.08, 0.93);
           }
           const sa = k0 + 0.9;
-          c.LB(K3, sa - 0.3, sa + 0.3, 0.1, 0.5, 0.86, 0.925, "steel", "#bfc2c4");
-          c.LC(K3, sa, 0.08, 0.92, 1.2, 0.015, "chrome", "#d0d0d0");
-          c.LD(K3, sa, 0.08, 0.28, 1.2, 0.013, "chrome", "#d0d0d0");
+          c.LB(K4, sa - 0.3, sa + 0.3, 0.1, 0.5, 0.86, 0.925, "steel", "#bfc2c4");
+          c.LC(K4, sa, 0.08, 0.92, 1.2, 0.015, "chrome", "#d0d0d0");
+          c.LD(K4, sa, 0.08, 0.28, 1.2, 0.013, "chrome", "#d0d0d0");
           const so = k0 + 2.1;
           if (so + 0.35 < k1) {
-            c.LB(K3, so - 0.32, so + 0.32, 0.03, 0.6, 0.921, 0.93, "gloss", "#0e0e0e");
+            c.LB(K4, so - 0.32, so + 0.32, 0.03, 0.6, 0.921, 0.93, "gloss", "#0e0e0e");
             for (const [x, y] of [[-0.15, 0.2], [0.15, 0.2], [-0.15, 0.45], [0.15, 0.45]]) {
-              const [pu, pv] = c.at(K3, so + x, y);
+              const [pu, pv] = c.at(K4, so + x, y);
               c.T(pu, 0.932, pv, 0.08, "steel", "#3a3a3a");
             }
-            c.LB(K3, so - 0.33, so + 0.33, 0, 0.45, 2, 2.25, "steel", "#c0c2c4");
+            c.LB(K4, so - 0.33, so + 0.33, 0, 0.45, 2, 2.25, "steel", "#c0c2c4");
           }
           {
             const a0 = k0 - 0.75, a1 = k0 - 0.04;
             if (a0 > 1.4) {
-              c.LB(K3, a0, a1, 0, 0.68, 0, 1.95, "gloss", "#cfd0cc", true);
-              c.LB(K3, a0, a1, 0.68, 0.69, 1.25, 1.27, "matte", "#555555");
-              c.LB(K3, a0 + 0.05, a0 + 0.08, 0.69, 0.73, 1.35, 1.75, "chrome", "#d0d0d0");
+              c.LB(K4, a0, a1, 0, 0.68, 0, 1.95, "gloss", "#cfd0cc", true);
+              c.LB(K4, a0, a1, 0.68, 0.69, 1.25, 1.27, "matte", "#555555");
+              c.LB(K4, a0 + 0.05, a0 + 0.08, 0.69, 0.73, 1.35, 1.75, "chrome", "#d0d0d0");
             }
           }
           const b0 = la + 1.4, b1 = Math.min(hw - 0.75, b0 + 2.4);
@@ -27508,7 +27955,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     scene.add(m);
     return m;
   }
-  function setLine(m, a, b) {
+  function setLine2(m, a, b) {
     _t3.subVectors(b, a);
     const L3 = _t3.length();
     if (L3 < 1e-4) {
@@ -28948,6 +29395,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
 
   // js/main.js
   init_glos();
+  init_rozmowy();
   try {
     buildCity();
     setTOD(save.tod);
@@ -29264,6 +29712,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     }
     updateQuips(rdt);
     updateGlos(rdt);
+    updateCalls(rdt);
     {
       musT -= rdt;
       if (musT <= 0) {

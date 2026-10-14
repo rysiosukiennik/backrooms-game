@@ -15,6 +15,7 @@ import { updateQuips, quipStart } from './docinki.js';
 import { updateWeather, cycleWeather } from './pogoda.js';
 import { makeFxPass, updateCameraFX } from './kamera_fx.js';
 import { initGlos, updateGlos, glosStop } from './glos.js';
+import { updateCalls } from './rozmowy.js';
 
 try {
   buildCity();
@@ -225,6 +226,7 @@ function step(now) {
   else if (G.state === 'pause') { updatePause(rdt); setWind(0); }
 
   updateQuips(rdt); updateGlos(rdt);
+  updateCalls(rdt);
   { // muzyka reaguje na to, co sie dzieje: boss > walka (wrogowie blisko) > spokoj
     musT -= rdt;
     if (musT <= 0) {
