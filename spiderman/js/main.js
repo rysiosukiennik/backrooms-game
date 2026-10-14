@@ -16,6 +16,7 @@ import { updateWeather, cycleWeather } from './pogoda.js';
 import { makeFxPass, updateCameraFX } from './kamera_fx.js';
 import { initGlos, updateGlos, glosStop } from './glos.js';
 import { updateCalls } from './rozmowy.js';
+import { updatePowers } from './moce.js';
 
 try {
   buildCity();
@@ -208,7 +209,7 @@ function step(now) {
     else if (I.mapP) openPause('map', false);
     else {
       camLook(rdt, I);
-      updatePlayer(dt, I);
+      updatePlayer(dt, I); updatePowers(rdt);
       updateEnemies(dt); updateCrimes(dt); updateShots(dt); updateBags(dt); updateMissions(dt);
       camFollow(rdt);
       updateHUD(rdt);

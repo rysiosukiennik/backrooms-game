@@ -312,6 +312,17 @@ export function sfx(n, v = 1, pos = null, surf = null) {
     case 'pedstep': step(out, t, surf || 'pavement', false, v, true); break;
     case 'siren': siren(); break;
     case 'thunder': N(0.12, 'highpass', 2500, 0.5, 400, 0, 1); N(3.6, 'lowpass', 280, 0.9, 50, 0.05, 0.7); N(2.2, 'lowpass', 150, 0.7, 40, 0.7, 0.7); T('sine', 58, 26, 2.6, 0.6, 0.1); break;
+    case 'power': { // moce strojow: odmiana w parametrze surf (shock/zap/heal/cloak/rage/web/haste)
+      const k = surf || 'shock';
+      if (k === 'shock') { T('sine', 120, 28, 0.6, 0.9); N(0.5, 'lowpass', 500, 0.7, 80); N(0.08, 'highpass', 3000, 0.4); }
+      else if (k === 'zap') { for (let i = 0; i < 5; i++) { N(0.05, 'highpass', 3500, 0.4, 9000, i * 0.05, 2); T('sawtooth', rr(900, 2400), 200, 0.05, 0.1, i * 0.05); } T('sine', 80, 50, 0.3, 0.3); }
+      else if (k === 'heal') { [523, 659, 784, 1046].forEach((f, i) => { T('sine', f, f * 1.01, 0.5, 0.1, i * 0.08, 0.04); }); N(0.6, 'bandpass', 2500, 0.05, 4000, 0, 1); }
+      else if (k === 'cloak') { N(0.7, 'bandpass', 1800, 0.25, 300, 0, 0.8); T('sine', 700, 120, 0.6, 0.12); }
+      else if (k === 'rage') { T('sawtooth', 70, 45, 0.5, 0.35, 0, 0.02); T('sine', 55, 30, 0.6, 0.7); N(0.3, 'lowpass', 900, 0.4, 200); }
+      else if (k === 'web') { for (let i = 0; i < 6; i++) { N(0.12, 'bandpass', 2400, 0.25, 7000, i * 0.06, 1.2); T('sine', 200, 90, 0.06, 0.12, i * 0.06 + 0.1); } }
+      else { T('sine', 900, 100, 0.8, 0.2, 0, 0.02); N(0.8, 'bandpass', 600, 0.25, 3000, 0, 1.5); T('sine', 60, 40, 0.4, 0.4, 0.5); }
+      break;
+    }
     case 'rain': N(0.7, 'bandpass', 5200, 0.07, 4200, 0, 0.5); N(0.7, 'highpass', 7000, 0.025, 6500, 0.05, 0.5); break; // szum deszczu: nakladane krotkie szumy
   }
 }

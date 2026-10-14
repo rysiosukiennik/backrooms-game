@@ -275,14 +275,15 @@ function updateEnemy(e, dt) {
       if (e.dead) e.state = 'down'; else { e.state = 'getup'; e.t = 0.7; }
     }
   } else if (!e.dead) {
-    const cr = e.crime; if (!cr.alert && d3 < 45) cr.alert = true;
+    const cr = e.crime; if (!cr.alert && d3 < 45 && !(P.cloak > 0)) cr.alert = true;
+    if (P.cloak > 0 && (e.state === 'fight' || e.state === 'aim' || e.state === 'windup')) { e.state = 'idle'; e.t = 1.5; } // Cien: wrog traci cel
     const slow = e.webs > 0 ? 0.35 : 1;
     const face = () => { e.yaw = angLerp(e.yaw, Math.atan2(dx, dz), damp(8, dt)); };
     if (e.state === 'hurt' && e.vel.lengthSq() > 0.01) { moveEnemy(e, e.vel.x, e.vel.z, dt); e.vel.multiplyScalar(1 - Math.min(1, dt * 8)); }
     if (e.type === 'brute' && e.stunT > 0 && e.state !== 'hurt') { e.state = 'stun'; }
     switch (e.state) {
       case 'idle':
-        if (cr.alert) { e.state = 'fight'; break; }
+        if (cr.alert && !(P.cloak > 0)) { e.state = 'fight'; break; }
         e.t -= dt; if (e.t <= 0) { e.t = rnd(2, 5); e.yawT = rnd(0, 6.28); }
         if (e.yawT !== undefined) e.yaw = angLerp(e.yaw, e.yawT, damp(2, dt));
         break;

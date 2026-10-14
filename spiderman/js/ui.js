@@ -11,6 +11,7 @@ import { ROOMS } from './wnetrza.js';
 import { SKILLS, COLS, has, canBuy, buy, skillPoints, maxHp } from './umiejetnosci.js';
 import { pad, navInput, lockMouse, KP, K, mouse, stick, pp } from './wejscie.js';
 import { sfx, audioOK } from './dzwiek.js';
+import { updatePowerHUD, powerOf } from './moce.js';
 
 const CSS = `
 :root{--cy:#3fe3ff;--red:#e3242b;--gold:#ffc93c}
@@ -316,6 +317,7 @@ function toScreen(x, y, z) { _p.set(x, y, z).project(camera); return _p.z < 1 ? 
 const set = (id, prop, v) => { const e = $(id); if (e.style[prop] !== v) e.style[prop] = v; };
 
 export function updateHUD(dt) {
+  updatePowerHUD(0);
   set('hpFill', 'width', (P.hp / maxHp() * 100) + '%');
   const fs = $('focus').querySelectorAll('i'); fs.forEach((f, i) => { f.style.width = clamp(P.focus - i, 0, 1) * 100 + '%'; });
   $('lvlNum').textContent = save.lvl;
@@ -628,7 +630,7 @@ function refreshSkills() {
   $('skPanel').querySelectorAll('.sk').forEach(d => {
     const s = SKILLS[+d.dataset.i], own = has(s.id), can = canBuy(s);
     d.className = 'sk' + (own ? ' own' : can ? ' can' : (!s.req || has(s.req)) ? '' : ' no') + (+d.dataset.i === G.skillIdx ? ' f' : '');
-    d.innerHTML = `${own ? '✔ ' : ''}${s.name}<small>${s.desc}</small>`;
+    d.innerHTML = `${own ? '✔ ' : ''}${s.name}<small>${s.desc}</small><small class="pw">${powerOf(s).icon} ${powerOf(s).name}</small>`;
   });
   const s = SKILLS[G.skillIdx], sp = skillPoints();
   $('skName').textContent = s.name;
@@ -700,7 +702,8 @@ function refreshSuits() {
   });
   const s = SUITS[G.suitIdx];
   $('suitName').textContent = s.name;
-  $('suitInfo').innerHTML = (s.lvl > save.lvl ? `<b style="color:#ff6b6b">Odblokujesz na poziomie ${s.lvl}</b><br>` : s.id === save.suit ? '<b style="color:#3fe3ff">Założony</b><br>' : '') + s.desc;
+  $('suitInfo').innerHTML = (s.lvl > save.lvl ? `<b style="color:#ff6b6b">Odblokujesz na poziomie ${s.lvl}</b><br>` : s.id === save.suit ? '<b style="color:#3fe3ff">Założony</b><br>' : '') + s.desc
+    + `<br><b style="color:#ffd24a">MOC: ${powerOf(s).icon} ${powerOf(s).name}</b> <span style="opacity:.7">(L3+R3 / V)</span><br>${powerOf(s).desc}`;
 }
 function equip(i) {
   const s = SUITS[i];
@@ -760,6 +763,7 @@ function renderMoves() {
     ['Wykończenie — gdy pasek skupienia jest pełny', key('special', ps), kk('E')],
     ['Strzał siecią — zawija bandytów, ogłusza osiłki i Nosorożca', key('web', ps), kk('PPM') + kk('R')],
     ['Unik — gdy nad głową błyśnie zmysł pająka', key('dodge', ps), kk('C') + kk('CTRL')],
+    ['Moc stroju — kosztuje 1 pasek skupienia, ma odnowienie', kk('L3') + kk('+') + kk('R3'), kk('V')],
     ['Mapa', key('map', ps), kk('M') + kk('TAB')],
     ['Pauza', key('pause', ps), kk('ESC')],
   ];
