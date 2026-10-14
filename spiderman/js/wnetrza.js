@@ -11,7 +11,7 @@ import { buildThug, newPose, applyPose, idlePose } from './postac.js';
 import { randomOutfit } from './model.js';
 import { showMsg, popText } from './ui.js';
 import { sfx } from './dzwiek.js';
-import { say } from './docinki.js';
+import { say, sayCtx } from './docinki.js';
 import { maxHp } from './umiejetnosci.js';
 import { save, doSave } from './util.js';
 import { startFisk } from './fisk.js';
@@ -968,7 +968,7 @@ export function updateRooms(dt) {
     if (Math.hypot(P.pos.x - d.x, P.pos.z - d.z) < 32) { for (const n of d.rm.npcs) { n.t += dt; for (const k in n.p) n.p[k] = 0; idlePose(n.p, n.t); applyPose(n.H, n.p); } }
     const inside = playerInRoom(d, 0);
     if (d.rm.cola) { d.rm.colaT = Math.max(0, d.rm.colaT - dt); if (inside && d.rm.colaT <= 0 && Math.hypot(P.pos.x - d.rm.cola[0], P.pos.z - d.rm.cola[1]) < 2.4) P.colaNear = d; }
-    if (inside && !d.rm.entered) { d.rm.entered = true; const [t, s] = INTRO[d.type]; showMsg(t, s, 3.2); say('room'); if (d.type !== 'fisk') { popText('+20 PD'); import('./wrogowie.js').then(m => m.addXP(20)); } }
+    if (inside && !d.rm.entered) { d.rm.entered = true; const [t, s] = INTRO[d.type]; showMsg(t, s, 3.2); sayCtx('room', { variant: d.type }); if (d.type !== 'fisk') { popText('+20 PD'); import('./wrogowie.js').then(m => m.addXP(20)); } }
   }
   const fd = doors.find(d => d.type === 'fisk');
   if (fd && fd.rm) { const inF = playerInRoom(fd, -0.5); if (inF && !wasInFisk && !G.cine && !P.dead) startFisk(fd); wasInFisk = inF; }

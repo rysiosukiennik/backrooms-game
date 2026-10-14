@@ -10,6 +10,7 @@ import { sfx, setMusicMode } from './dzwiek.js';
 import { rumble } from './wejscie.js';
 import { showMsg, popText, hint } from './ui.js';
 import { playCine } from './scenki.js';
+import { say } from './docinki.js';
 import { updateFisk } from './fisk.js';
 import { FISK_DOOR } from './miasto.js';
 
@@ -167,7 +168,7 @@ function updateRaces(dt) {
     for (const R of RACES) {
       const r0 = R.rings[0]; r0.visible = !G.boss && !G.chase; r0.rotation.z = t; r0.material.color.setHex(0xffc93c);
       if (r0.visible && P.pos.distanceTo(R.start) < 5.5) {
-        race = { R, idx: 1, t: 0 }; sfx('ring');
+        race = { R, idx: 1, t: 0 }; sfx('ring'); say('race_start');
         R.rings.forEach((m, k) => { m.visible = k >= 1 && k <= 3; m.material.color.setHex(0x3fe3ff); });
         for (const O of RACES) if (O !== R) O.rings[0].visible = false;
         const best = save.races[R.id];
@@ -189,7 +190,7 @@ function updateRaces(dt) {
     if (race.idx >= R.pts.length) { finishRace(); return; }
   }
   if (race.t > R.par * 3 || P.pos.distanceTo(next) > 260 || P.dead) {
-    showMsg('WYZWANIE PRZERWANE', 'Spróbuj jeszcze raz — wróć do żółtego pierścienia', 3); endRace();
+    showMsg('WYZWANIE PRZERWANE', 'Spróbuj jeszcze raz — wróć do żółtego pierścienia', 3); if (!P.dead) say('race_lose'); endRace();
   }
 }
 function finishRace() {
@@ -197,7 +198,7 @@ function finishRace() {
   const medal = s <= R.par ? 'ZŁOTO' : s <= R.par * 1.3 ? 'SREBRO' : 'BRĄZ';
   const xp = medal === 'ZŁOTO' ? 400 : medal === 'SREBRO' ? 250 : 120;
   if (!best || s < best) save.races[R.id] = s;
-  doSave(); addXP(xp); sfx('win');
+  doSave(); addXP(xp); sfx('win'); say('race_win');
   showMsg(`${medal}! ${fmtTime(s)}`, `${R.name} · +${xp} PD${!best || s < best ? ' · NOWY REKORD!' : ''}`, 4);
   endRace();
 }
@@ -240,7 +241,7 @@ export function startChase() {
   police = { mesh: carMesh(0x1b2a55, 0xf2f2f2), red: null, blue: null };
   const mk = c => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: c, blending: THREE.AdditiveBlending, depthWrite: false })); s.scale.set(2.2, 2.2, 1); police.mesh.add(s); return s; };
   police.red = mk(0xff2020); police.red.position.set(0.5, 2, -0.2); police.blue = mk(0x2060ff); police.blue.position.set(-0.5, 2, -0.2);
-  showMsg('POŚCIG!', 'Złodzieje uciekają autem. Wskocz na dach i bij, żeby je zatrzymać!', 4); sfx('alarm');
+  showMsg('POŚCIG!', 'Złodzieje uciekają autem. Wskocz na dach i bij, żeby je zatrzymać!', 4); sfx('alarm'); say('chase');
 }
 export function carPunch() {
   const c = chase; if (!c || c.done) return;

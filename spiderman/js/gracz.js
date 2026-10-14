@@ -9,7 +9,7 @@ import { hitEnemy, shootWeb, burst, finishEnemy, addXP } from './wrogowie.js';
 import { carPunch, carLeave } from './misje.js';
 import { has, maxHp, swingMul, zipMax, perchRange } from './umiejetnosci.js';
 import { sfx } from './dzwiek.js';
-import { say } from './docinki.js';
+import { say, sayCtx } from './docinki.js';
 import { rumble } from './wejscie.js';
 import { showMsg, flashDamage, popText } from './ui.js';
 import { getRope, heroLand, anchorFX } from './efekty.js';
@@ -318,7 +318,7 @@ function doJump(wx, wz, wl) {
   if (P.state === 'ground') {
     if (P.perchT > 0 && P.pz) { pointLaunch(P.pz.dir); return; }
     if (P.atk) return;
-    P.state = 'air'; P.airT = 0; P.landT = 0; P.vel.y = P.sprint ? 15 : 12.5;
+    P.state = 'air'; P.airT = 0; P.landT = 0; P.vel.y = P.sprint ? 15 : 12.5; say('jump');
     if (P.sprint) { P.vel.x *= 1.1; P.vel.z *= 1.1; }
   } else if (P.state === 'swing') release(true);
   else if (P.state === 'wall') {
@@ -423,10 +423,10 @@ function startDodge(wx, wz, wl) {
   if (P.state === 'swing') release(false);
   if (wl > 0.2) P.dodgeDir.set(wx / wl, 0, wz / wl); else P.dodgeDir.set(-Math.sin(P.heading), 0, -Math.cos(P.heading));
   P.dodgeSide = (P.dodgeDir.x * Math.cos(P.heading) - P.dodgeDir.z * Math.sin(P.heading)) > 0 ? -1 : 1;
-  P.dodgeT = 0.32; P.invT = Math.max(P.invT, 0.45); P.dodgeCD = 0.5; P.atk = null; P.lunge = null;
+  P.dodgeT = 0.32; P.invT = Math.max(P.invT, 0.45); P.dodgeCD = 0.5; P.atk = null; P.lunge = null; if (!enemies.some(e => !e.dead && (e.state === 'windup' || e.state === 'aim'))) say('dodge');
   for (const e of enemies) // idealny unik — spowolnienie czasu
     if (!e.dead && (e.state === 'windup' || e.state === 'aim') && e.pos.distanceTo(P.pos) < (e.state === 'aim' ? 70 : 5 * (e.scale || 1))) {
-      G.slowT = has('sense') ? 1.2 : 0.6; addFocus(0.3); popText('IDEALNY UNIK!'); break;
+      G.slowT = has('sense') ? 1.2 : 0.6; addFocus(0.3); popText('IDEALNY UNIK!'); say('dodge'); return;
     }
   sfx('whoosh');
   if (P.state === 'air') P.vel.y = Math.max(P.vel.y, 4);
@@ -478,7 +478,7 @@ function release(jump) {
 export function hurtPlayer(dmg, from, knock = 6) {
   if (P.invT > 0 || P.dead || P.dodgeT > 0 || P.fin || G.state !== 'play') return false;
   P.hp -= dmg; P.invT = 0.6; P.hurtT = 0.3; P.regenT = 4; P.combo = 0; P.atk = null; P.lunge = null;
-  flashDamage(); rumble(0.25, 0.7, 0.5); sfx('hurt'); say('hurt'); G.shake = Math.max(G.shake, 0.25 + knock / 60);
+  flashDamage(); rumble(0.25, 0.7, 0.5); sfx('hurt'); if (P.hp <= 0) say('death', true); else sayCtx('hurt', { from }); G.shake = Math.max(G.shake, 0.25 + knock / 60);
   if (P.state === 'car') { carLeave(); P.state = 'air'; P.car = null; }
   if (from) {
     _t.subVectors(P.pos, from.pos); _t.y = 0; _t.normalize(); P.vel.x += _t.x * knock; P.vel.z += _t.z * knock;
@@ -496,7 +496,7 @@ export function respawn() {
     if (d < bd) { bd = d; best = r; }
   }
   if (best) P.pos.set((best.x0 + best.x1) / 2, best.y1, (best.z0 + best.z1) / 2); else P.pos.copy(START);
-  P.vel.set(0, 0, 0); P.state = 'ground'; P.hp = maxHp(); P.dead = false; P.invT = 2; P.atk = null; P.lunge = null; P.flipT = -1; P.fin = null; P.car = null; P.focus = 0;
+  P.vel.set(0, 0, 0); P.state = 'ground'; P.hp = maxHp(); P.dead = false; P.invT = 2; P.atk = null; P.lunge = null; P.flipT = -1; P.fin = null; P.car = null; P.focus = 0; say('respawn', true);
   P.pc.bp = 0; P.pc.br = 0; P.pc.bw = 0;
   cam.tgt.copy(P.pos);
 }
