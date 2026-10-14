@@ -15982,7 +15982,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
   }
   function tube2(x0, y0, z0, x1, y1, z1, r = 0.02) {
     const d = new THREE.Vector3(x1 - x0, y1 - y0, z1 - z0), L3 = d.length(), g = new THREE.CylinderGeometry(r, r, L3, 5);
-    g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()));
+    g.applyMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize())));
     return g.translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
   }
   function propTemplates() {
@@ -16194,7 +16194,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     {
       const tube = (x0, y0, z0, x1, y1, z1, r = 0.014) => {
         const d = new THREE.Vector3(x1 - x0, y1 - y0, z1 - z0), L3 = d.length(), g = new THREE.CylinderGeometry(r, r, L3, 5);
-        g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()));
+        g.applyMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize())));
         return g.translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
       };
       const parts = [];
@@ -16411,6 +16411,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     return b;
   }
   function addDecal(x, y, z, yaw, w, h, cell, flat = false, soft = false) {
+    decalLog.push([x, y, z, yaw, cell]);
     const b = decalBuf(flat || soft ? decalSoft : decalCut, x, z), cs = Math.cos(yaw), sn = Math.sin(yaw), o = b.P.length / 3;
     const u0 = cell % 4 / 4, v1 = 1 - Math.floor(cell / 4) / 4, v0 = v1 - 0.25;
     if (flat) {
@@ -16567,10 +16568,22 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
         return [x, z];
       };
       const k = 0.26, cc = 11051927;
-      boxAt(b.x0 - 0.02, b.x1 + 0.02, 0, SW + 0.012, b.z0 - 0.02, b.z0 + k, cc);
-      boxAt(b.x0 - 0.02, b.x1 + 0.02, 0, SW + 0.012, b.z1 - k, b.z1 + 0.02, cc);
-      boxAt(b.x0 - 0.02, b.x0 + k, 0, SW + 0.012, b.z0 + k, b.z1 - k, cc);
-      boxAt(b.x1 - k, b.x1 + 0.02, 0, SW + 0.012, b.z0 + k, b.z1 - k, cc);
+      {
+        const shade = () => {
+          const f = 0.78 + r2() * 0.3;
+          return ((cc >> 16 & 255) * f & 255) << 16 | ((cc >> 8 & 255) * f & 255) << 8 | (cc & 255) * f & 255;
+        };
+        for (let a = b.x0 - 0.02; a < b.x1; a += 7) {
+          const e = Math.min(a + 6.98, b.x1 + 0.02);
+          boxAt(a, e, 0, SW + 0.012 + (r2() < 0.1 ? -0.012 : 0), b.z0 - 0.02, b.z0 + k, shade());
+          boxAt(a, e, 0, SW + 0.012, b.z1 - k, b.z1 + 0.02, shade());
+        }
+        for (let a = b.z0 + k; a < b.z1 - k; a += 7) {
+          const e = Math.min(a + 6.98, b.z1 - k);
+          boxAt(b.x0 - 0.02, b.x0 + k, 0, SW + 0.012, a, e, shade());
+          boxAt(b.x1 - k, b.x1 + 0.02, 0, SW + 0.012, a, e, shade());
+        }
+      }
       for (const [px, pz, sx2, sz] of [[b.x0, b.z0, 1, 1], [b.x1, b.z0, -1, 1], [b.x0, b.z1, 1, -1], [b.x1, b.z1, -1, -1]]) {
         boxAt(Math.min(px + sx2 * 1.6, px + sx2 * 2.8), Math.max(px + sx2 * 1.6, px + sx2 * 2.8), SW, SW + 0.016, Math.min(pz + sz * k, pz + sz * (k + 0.6)), Math.max(pz + sz * k, pz + sz * (k + 0.6)), 10238762, "m");
         boxAt(Math.min(px + sx2 * k, px + sx2 * (k + 0.6)), Math.max(px + sx2 * k, px + sx2 * (k + 0.6)), SW, SW + 0.016, Math.min(pz + sz * 1.6, pz + sz * 2.8), Math.max(pz + sz * 1.6, pz + sz * 2.8), 10238762, "m");
@@ -16982,7 +16995,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     tailL.geometry.setDrawRange(0, nt2);
     hp.needsUpdate = tp.needsUpdate = true;
   }
-  var rs2, rr3, rb, pick5, r2s, r2, r2b, r2p, LC2, lin5, U2, LAMPS, MT, B3, C6, Sph, SCH, chunks3, grow, boxAt, PT, lampList, poles, lensMesh, lensGlow, CYC, sigOff, SIGC, GLOWC, BLADES, bladeMat, sheds, inShed, wirePts, decalCut, decalSoft, AVES, plates, plateNames, TAXI, CARC, SUVC, TRKC, VCFG, PASS, lanes2, parked, hornT, VT, vehMat, headL, tailL, nMoving, parkIsec, _f, signalAt;
+  var rs2, rr3, rb, pick5, r2s, r2, r2b, r2p, LC2, lin5, U2, LAMPS, MT, B3, C6, Sph, SCH, chunks3, grow, boxAt, PT, lampList, poles, lensMesh, lensGlow, CYC, sigOff, SIGC, GLOWC, BLADES, bladeMat, sheds, inShed, wirePts, decalCut, decalSoft, decalLog, AVES, plates, plateNames, TAXI, CARC, SUVC, TRKC, VCFG, PASS, lanes2, parked, hornT, VT, vehMat, headL, tailL, nMoving, parkIsec, _f, signalAt;
   var init_ulica = __esm({
     "js/ulica.js"() {
       init_stan();
@@ -17064,6 +17077,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
       wirePts = [];
       decalCut = /* @__PURE__ */ new Map();
       decalSoft = /* @__PURE__ */ new Map();
+      decalLog = [];
       AVES = ["FIRST AV", "2 AV", "3 AV", "LEXINGTON AV", "PARK AV", "MADISON AV", "5 AV", "AMSTERDAM AV"];
       plates = [];
       plateNames = [...AVES];
@@ -19092,10 +19106,22 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     const S2 = 16, q = S2 / 10, W2 = CX * S2, H3 = CZ * S2, c = cv(W2, H3), x = c.getContext("2d"), s0 = ST / 2 * S2;
     x.fillStyle = "#5b5c60";
     x.fillRect(0, 0, W2, H3);
-    for (let i = 0; i < 4e4; i++) {
-      const g = 46 + Math.random() * 30 | 0;
-      x.fillStyle = `rgba(${g},${g},${g + 4},.4)`;
-      x.fillRect(Math.random() * W2, Math.random() * H3, 2, 2);
+    for (let i = 0; i < 260; i++) {
+      const px = Math.random() * W2, py = Math.random() * H3, r = (1 + Math.random() * 5) * S2, g = Math.random() < 0.5 ? "255,255,255" : "0,0,0", a = 0.025 + Math.random() * 0.035, gr = x.createRadialGradient(px, py, 0, px, py, r);
+      gr.addColorStop(0, "rgba(" + g + "," + a + ")");
+      gr.addColorStop(1, "rgba(" + g + ",0)");
+      x.fillStyle = gr;
+      x.fillRect(px - r, py - r, 2 * r, 2 * r);
+    }
+    for (let i = 0; i < 11e4; i++) {
+      const g = 40 + Math.random() * 46 | 0;
+      x.fillStyle = "rgba(" + g + "," + g + "," + (g + 4) + ",.28)";
+      x.fillRect(Math.random() * W2, Math.random() * H3, 1, 1);
+    }
+    for (let i = 0; i < 2600; i++) {
+      const g = 120 + Math.random() * 60 | 0;
+      x.fillStyle = "rgba(" + g + "," + g + "," + g + ",.35)";
+      x.fillRect(Math.random() * W2, Math.random() * H3, 1 + (Math.random() < 0.2), 1);
     }
     const onRoad = () => {
       const ax = Math.random() < 0.5;
@@ -19218,19 +19244,108 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     }
     x.fillStyle = "#8e8981";
     x.fillRect(s0, s0, BW * S2, BD * S2);
-    x.strokeStyle = "rgba(0,0,0,.13)";
-    x.lineWidth = 1;
-    for (let a = s0; a <= s0 + BW * S2; a += 2 * S2) {
-      x.beginPath();
-      x.moveTo(a, s0);
-      x.lineTo(a, s0 + BD * S2);
-      x.stroke();
-    }
-    for (let a = s0; a <= s0 + BD * S2; a += 2 * S2) {
-      x.beginPath();
-      x.moveTo(s0, a);
-      x.lineTo(s0 + BW * S2, a);
-      x.stroke();
+    {
+      const TS = 1.5 * S2, SW0 = s0, SWW = BW * S2, SWH = BD * S2;
+      for (let ty = 0; ty * TS < SWH; ty++) for (let tx = 0; tx * TS < SWW; tx++) {
+        const px = SW0 + tx * TS, py = SW0 + ty * TS, w = Math.min(TS, SW0 + SWW - px), h = Math.min(TS, SW0 + SWH - py), q2 = Math.random();
+        x.fillStyle = q2 < 0.4 ? "rgba(0,0,0," + Math.random() * 0.13 + ")" : q2 < 0.75 ? "rgba(255,248,235," + Math.random() * 0.09 + ")" : "rgba(120,95,70," + Math.random() * 0.07 + ")";
+        x.fillRect(px, py, w, h);
+        const gg = x.createLinearGradient(px, py, px + w * 0.8, py + h);
+        gg.addColorStop(0, "rgba(255,255,255,.045)");
+        gg.addColorStop(1, "rgba(0,0,0,.05)");
+        x.fillStyle = gg;
+        x.fillRect(px, py, w, h);
+        for (let n = 0; n < 90; n++) {
+          x.fillStyle = Math.random() < 0.5 ? "rgba(0,0,0,.09)" : "rgba(255,255,255,.08)";
+          x.fillRect(px + Math.random() * w, py + Math.random() * h, 1, 1);
+        }
+        if (Math.random() < 0.2) {
+          x.strokeStyle = "rgba(20,18,15,.5)";
+          x.lineWidth = 1;
+          x.beginPath();
+          let cx = px + Math.random() * w, cy = py + Math.random() * h;
+          x.moveTo(cx, cy);
+          for (let k = 0; k < 6; k++) {
+            cx += (Math.random() - 0.5) * 0.4 * TS;
+            cy += (Math.random() - 0.3) * 0.3 * TS;
+            x.lineTo(cx, cy);
+          }
+          x.stroke();
+          x.strokeStyle = "rgba(255,255,255,.1)";
+          x.stroke();
+        }
+        if (Math.random() < 0.08) {
+          x.fillStyle = "rgba(30,26,22,.22)";
+          x.beginPath();
+          x.ellipse(px + Math.random() * w, py + Math.random() * h, 3 + Math.random() * 7, 2 + Math.random() * 5, Math.random() * 3, 0, 7);
+          x.fill();
+        }
+      }
+      x.lineWidth = 1;
+      for (let a = SW0; a <= SW0 + SWW; a += TS) {
+        x.strokeStyle = "rgba(0,0,0,.34)";
+        x.beginPath();
+        x.moveTo(a, SW0);
+        x.lineTo(a, SW0 + SWH);
+        x.stroke();
+        x.strokeStyle = "rgba(255,250,240,.1)";
+        x.beginPath();
+        x.moveTo(a + 1.2, SW0);
+        x.lineTo(a + 1.2, SW0 + SWH);
+        x.stroke();
+      }
+      for (let a = SW0; a <= SW0 + SWH; a += TS) {
+        x.strokeStyle = "rgba(0,0,0,.34)";
+        x.beginPath();
+        x.moveTo(SW0, a);
+        x.lineTo(SW0 + SWW, a);
+        x.stroke();
+        x.strokeStyle = "rgba(255,250,240,.1)";
+        x.beginPath();
+        x.moveTo(SW0, a + 1.2);
+        x.lineTo(SW0 + SWW, a + 1.2);
+        x.stroke();
+      }
+      for (let n = 0; n < 700; n++) {
+        const vert = Math.random() < 0.5, a = SW0 + Math.floor(Math.random() * (vert ? SWW : SWH) / TS) * TS, b = SW0 + Math.random() * (vert ? SWH : SWW), px = vert ? a : b, py = vert ? b : a;
+        x.strokeStyle = Math.random() < 0.7 ? "rgba(" + (60 + Math.random() * 30 | 0) + "," + (88 + Math.random() * 40 | 0) + ",38,.8)" : "rgba(120,128,60,.7)";
+        x.lineWidth = 1;
+        for (let k = 0; k < 3; k++) {
+          x.beginPath();
+          x.moveTo(px, py);
+          x.lineTo(px + (Math.random() - 0.5) * 4, py - 1 - Math.random() * 5);
+          x.stroke();
+        }
+      }
+      for (let n = 0; n < 40; n++) {
+        const px = SW0 + Math.random() * SWW, py = SW0 + Math.random() * SWH, r = (0.4 + Math.random() * 1.3) * S2, g2 = x.createRadialGradient(px, py, 0, px, py, r);
+        g2.addColorStop(0, "rgba(25,22,18,.3)");
+        g2.addColorStop(1, "rgba(25,22,18,0)");
+        x.fillStyle = g2;
+        x.fillRect(px - r, py - r, 2 * r, 2 * r);
+      }
+      const dk = 0.9 * S2, a0 = "rgba(15,12,9,.3)", z0 = "rgba(15,12,9,0)";
+      let g;
+      g = x.createLinearGradient(0, SW0, 0, SW0 + dk);
+      g.addColorStop(0, a0);
+      g.addColorStop(1, z0);
+      x.fillStyle = g;
+      x.fillRect(SW0, SW0, SWW, dk);
+      g = x.createLinearGradient(0, SW0 + SWH, 0, SW0 + SWH - dk);
+      g.addColorStop(0, a0);
+      g.addColorStop(1, z0);
+      x.fillStyle = g;
+      x.fillRect(SW0, SW0 + SWH - dk, SWW, dk);
+      g = x.createLinearGradient(SW0, 0, SW0 + dk, 0);
+      g.addColorStop(0, a0);
+      g.addColorStop(1, z0);
+      x.fillStyle = g;
+      x.fillRect(SW0, SW0, dk, SWH);
+      g = x.createLinearGradient(SW0 + SWW, 0, SW0 + SWW - dk, 0);
+      g.addColorStop(0, a0);
+      g.addColorStop(1, z0);
+      x.fillStyle = g;
+      x.fillRect(SW0 + SWW - dk, SW0, dk, SWH);
     }
     x.fillStyle = "#6f6b64";
     x.fillRect(s0 + 3 * S2, s0 + 3 * S2, (BW - 6) * S2, (BD - 6) * S2);
@@ -19292,6 +19407,32 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     for (let a = 0; a < s0 - sw; a += 1.2 * S2) {
       x.fillRect(a + sw * 0.25, s0 + 2, sw * 0.5, cw);
       x.fillRect(W2 - a - sw * 0.75, H3 - s0 - cw - 2, sw * 0.5, cw);
+    }
+    {
+      const id = x.getImageData(0, 0, W2, H3), d = id.data, sx0 = s0 - 5, sx1 = s0 + BW * S2 + 5, sy0 = s0 - 5, sy1 = s0 + BD * S2 + 5, GW = 96, GH = 72, gn = new Float32Array(GW * GH);
+      for (let i = 0; i < gn.length; i++) gn[i] = Math.random();
+      const vn = (u, v) => {
+        const fu = u - Math.floor(u), fv = v - Math.floor(v), iu = Math.floor(u) % GW, iv = Math.floor(v) % GH, a = gn[iv * GW + iu], b = gn[iv * GW + (iu + 1) % GW], c2 = gn[(iv + 1) % GH * GW + iu], e = gn[(iv + 1) % GH * GW + (iu + 1) % GW];
+        return (a + (b - a) * fu) * (1 - fv) + (c2 + (e - c2) * fu) * fv;
+      };
+      for (let py = 0; py < H3; py++) for (let px = 0; px < W2; px++) {
+        if (px > sx0 && px < sx1 && py > sy0 && py < sy1) continue;
+        const i = (py * W2 + px) * 4, r = d[i];
+        if (r < 150) continue;
+        const n = vn(px / 18, py / 18) * 0.65 + vn(px / 5, py / 5) * 0.35, ch = n + (Math.random() - 0.5) * 0.45;
+        if (ch > 0.7) {
+          const k = 44 + Math.random() * 22;
+          d[i] = k;
+          d[i + 1] = k;
+          d[i + 2] = k + 4;
+        } else {
+          const f = 0.8 + 0.2 * vn(px / 40 + 7, py / 40 + 3) + (Math.random() - 0.5) * 0.08, a = 0.35 * (1 - f) + 0, k = 62;
+          d[i] = d[i] * f + k * a;
+          d[i + 1] = d[i + 1] * f + k * a;
+          d[i + 2] = d[i + 2] * f + k * a;
+        }
+      }
+      x.putImageData(id, 0, 0);
     }
     const rc = cv(W2, H3), rx = rc.getContext("2d");
     rx.fillStyle = "#f2f2f2";
@@ -20082,6 +20223,74 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
       gr.rotation.x = -Math.PI / 2;
       gr.position.y = 0.025;
       gr.renderOrder = 1;
+      scene.add(gr);
+    }
+    {
+      const N = 1024, c = cv(N, N), x = c.getContext("2d");
+      x.fillStyle = "#ffffff";
+      x.fillRect(0, 0, N, N);
+      for (let i = 0; i < 26; i++) {
+        const px = Math.random() * N, py = Math.random() * N, r = 10 + Math.random() * 40, g2 = x.createRadialGradient(px, py, 0, px, py, r);
+        g2.addColorStop(0, "rgba(150,150,150," + (0.25 + Math.random() * 0.3) + ")");
+        g2.addColorStop(1, "rgba(150,150,150,0)");
+        x.fillStyle = g2;
+        x.fillRect(px - r, py - r, 2 * r, 2 * r);
+      }
+      const crack2 = (px, py, ang, len, w) => {
+        x.lineWidth = w;
+        x.beginPath();
+        x.moveTo(px, py);
+        for (let k = 0; k < len; k++) {
+          ang += (Math.random() - 0.5) * 0.9;
+          px += Math.cos(ang) * 5;
+          py += Math.sin(ang) * 5;
+          x.lineTo(px, py);
+          if (Math.random() < 0.07 && w > 0.8) crack2(px, py, ang + (Math.random() - 0.5) * 2, len * 0.4, w * 0.6), x.moveTo(px, py);
+        }
+        x.stroke();
+      };
+      x.strokeStyle = "rgba(75,75,75,.55)";
+      x.lineJoin = "round";
+      for (let i = 0; i < 22; i++) crack2(Math.random() * N, Math.random() * N, Math.random() * 6.28, 12 + Math.random() * 30, 0.7 + Math.random() * 1.3);
+      x.strokeStyle = "rgba(30,30,30,.65)";
+      for (let i = 0; i < 5; i++) {
+        const px = Math.random() * N;
+        x.lineWidth = 2 + Math.random() * 2;
+        x.beginPath();
+        x.moveTo(px, 0);
+        x.bezierCurveTo(px + 20, N * 0.3, px - 25, N * 0.7, px + 5, N);
+        x.stroke();
+      }
+      for (let i = 0; i < 260; i++) {
+        x.fillStyle = "rgba(40,40,40," + (0.35 + Math.random() * 0.4) + ")";
+        x.beginPath();
+        x.ellipse(Math.random() * N, Math.random() * N, 0.8 + Math.random() * 2.4, 0.6 + Math.random() * 1.8, Math.random() * 3, 0, 7);
+        x.fill();
+      }
+      for (let i = 0; i < 5; i++) {
+        const px = Math.random() * N, py = Math.random() * N, r = 14 + Math.random() * 20;
+        x.fillStyle = "rgba(45,45,45,.55)";
+        x.beginPath();
+        x.ellipse(px, py, r, r * 0.7, Math.random() * 3, 0, 7);
+        x.fill();
+        x.strokeStyle = "rgba(35,35,35,.7)";
+        x.lineWidth = 1.5;
+        x.stroke();
+      }
+      const t = canvasTex(c, true);
+      t.repeat.set(LW2 / 7.3, LD / 7.3);
+      t.encoding = THREE.LinearEncoding;
+      const m = new THREE.MeshBasicMaterial({ map: t, blending: THREE.MultiplyBlending, transparent: true, premultipliedAlpha: true, depthWrite: false, fog: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+      m.userData.lin = true;
+      m.customProgramCacheKey = () => "ulicaDetal2";
+      m.onBeforeCompile = (sh2) => {
+        sh2.vertexShader = sh2.vertexShader.replace("#include <common>", "#include <common>\nvarying float vFd;").replace("#include <project_vertex>", "#include <project_vertex>\nvFd = length(mvPosition.xyz);");
+        sh2.fragmentShader = sh2.fragmentShader.replace("#include <common>", "#include <common>\nvarying float vFd;").replace("#include <dithering_fragment>", "#include <dithering_fragment>\ngl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.0), smoothstep(22.0, 85.0, vFd));");
+      };
+      const gr = new THREE.Mesh(new THREE.PlaneGeometry(LW2, LD), m);
+      gr.rotation.x = -Math.PI / 2;
+      gr.position.y = 0.027;
+      gr.renderOrder = 2;
       scene.add(gr);
     }
     const base2 = new THREE.Mesh(new THREE.BoxGeometry(LW2, 6, LD), new THREE.MeshStandardMaterial({ color: 7828074, roughness: 1 }));

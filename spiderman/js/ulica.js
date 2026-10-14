@@ -147,7 +147,7 @@ function flushStatics() {
 
 function tube2(x0, y0, z0, x1, y1, z1, r = 0.02) {
   const d = new THREE.Vector3(x1 - x0, y1 - y0, z1 - z0), L = d.length(), g = new THREE.CylinderGeometry(r, r, L, 5);
-  g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()));
+  g.applyMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize())));
   return g.translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
 }
 // ---------------------------------------------------------------- szablony rekwizytow (przod = +z, czyli w strone jezdni)
@@ -288,7 +288,7 @@ function propTemplates() {
     return tpl(parts); });
   // rower przypiety do slupka (os pojazdu wzdluz x; lakier = rama)
   { const tube = (x0, y0, z0, x1, y1, z1, r = 0.014) => { const d = new THREE.Vector3(x1 - x0, y1 - y0, z1 - z0), L = d.length(), g = new THREE.CylinderGeometry(r, r, L, 5);
-      g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize())); return g.translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); };
+      g.applyMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()))); return g.translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); };
     const parts = [];
     for (const sx of [-0.55, 0.55]) parts.push([new THREE.TorusGeometry(0.33, 0.018, 5, 18).translate(sx, 0.35, 0), 0x17181a, 'r'], [new THREE.TorusGeometry(0.3, 0.005, 3, 14).translate(sx, 0.35, 0), 0x9aa0a6, 'mt'], [C(0.02, 0.02, 0.05, sx, 0.35, 0, 6).rotateX(Math.PI / 2), 0x8f959b, 'mt']);
     for (const [a, b] of [[[-0.55, 0.35, 0], [0, 0.3, 0]], [[-0.55, 0.35, 0], [-0.22, 0.86, 0]], [[-0.22, 0.86, 0], [0, 0.3, 0]], [[-0.22, 0.86, 0], [0.36, 0.82, 0]], [[0, 0.3, 0], [0.36, 0.82, 0]], [[0.36, 0.82, 0], [0.55, 0.35, 0]]]) parts.push([tube(...a, ...b, 0.015), 0xffffff, 'p', 1]);
@@ -422,7 +422,9 @@ const wirePts = [];
 const decalCut = new Map(), decalSoft = new Map();
 function decalBuf(map, x, z) { const k = Math.floor(x / SCH) * 4096 + Math.floor(z / SCH); let b = map.get(k); if (!b) { b = { P: [], UV: [], N: [], I: [] }; map.set(k, b); } return b; }
 // kwadrat na scianie (lokalne +z = na zewnatrz; srodek podstawy w (x, y, z)) albo plaski na ziemi (flat); wl = wlasne zacieki z gora na dol
+export const decalLog = []; // do testow: gdzie wisza naklejki [x, y, z, yaw, komorka]
 function addDecal(x, y, z, yaw, w, h, cell, flat = false, soft = false) {
+  decalLog.push([x, y, z, yaw, cell]);
   const b = decalBuf(flat || soft ? decalSoft : decalCut, x, z), cs = Math.cos(yaw), sn = Math.sin(yaw), o = b.P.length / 3;
   const u0 = (cell % 4) / 4, v1 = 1 - Math.floor(cell / 4) / 4, v0 = v1 - 0.25;
   if (flat) {
@@ -524,8 +526,9 @@ export function buildStreet(blocks, trees) {
     };
     // kraweznik z granitu (jasniejszy pas na krawedzi chodnika) i znaczniki dla niewidomych na rogach
     const k = 0.26, cc = 0xa8a397;
-    boxAt(b.x0 - 0.02, b.x1 + 0.02, 0, SW + 0.012, b.z0 - 0.02, b.z0 + k, cc); boxAt(b.x0 - 0.02, b.x1 + 0.02, 0, SW + 0.012, b.z1 - k, b.z1 + 0.02, cc);
-    boxAt(b.x0 - 0.02, b.x0 + k, 0, SW + 0.012, b.z0 + k, b.z1 - k, cc); boxAt(b.x1 - k, b.x1 + 0.02, 0, SW + 0.012, b.z0 + k, b.z1 - k, cc);
+    { const shade = () => { const f = 0.78 + r2() * 0.3; return ((cc >> 16 & 255) * f & 255) << 16 | ((cc >> 8 & 255) * f & 255) << 8 | ((cc & 255) * f & 255); }; // odcinki kraweznika o roznym zabrudzeniu, ze szczelinami
+      for (let a = b.x0 - 0.02; a < b.x1; a += 7.0) { const e = Math.min(a + 6.98, b.x1 + 0.02); boxAt(a, e, 0, SW + 0.012 + (r2() < 0.1 ? -0.012 : 0), b.z0 - 0.02, b.z0 + k, shade()); boxAt(a, e, 0, SW + 0.012, b.z1 - k, b.z1 + 0.02, shade()); }
+      for (let a = b.z0 + k; a < b.z1 - k; a += 7.0) { const e = Math.min(a + 6.98, b.z1 - k); boxAt(b.x0 - 0.02, b.x0 + k, 0, SW + 0.012, a, e, shade()); boxAt(b.x1 - k, b.x1 + 0.02, 0, SW + 0.012, a, e, shade()); } }
     for (const [px, pz, sx, sz] of [[b.x0, b.z0, 1, 1], [b.x1, b.z0, -1, 1], [b.x0, b.z1, 1, -1], [b.x1, b.z1, -1, -1]]) {
       boxAt(Math.min(px + sx * 1.6, px + sx * 2.8), Math.max(px + sx * 1.6, px + sx * 2.8), SW, SW + 0.016, Math.min(pz + sz * k, pz + sz * (k + 0.6)), Math.max(pz + sz * k, pz + sz * (k + 0.6)), 0x9c3b2a, 'm');
       boxAt(Math.min(px + sx * k, px + sx * (k + 0.6)), Math.max(px + sx * k, px + sx * (k + 0.6)), SW, SW + 0.016, Math.min(pz + sz * 1.6, pz + sz * 2.8), Math.max(pz + sz * 1.6, pz + sz * 2.8), 0x9c3b2a, 'm');

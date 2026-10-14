@@ -669,7 +669,9 @@ function sidewalkCanvas() {
 function groundTex() {
   const S = 16, q = S / 10, W = CX * S, H = CZ * S, c = cv(W, H), x = c.getContext('2d'), s0 = ST / 2 * S;
   x.fillStyle = '#5b5c60'; x.fillRect(0, 0, W, H);
-  for (let i = 0; i < 40000; i++) { const g = 46 + Math.random() * 30 | 0; x.fillStyle = `rgba(${g},${g},${g + 4},.4)`; x.fillRect(Math.random() * W, Math.random() * H, 2, 2); }
+  for (let i = 0; i < 260; i++) { const px = Math.random() * W, py = Math.random() * H, r = (1 + Math.random() * 5) * S, g = Math.random() < 0.5 ? '255,255,255' : '0,0,0', a = 0.025 + Math.random() * 0.035, gr = x.createRadialGradient(px, py, 0, px, py, r); gr.addColorStop(0, 'rgba(' + g + ',' + a + ')'); gr.addColorStop(1, 'rgba(' + g + ',0)'); x.fillStyle = gr; x.fillRect(px - r, py - r, 2 * r, 2 * r); }
+  for (let i = 0; i < 110000; i++) { const g = 40 + Math.random() * 46 | 0; x.fillStyle = 'rgba(' + g + ',' + g + ',' + (g + 4) + ',.28)'; x.fillRect(Math.random() * W, Math.random() * H, 1, 1); }
+  for (let i = 0; i < 2600; i++) { const g = 120 + Math.random() * 60 | 0; x.fillStyle = 'rgba(' + g + ',' + g + ',' + g + ',.35)'; x.fillRect(Math.random() * W, Math.random() * H, 1 + (Math.random() < 0.2), 1); }
   // jezdnia: laty po remontach, pekniecia, plamy oleju, wyjezdzone koleiny
   const onRoad = () => { const ax = Math.random() < 0.5; return ax ? [Math.random() * W, Math.random() * s0 * 0.95] : [Math.random() * s0 * 0.95, Math.random() * H]; };
   for (let i = 0; i < 18; i++) { const [px, py] = onRoad(), w = (3 + Math.random() * 12) * S, h = (1.5 + Math.random() * 3.5) * S, k = Math.random() < 0.6 ? 36 : 70;
@@ -703,9 +705,29 @@ function groundTex() {
   for (const fx of [0.25, 0.75]) { drain(s0 + BW * S * fx, s0 - 0.5 * S, false); drain(s0 + BW * S * fx, s0 + BD * S + 0.5 * S, false); }
   for (const fz of [0.3, 0.7]) { drain(s0 - 0.5 * S, s0 + BD * S * fz, true); drain(s0 + BW * S + 0.5 * S, s0 + BD * S * fz, true); }
   x.fillStyle = '#8e8981'; x.fillRect(s0, s0, BW * S, BD * S);
-  x.strokeStyle = 'rgba(0,0,0,.13)'; x.lineWidth = 1;
-  for (let a = s0; a <= s0 + BW * S; a += 2 * S) { x.beginPath(); x.moveTo(a, s0); x.lineTo(a, s0 + BD * S); x.stroke(); }
-  for (let a = s0; a <= s0 + BD * S; a += 2 * S) { x.beginPath(); x.moveTo(s0, a); x.lineTo(s0 + BW * S, a); x.stroke(); }
+  { const TS = 1.5 * S, SW0 = s0, SWW = BW * S, SWH = BD * S;
+    for (let ty = 0; ty * TS < SWH; ty++) for (let tx = 0; tx * TS < SWW; tx++) { // kazda plyta: wlasny odcien (jasniejsza / ciemniejsza / cieplejsza) i lekki gradient
+      const px = SW0 + tx * TS, py = SW0 + ty * TS, w = Math.min(TS, SW0 + SWW - px), h = Math.min(TS, SW0 + SWH - py), q = Math.random();
+      x.fillStyle = q < 0.4 ? 'rgba(0,0,0,' + (Math.random() * 0.13) + ')' : q < 0.75 ? 'rgba(255,248,235,' + (Math.random() * 0.09) + ')' : 'rgba(120,95,70,' + (Math.random() * 0.07) + ')'; x.fillRect(px, py, w, h);
+      const gg = x.createLinearGradient(px, py, px + w * 0.8, py + h); gg.addColorStop(0, 'rgba(255,255,255,.045)'); gg.addColorStop(1, 'rgba(0,0,0,.05)'); x.fillStyle = gg; x.fillRect(px, py, w, h);
+      for (let n = 0; n < 90; n++) { x.fillStyle = Math.random() < 0.5 ? 'rgba(0,0,0,.09)' : 'rgba(255,255,255,.08)'; x.fillRect(px + Math.random() * w, py + Math.random() * h, 1, 1); }
+      if (Math.random() < 0.2) { x.strokeStyle = 'rgba(20,18,15,.5)'; x.lineWidth = 1; x.beginPath(); let cx = px + Math.random() * w, cy = py + Math.random() * h; x.moveTo(cx, cy); for (let k = 0; k < 6; k++) { cx += (Math.random() - 0.5) * 0.4 * TS; cy += (Math.random() - 0.3) * 0.3 * TS; x.lineTo(cx, cy); } x.stroke(); x.strokeStyle = 'rgba(255,255,255,.1)'; x.stroke(); }
+      if (Math.random() < 0.08) { x.fillStyle = 'rgba(30,26,22,.22)'; x.beginPath(); x.ellipse(px + Math.random() * w, py + Math.random() * h, 3 + Math.random() * 7, 2 + Math.random() * 5, Math.random() * 3, 0, 7); x.fill(); }
+    }
+    x.lineWidth = 1;
+    for (let a = SW0; a <= SW0 + SWW; a += TS) { x.strokeStyle = 'rgba(0,0,0,.34)'; x.beginPath(); x.moveTo(a, SW0); x.lineTo(a, SW0 + SWH); x.stroke(); x.strokeStyle = 'rgba(255,250,240,.1)'; x.beginPath(); x.moveTo(a + 1.2, SW0); x.lineTo(a + 1.2, SW0 + SWH); x.stroke(); }
+    for (let a = SW0; a <= SW0 + SWH; a += TS) { x.strokeStyle = 'rgba(0,0,0,.34)'; x.beginPath(); x.moveTo(SW0, a); x.lineTo(SW0 + SWW, a); x.stroke(); x.strokeStyle = 'rgba(255,250,240,.1)'; x.beginPath(); x.moveTo(SW0, a + 1.2); x.lineTo(SW0 + SWW, a + 1.2); x.stroke(); }
+    for (let n = 0; n < 700; n++) { // chwasty i mech w szczelinach
+      const vert = Math.random() < 0.5, a = SW0 + Math.floor(Math.random() * (vert ? SWW : SWH) / TS) * TS, b = SW0 + Math.random() * (vert ? SWH : SWW), px = vert ? a : b, py = vert ? b : a;
+      x.strokeStyle = Math.random() < 0.7 ? 'rgba(' + (60 + Math.random() * 30 | 0) + ',' + (88 + Math.random() * 40 | 0) + ',38,.8)' : 'rgba(120,128,60,.7)'; x.lineWidth = 1;
+      for (let k = 0; k < 3; k++) { x.beginPath(); x.moveTo(px, py); x.lineTo(px + (Math.random() - 0.5) * 4, py - 1 - Math.random() * 5); x.stroke(); } }
+    for (let n = 0; n < 40; n++) { const px = SW0 + Math.random() * SWW, py = SW0 + Math.random() * SWH, r = (0.4 + Math.random() * 1.3) * S, g = x.createRadialGradient(px, py, 0, px, py, r); g.addColorStop(0, 'rgba(25,22,18,.3)'); g.addColorStop(1, 'rgba(25,22,18,0)'); x.fillStyle = g; x.fillRect(px - r, py - r, 2 * r, 2 * r); }
+    const dk = 0.9 * S, a0 = 'rgba(15,12,9,.3)', z0 = 'rgba(15,12,9,0)'; let g;
+    g = x.createLinearGradient(0, SW0, 0, SW0 + dk); g.addColorStop(0, a0); g.addColorStop(1, z0); x.fillStyle = g; x.fillRect(SW0, SW0, SWW, dk);
+    g = x.createLinearGradient(0, SW0 + SWH, 0, SW0 + SWH - dk); g.addColorStop(0, a0); g.addColorStop(1, z0); x.fillStyle = g; x.fillRect(SW0, SW0 + SWH - dk, SWW, dk);
+    g = x.createLinearGradient(SW0, 0, SW0 + dk, 0); g.addColorStop(0, a0); g.addColorStop(1, z0); x.fillStyle = g; x.fillRect(SW0, SW0, dk, SWH);
+    g = x.createLinearGradient(SW0 + SWW, 0, SW0 + SWW - dk, 0); g.addColorStop(0, a0); g.addColorStop(1, z0); x.fillStyle = g; x.fillRect(SW0 + SWW - dk, SW0, dk, SWH);
+  }
   x.fillStyle = '#6f6b64'; x.fillRect(s0 + 3 * S, s0 + 3 * S, (BW - 6) * S, (BD - 6) * S);
   x.strokeStyle = '#c2bcb2'; x.lineWidth = 3; x.strokeRect(s0 + 1, s0 + 1, BW * S - 2, BD * S - 2);
   const cw = 3.5 * S, sw = 0.6 * S, e0 = s0 + cw + 2 + 0.3 * S; // e0: koniec pasow za przejsciem dla pieszych
@@ -736,6 +758,19 @@ function groundTex() {
   // przejscia dla pieszych: slady opon i brud w miejscu zatrzymywania sie aut (ciemne pasma tuz przed pasami)
   x.fillStyle = 'rgba(0,0,0,.1)';
   for (let a = 0; a < s0 - sw; a += 1.2 * S) { x.fillRect(a + sw * 0.25, s0 + 2, sw * 0.5, cw); x.fillRect(W - a - sw * 0.75, H - s0 - cw - 2, sw * 0.5, cw); }
+  { // zuzycie farby: odpryski skupione plamami (szum), blednie, slady opon; tylko na jezdni (poza prostokatem kwartalu)
+    const id = x.getImageData(0, 0, W, H), d = id.data, sx0 = s0 - 5, sx1 = s0 + BW * S + 5, sy0 = s0 - 5, sy1 = s0 + BD * S + 5, GW = 96, GH = 72, gn = new Float32Array(GW * GH);
+    for (let i = 0; i < gn.length; i++) gn[i] = Math.random();
+    const vn = (u, v) => { const fu = u - Math.floor(u), fv = v - Math.floor(v), iu = Math.floor(u) % GW, iv = Math.floor(v) % GH, a = gn[iv * GW + iu], b = gn[iv * GW + (iu + 1) % GW], c = gn[((iv + 1) % GH) * GW + iu], e = gn[((iv + 1) % GH) * GW + (iu + 1) % GW]; return (a + (b - a) * fu) * (1 - fv) + (c + (e - c) * fu) * fv; };
+    for (let py = 0; py < H; py++) for (let px = 0; px < W; px++) {
+      if (px > sx0 && px < sx1 && py > sy0 && py < sy1) continue;
+      const i = (py * W + px) * 4, r = d[i]; if (r < 150) continue;
+      const n = vn(px / 18, py / 18) * 0.65 + vn(px / 5, py / 5) * 0.35, ch = n + (Math.random() - 0.5) * 0.45;
+      if (ch > 0.7) { const k = 44 + Math.random() * 22; d[i] = k; d[i + 1] = k; d[i + 2] = k + 4; }                       // odprysk: wychodzi asfalt
+      else { const f = 0.8 + 0.2 * vn(px / 40 + 7, py / 40 + 3) + (Math.random() - 0.5) * 0.08, a = 0.35 * (1 - f) + 0.0, k = 62; d[i] = d[i] * f + k * a; d[i + 1] = d[i + 1] * f + k * a; d[i + 2] = d[i + 2] * f + k * a; }
+    }
+    x.putImageData(id, 0, 0);
+  }
   // szorstkosc: asfalt matowy, kaluze i slady opon blyszcza (odbijaja niebo)
   const rc = cv(W, H), rx = rc.getContext('2d'); rx.fillStyle = '#f2f2f2'; rx.fillRect(0, 0, W, H);
   for (let i = 0; i < 2500; i++) { const k = 215 + Math.random() * 40 | 0; rx.fillStyle = `rgb(${k},${k},${k})`; rx.fillRect(Math.random() * W, Math.random() * H, 3, 3); }
@@ -1378,6 +1413,23 @@ function buildGround() {
     const m = new THREE.MeshBasicMaterial({ map: t, blending: THREE.MultiplyBlending, transparent: true, premultipliedAlpha: true, depthWrite: false, fog: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
     m.userData.lin = true;
     const gr = new THREE.Mesh(new THREE.PlaneGeometry(LW, LD), m); gr.rotation.x = -Math.PI / 2; gr.position.y = 0.025; gr.renderOrder = 1; scene.add(gr);
+  }
+  { // detal asfaltu i chodnika o innym okresie (7.3 m): pekniecia, szwy smoly, wyboje, plamy; wygasa z odlegloscia
+    const N = 1024, c = cv(N, N), x = c.getContext('2d'); x.fillStyle = '#ffffff'; x.fillRect(0, 0, N, N);
+    for (let i = 0; i < 26; i++) { const px = Math.random() * N, py = Math.random() * N, r = 10 + Math.random() * 40, g = x.createRadialGradient(px, py, 0, px, py, r); g.addColorStop(0, 'rgba(150,150,150,' + (0.25 + Math.random() * 0.3) + ')'); g.addColorStop(1, 'rgba(150,150,150,0)'); x.fillStyle = g; x.fillRect(px - r, py - r, 2 * r, 2 * r); }
+    const crack = (px, py, ang, len, w) => { x.lineWidth = w; x.beginPath(); x.moveTo(px, py); for (let k = 0; k < len; k++) { ang += (Math.random() - 0.5) * 0.9; px += Math.cos(ang) * 5; py += Math.sin(ang) * 5; x.lineTo(px, py); if (Math.random() < 0.07 && w > 0.8) crack(px, py, ang + (Math.random() - 0.5) * 2, len * 0.4, w * 0.6), x.moveTo(px, py); } x.stroke(); };
+    x.strokeStyle = 'rgba(75,75,75,.55)'; x.lineJoin = 'round'; for (let i = 0; i < 22; i++) crack(Math.random() * N, Math.random() * N, Math.random() * 6.28, 12 + Math.random() * 30, 0.7 + Math.random() * 1.3);
+    x.strokeStyle = 'rgba(30,30,30,.65)'; for (let i = 0; i < 5; i++) { const px = Math.random() * N; x.lineWidth = 2 + Math.random() * 2; x.beginPath(); x.moveTo(px, 0); x.bezierCurveTo(px + 20, N * 0.3, px - 25, N * 0.7, px + 5, N); x.stroke(); } // szwy smoly
+    for (let i = 0; i < 260; i++) { x.fillStyle = 'rgba(40,40,40,' + (0.35 + Math.random() * 0.4) + ')'; x.beginPath(); x.ellipse(Math.random() * N, Math.random() * N, 0.8 + Math.random() * 2.4, 0.6 + Math.random() * 1.8, Math.random() * 3, 0, 7); x.fill(); }
+    for (let i = 0; i < 5; i++) { const px = Math.random() * N, py = Math.random() * N, r = 14 + Math.random() * 20; x.fillStyle = 'rgba(45,45,45,.55)'; x.beginPath(); x.ellipse(px, py, r, r * 0.7, Math.random() * 3, 0, 7); x.fill(); x.strokeStyle = 'rgba(35,35,35,.7)'; x.lineWidth = 1.5; x.stroke(); } // wyboje
+    const t = canvasTex(c, true); t.repeat.set(LW / 7.3, LD / 7.3); t.encoding = THREE.LinearEncoding;
+    const m = new THREE.MeshBasicMaterial({ map: t, blending: THREE.MultiplyBlending, transparent: true, premultipliedAlpha: true, depthWrite: false, fog: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+    m.userData.lin = true; m.customProgramCacheKey = () => 'ulicaDetal2';
+    m.onBeforeCompile = sh => {
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vFd;').replace('#include <project_vertex>', '#include <project_vertex>\nvFd = length(mvPosition.xyz);');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vFd;').replace('#include <dithering_fragment>', '#include <dithering_fragment>\ngl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.0), smoothstep(22.0, 85.0, vFd));');
+    };
+    const gr = new THREE.Mesh(new THREE.PlaneGeometry(LW, LD), m); gr.rotation.x = -Math.PI / 2; gr.position.y = 0.027; gr.renderOrder = 2; scene.add(gr);
   }
   const base = new THREE.Mesh(new THREE.BoxGeometry(LW, 6, LD), new THREE.MeshStandardMaterial({ color: 0x77726a, roughness: 1 }));
   base.position.y = -3; scene.add(base);
