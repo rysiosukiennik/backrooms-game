@@ -52,6 +52,7 @@ export const save = {
   skills: [], races: {}, bossWins: 0, chases: 0, fisk: 0, pos: null, hd: 0, hasGame: false, savedAt: 0, tod: 'sunset', weather: 'auto', music: true, voice: true, voiceVol: 0.9, voiceMode: 'nagrania',
 };
 try { Object.assign(save, JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) {}
+if (!save.voice) save.voiceMode = 'wylaczony'; // stary zapis: glos wylaczony przelacznikiem
 // nowa gra: kasuje caly postep, ale zostawia ustawienia (grafika, pora dnia, muzyka)
 export function resetProgress() {
   const keep = { gfx: save.gfx, tod: save.tod, weather: save.weather, music: save.music, voice: save.voice, voiceVol: save.voiceVol, voiceMode: save.voiceMode };

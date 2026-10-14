@@ -85,11 +85,12 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
 #logo .t1{font-family:'Bebas Neue',Impact,sans-serif;font-size:clamp(48px,min(9.5vw,15vh),140px);line-height:.85;letter-spacing:2px;text-shadow:0 6px 30px rgba(0,0,0,.6)}
 #logo .t1 span{color:var(--red)}
 #logo .t2{font-size:20px;font-weight:700;letter-spacing:12px;color:var(--cy);margin-top:10px}
-#menuList{position:absolute;left:7vw;top:max(33vh,190px);display:flex;flex-direction:column;gap:2px}
-.mi{font-family:'Bebas Neue',Impact,sans-serif;font-size:clamp(20px,4.6vh,34px);letter-spacing:2px;padding:3px 44px 0 18px;color:rgba(255,255,255,.72);cursor:pointer;clip-path:polygon(0 0,100% 0,calc(100% - 18px) 100%,0 100%);transition:background .12s,padding .12s}
+#menuList{position:absolute;left:7vw;top:max(25vh,160px);display:flex;flex-direction:column;gap:2px}
+.mi{font-family:'Bebas Neue',Impact,sans-serif;font-size:clamp(15px,3.3vh,32px);letter-spacing:2px;padding:3px 44px 0 18px;color:rgba(255,255,255,.72);cursor:pointer;clip-path:polygon(0 0,100% 0,calc(100% - 18px) 100%,0 100%);transition:background .12s,padding .12s}
+.vbar{display:inline-block;vertical-align:middle;width:150px;height:14px;margin-left:14px;background:repeating-linear-gradient(90deg,currentColor 0 12px,transparent 12px 15px);-webkit-mask:linear-gradient(90deg,#000 calc(var(--n)*15px),rgba(0,0,0,.28) 0)}
 .mi small{font-family:'Rajdhani';font-weight:600;font-size:17px;letter-spacing:1px;margin-left:10px;opacity:.85}
 .mi.f{background:var(--red);color:#fff;padding-left:30px}
-#menuFoot{position:absolute;left:7vw;bottom:4vh;font-size:17px;font-weight:600;color:#bfe9f5;line-height:1.6}
+#menuFoot{position:absolute;right:4vw;text-align:right;bottom:4vh;font-size:17px;font-weight:600;color:#bfe9f5;line-height:1.6}
 #pause{position:fixed;inset:0;z-index:12;background:rgba(3,12,20,.94)}
 #tabs{position:absolute;left:0;right:0;top:0;height:56px;display:flex;align-items:center;gap:2px;padding-left:20px;background:linear-gradient(#050d14,#08151f);border-bottom:2px solid rgba(63,227,255,.25);overflow:hidden}
 .tab{font-family:'Bebas Neue',Impact,sans-serif;font-size:25px;letter-spacing:1px;padding:9px 20px 4px;cursor:pointer;color:#cfe9f2;clip-path:polygon(12px 0,100% 0,calc(100% - 12px) 100%,0 100%);white-space:nowrap}
@@ -430,7 +431,9 @@ function updateFlare() {
 const gfxLabel = () => 'GRAFIKA: ' + (save.gfx === 'high' ? 'WYSOKA' : 'NISKA');
 const todLabel = () => 'PORA DNIA: ' + TOD_NAMES[save.tod];
 const wxLabel = () => 'POGODA: ' + weatherName();
-const voiceLabel = () => 'GŁOS SPIDER-MANA: ' + (save.voice ? 'WŁĄCZONY' : 'WYŁĄCZONY');
+const VMODE_NAMES = { nagrania: 'NAGRANIA', syntezator: 'SYNTEZATOR', wylaczony: 'WYŁĄCZONY' };
+const voiceLabel = () => 'GŁOS SPIDER-MANA: ' + (VMODE_NAMES[save.voiceMode] || 'NAGRANIA');
+const vvolLabel = () => { const n = Math.round((save.voiceVol ?? 0.9) * 10); return 'GŁOŚNOŚĆ GŁOSU <span class="vbar" style="--n:' + n + '"></span><small>' + n * 10 + '%</small>'; };
 const musLabel = () => 'MUZYKA: ' + (save.music ? 'WŁĄCZONA' : 'WYŁĄCZONA');
 function menuItems() {
   return [
@@ -439,7 +442,7 @@ function menuItems() {
     ...SLOTS.map(n => ['ld' + n, slotLabel(n, 'WCZYTAJ ZAPIS')]),
     ['new', newLabel()],
     ['suits', 'STROJE'], ['skills', 'UMIEJĘTNOŚCI'], ['moves', 'STEROWANIE'],
-    ['tod', todLabel()], ['wx', wxLabel()], ['music', musLabel()], ['voice', voiceLabel()], ['gfx', gfxLabel()],
+    ['tod', todLabel()], ['wx', wxLabel()], ['music', musLabel()], ['voice', voiceLabel()], ['vvol', vvolLabel()], ['gfx', gfxLabel()],
   ];
 }
 // elementy tworzymy raz, a przy najechaniu tylko zmieniamy podswietlenie —
@@ -500,7 +503,8 @@ function menuAct(a) {
   else if (a === 'tod') { hooks.tod(); renderMenu(); }
   else if (a === 'wx') { hooks.wx(); renderMenu(); }
   else if (a === 'music') { hooks.music(); renderMenu(); }
-  else if (a === 'voice') { hooks.voice(); renderMenu(); }
+  else if (a === 'voice') { hooks.voice(1); renderMenu(); }
+  else if (a === 'vvol') { hooks.voiceVol(1, true); renderMenu(); }
 }
 let footTxt = '';
 export function updateMenu(dt) {
@@ -508,6 +512,7 @@ export function updateMenu(dt) {
   if (N.up) { G.menuIdx = (G.menuIdx + n - 1) % n; renderMenu(); sfx('ui'); }
   if (N.down) { G.menuIdx = (G.menuIdx + 1) % n; renderMenu(); sfx('ui'); }
   if (N.ok) menuAct(menuItems()[G.menuIdx][0]);
+  if (N.left || N.right) { const a = menuItems()[G.menuIdx][0], d = N.left ? -1 : 1; if (a === 'voice') { hooks.voice(d); sfx('ui'); renderMenu(); } else if (a === 'vvol') { hooks.voiceVol(d); sfx('ui'); renderMenu(); } }
   const f = (pad.connected ? `🎮 Wykryto pada: <b>${pad.type === 'ps' ? 'PlayStation' : 'Xbox / inny'}</b>` : '🎮 Pad niepodłączony — podłącz i naciśnij dowolny przycisk')
     + `<br>${audioOK() ? '🔊 Dźwięk włączony' : '🔈 Kliknij lub naciśnij klawisz, żeby włączyć dźwięk'}`
     + `<br>Poziom ${save.lvl} · Plecaki ${save.bags.length}/${BAGS_N} · Postępy ${progress()}%` + (save.savedAt ? ` · Zapis: ${new Date(save.savedAt).toLocaleString('pl-PL', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}` : '');
@@ -763,7 +768,7 @@ function renderMoves() {
 
 // ---- gra
 function gameItems() {
-  const base = [['tod', todLabel()], ['wx', wxLabel()], ['music', musLabel()], ['voice', voiceLabel()], ['gfx', gfxLabel()]];
+  const base = [['tod', todLabel()], ['wx', wxLabel()], ['music', musLabel()], ['voice', voiceLabel()], ['vvol', vvolLabel()], ['gfx', gfxLabel()]];
   return G.pauseFrom === 'menu' ? [['back', 'WRÓĆ'], ...base] : [['resume', 'WZNÓW GRĘ'], ...SLOTS.map(n => ['sv' + n, slotLabel(n, 'ZAPISZ W SLOCIE')]), ...SLOTS.map(n => ['ld' + n, slotLabel(n, 'WCZYTAJ ZAPIS')]), ...base, ['new', newLabel()], ['menu', 'MENU GŁÓWNE']];
 }
 function renderGame() {
@@ -788,7 +793,8 @@ function gameAct(a) {
   else if (a === 'tod') { hooks.tod(); renderGame(); }
   else if (a === 'wx') { hooks.wx(); renderGame(); }
   else if (a === 'music') { hooks.music(); renderGame(); }
-  else if (a === 'voice') { hooks.voice(); renderGame(); }
+  else if (a === 'voice') { hooks.voice(1); renderGame(); }
+  else if (a === 'vvol') { hooks.voiceVol(1, true); renderGame(); }
   else if (a === 'menu') { $('pause').classList.add('hidden'); hooks.toMenu(); }
 }
 function updateGame(N) {
@@ -796,6 +802,7 @@ function updateGame(N) {
   if (N.up) { G.gameIdx = (G.gameIdx + n - 1) % n; renderGame(); }
   if (N.down) { G.gameIdx = (G.gameIdx + 1) % n; renderGame(); }
   if (N.ok) gameAct(gameItems()[G.gameIdx][0]);
+  if (N.left || N.right) { const a = gameItems()[G.gameIdx][0], d = N.left ? -1 : 1; if (a === 'voice') { hooks.voice(d); sfx('ui'); renderGame(); } else if (a === 'vvol') { hooks.voiceVol(d); sfx('ui'); renderGame(); } }
 }
 
 // ---------------------------------------------------------------- start interfejsu

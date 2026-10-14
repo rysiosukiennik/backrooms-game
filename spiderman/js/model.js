@@ -1186,7 +1186,13 @@ export function buildSpider(s) {
     const rim = new THREE.Mesh(toGeo(spLensData(b, side, 1.36 * ek, 0.0035)), M.rim);
     const lens = new THREE.Mesh(toGeo(spLensData(b, side, 1.1 * ek, 0.0062)), M.eye);
     H.neck.add(rim, lens);
+    // do mimiki mowy (mowa.js): zwezanie soczewek wzdluz osi "gora" glowy wokol ich srodka
+    for (const m of [rim, lens]) { m.geometry.computeBoundingBox(); (H.lens || (H.lens = [])).push({ m, cy: (m.geometry.boundingBox.min.y + m.geometry.boundingBox.max.y) / 2 }); }
   }
+  H.squint = k => { // k 0..1 (0 = oczy normalne)
+    const sy = 1 - 0.34 * k, sx = 1 + 0.05 * k;
+    for (const l of H.lens) { l.m.scale.set(sx, sy, 1); l.m.position.y = l.cy * (1 - sy); }
+  };
   // wyrzutnie sieci na nadgarstkach (w stroju z PS4 schowane pod rekawica)
   if (s.legs) addMechLegs(H, M);
   if (s.layout === 'adv') return H;

@@ -4,6 +4,7 @@ import { V3, UP, clamp, lerp, damp, angLerp, save, doSave } from './util.js';
 import { G, P, cam, scene, camera, enemies } from './stan.js';
 import { supportAt, boxesNear, raycastCity, LAND, START, START_H, roofs, perches, nearestDoor } from './miasto.js';
 import { enterDoor, leaveInterior, nearExit, takeCola } from './wnetrza.js';
+import { updateSpeech, speechPose, speechFace } from './mowa.js';
 import { buildSpider, newPose, zeroPose, blendPose, mixPose, applyPose, idlePose, runPose, crouchPose, tuckPose, heroLandPose, aimArm, basisQ, SUITS, suitById } from './postac.js';
 import { hitEnemy, shootWeb, burst, finishEnemy, addXP } from './wrogowie.js';
 import { carPunch, carLeave } from './misje.js';
@@ -558,6 +559,11 @@ function buildPose(t, dt, hs) {
   if (P.atk) attackPose(t, P.atk);
   if (P.lunge) { t.sRx = -1.4; t.sLx = 0.6; t.bp = 0.35; t.hLx = -0.9; t.kL = 1.2; t.hRx = 0.4; t.kR = 0.6; }
   if (P.hurtT > 0) { t.bp -= 0.35; t.hx += 0.25; }
+  // animacja mowy (glowa, rece, ramiona) tylko gdy stoi, biegnie lub buja sie i nie walczy
+  if (!P.atk && !P.lunge && !P.fin && !(P.hurtT > 0) && !P.dodgeT && P.flipT < 0 && !(P.trickT > 0) && !(P.lvT > 0)) {
+    if (P.state === 'ground' && P.perchT <= 0) speechPose(t, hs > 0.6 ? 'run' : 'stand', G.time);
+    else if (P.state === 'swing') speechPose(t, 'swing', G.time);
+  }
 }
 // bujanie: reka z siecia wyciagnieta do punktu zaczepu (aimArm), cialo wahadlem pochylone w strone ruchu,
 // nogi podkurczone w dole luku i wyprostowane (wlokace sie) u gory, druga reka balansuje
@@ -620,6 +626,7 @@ export function updatePlayerVisual(dt) {
   basisQ(_q, up, fw);
   H.root.quaternion.slerp(_q, damp(P.state === 'swing' ? 9 : 14, dt));
 
+  updateSpeech(dt, G.time);
   const t = P.pt; zeroPose(t); buildPose(t, dt, hs);
   // miekkie przejscia: wolniej w locie i na linie, szybko przy ciosach i wyladowaniu
   blendPose(P.pc, t, damp(P.atk ? 26 : (P.lvT > 0 && P.lvHero && P.lvT > P.lvDur * 0.88) ? 30 : P.state === 'swing' ? 10 : P.state === 'air' ? 9 : 14, dt));
@@ -635,7 +642,7 @@ export function updatePlayerVisual(dt) {
   else if (P.trickT > 0 && P.trickType === 0) { P.pc.bw = (1 - P.trickT / 0.55) * Math.PI * 4; P.spinning = true; }
   else if (P.spinning) { P.spinning = false; P.pc.bw = 0; }
   if (!P.fin && P.flipT < 0 && !(P.trickT > 0 && P.trickType === 1) && Math.abs(P.pc.bp) > 3) P.pc.bp = 0;
-  applyPose(H, P.pc);
+  applyPose(H, P.pc); speechFace(H);
   // dlonie: piesc w walce, gest "thwip" przy strzelaniu siecia i bujaniu
   const fight = P.atk || P.lunge || P.fin || P.state === 'car' || P.punchHold > 0;
   const webR = P.webT > 0 || P.zipT > 0 || P.state === 'pz' || (P.state === 'swing' && P.swingSide > 0);
