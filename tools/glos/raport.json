@@ -1,0 +1,99 @@
+{
+ "format": "mulaw12",
+ "linii": 512,
+ "sekundy": 1477.1,
+ "paczki": [
+  {
+   "name": "p01",
+   "bytes": 1877223,
+   "n": 50
+  },
+  {
+   "name": "p02",
+   "bytes": 1886475,
+   "n": 47
+  },
+  {
+   "name": "p03",
+   "bytes": 1895499,
+   "n": 45
+  },
+  {
+   "name": "p04",
+   "bytes": 1861917,
+   "n": 36
+  },
+  {
+   "name": "p05",
+   "bytes": 1888707,
+   "n": 38
+  },
+  {
+   "name": "p06",
+   "bytes": 1885231,
+   "n": 46
+  },
+  {
+   "name": "p07",
+   "bytes": 1869535,
+   "n": 45
+  },
+  {
+   "name": "p08",
+   "bytes": 1882527,
+   "n": 40
+  },
+  {
+   "name": "p09",
+   "bytes": 1880962,
+   "n": 36
+  },
+  {
+   "name": "p10",
+   "bytes": 1857466,
+   "n": 34
+  },
+  {
+   "name": "p11",
+   "bytes": 1837682,
+   "n": 35
+  },
+  {
+   "name": "p12",
+   "bytes": 1879312,
+   "n": 31
+  },
+  {
+   "name": "p13",
+   "bytes": 1191782,
+   "n": 29
+  }
+ ],
+ "bajty_total": 23722802,
+ "presety": {
+  "peter": {
+   "linie": 494,
+   "sekundy": 1436.8,
+   "F0_srednie_Hz": 125.59,
+   "F0_std_polton": 3.36,
+   "skok_F0_polton_10ms": 0.15,
+   "peak_max": 0.915,
+   "rms_db": -17.34,
+   "centroid_Hz": 433.37,
+   "udzial_energii_ponad_5k": 0,
+   "harmonicznosc": 0.86
+  },
+  "thug": {
+   "linie": 18,
+   "sekundy": 40.3,
+   "F0_srednie_Hz": 103.07,
+   "F0_std_polton": 3,
+   "skok_F0_polton_10ms": 0.15,
+   "peak_max": 0.912,
+   "rms_db": -16.24,
+   "centroid_Hz": 711.22,
+   "udzial_energii_ponad_5k": 0.03,
+   "harmonicznosc": 0.86
+  }
+ }
+}

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Glos Petera - odsluch probek</title>
+<style>
+  :root { --bg:#0b1118; --pn:#131c27; --tx:#e8eef5; --mu:#8a9bb0; --ac:#e8232b; --ok:#3ad07a; }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--tx); font:16px/1.45 Segoe UI,Arial,sans-serif; padding:24px 16px 80px }
+  main { max-width:980px; margin:0 auto }
+  h1 { font-size:26px; margin:0 0 6px } h2 { font-size:19px; margin:34px 0 10px; border-left:4px solid var(--ac); padding-left:10px }
+  p.n { color:var(--mu); margin:4px 0 12px }
+  .row { background:var(--pn); border-radius:10px; padding:12px 14px; margin:10px 0 }
+  .tx { font-weight:600; margin-bottom:8px } .tx small { color:var(--mu); font-weight:400; margin-left:8px }
+  .btns { display:flex; flex-wrap:wrap; gap:8px; align-items:stretch }
+  button { background:#1d2a3a; color:var(--tx); border:1px solid #2c3d52; border-radius:8px; padding:8px 12px; cursor:pointer; font:inherit; text-align:left; min-width:140px }
+  button:hover { border-color:var(--ac) } button.on { background:var(--ac); border-color:var(--ac) }
+  button b { display:block; font-size:15px } button span { font-size:12px; color:var(--mu) } button.on span { color:#ffd9da }
+  button.all { min-width:0; align-self:center; background:transparent }
+  .leg { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:6px 16px; font-size:14px; color:var(--mu); margin:10px 0 }
+  .leg b { color:var(--tx) }
+  #err { color:#ff8a8a }
+</style>
+</head>
+<body>
+<main>
+  <h1>Glos Petera Parkera - odsluch</h1>
+  <p class="n">Kazda linia jest nagrana w 4 wariantach glosu Petera (A-D) oraz oryginalnym glosem Pauliny (SAPI) do porownania. Odsluchaj i napisz, ktory wariant (litera) brzmi najlepiej - ten zostanie glosem gry. Dziala z pliku (file://), dane sa w <code>glos/probki.js</code>.</p>
+  <div id="err"></div>
+  <div class="leg" id="leg"></div>
+  <h2>Peter - wybrane kwestie</h2>
+  <div id="linie"></div>
+  <h2>Pozostale postacie (jeden wariant)</h2>
+  <div id="post"></div>
+</main>
+<script src="glos/probki.js"></script>
+<script>
+(function () {
+  var P = window.GLOS_PROBKI, cur = null, curBtn = null, queue = [];
+  if (!P) { document.getElementById('err').textContent = 'Brak glos/probki.js - uruchom: node tools/glos/buduj.js'; return; }
+  var NAZWY = { may: 'Ciocia May', mj: 'Mary Jane', yuri: 'Policjantka Yuri', fisk: 'Kingpin (Fisk)', rhino: 'Nosorozec', thug: 'Bandyta', radio: 'Radio policyjne' };
+  var MOODY = { normal: 'normalnie', strained: 'z wysilkiem', excited: 'podekscytowany', dry: 'sucho, ironicznie' };
+  var leg = document.getElementById('leg');
+  P.warianty.forEach(function (w) { var d = document.createElement('div'); d.innerHTML = '<b>' + w.id + '</b> - ' + w.opis; leg.appendChild(d); });
+  function stop() { if (cur) { cur.pause(); cur.onended = null; cur = null; } if (curBtn) curBtn.classList.remove('on'); curBtn = null; }
+  function play(btn, clip, then) {
+    stop(); var a = new Audio(clip.wav); cur = a; curBtn = btn; btn.classList.add('on');
+    a.onended = function () { stop(); if (then) then(); };
+    a.play().catch(function (e) { stop(); document.getElementById('err').textContent = 'Nie mozna odtworzyc: ' + e.message; });
+  }
+  function mkBtn(parent, title, clip) {
+    var b = document.createElement('button'); b.innerHTML = '<b>' + title + '</b><span>' + (clip.ms / 1000).toFixed(1) + ' s, F0 ' + Math.round(clip.f0) + ' Hz</span>';
+    b.onclick = function () { if (curBtn === b) stop(); else play(b, clip); }; parent.appendChild(b); return b;
+  }
+  var L = document.getElementById('linie');
+  P.linie.forEach(function (r) {
+    var row = document.createElement('div'); row.className = 'row';
+    row.innerHTML = '<div class="tx">' + r.tekst + '<small>(' + (MOODY[r.mood] || r.mood) + ')</small></div>';
+    var bt = document.createElement('div'); bt.className = 'btns'; row.appendChild(bt);
+    var seq = [[mkBtn(bt, 'Oryginal (Paulina)', r.orig), r.orig]];
+    r.warianty.forEach(function (v) { seq.push([mkBtn(bt, 'Wariant ' + v.id, v), v]); });
+    var all = document.createElement('button'); all.className = 'all'; all.textContent = 'Wszystkie po kolei';
+    all.onclick = function () { var i = 0; (function next() { if (i >= seq.length) return; var s = seq[i++]; play(s[0], s[1], function () { setTimeout(next, 350); }); })(); };
+    bt.appendChild(all); L.appendChild(row);
+  });
+  var C = document.getElementById('post');
+  P.postacie.forEach(function (p) {
+    var row = document.createElement('div'); row.className = 'row';
+    row.innerHTML = '<div class="tx">' + p.tekst + '</div>'; var bt = document.createElement('div'); bt.className = 'btns'; row.appendChild(bt);
+    mkBtn(bt, NAZWY[p.voice] || p.voice, p); C.appendChild(row);
+  });
+})();
+</script>
+</body>
+</html>
