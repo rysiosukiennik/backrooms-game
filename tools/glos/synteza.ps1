@@ -33,7 +33,7 @@ function Render([string]$t, [string]$path, [int]$rate, [int]$vol) {
 
 if ($Jobs -ne '') {
   $json = [System.IO.File]::ReadAllText((Resolve-Path $Jobs), [System.Text.Encoding]::UTF8)
-  $list = @(ConvertFrom-Json $json)
+  $list = ConvertFrom-Json $json
   if (-not (Test-Path $OutDir)) { New-Item -ItemType Directory -Force $OutDir | Out-Null }
   $dir = (Resolve-Path $OutDir).Path
   $k = 0

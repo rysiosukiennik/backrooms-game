@@ -360,7 +360,14 @@ function render(raw, rate, p, seedStr) {
   const timeScale = (p.formant || 1) / (p.tempo || 1) * (p.formant && Math.abs(p.formant - 1) > 1e-3 ? 1 : 1);
   // po resamplingu dlugosc = n/formant; chcemy n/tempo => skala = formant/tempo
   const needPsola = p.f0 || p.f0r || Math.abs(timeScale - 1) > 0.01 || (p.contour != null && Math.abs(p.contour - 1) > 0.02) || p.tremor;
-  if (needPsola) x = psola(x, rate, tr, { f0: p.f0, f0r: p.f0r, contour: p.contour, timeScale, tremor: p.tremor, rng });
+  if (needPsola) {
+    const med = median(voicedList(tr)) || 150, ratio = p.f0 ? p.f0 / med : (p.f0r || 1);
+    if (ratio < 0.64) { // gleboki glos: dwa etapy (pojedynczy PSOLA ponizej ~0,6 daje podwojone impulsy)
+      const c = Math.sqrt(p.contour == null ? 1 : p.contour), mid = med * Math.sqrt(ratio);
+      x = psola(x, rate, tr, { f0: mid, contour: c, timeScale, rng });
+      x = psola(x, rate, f0Track(x, rate), { f0: p.f0 || med * ratio, contour: c, timeScale: 1, tremor: p.tremor, rng });
+    } else x = psola(x, rate, tr, { f0: p.f0, f0r: p.f0r, contour: p.contour, timeScale, tremor: p.tremor, rng });
+  }
   // 3) barwa / maska
   if (p.hp) x = filt(filt(x, bq('hp', rate, p.hp, 0.707)), bq('hp', rate, p.hp, 0.707));
   for (const [t, f, q, g] of (p.eq || [])) x = filt(x, bq(t, rate, f, q, g));

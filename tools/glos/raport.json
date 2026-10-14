@@ -1,0 +1,27 @@
+{
+ "format": "pcm22",
+ "linii": 12,
+ "sekundy": 30.1,
+ "paczki": [
+  {
+   "name": "p01",
+   "bytes": 1771345,
+   "n": 12
+  }
+ ],
+ "bajty_total": 1771996,
+ "presety": {
+  "peter": {
+   "linie": 12,
+   "sekundy": 30.1,
+   "F0_srednie_Hz": 123.62,
+   "F0_std_polton": 3.04,
+   "skok_F0_polton_10ms": 0.17,
+   "peak_max": 0.903,
+   "rms_db": -17.36,
+   "centroid_Hz": 456.58,
+   "udzial_energii_ponad_5k": 0,
+   "harmonicznosc": 0.85
+  }
+ }
+}
