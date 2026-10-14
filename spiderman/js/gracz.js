@@ -14,6 +14,7 @@ import { say, sayCtx } from './docinki.js';
 import { rumble } from './wejscie.js';
 import { showMsg, flashDamage, popText } from './ui.js';
 import { getRope, heroLand, anchorFX } from './efekty.js';
+import { startFinisherNow, stepFinisher, finAbort, finPose, finRoot, finAim } from './wykonczenie.js';
 
 const GRAV = 27;
 const _t = new V3(), _h = new V3(), _f = new V3(), _u = new V3(), _q = new THREE.Quaternion(), _cf = new V3();
@@ -397,25 +398,10 @@ function landHit(a) {
   P.combo++; P.comboT = 2.5; addFocus(0.12);
   if (up) { P.vel.y = 0; }
 }
+// wykonczenie: filmowa scenka w zwolnionym tempie (wykonczenie.js)
 function startFinisher(e) {
   P.focus -= 1; if (P.state === 'swing') release(false);
-  const dir = new V3().subVectors(e.pos, P.pos); dir.y = 0; if (dir.lengthSq() < 0.01) dir.set(0, 0, 1); dir.normalize();
-  const to = e.pos.clone().addScaledVector(dir, 1.5 * (e.scale || 1)); to.y = supportAt(to.x, to.z, e.pos.y + 0.5);
-  if (Math.abs(to.y - e.pos.y) > 0.5) to.copy(P.pos);
-  P.fin = { e, t: 0, dur: 0.8, from: P.pos.clone(), to, done: false };
-  P.atk = null; P.lunge = null; P.state = 'ground'; P.heading = Math.atan2(dir.x, dir.z);
-  G.slowT = 0.9; sfx('fin'); rumble(0.3, 0.5, 0.8);
-}
-function stepFinisher(dt) {
-  const F = P.fin; F.t += dt; const k = clamp(F.t / F.dur, 0, 1);
-  P.pos.lerpVectors(F.from, F.to, k); P.pos.y += Math.sin(k * Math.PI) * 2.8;
-  P.vel.set(0, 0, 0);
-  if (k > 0.55 && !F.done) {
-    F.done = true; finishEnemy(F.e);
-    if (has('fin')) { let b = null, bd = 9; for (const e of enemies) { if (e === F.e || e.dead || e.gone || e.type === 'boss') continue; const d = e.pos.distanceTo(F.e.pos); if (d < bd) { bd = d; b = e; } } if (b) finishEnemy(b); }
-    G.shake = 0.5;
-  }
-  if (k >= 1) { P.fin = null; P.state = supportAt(P.pos.x, P.pos.z, P.pos.y + 0.5) >= P.pos.y - 0.3 ? 'ground' : 'air'; P.pc.bp = 0; P.heading += Math.PI; }
+  startFinisherNow(e);
 }
 function startDodge(wx, wz, wl) {
   if (P.dodgeCD > 0 || P.state === 'pz') return;
@@ -497,7 +483,7 @@ export function respawn() {
     if (d < bd) { bd = d; best = r; }
   }
   if (best) P.pos.set((best.x0 + best.x1) / 2, best.y1, (best.z0 + best.z1) / 2); else P.pos.copy(START);
-  P.vel.set(0, 0, 0); P.state = 'ground'; P.hp = maxHp(); P.dead = false; P.invT = 2; P.atk = null; P.lunge = null; P.flipT = -1; P.fin = null; P.car = null; P.focus = 0; say('respawn', true);
+  P.vel.set(0, 0, 0); P.state = 'ground'; P.hp = maxHp(); P.dead = false; P.invT = 2; P.atk = null; P.lunge = null; P.flipT = -1; finAbort(); P.fin = null; P.car = null; P.focus = 0; say('respawn', true);
   P.pc.bp = 0; P.pc.br = 0; P.pc.bw = 0;
   cam.tgt.copy(P.pos);
 }
@@ -506,7 +492,7 @@ export function respawn() {
 function buildPose(t, dt, hs) {
   if (P.perch && (G.state !== 'play' || G.cine)) { crouchPose(t); return; }
   if (P.dead) { t.sLz = 1.3; t.sRz = -1.3; t.hLz = 0.2; t.hRz = -0.2; t.bp = -0.4; return; }
-  if (P.fin) { tuckPose(t); t.sRx = -2.6; t.sLx = -2.6; t.eL = -0.2; t.eR = -0.2; return; }
+  if (P.fin) { finPose(t); return; }
   switch (P.state) {
     case 'car':
       t.by = -0.45; t.hLx = -1.6; t.kL = 2.2; t.hRx = -0.4; t.kR = 1.8; t.hLz = 0.35; t.hRz = -0.4; t.bp = 0.5;
@@ -625,13 +611,14 @@ export function updatePlayerVisual(dt) {
   else if (P.state === 'air' && hs > 3 && !P.lunge && !P.atk) { fw.set(P.vel.x, 0, P.vel.z).normalize(); P.heading = Math.atan2(fw.x, fw.z); }
   basisQ(_q, up, fw);
   H.root.quaternion.slerp(_q, damp(P.state === 'swing' ? 9 : 14, dt));
+  if (P.fin) finRoot(H.root.quaternion);
 
   updateSpeech(dt, G.time);
   const t = P.pt; zeroPose(t); buildPose(t, dt, hs);
   // miekkie przejscia: wolniej w locie i na linie, szybko przy ciosach i wyladowaniu
   blendPose(P.pc, t, damp(P.atk ? 26 : (P.lvT > 0 && P.lvHero && P.lvT > P.lvDur * 0.88) ? 30 : P.state === 'swing' ? 10 : P.state === 'air' ? 9 : 14, dt));
   // obroty "na calego" ustawiamy wprost, zeby salto nie cofalo sie przy wygladzaniu
-  if (P.fin) P.pc.bp = clamp(P.fin.t / P.fin.dur, 0, 1) * Math.PI * 2;
+  if (P.fin) { P.pc.bp = 0; P.pc.br = 0; P.pc.bw = 0; }
   else if (P.flipT >= 0 && P.flipRoll) { P.pc.br = clamp(P.flipT / P.flipDur, 0, 1) * Math.PI * 2 * (P.flipBack ? -1 : 1); P.flipRolling = true; }
   else if (P.flipT >= 0) P.pc.bp = clamp(P.flipT / P.flipDur, 0, 1) * Math.PI * 2 * (P.flipBack ? -1 : 1);
   else if (P.trickT > 0 && P.trickType === 1) P.pc.bp = (1 - P.trickT / 0.55) * Math.PI * 2;
@@ -654,6 +641,7 @@ export function updatePlayerVisual(dt) {
   if (P.webT > 0) aimArm(H, 'R', P.webAim, 1);
   if (P.zipT > 0) { aimArm(H, 'R', P.zipPt, 1); aimArm(H, 'L', P.zipPt, 1); }
   if (P.state === 'pz') { aimArm(H, 'R', P.pz.to, 1); aimArm(H, 'L', P.pz.to, 1); }
+  if (P.fin) finAim(H);
   H.root.updateMatrixWorld(true);
 
   if (P.state === 'swing') { (P.swingSide > 0 ? H.handR : H.handL).getWorldPosition(_h); const Ld = _h.distanceTo(P.anchor), slack = Math.max(0, P.rope - Ld) / Math.max(1, P.rope); lineMain.set(_h, P.anchor, 1 - Math.min(0.7, slack * 4), Math.max(0, 1 - P.swingT * 3.5) * 0.8); }

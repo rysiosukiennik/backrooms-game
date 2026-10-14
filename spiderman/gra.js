@@ -182,6 +182,8 @@
         time: 0,
         started: false,
         slowT: 0,
+        timeScale: 1,
+        rdt: 0.016,
         shake: 0,
         sense: false,
         wp: null,
@@ -331,7 +333,7 @@
     return S2;
   }
   function panel(S2, x, y, w, h, o = {}) {
-    var _a5, _b4, _c4;
+    var _a6, _b5, _c5;
     const { col: col2, hgt, orm } = S2, xs = [col2.x, hgt.x, orm.x], B4 = o.base || [112, 116, 124], tone2 = rr(0.8, 1.1), A2 = w * h;
     const gr = col2.x.createLinearGradient(0, y, 0, y + h);
     gr.addColorStop(0, rgb(B4, tone2 * 1.08));
@@ -362,7 +364,7 @@
         hgt.x.stroke();
       }
     }
-    const nd = A2 / 4200 * ((_a5 = o.dents) != null ? _a5 : 1);
+    const nd = A2 / 4200 * ((_a6 = o.dents) != null ? _a6 : 1);
     for (let i = 0; i < nd; i++) {
       const cx = rr(x + 6, x + w - 6), cy = rr(y + 6, y + h - 6), r = rr(4, 13);
       radial(col2.x, cx, cy, r, "rgba(0,0,0,.34)");
@@ -375,7 +377,7 @@
       radial(hgt.x, cx, cy, r, "rgba(0,0,0,.6)");
       radial(orm.x, cx, cy, r * 0.8, "rgba(0,70,225,.5)");
     }
-    if (Math.random() < ((_b4 = o.scorch) != null ? _b4 : 0.34)) {
+    if (Math.random() < ((_b5 = o.scorch) != null ? _b5 : 0.34)) {
       const cx = rr(x + w * 0.2, x + w * 0.8), cy = rr(y + h * 0.2, y + h * 0.8), r = rr(10, 22);
       col2.x.save();
       col2.x.translate(cx, cy);
@@ -384,7 +386,7 @@
       col2.x.restore();
       radial(orm.x, cx, cy, r, "rgba(0,255,60,.5)");
     }
-    const rust = (_c4 = o.rust) != null ? _c4 : 0.9;
+    const rust = (_c5 = o.rust) != null ? _c5 : 0.9;
     for (let i = 0; i < w / 15 * rust + 1; i++) {
       const cx = rr(x, x + w), cy = Math.random() < 0.7 ? y + h - rr(0, 9) : rr(y, y + h), r = rr(5, 17);
       radial(col2.x, cx, cy, r, `rgba(${rr(110, 150) | 0},${rr(55, 80) | 0},${rr(22, 36) | 0},${rr(0.2, 0.45)})`);
@@ -1588,8 +1590,8 @@
     const idx = [];
     for (let i = 0; i < d.idx.length; i += 3) idx.push(d.idx[i], d.idx[i + 2], d.idx[i + 1]);
     return { pos, uv: d.uv.slice(), idx, sk: d.sk.map((b) => {
-      var _a5;
-      return (_a5 = MIRB[b]) != null ? _a5 : b;
+      var _a6;
+      return (_a6 = MIRB[b]) != null ? _a6 : b;
     }), sw: d.sw.slice(), seams: d.seams };
   }
   function merge(list) {
@@ -2514,10 +2516,10 @@
     return _lensCache[key2] = tex(c);
   }
   function suitMats(s) {
-    var _a5;
+    var _a6;
     if (s._mats) return s._mats;
     const cvs2 = suitCanvases(s);
-    const rough = (_a5 = s.rough) != null ? _a5 : s.gloss ? 0.3 : s.metal === "all" ? 0.3 : 0.45, env = s.metal === "all" ? 2 : s.metal ? 1.7 : s.gloss ? 1.6 : 1.5;
+    const rough = (_a6 = s.rough) != null ? _a6 : s.gloss ? 0.3 : s.metal === "all" ? 0.3 : 0.45, env = s.metal === "all" ? 2 : s.metal ? 1.7 : s.gloss ? 1.6 : 1.5;
     const lin9 = (t) => {
       t.encoding = THREE.LinearEncoding;
       return t;
@@ -3590,8 +3592,8 @@
       return m;
     };
     const syncWear = () => {
-      var _a5;
-      suitWear.value = (_a5 = suitWear.force) != null ? _a5 : H3.getWear ? H3.getWear() : 0;
+      var _a6;
+      suitWear.value = (_a6 = suitWear.force) != null ? _a6 : H3.getWear ? H3.getWear() : 0;
     };
     const tr = smooth(spTorsoRings(), 5);
     skinned(sculpt(tubeData(tr, 56, (r) => (r.y - 0.79) / 0.91, wTorso), tr, 56, torsoSculpt), M.torso);
@@ -4662,9 +4664,9 @@
       };
       KEYS = ["y", "rx", "rz", "cx", "cz", "n", "fb", "bb", "pec"];
       norm = (r) => {
-        var _a5;
+        var _a6;
         const o = {};
-        for (const k of KEYS) o[k] = (_a5 = r[k]) != null ? _a5 : k === "n" ? 2 : 0;
+        for (const k of KEYS) o[k] = (_a6 = r[k]) != null ? _a6 : k === "n" ? 2 : 0;
         return o;
       };
       _T = new V3();
@@ -8841,14 +8843,14 @@ ${GLSL_NOISE}
           return (this.sd - 1) / 2147483646;
         }
         rgb(col2, o) {
-          var _a5;
-          const c = lin3(col2), j = 1 + ((_a5 = o.j) != null ? _a5 : 0.12) * (this.jit() * 2 - 1);
+          var _a6;
+          const c = lin3(col2), j = 1 + ((_a6 = o.j) != null ? _a6 : 0.12) * (this.jit() * 2 - 1);
           return [c[0] * j, c[1] * j, c[2] * j];
         }
         // czworokat CCW patrzac z zewnatrz
         q(pts, n, rgb2, o, ox = 0, oy = 0, oz = 0) {
-          var _a5, _b4, _c4;
-          const b = this.k, r = (_a5 = o.r) != null ? _a5 : 0.8, m = (_b4 = o.m) != null ? _b4 : 0, e = (_c4 = o.e) != null ? _c4 : 0, sp2 = o.sp;
+          var _a6, _b5, _c5;
+          const b = this.k, r = (_a6 = o.r) != null ? _a6 : 0.8, m = (_b5 = o.m) != null ? _b5 : 0, e = (_c5 = o.e) != null ? _c5 : 0, sp2 = o.sp;
           for (const p of pts) {
             this.p.push(p[0] + ox, p[1] + oy, p[2] + oz);
             this.n.push(n[0], n[1], n[2]);
@@ -8879,7 +8881,7 @@ ${GLSL_NOISE}
         }
         // walec / stozek: podstawa w (cx,cy,cz), wysokosc h, obrot jak wyzej
         cyl(cx, cy, cz, r02, r1, h, seg, col2, o = {}, yaw = 0, pitch = 0) {
-          var _a5, _b4, _c4;
+          var _a6, _b5, _c5;
           const rgb2 = this.rgb(col2, o), cw = Math.cos(yaw), sw = Math.sin(yaw), cp = Math.cos(pitch), sp2 = Math.sin(pitch);
           const R4 = (x, y, z) => {
             const y1 = y * cp - z * sp2, z1 = y * sp2 + z * cp;
@@ -8889,7 +8891,7 @@ ${GLSL_NOISE}
             const y1 = y * cp - z * sp2, z1 = y * sp2 + z * cp;
             return [x * cw + z1 * sw, y1, -x * sw + z1 * cw];
           };
-          const r = (_a5 = o.r) != null ? _a5 : 0.8, m = (_b4 = o.m) != null ? _b4 : 0, e = (_c4 = o.e) != null ? _c4 : 0, spn = o.sp, base2 = this.k;
+          const r = (_a6 = o.r) != null ? _a6 : 0.8, m = (_b5 = o.m) != null ? _b5 : 0, e = (_c5 = o.e) != null ? _c5 : 0, spn = o.sp, base2 = this.k;
           const push = (p, n) => {
             this.p.push(p[0], p[1], p[2]);
             this.n.push(n[0], n[1], n[2]);
@@ -8920,8 +8922,8 @@ ${GLSL_NOISE}
         }
         // wielokat plaski (poziomy) lezacy na dachu: wachlarz od srodka
         disc(cx, cz, rx, rz, y, seg, col2, o = {}, rot = 0) {
-          var _a5, _b4, _c4;
-          const rgb2 = this.rgb(col2, o), c0 = this.k, r = (_a5 = o.r) != null ? _a5 : 0.9, m = (_b4 = o.m) != null ? _b4 : 0, e = (_c4 = o.e) != null ? _c4 : 0, cr2 = Math.cos(rot), sr3 = Math.sin(rot);
+          var _a6, _b5, _c5;
+          const rgb2 = this.rgb(col2, o), c0 = this.k, r = (_a6 = o.r) != null ? _a6 : 0.9, m = (_b5 = o.m) != null ? _b5 : 0, e = (_c5 = o.e) != null ? _c5 : 0, cr2 = Math.cos(rot), sr3 = Math.sin(rot);
           const push = (x, z) => {
             this.p.push(x, y, z);
             this.n.push(0, 1, 0);
@@ -13405,7 +13407,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     });
   }
   function ensureGraph() {
-    var _a5;
+    var _a6;
     const g = audioGraph();
     if (!g) return null;
     if (bus && bus.ac === g.ac) return bus;
@@ -13458,7 +13460,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     b.an.smoothingTimeConstant = 0;
     comp2.connect(b.an);
     b.buf = new Float32Array(b.an.fftSize);
-    b.out = gn(clamp3((_a5 = save.voiceVol) != null ? _a5 : 0.9, 0, 1));
+    b.out = gn(clamp3((_a6 = save.voiceVol) != null ? _a6 : 0.9, 0, 1));
     comp2.connect(b.out);
     b.out.connect(g.master);
     b.rev = gn(0.1);
@@ -13685,7 +13687,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     noteStart(item2);
   }
   function startSynth(l, item2) {
-    var _a5;
+    var _a6;
     if (!ssOK() || !item2.text) return endItem(l, item2, false);
     const sy = SYN[item2.speaker] || SYN.thug, u = new SpeechSynthesisUtterance(item2.text);
     const v = pickVoice(sy.sex);
@@ -13695,7 +13697,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     } else u.lang = "pl-PL";
     u.pitch = sy.pitch;
     u.rate = sy.rate;
-    u.volume = clamp3((_a5 = save.voiceVol) != null ? _a5 : 0.9, 0, 1);
+    u.volume = clamp3((_a6 = save.voiceVol) != null ? _a6 : 0.9, 0, 1);
     u.onend = () => endItem(l, item2, true);
     u.onerror = () => endItem(l, item2, false);
     item2.utt = u;
@@ -13720,10 +13722,10 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     ensureManifest();
   }
   function glosPlay(id, o = {}) {
-    var _a5, _b4;
+    var _a6, _b5;
     initGlos();
-    const sp2 = o.voice || MAN && MAN[id] && MAN[id].voice || "peter", pr = (_a5 = o.priority) != null ? _a5 : 1;
-    return enqueue({ id, text: o.text || "", speaker: sp2, priority: pr, onEnd: o.onEnd, pos: o.pos || null, t: now(), ttl: (_b4 = o.ttl) != null ? _b4 : 3e3 + 3e3 * pr, state: "new" });
+    const sp2 = o.voice || MAN && MAN[id] && MAN[id].voice || "peter", pr = (_a6 = o.priority) != null ? _a6 : 1;
+    return enqueue({ id, text: o.text || "", speaker: sp2, priority: pr, onEnd: o.onEnd, pos: o.pos || null, t: now(), ttl: (_b5 = o.ttl) != null ? _b5 : 3e3 + 3e3 * pr, state: "new" });
   }
   function glosStop(sp2) {
     for (const l of Object.values(lanes)) {
@@ -13748,7 +13750,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     }
   }
   function updateGlos(dt) {
-    var _a5;
+    var _a6;
     const m = modeNow();
     if (m === "wylaczony" && activeLanes().length) glosStop();
     const b = bus;
@@ -13790,7 +13792,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     glosState.level += (lv - glosState.level) * (lv > glosState.level ? 0.6 : 0.25);
     if (!speaking && glosState.level < 0.01) glosState.level = 0;
     if (!b) return;
-    const vol = clamp3((_a5 = save.voiceVol) != null ? _a5 : 0.9, 0, 1);
+    const vol = clamp3((_a6 = save.voiceVol) != null ? _a6 : 0.9, 0, 1);
     if (Math.abs(b.out.gain.value - vol) > 5e-3) b.out.gain.setTargetAtTime(vol, t, 0.05);
     if (speaking) hold = DUCK_HOLD;
     else hold = Math.max(0, hold - dt);
@@ -15040,11 +15042,11 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     }
   }
   function car(P2) {
-    var _a5, _b4, _c4, _d3, _e3, _f5, _g, _h3;
+    var _a6, _b5, _c5, _d3, _e3, _f5, _g, _h3;
     const S2 = prep({ zr: P2.zr, zf: P2.zf, W: P2.W, yb: P2.yb, top: P2.top, n: P2.n || 3.4, tw: P2.tw || 0.93, er: P2.er || 0.3 });
     const p = [shadowQ(P2.W * 2.3, (P2.zf - P2.zr) * 1.08)];
-    const { W: W2 } = S2, belt = P2.belt, roof = curve(P2.roof), hb = (_a5 = P2.hb) != null ? _a5 : 0;
-    p.push([hullGeo(S2, 13, 12), (_b4 = P2.fixed) != null ? _b4 : 16777215, "car", P2.fixed ? 0 : 1]);
+    const { W: W2 } = S2, belt = P2.belt, roof = curve(P2.roof), hb = (_a6 = P2.hb) != null ? _a6 : 0;
+    p.push([hullGeo(S2, 13, 12), (_b5 = P2.fixed) != null ? _b5 : 16777215, "car", P2.fixed ? 0 : 1]);
     p.push([B2(W2 * 1.7, 0.07, (P2.zf - P2.zr) * 0.9, 0, P2.yb + 0.01, (P2.zf + P2.zr) / 2), 723724, "r"]);
     const rk = P2.roof, z0 = Math.min(...rk.map((a) => a[0])), z1 = Math.max(...rk.map((a) => a[0])), gw = P2.gw || 0.87;
     const Rg = [], NG = 8;
@@ -15058,7 +15060,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
       const z = ra + (rb2 - ra) * (0.5 - 0.5 * Math.cos(PI * i / 4)), e = i === 0 || i === 4 ? 0.6 : 1, y = roof(z);
       Rr.push({ z, hw: W2 * gw * 0.93 * e, yb: y - 0.05, yt: y + 0.014, n: 4, tw: 0.86 });
     }
-    p.push([loftRings(Rr, 8), (_c4 = P2.fixed) != null ? _c4 : 16777215, "car", P2.fixed ? 0 : 1]);
+    p.push([loftRings(Rr, 8), (_c5 = P2.fixed) != null ? _c5 : 16777215, "car", P2.fixed ? 0 : 1]);
     const wsz = z1, rbz = z0, hwAt = (y) => W2 * gw * (1 - 0.14 * Math.pow(Math.min(1, (y - belt) / 0.45), 1.6));
     const pil = (za, zb) => {
       const ya = Math.max(belt, roof(za)), yb2 = Math.max(belt, roof(zb));
@@ -16561,11 +16563,11 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
         { len: BD, P: (t, ins) => [b.x1 - ins, b.z0 + t], yaw: Math.PI / 2, ave: true }
       ];
       const put5 = (T2, side, t, ins, r, opt = {}) => {
-        var _a5;
+        var _a6;
         const S2 = sides[side], [x, z] = S2.P(t, ins);
         if (!opt.force && !free(x, z, r)) return false;
         take(x, z, r);
-        place(Array.isArray(T2) ? pick5(T2) : T2, x, opt.road ? 0.02 : SW, z, S2.yaw + (opt.yaw || 0), (_a5 = opt.tint) != null ? _a5 : null);
+        place(Array.isArray(T2) ? pick5(T2) : T2, x, opt.road ? 0.02 : SW, z, S2.yaw + (opt.yaw || 0), (_a6 = opt.tint) != null ? _a6 : null);
         return [x, z];
       };
       const k = 0.26, cc = 11051927;
@@ -16944,12 +16946,12 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     m.geometry.attributes.aBrake.array[k] = v.brake;
   }
   function updateCars(dt) {
-    var _a5;
+    var _a6;
     if (!VT) return;
     dt = Math.min(dt, 0.1);
     hornT -= dt;
     U2.time.value += dt;
-    U2.lamp.value = (_a5 = LAMPS[todName]) != null ? _a5 : 0.6;
+    U2.lamp.value = (_a6 = LAMPS[todName]) != null ? _a6 : 0.6;
     if (bladeMat) bladeMat.emissiveIntensity = 0.12 + U2.lamp.value * 1.3;
     updateSignals(false);
     for (const L3 of lanes2) stepLane(L3, dt);
@@ -19582,9 +19584,9 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
       scene.environment = null;
     }
     scene.traverse((o) => {
-      var _a5;
+      var _a6;
       const m = o.material;
-      if (m && m.isMeshStandardMaterial) m.envMapIntensity = ((_a5 = m.userData.env) != null ? _a5 : 1) * T2.env;
+      if (m && m.isMeshStandardMaterial) m.envMapIntensity = ((_a6 = m.userData.env) != null ? _a6 : 1) * T2.env;
     });
   }
   function setTOD(name) {
@@ -19629,10 +19631,10 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     updateEnvMap(T2);
   }
   function updateEnv() {
-    var _a5;
+    var _a6;
     sky.position.copy(camera.position);
     updateSky(skyU, G.time);
-    skyFX.update(camera, sunDir, G.time, Math.min(0.1, Math.max(0, G.time - ((_a5 = updateEnv._t) != null ? _a5 : G.time))), !!G.interior);
+    skyFX.update(camera, sunDir, G.time, Math.min(0.1, Math.max(0, G.time - ((_a6 = updateEnv._t) != null ? _a6 : G.time))), !!G.interior);
     updateEnv._t = G.time;
     updateDachy(G.time, P.pos);
     swUpdate(sun, sunDir, hemi, savedL !== null, P.pos);
@@ -20793,14 +20795,14 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     if (!steam2) return;
     const t = G.time;
     ventList.forEach((v, vi) => {
-      var _a5;
+      var _a6;
       for (let k = 0; k < 10; k++) {
         const i = vi * 10 + k;
         steam2.age[i] += dt;
         if (steam2.age[i] > 3.5) steam2.age[i] -= 3.5;
         const a = steam2.age[i], dx = Math.sin(i * 12.9 + a * 1.3) * 0.25 * a, dz = Math.cos(i * 7.7 + a * 1.1) * 0.25 * a;
         steam2.pos[i * 3] = v.x + dx + a * 0.25;
-        steam2.pos[i * 3 + 1] = ((_a5 = v.y0) != null ? _a5 : 1.5) + a * 1.9;
+        steam2.pos[i * 3 + 1] = ((_a6 = v.y0) != null ? _a6 : 1.5) + a * 1.9;
         steam2.pos[i * 3 + 2] = v.z + dz;
       }
     });
@@ -25324,6 +25326,11 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       }
     }
     const R4 = e.scale;
+    if (e.finScene) {
+      e.finScene(e, dt);
+      poseEnemy(e, dt, d3);
+      return;
+    }
     if (e.air) {
       if (e.airHold > 0) {
         e.vel.y = e.vel.y * (1 - Math.min(1, 4 * dt)) - 3 * dt;
@@ -25551,13 +25558,14 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
           t.eR = -0.2;
         }
     }
+    if (e.finPose) e.finPose(e, t);
     if (d3 < 120 || e.air) {
       blendPose(e.pc, t, damp(e.state === "recover" ? 30 : 12, dt));
       applyPose(H3, e.pc);
       const angry = !e.dead && (e.state === "windup" || e.state === "recover" || e.state === "fight" || e.type === "brute");
       H3.setHands(angry && e.type !== "gun" ? "fist" : "open", e.wpn || angry ? "fist" : "open");
     }
-    e.down += ((e.dead && !e.air ? 1 : 0) - e.down) * damp(6, dt);
+    if (!e.finOwn) e.down += ((e.dead && !e.air ? 1 : 0) - e.down) * damp(6, dt);
     H3.root.position.copy(e.pos);
     H3.root.position.y += 0.12 * e.down * e.scale;
     if (e.air) e.yaw += e.spin * dt;
@@ -26978,8 +26986,8 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       VMODE_NAMES = { nagrania: "NAGRANIA", syntezator: "SYNTEZATOR", wylaczony: "WY\u0141\u0104CZONY" };
       voiceLabel = () => "G\u0141OS SPIDER-MANA: " + (VMODE_NAMES[save.voiceMode] || "NAGRANIA");
       vvolLabel = () => {
-        var _a5;
-        const n = Math.round(((_a5 = save.voiceVol) != null ? _a5 : 0.9) * 10);
+        var _a6;
+        const n = Math.round(((_a6 = save.voiceVol) != null ? _a6 : 0.9) * 10);
         return 'G\u0141O\u015ANO\u015A\u0106 G\u0141OSU <span class="vbar" style="--n:' + n + '"></span><small>' + n * 10 + "%</small>";
       };
       musLabel = () => "MUZYKA: " + (save.music ? "W\u0141\u0104CZONA" : "WY\u0141\u0104CZONA");
@@ -27159,19 +27167,19 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       if (o === true || oo && oo.col) c.solid(a0, a1, b0, b1, y0, y1);
     };
     c.Cy = (u, v, y0, y1, rad, mn, col2 = "#ffffff", o = {}) => {
-      var _a5;
+      var _a6;
       const m = M(mn);
-      emit(c, m, `cyl_${o.seg || 12}_${(_a5 = o.rt) != null ? _a5 : 1}`, u, (y0 + y1) / 2, v, 2 * rad, y1 - y0, 2 * rad, 0, 0, 0, col2, o.k || 1, uvOf(m, o));
+      emit(c, m, `cyl_${o.seg || 12}_${(_a6 = o.rt) != null ? _a6 : 1}`, u, (y0 + y1) / 2, v, 2 * rad, y1 - y0, 2 * rad, 0, 0, 0, col2, o.k || 1, uvOf(m, o));
     };
     c.Ch = (u0, u1, v, y, rad, mn, col2 = "#ffffff", o = {}) => {
-      var _a5;
+      var _a6;
       const m = M(mn);
-      emit(c, m, `cyl_${o.seg || 10}_${(_a5 = o.rt) != null ? _a5 : 1}`, (u0 + u1) / 2, y, v, 2 * rad, Math.abs(u1 - u0), 2 * rad, 0, 0, Math.PI / 2, col2, o.k || 1, uvOf(m, o));
+      emit(c, m, `cyl_${o.seg || 10}_${(_a6 = o.rt) != null ? _a6 : 1}`, (u0 + u1) / 2, y, v, 2 * rad, Math.abs(u1 - u0), 2 * rad, 0, 0, Math.PI / 2, col2, o.k || 1, uvOf(m, o));
     };
     c.Cv = (u, v0, v1, y, rad, mn, col2 = "#ffffff", o = {}) => {
-      var _a5;
+      var _a6;
       const m = M(mn);
-      emit(c, m, `cyl_${o.seg || 10}_${(_a5 = o.rt) != null ? _a5 : 1}`, u, y, (v0 + v1) / 2, 2 * rad, Math.abs(v1 - v0), 2 * rad, Math.PI / 2, 0, 0, col2, o.k || 1, uvOf(m, o));
+      emit(c, m, `cyl_${o.seg || 10}_${(_a6 = o.rt) != null ? _a6 : 1}`, u, y, (v0 + v1) / 2, 2 * rad, Math.abs(v1 - v0), 2 * rad, Math.PI / 2, 0, 0, col2, o.k || 1, uvOf(m, o));
     };
     c.Sp = (u, y, v, ru, ry, rv, mn, col2 = "#ffffff", o = {}) => {
       const m = M(mn);
@@ -28893,6 +28901,517 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     }
   });
 
+  // js/kamera_fx.js
+  function makeFxPass() {
+    return new THREE.ShaderPass({
+      uniforms: { tDiffuse: { value: null }, uZoom: { value: 0 }, uBlur: { value: 0 }, uCA: { value: 0 }, uTex: { value: new THREE.Vector2(1 / 1600, 1 / 900) } },
+      vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }",
+      fragmentShader: `uniform sampler2D tDiffuse; uniform float uZoom, uBlur, uCA; uniform vec2 uTex; varying vec2 vUv;
+      void main(){
+        vec2 c = vUv - .5; float w = smoothstep(.22, .95, length(c)*1.55);
+        vec4 col = vec4(0.);
+        for (int i = 0; i < 8; i++) {
+          float fi = float(i), k = fi/7., a = fi*2.39996;
+          vec2 d = vec2(cos(a), sin(a))*sqrt((fi+.5)/8.)*uBlur*w*3.*uTex;
+          col += texture2D(tDiffuse, vUv - c*uZoom*w*k + d);
+        }
+        col /= 8.;
+        if (uCA > 0.) { vec2 o = c*uCA*w; col.r = texture2D(tDiffuse, vUv - o).r; col.b = texture2D(tDiffuse, vUv + o).b; }
+        gl_FragColor = col;
+      }`
+    });
+  }
+  function build3() {
+    spd2 = document.createElement("canvas");
+    spd2.width = SW2;
+    spd2.height = SH2;
+    spd2.style.cssText = "position:fixed;inset:0;width:100%;height:100%;z-index:4;pointer-events:none;display:none";
+    document.body.appendChild(spd2);
+    sx = spd2.getContext("2d");
+    vig = document.getElementById("vig");
+  }
+  function updateCameraFX(rdt, pass) {
+    if (!spd2) build3();
+    const play = G.state === "play", sp2 = play && !G.cine ? P.vel.length() : 0;
+    const kS = P.state === "swing" || P.state === "air" ? clamp((sp2 - 28) / 36, 0, 1) : 0;
+    zoom = lerp(zoom, kS * 0.07 + fxBoost.zoom, damp(fxBoost.zoom > 0 ? 14 : 4, rdt));
+    spdK = lerp(spdK, kS, damp(3, rdt));
+    idleT2 = play && !G.cine && P.state === "ground" && sp2 < 1.2 && cam.idle > 0.5 ? idleT2 + rdt : 0;
+    const bT = G.cine ? 1.3 : clamp((idleT2 - 1.5) / 1.5, 0, 1) * 0.6;
+    blur = lerp(blur, bT, damp(2.5, rdt));
+    const ca = clamp((G.shake || 0) * 0.016, 0, 0.011) + (G.slowT > 0 ? 3e-3 : 0) + fxBoost.ca;
+    if (pass) {
+      const on = zoom > 3e-3 || blur > 0.03 || ca > 4e-4;
+      pass.enabled = on;
+      if (on) {
+        const u = pass.uniforms;
+        u.uZoom.value = zoom;
+        u.uBlur.value = blur;
+        u.uCA.value = ca;
+        u.uTex.value.set(1 / innerWidth, 1 / innerHeight);
+      }
+    }
+    if (spdK > 0.04 && play) {
+      spd2.style.display = "block";
+      spdT += rdt;
+      if (spdT > 1 / 30) {
+        spdT = 0;
+        sx.clearRect(0, 0, SW2, SH2);
+        sx.lineCap = "round";
+        const n = 14 + (spdK * 22 | 0);
+        for (let i = 0; i < n; i++) {
+          const a = Math.random() * 6.2832, r02 = 0.52 + Math.random() * 0.3, r1 = r02 + 0.12 + Math.random() * 0.3 * spdK, ca2 = Math.cos(a), sa = Math.sin(a);
+          sx.strokeStyle = `rgba(255,255,255,${(0.04 + Math.random() * 0.13) * spdK})`;
+          sx.lineWidth = 0.6 + Math.random() * 1.2;
+          sx.beginPath();
+          sx.moveTo(SW2 / 2 + ca2 * r02 * SW2 * 0.62, SH2 / 2 + sa * r02 * SH2 * 0.8);
+          sx.lineTo(SW2 / 2 + ca2 * r1 * SW2 * 0.62, SH2 / 2 + sa * r1 * SH2 * 0.8);
+          sx.stroke();
+        }
+      }
+    } else if (spd2.style.display !== "none") {
+      spd2.style.display = "none";
+      sx.clearRect(0, 0, SW2, SH2);
+    }
+    const key2 = todName + (wetU.uRain.value > 0.5 ? "r" : "");
+    if (vig && key2 !== vigKey) {
+      vigKey = key2;
+      vig.style.background = VIG[todName] || VIG.sunset;
+      vig.style.opacity = wetU.uRain.value > 0.5 ? "1" : "0.9";
+    }
+  }
+  var spd2, sx, vig, zoom, blur, idleT2, spdK, spdT, vigKey, SW2, SH2, VIG, fxBoost;
+  var init_kamera_fx = __esm({
+    "js/kamera_fx.js"() {
+      init_util();
+      init_stan();
+      init_miasto();
+      init_pogoda();
+      spd2 = null;
+      sx = null;
+      vig = null;
+      zoom = 0;
+      blur = 0;
+      idleT2 = 0;
+      spdK = 0;
+      spdT = 0;
+      vigKey = "";
+      SW2 = 320;
+      SH2 = 180;
+      VIG = {
+        sunset: "radial-gradient(ellipse at center,rgba(0,0,0,0) 52%,rgba(48,20,12,.5) 100%)",
+        day: "radial-gradient(ellipse at center,rgba(0,0,0,0) 58%,rgba(10,18,36,.3) 100%)",
+        night: "radial-gradient(ellipse at center,rgba(0,0,0,0) 48%,rgba(2,4,14,.66) 100%)"
+      };
+      fxBoost = { zoom: 0, ca: 0 };
+    }
+  });
+
+  // js/wykonczenie.js
+  function freeAt(x, z, y0, sc) {
+    const g = supportAt(x, z, y0 + 0.5, 0.1);
+    return Math.abs(g - y0) < 0.5 && !solidAt(x, y0 + 0.9, z) && !solidAt(x, y0 + 1.9 * sc, z);
+  }
+  function arcFree(c, a0, sg2, sweep, R4, sc) {
+    for (let i = 0; i <= 12; i++) {
+      const a = a0 + sg2 * sweep * i / 12;
+      if (!freeAt(c.x + Math.sin(a) * R4, c.z + Math.cos(a) * R4, c.y, sc)) return false;
+    }
+    return true;
+  }
+  function startFinisherNow(e) {
+    if (!e || e.dead || e.gone || P.fin) return false;
+    P.atk = null;
+    P.lunge = null;
+    P.vel.set(0, 0, 0);
+    if (e.type === "boss" || e.air) {
+      finishEnemy(e);
+      G.slowT = 0.9;
+      sfx("fin");
+      G.shake = 0.5;
+      rumble(0.3, 0.5, 0.8);
+      return true;
+    }
+    const sc = e.scale || 1, R4 = 0.9 * sc;
+    const c = e.pos.clone();
+    let a0 = Math.atan2(P.pos.x - c.x, P.pos.z - c.z);
+    const dist2 = Math.hypot(P.pos.x - c.x, P.pos.z - c.z);
+    if (dist2 < 0.4) a0 = P.heading + Math.PI;
+    const sweep = Math.PI * 1.25;
+    let sg2 = Math.random() < 0.5 ? 1 : -1, simple = false;
+    if (!arcFree(c, a0, sg2, sweep + 0.6, R4, sc)) {
+      sg2 = -sg2;
+      if (!arcFree(c, a0, sg2, sweep + 0.6, R4, sc)) simple = true;
+    }
+    const from = P.pos.clone(), land2 = new V3();
+    let ok = false;
+    const aL = a0 + sg2 * (sweep + 0.6);
+    for (const da of [0, 0.6, -0.6, 1.2, -1.2, 2.4]) {
+      const a = aL + da, x = c.x + Math.sin(a) * 1.9 * sc, z = c.z + Math.cos(a) * 1.9 * sc;
+      if (freeAt(x, z, c.y, sc)) {
+        land2.set(x, supportAt(x, z, c.y + 0.5, 0.1), z);
+        ok = true;
+        break;
+      }
+    }
+    if (!ok) land2.copy(from);
+    if (simple) {
+      const x = c.x + Math.sin(a0) * 1.25 * sc, z = c.z + Math.cos(a0) * 1.25 * sc;
+      if (freeAt(x, z, c.y, sc)) land2.set(x, supportAt(x, z, c.y + 0.5, 0.1), z);
+      else land2.copy(from);
+    }
+    FIN = {
+      e,
+      t: 0,
+      dur: DUR,
+      from,
+      to: land2,
+      land: land2,
+      c,
+      sc,
+      R: R4,
+      a0,
+      sg: sg2,
+      sweep,
+      simple,
+      hy: c.y + 1.62 * sc + 0.05,
+      done: false,
+      w: 0,
+      strike: 0,
+      h0: P.heading,
+      a: a0,
+      cam: null,
+      qCur: new THREE.Quaternion().setFromAxisAngle(UP, P.heading),
+      cp: new V3(),
+      head: new V3(c.x, c.y + 1.62 * sc, c.z),
+      away: new V3(),
+      hitP: new V3(),
+      q: new THREE.Quaternion()
+    };
+    P.fin = FIN;
+    P.state = "ground";
+    P.invT = Math.max(P.invT, DUR + 0.3);
+    FIN.q.copy(FIN.qCur);
+    e.finScene = enemyScene;
+    e.finPose = enemyPose;
+    e.finOwn = true;
+    e.state = "fight";
+    G.timeScale = 1;
+    sfx("fin");
+    rumble(0.4, 0.4, 0.6);
+    return true;
+  }
+  function finAbort() {
+    if (FIN && FIN.e) {
+      FIN.e.finScene = null;
+      FIN.e.finPose = null;
+      FIN.e.finOwn = false;
+    }
+    FIN = null;
+    P.fin = null;
+    G.timeScale = 1;
+    fxBoost.zoom = 0;
+    fxBoost.ca = 0;
+    if (thread) thread.visible = false;
+  }
+  function timeScaleAt(t) {
+    if (t < 0.25) return lerp(1, TS_MIN, ease2(t / 0.25));
+    if (t > DUR - 0.3) return lerp(TS_MIN, 1, ease2((t - (DUR - 0.3)) / 0.3));
+    return TS_MIN;
+  }
+  function orbitA(F2, t) {
+    const u = clamp((t - T0) / (THIT - T0), 0, 1);
+    return F2.a0 + F2.sg * F2.sweep * (u * 0.65 + 0.35 * ease2(u));
+  }
+  function stepFinisher(dt) {
+    const F2 = FIN;
+    if (!F2) {
+      P.fin = null;
+      return;
+    }
+    const rdt = G.rdt || dt;
+    F2.t += rdt;
+    const t = F2.t, e = F2.e;
+    if (e.gone) {
+      finAbort();
+      return;
+    }
+    G.timeScale = timeScaleAt(t);
+    P.vel.set(0, 0, 0);
+    const c = F2.c, sc = F2.sc;
+    const hFace = Math.atan2(c.x - P.pos.x, c.z - P.pos.z);
+    let w, a;
+    if (F2.simple) {
+      const k = ease2(t / 0.4);
+      w = 0;
+      _a4.copy(F2.from).lerp(F2.land, k);
+      _a4.y += 0.95 + Math.sin(k * Math.PI) * 0.5;
+      F2.cp.copy(_a4);
+      a = F2.a0;
+      _up2.copy(UP);
+      const h = angLerp(F2.h0, Math.atan2(c.x - F2.land.x, c.z - F2.land.z), ease2(t / 0.3));
+      _fw3.set(Math.sin(h), 0, Math.cos(h));
+      basisQ(_qa, _up2, _fw3);
+      F2.q.copy(_qa);
+      F2.heading = h;
+    } else {
+      if (t < T0) {
+        const k = ease2(t / T0);
+        a = F2.a0;
+        _b3.set(c.x + Math.sin(a) * F2.R, F2.hy, c.z + Math.cos(a) * F2.R);
+        _a4.set(F2.from.x, F2.from.y + 0.95, F2.from.z).lerp(_b3, k);
+        _a4.y += Math.sin(k * Math.PI) * 0.45;
+        w = k;
+      } else if (t <= THIT) {
+        a = orbitA(F2, t);
+        w = 1;
+        _a4.set(c.x + Math.sin(a) * F2.R, F2.hy + Math.sin((t - T0) / (THIT - T0) * Math.PI) * 0.12, c.z + Math.cos(a) * F2.R);
+      } else {
+        const k = ease2((t - THIT) / (DUR - THIT - 0.12));
+        a = orbitA(F2, THIT) + F2.sg * 0.5 * k;
+        w = 1 - ease2((t - THIT - 0.1) / 0.5);
+        _b3.set(c.x + Math.sin(F2.a0 + F2.sg * F2.sweep) * F2.R, F2.hy, c.z + Math.cos(F2.a0 + F2.sg * F2.sweep) * F2.R);
+        _a4.copy(_b3).lerp(_c4.set(F2.land.x, F2.land.y + 0.95, F2.land.z), k);
+        _a4.y += Math.sin(k * Math.PI) * 0.35;
+      }
+      F2.cp.copy(_a4);
+      const hh = angLerp(F2.h0, hFace, ease2(t / 0.3));
+      _up2.copy(UP);
+      _fw3.set(Math.sin(hh), 0, Math.cos(hh));
+      basisQ(_qa, _up2, _fw3);
+      _up2.set(Math.cos(a) * F2.sg, 0, -Math.sin(a) * F2.sg);
+      _fw3.set(-Math.sin(a), 0, -Math.cos(a));
+      basisQ(_qb, _up2, _fw3);
+      F2.q.copy(_qa).slerp(_qb, w);
+      F2.heading = hh;
+    }
+    F2.w = w;
+    F2.a = a;
+    _up2.copy(UP).applyQuaternion(F2.q);
+    P.pos.copy(F2.cp).addScaledVector(_up2, -0.95);
+    P.heading = F2.heading;
+    F2.strike = Math.sin(clamp((t - (THIT - 0.2)) / 0.3, 0, 1) * Math.PI);
+    F2.hand = t < THIT - 0.05;
+    if (t >= THIT && !F2.done) {
+      F2.done = true;
+      F2.hitP.set(c.x, F2.hy - 0.05, c.z);
+      F2.away.set(c.x - P.pos.x, 0, c.z - P.pos.z);
+      if (F2.away.lengthSq() < 0.01) F2.away.set(Math.sin(F2.heading), 0, Math.cos(F2.heading));
+      F2.away.normalize();
+      finishEnemy(e);
+      if (has("fin")) {
+        let b = null, bd = 9;
+        for (const o of enemies) {
+          if (o === e || o.dead || o.gone || o.type === "boss") continue;
+          const d = o.pos.distanceTo(e.pos);
+          if (d < bd) {
+            bd = d;
+            b = o;
+          }
+        }
+        if (b) finishEnemy(b);
+      }
+      burst(F2.hitP.x, F2.hitP.y, F2.hitP.z, 26, 16777215, 7);
+      burst(F2.hitP.x, F2.hitP.y, F2.hitP.z, 18, 16765040, 9);
+      sfx("punch", 1);
+      sfx("slam", 0.7);
+      G.shake = 0.55;
+      rumble(0.3, 1, 1);
+    }
+    if (t >= DUR) {
+      P.fin = null;
+      e.finScene = null;
+      e.finPose = null;
+      e.finOwn = false;
+      P.pos.copy(F2.land);
+      P.invT = Math.max(P.invT, 0.5);
+      P.state = supportAt(P.pos.x, P.pos.z, P.pos.y + 0.5) >= P.pos.y - 0.3 ? "ground" : "air";
+      P.pc.bp = 0;
+      P.pc.br = 0;
+      P.pc.bw = 0;
+      G.timeScale = 1;
+      fxBoost.zoom = 0;
+      fxBoost.ca = 0;
+      if (thread) thread.visible = false;
+      FIN = null;
+    }
+  }
+  function enemyScene(e, dt) {
+    const F2 = FIN;
+    if (!F2 || F2.e !== e) {
+      e.finScene = null;
+      e.finPose = null;
+      e.finOwn = false;
+      return;
+    }
+    const rdt = G.rdt || dt, t = F2.t;
+    if (!F2.done) {
+      e.yaw = angLerp(e.yaw, Math.atan2(P.pos.x - e.pos.x, P.pos.z - e.pos.z), damp(7, rdt));
+      e.state = "fight";
+      e.down += (0 - e.down) * damp(10, rdt);
+    } else {
+      const kt = t - THIT;
+      e.yaw = angLerp(e.yaw, Math.atan2(-F2.away.x, -F2.away.z), damp(20, rdt));
+      e.down = ease2(kt / 0.55);
+      const sp2 = 5.5 * Math.pow(clamp(1 - kt / 0.7, 0, 1), 2);
+      if (sp2 > 0.05) {
+        const nx = e.pos.x + F2.away.x * sp2 * rdt, nz2 = e.pos.z + F2.away.z * sp2 * rdt;
+        if (Math.abs(supportAt(nx, nz2, e.pos.y + 0.5, 0.1) - e.pos.y) < 0.35 && !solidAt(nx, e.pos.y + 1, nz2)) {
+          e.pos.x = nx;
+          e.pos.z = nz2;
+        }
+      }
+    }
+  }
+  function enemyPose(e, t) {
+    const F2 = FIN;
+    if (!F2) return;
+    if (!F2.done) {
+      const k = ease2(F2.t / 0.5);
+      t.sLz = 0.9 * k;
+      t.sRz = -0.9 * k;
+      t.eL = -0.9 * k;
+      t.eR = -0.9 * k;
+      t.hx = -0.25 * k;
+      t.bp = -0.1 * k;
+    } else {
+      const kt = ease2((F2.t - THIT) / 0.25);
+      t.hx = -0.7 * kt;
+      t.sLz = 1.5;
+      t.sRz = -1.5;
+      t.sLx = -0.4;
+      t.sRx = -0.4;
+      t.eL = -0.5;
+      t.eR = -0.5;
+      t.bp = -0.3 * kt;
+    }
+  }
+  function finPose(t) {
+    const F2 = FIN;
+    if (!F2) return;
+    const w = F2.w, ks = F2.strike;
+    if (F2.simple) {
+      t.sRx = lerp(-0.6, -1.7, ks);
+      t.eR = lerp(-1.8, -0.05, ks);
+      t.sLx = -0.7;
+      t.eL = -1.9;
+      t.spy = -0.3 * ks;
+      t.hLx = -0.5;
+      t.kL = 0.6;
+      t.hRx = 0.4;
+      t.kR = 0.4;
+      return;
+    }
+    t.hLx = -0.2 - 1.2 * w;
+    t.kL = 0.3 + 1.7 * w;
+    t.hRx = -0.1 - 1 * w;
+    t.kR = 0.3 + 1.6 * w;
+    t.hLz = 0.1;
+    t.hRz = -0.1;
+    t.hx = -0.45 * w;
+    t.bp = 0.2 * w;
+    t.sRx = -1.3;
+    t.eR = -0.2;
+    t.sRz = -0.2;
+    t.sLx = lerp(0.5, -1.4, ks);
+    t.eL = lerp(-0.8, -0.1, ks);
+    t.sLz = lerp(0.5, 0.15, ks);
+  }
+  function finRoot(q) {
+    if (FIN) q.copy(FIN.q);
+  }
+  function finAim(H3) {
+    const F2 = FIN;
+    if (!F2 || F2.simple) return;
+    H3.root.updateMatrixWorld(true);
+    _b3.copy(F2.head);
+    if (F2.hand) aimArm(H3, "R", _b3, 1);
+    else aimArm(H3, "L", _b3, ease2((F2.t - (THIT - 0.2)) / 0.2));
+    H3.root.updateMatrixWorld(true);
+    if (!thread) thread = mkLine();
+    if (F2.t > T0 && F2.t < THIT + 0.25) {
+      H3.handL.getWorldPosition(_a4);
+      setLine2(thread, _a4, _b3);
+    } else thread.visible = false;
+  }
+  function finCamera() {
+    const F2 = FIN;
+    if (!F2) {
+      if (fxBoost.zoom || fxBoost.ca) {
+        fxBoost.zoom = 0;
+        fxBoost.ca = 0;
+      }
+      return;
+    }
+    const t = F2.t, sc = F2.sc, c = F2.c;
+    const cx = c.x, cy = c.y + 1.35 * sc, cz = c.z;
+    if (!F2.cam) {
+      _a4.set(camera.position.x - cx, 0, camera.position.z - cz);
+      F2.cam = { ang: Math.atan2(_a4.x, _a4.z), d: clamp(_a4.length(), 2.5, 9), h: camera.position.y - cy, fov: camera.fov };
+    }
+    const C7 = F2.cam, push = ease2(t / 0.5), kb = ease2((t - (DUR - 0.4)) / 0.4);
+    const ang = C7.ang + F2.sg * Math.PI * 0.8 * ease2((t - 0.1) / (THIT + 0.4));
+    const low2 = ease2((t - (THIT - 0.2)) / 0.35) * (1 - ease2((t - (THIT + 0.35)) / 0.4));
+    let d = lerp(C7.d, 3 * sc, push);
+    d = lerp(d, 2.3 * sc, low2);
+    const h = lerp(lerp(C7.h, 0.55, push), -0.85, low2);
+    _b3.set(Math.sin(ang), h / Math.max(1, d), Math.cos(ang));
+    const hd = Math.hypot(d, h);
+    _b3.set(Math.sin(ang) * d, h, Math.cos(ang) * d);
+    _c4.set(_b3.x, _b3.y, _b3.z).normalize();
+    const rt = raycastCity(_a4.set(cx, cy, cz), _c4, hd + 0.3);
+    if (rt < hd + 0.3) {
+      const f = Math.max(0.8, rt - 0.4) / hd;
+      _b3.multiplyScalar(f);
+    }
+    _a4.set(cx + _b3.x, Math.max(0.4, cy + _b3.y), cz + _b3.z);
+    _c4.set(cx, cy + 0.15 + low2 * 0.35, cz);
+    if (kb > 0) {
+      _a4.lerp(camera.position, kb);
+      _c4.lerp(cam.tgt, kb);
+    }
+    camera.position.copy(_a4);
+    camera.lookAt(_c4);
+    const fov = 68 - 14 * push * (1 - kb) - 4 * low2;
+    camera.fov = kb > 0 ? lerp(fov, camera.fov, kb) : fov;
+    camera.updateProjectionMatrix();
+    const bump = Math.exp(-Math.abs(t - THIT) * 4.5);
+    fxBoost.zoom = 0.06 * bump * (1 - kb) + 0.015 * push * (1 - kb);
+    fxBoost.ca = 4e-3 * bump;
+  }
+  var DUR, T0, THIT, TS_MIN, ease2, _a4, _b3, _c4, _up2, _fw3, _qa, _qb, FIN, thread;
+  var init_wykonczenie = __esm({
+    "js/wykonczenie.js"() {
+      init_util();
+      init_stan();
+      init_miasto();
+      init_wrogowie();
+      init_postac();
+      init_dzwiek();
+      init_wejscie();
+      init_kamera_fx();
+      init_umiejetnosci();
+      init_gracz();
+      DUR = 1.95;
+      T0 = 0.38;
+      THIT = 1.15;
+      TS_MIN = 0.25;
+      ease2 = (x) => {
+        x = clamp(x, 0, 1);
+        return x * x * (3 - 2 * x);
+      };
+      _a4 = new V3();
+      _b3 = new V3();
+      _c4 = new V3();
+      _up2 = new V3();
+      _fw3 = new V3();
+      _qa = new THREE.Quaternion();
+      _qb = new THREE.Quaternion();
+      FIN = null;
+      thread = null;
+    }
+  });
+
   // js/gracz.js
   function mkLine(mat) {
     const m = new THREE.Mesh(webGeo, mat || webLineMat);
@@ -29566,52 +30085,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
   function startFinisher(e) {
     P.focus -= 1;
     if (P.state === "swing") release2(false);
-    const dir = new V3().subVectors(e.pos, P.pos);
-    dir.y = 0;
-    if (dir.lengthSq() < 0.01) dir.set(0, 0, 1);
-    dir.normalize();
-    const to = e.pos.clone().addScaledVector(dir, 1.5 * (e.scale || 1));
-    to.y = supportAt(to.x, to.z, e.pos.y + 0.5);
-    if (Math.abs(to.y - e.pos.y) > 0.5) to.copy(P.pos);
-    P.fin = { e, t: 0, dur: 0.8, from: P.pos.clone(), to, done: false };
-    P.atk = null;
-    P.lunge = null;
-    P.state = "ground";
-    P.heading = Math.atan2(dir.x, dir.z);
-    G.slowT = 0.9;
-    sfx("fin");
-    rumble(0.3, 0.5, 0.8);
-  }
-  function stepFinisher(dt) {
-    const F2 = P.fin;
-    F2.t += dt;
-    const k = clamp(F2.t / F2.dur, 0, 1);
-    P.pos.lerpVectors(F2.from, F2.to, k);
-    P.pos.y += Math.sin(k * Math.PI) * 2.8;
-    P.vel.set(0, 0, 0);
-    if (k > 0.55 && !F2.done) {
-      F2.done = true;
-      finishEnemy(F2.e);
-      if (has("fin")) {
-        let b = null, bd = 9;
-        for (const e of enemies) {
-          if (e === F2.e || e.dead || e.gone || e.type === "boss") continue;
-          const d = e.pos.distanceTo(F2.e.pos);
-          if (d < bd) {
-            bd = d;
-            b = e;
-          }
-        }
-        if (b) finishEnemy(b);
-      }
-      G.shake = 0.5;
-    }
-    if (k >= 1) {
-      P.fin = null;
-      P.state = supportAt(P.pos.x, P.pos.z, P.pos.y + 0.5) >= P.pos.y - 0.3 ? "ground" : "air";
-      P.pc.bp = 0;
-      P.heading += Math.PI;
-    }
+    startFinisherNow(e);
   }
   function startDodge(wx, wz, wl) {
     if (P.dodgeCD > 0 || P.state === "pz") return;
@@ -29797,6 +30271,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     P.atk = null;
     P.lunge = null;
     P.flipT = -1;
+    finAbort();
     P.fin = null;
     P.car = null;
     P.focus = 0;
@@ -29820,11 +30295,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       return;
     }
     if (P.fin) {
-      tuckPose(t);
-      t.sRx = -2.6;
-      t.sLx = -2.6;
-      t.eL = -0.2;
-      t.eR = -0.2;
+      finPose(t);
       return;
     }
     switch (P.state) {
@@ -30090,16 +30561,16 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     }
   }
   function updatePlayerVisual(dt) {
-    var _a5, _b4;
+    var _a6, _b5;
     const H3 = P.H;
     H3.root.position.copy(P.pos);
     const hs = Math.hypot(P.vel.x, P.vel.z);
-    let dh = P.heading - ((_a5 = P.prevH) != null ? _a5 : P.heading);
+    let dh = P.heading - ((_a6 = P.prevH) != null ? _a6 : P.heading);
     dh = Math.atan2(Math.sin(dh), Math.cos(dh));
     P.prevH = P.heading;
     if (dt > 0) {
       P.turn = lerp(P.turn || 0, clamp(dh / dt, -12, 12), damp(9, dt));
-      P.brake = lerp(P.brake || 0, Math.max(0, (((_b4 = P.hsPrev) != null ? _b4 : hs) - hs) / dt), damp(10, dt));
+      P.brake = lerp(P.brake || 0, Math.max(0, (((_b5 = P.hsPrev) != null ? _b5 : hs) - hs) / dt), damp(10, dt));
       P.hsPrev = hs;
       if (P.lvT > 0) P.lvT = Math.max(0, P.lvT - dt);
     }
@@ -30116,13 +30587,17 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     }
     basisQ(_q5, up, fw);
     H3.root.quaternion.slerp(_q5, damp(P.state === "swing" ? 9 : 14, dt));
+    if (P.fin) finRoot(H3.root.quaternion);
     updateSpeech(dt, G.time);
     const t = P.pt;
     zeroPose(t);
     buildPose(t, dt, hs);
     blendPose(P.pc, t, damp(P.atk ? 26 : P.lvT > 0 && P.lvHero && P.lvT > P.lvDur * 0.88 ? 30 : P.state === "swing" ? 10 : P.state === "air" ? 9 : 14, dt));
-    if (P.fin) P.pc.bp = clamp(P.fin.t / P.fin.dur, 0, 1) * Math.PI * 2;
-    else if (P.flipT >= 0 && P.flipRoll) {
+    if (P.fin) {
+      P.pc.bp = 0;
+      P.pc.br = 0;
+      P.pc.bw = 0;
+    } else if (P.flipT >= 0 && P.flipRoll) {
       P.pc.br = clamp(P.flipT / P.flipDur, 0, 1) * Math.PI * 2 * (P.flipBack ? -1 : 1);
       P.flipRolling = true;
     } else if (P.flipT >= 0) P.pc.bp = clamp(P.flipT / P.flipDur, 0, 1) * Math.PI * 2 * (P.flipBack ? -1 : 1);
@@ -30167,6 +30642,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       aimArm(H3, "R", P.pz.to, 1);
       aimArm(H3, "L", P.pz.to, 1);
     }
+    if (P.fin) finAim(H3);
     H3.root.updateMatrixWorld(true);
     if (P.state === "swing") {
       (P.swingSide > 0 ? H3.handR : H3.handL).getWorldPosition(_h2);
@@ -30202,6 +30678,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       init_wejscie();
       init_ui();
       init_efekty();
+      init_wykonczenie();
       GRAV = 27;
       _t3 = new V3();
       _h2 = new V3();
@@ -30238,108 +30715,8 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
   init_wnetrza();
   init_docinki();
   init_pogoda();
-
-  // js/kamera_fx.js
-  init_util();
-  init_stan();
-  init_miasto();
-  init_pogoda();
-  function makeFxPass() {
-    return new THREE.ShaderPass({
-      uniforms: { tDiffuse: { value: null }, uZoom: { value: 0 }, uBlur: { value: 0 }, uCA: { value: 0 }, uTex: { value: new THREE.Vector2(1 / 1600, 1 / 900) } },
-      vertexShader: "varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }",
-      fragmentShader: `uniform sampler2D tDiffuse; uniform float uZoom, uBlur, uCA; uniform vec2 uTex; varying vec2 vUv;
-      void main(){
-        vec2 c = vUv - .5; float w = smoothstep(.22, .95, length(c)*1.55);
-        vec4 col = vec4(0.);
-        for (int i = 0; i < 8; i++) {
-          float fi = float(i), k = fi/7., a = fi*2.39996;
-          vec2 d = vec2(cos(a), sin(a))*sqrt((fi+.5)/8.)*uBlur*w*3.*uTex;
-          col += texture2D(tDiffuse, vUv - c*uZoom*w*k + d);
-        }
-        col /= 8.;
-        if (uCA > 0.) { vec2 o = c*uCA*w; col.r = texture2D(tDiffuse, vUv - o).r; col.b = texture2D(tDiffuse, vUv + o).b; }
-        gl_FragColor = col;
-      }`
-    });
-  }
-  var spd2 = null;
-  var sx = null;
-  var vig = null;
-  var zoom = 0;
-  var blur = 0;
-  var idleT2 = 0;
-  var spdK = 0;
-  var spdT = 0;
-  var vigKey = "";
-  var SW2 = 320;
-  var SH2 = 180;
-  var VIG = {
-    sunset: "radial-gradient(ellipse at center,rgba(0,0,0,0) 52%,rgba(48,20,12,.5) 100%)",
-    day: "radial-gradient(ellipse at center,rgba(0,0,0,0) 58%,rgba(10,18,36,.3) 100%)",
-    night: "radial-gradient(ellipse at center,rgba(0,0,0,0) 48%,rgba(2,4,14,.66) 100%)"
-  };
-  function build3() {
-    spd2 = document.createElement("canvas");
-    spd2.width = SW2;
-    spd2.height = SH2;
-    spd2.style.cssText = "position:fixed;inset:0;width:100%;height:100%;z-index:4;pointer-events:none;display:none";
-    document.body.appendChild(spd2);
-    sx = spd2.getContext("2d");
-    vig = document.getElementById("vig");
-  }
-  function updateCameraFX(rdt, pass) {
-    if (!spd2) build3();
-    const play = G.state === "play", sp2 = play && !G.cine ? P.vel.length() : 0;
-    const kS = P.state === "swing" || P.state === "air" ? clamp((sp2 - 28) / 36, 0, 1) : 0;
-    zoom = lerp(zoom, kS * 0.07, damp(4, rdt));
-    spdK = lerp(spdK, kS, damp(3, rdt));
-    idleT2 = play && !G.cine && P.state === "ground" && sp2 < 1.2 && cam.idle > 0.5 ? idleT2 + rdt : 0;
-    const bT = G.cine ? 1.3 : clamp((idleT2 - 1.5) / 1.5, 0, 1) * 0.6;
-    blur = lerp(blur, bT, damp(2.5, rdt));
-    const ca = clamp((G.shake || 0) * 0.016, 0, 0.011) + (G.slowT > 0 ? 3e-3 : 0);
-    if (pass) {
-      const on = zoom > 3e-3 || blur > 0.03 || ca > 4e-4;
-      pass.enabled = on;
-      if (on) {
-        const u = pass.uniforms;
-        u.uZoom.value = zoom;
-        u.uBlur.value = blur;
-        u.uCA.value = ca;
-        u.uTex.value.set(1 / innerWidth, 1 / innerHeight);
-      }
-    }
-    if (spdK > 0.04 && play) {
-      spd2.style.display = "block";
-      spdT += rdt;
-      if (spdT > 1 / 30) {
-        spdT = 0;
-        sx.clearRect(0, 0, SW2, SH2);
-        sx.lineCap = "round";
-        const n = 14 + (spdK * 22 | 0);
-        for (let i = 0; i < n; i++) {
-          const a = Math.random() * 6.2832, r02 = 0.52 + Math.random() * 0.3, r1 = r02 + 0.12 + Math.random() * 0.3 * spdK, ca2 = Math.cos(a), sa = Math.sin(a);
-          sx.strokeStyle = `rgba(255,255,255,${(0.04 + Math.random() * 0.13) * spdK})`;
-          sx.lineWidth = 0.6 + Math.random() * 1.2;
-          sx.beginPath();
-          sx.moveTo(SW2 / 2 + ca2 * r02 * SW2 * 0.62, SH2 / 2 + sa * r02 * SH2 * 0.8);
-          sx.lineTo(SW2 / 2 + ca2 * r1 * SW2 * 0.62, SH2 / 2 + sa * r1 * SH2 * 0.8);
-          sx.stroke();
-        }
-      }
-    } else if (spd2.style.display !== "none") {
-      spd2.style.display = "none";
-      sx.clearRect(0, 0, SW2, SH2);
-    }
-    const key2 = todName + (wetU.uRain.value > 0.5 ? "r" : "");
-    if (vig && key2 !== vigKey) {
-      vigKey = key2;
-      vig.style.background = VIG[todName] || VIG.sunset;
-      vig.style.opacity = wetU.uRain.value > 0.5 ? "1" : "0.9";
-    }
-  }
-
-  // js/main.js
+  init_kamera_fx();
+  init_wykonczenie();
   init_glos();
   init_rozmowy();
   try {
@@ -30355,8 +30732,8 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     zglosBlad(e);
     throw e;
   }
-  var _a4;
-  (_a4 = document.getElementById("ladowanie")) == null ? void 0 : _a4.remove();
+  var _a5;
+  (_a5 = document.getElementById("ladowanie")) == null ? void 0 : _a5.remove();
   setMusic(save.music);
   var composer = null;
   var bloom = null;
@@ -30501,8 +30878,8 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     dispatchEvent(new Event("glos-settings"));
   };
   hooks.voiceVol = (d = 1, wrap = false) => {
-    var _a5;
-    let n = Math.round(((_a5 = save.voiceVol) != null ? _a5 : 0.9) * 10) + d;
+    var _a6;
+    let n = Math.round(((_a6 = save.voiceVol) != null ? _a6 : 0.9) * 10) + d;
     if (n > 10) n = wrap ? 0 : 10;
     if (n < 0) n = wrap ? 10 : 0;
     save.voiceVol = n / 10;
@@ -30519,7 +30896,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     if (composer) composer.setSize(innerWidth, innerHeight);
   });
   var _f4 = new V3();
-  var _b3 = new V3();
+  var _b4 = new V3();
   var _v3 = new V3();
   var _r = new V3();
   function camLook(dt, I) {
@@ -30542,11 +30919,11 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     cam.dist = lerp(cam.dist, want, damp(3, dt));
     const cp = Math.cos(cam.pitch);
     _f4.set(-Math.sin(cam.yaw) * cp, Math.sin(cam.pitch), -Math.cos(cam.yaw) * cp);
-    _b3.copy(_f4).negate();
+    _b4.copy(_f4).negate();
     let d = cam.dist;
-    const t = raycastCity(cam.tgt, _b3, d + 0.3);
+    const t = raycastCity(cam.tgt, _b4, d + 0.3);
     if (t < d + 0.3) d = Math.max(0.8, t - 0.4);
-    camera.position.copy(cam.tgt).addScaledVector(_b3, d);
+    camera.position.copy(cam.tgt).addScaledVector(_b4, d);
     if (camera.position.y < 0.4) camera.position.y = 0.4;
     if (cam.kick > 1e-3) {
       camera.position.y -= cam.kick * 0.5;
@@ -30615,11 +30992,13 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     const rdt = Math.min(0.05, Math.max(0, (now3 - last2) / 1e3));
     last2 = now3;
     pollPads();
+    G.rdt = rdt;
     let dt = rdt;
     if (G.slowT > 0) {
       G.slowT -= rdt;
       dt = rdt * 0.35;
     }
+    if (G.state === "play" && G.timeScale < 1) dt *= G.timeScale;
     G.time += dt;
     if (G.state === "play" && G.cine) {
       updateCine(rdt);
@@ -30636,6 +31015,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
         updateBags(dt);
         updateMissions(dt);
         camFollow(rdt);
+        finCamera();
         updateHUD(rdt);
         setWind(P.vel.length());
         cityAmbience(rdt, P.pos.y < 30);

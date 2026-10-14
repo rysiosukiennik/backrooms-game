@@ -39,16 +39,17 @@ function build() {
   document.body.appendChild(spd); sx = spd.getContext('2d'); vig = document.getElementById('vig');
 }
 // pass: przebieg FX z kompozera (albo null na niskiej grafice)
+export const fxBoost = { zoom: 0, ca: 0 }; // chwilowe impulsy (wykonczenie)
 export function updateCameraFX(rdt, pass) {
   if (!spd) build();
   const play = G.state === 'play', sp = play && !G.cine ? P.vel.length() : 0;
   const kS = (P.state === 'swing' || P.state === 'air') ? clamp((sp - 28) / 36, 0, 1) : 0;
-  zoom = lerp(zoom, kS * 0.07, damp(4, rdt)); spdK = lerp(spdK, kS, damp(3, rdt));
+  zoom = lerp(zoom, kS * 0.07 + fxBoost.zoom, damp(fxBoost.zoom > 0 ? 14 : 4, rdt)); spdK = lerp(spdK, kS, damp(3, rdt));
   // glebia ostrosci: w scenkach mocna, gdy gracz stoi — lekka
   idleT = play && !G.cine && P.state === 'ground' && sp < 1.2 && cam.idle > 0.5 ? idleT + rdt : 0;
   const bT = G.cine ? 1.3 : clamp((idleT - 1.5) / 1.5, 0, 1) * 0.6;
   blur = lerp(blur, bT, damp(2.5, rdt));
-  const ca = clamp((G.shake || 0) * 0.016, 0, 0.011) + (G.slowT > 0 ? 0.003 : 0);
+  const ca = clamp((G.shake || 0) * 0.016, 0, 0.011) + (G.slowT > 0 ? 0.003 : 0) + fxBoost.ca;
   if (pass) {
     const on = zoom > 0.003 || blur > 0.03 || ca > 0.0004;
     pass.enabled = on;

@@ -53,7 +53,7 @@ export const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 
 // state: 'menu' | 'play' | 'pause'
 export const G = {
   state: 'menu', mode: 'kb', lastDev: 'kb', time: 0, started: false,
-  slowT: 0, shake: 0, sense: false, wp: null,
+  slowT: 0, timeScale: 1, rdt: 0.016, shake: 0, sense: false, wp: null,
   pauseTab: 'map', pauseFrom: 'menu', menuIdx: 0, suitIdx: 0, gameIdx: 0, skillIdx: 0, missIdx: 0,
   boss: null, race: null, chase: null, cine: null, interior: null, // aktywne misje (do HUD)
 };

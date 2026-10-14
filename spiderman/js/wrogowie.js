@@ -260,6 +260,7 @@ function updateEnemy(e, dt) {
   e.moving = false; e.hurtT = Math.max(0, e.hurtT - dt); e.stunT -= dt; e.airHold -= dt;
   if (e.webT > 0 && !e.dead) { e.webT -= dt; if (e.webT <= 0) { e.webs = Math.max(0, e.webs - 1); if (e.webs > 0) e.webT = 4; } }
   const R = e.scale;
+  if (e.finScene) { e.finScene(e, dt); poseEnemy(e, dt, d3); return; } // scena wykonczenia przejmuje wroga
 
   if (e.air) {
     // po wybiciu / ciosie w powietrzu bandyta "zawisa" chwile, zeby dalo sie go dalej bic
@@ -338,13 +339,14 @@ function poseEnemy(e, dt, d3) {
       if (e.type === 'brute') { t.sLz = 0.45; t.sRz = -0.45; t.eL = -1.4; t.eR = -1.4; t.sLx = -0.4; t.sRx = -0.4; }
       if (e.state === 'fight' && e.type === 'gun') { t.sRx = -1.2; t.eR = -0.2; }
   }
+  if (e.finPose) e.finPose(e, t);
   if (d3 < 120 || e.air) {
     blendPose(e.pc, t, damp(e.state === 'recover' ? 30 : 12, dt));
     applyPose(H, e.pc);
     const angry = !e.dead && (e.state === 'windup' || e.state === 'recover' || e.state === 'fight' || e.type === 'brute');
     H.setHands(angry && e.type !== 'gun' ? 'fist' : 'open', e.wpn || angry ? 'fist' : 'open');
   }
-  e.down += ((e.dead && !e.air ? 1 : 0) - e.down) * damp(6, dt);
+  if (!e.finOwn) e.down += ((e.dead && !e.air ? 1 : 0) - e.down) * damp(6, dt);
   H.root.position.copy(e.pos); H.root.position.y += 0.12 * e.down * e.scale;
   if (e.air) e.yaw += e.spin * dt;
   H.root.rotation.set(-Math.PI / 2 * e.down, e.yaw, 0, 'YXZ');

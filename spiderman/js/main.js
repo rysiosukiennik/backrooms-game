@@ -14,6 +14,7 @@ import { updateRooms } from './wnetrza.js';
 import { updateQuips, quipStart } from './docinki.js';
 import { updateWeather, cycleWeather } from './pogoda.js';
 import { makeFxPass, updateCameraFX } from './kamera_fx.js';
+import { finCamera } from './wykonczenie.js';
 import { initGlos, updateGlos, glosStop } from './glos.js';
 import { updateCalls } from './rozmowy.js';
 
@@ -196,8 +197,10 @@ let last = performance.now();
 function step(now) {
   const rdt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
   pollPads();
+  G.rdt = rdt;
   let dt = rdt;
   if (G.slowT > 0) { G.slowT -= rdt; dt = rdt * 0.35; }
+  if (G.state === 'play' && G.timeScale < 1) dt *= G.timeScale; // zwolnione tempo (wykonczenie); dzwiek, UI i wejscie ida realnym czasem
   G.time += dt;
 
   if (G.state === 'play' && G.cine) {
@@ -210,7 +213,7 @@ function step(now) {
       camLook(rdt, I);
       updatePlayer(dt, I);
       updateEnemies(dt); updateCrimes(dt); updateShots(dt); updateBags(dt); updateMissions(dt);
-      camFollow(rdt);
+      camFollow(rdt); finCamera();
       updateHUD(rdt);
       setWind(P.vel.length());
       cityAmbience(rdt, P.pos.y < 30);
