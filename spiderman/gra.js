@@ -286,12 +286,12 @@
     x.scale(s, s);
     return { c, x, w, h };
   }
-  function put(geo, p = [0, 0, 0], r = [0, 0, 0], s = [1, 1, 1]) {
+  function put(geo2, p = [0, 0, 0], r = [0, 0, 0], s = [1, 1, 1]) {
     _e.set(r[0], r[1], r[2], "XYZ");
     _q.setFromEuler(_e);
     _p.set(p[0], p[1], p[2]);
     _s.set(s[0], s[1], s[2]);
-    return geo.clone().applyMatrix4(_m.compose(_p, _q, _s));
+    return geo2.clone().applyMatrix4(_m.compose(_p, _q, _s));
   }
   function joinGeo(list) {
     const pos = [], nor = [], uv = [], idx = [];
@@ -7483,7 +7483,7 @@ vec3 pedP = position;
       }
       return a;
     };
-    const sm3 = (a, fx2, fy, x, y) => {
+    const sm4 = (a, fx2, fy, x, y) => {
       const X = x * fx2, Y = y * fy, x0 = Math.floor(X), y0 = Math.floor(Y);
       let tx = X - x0, ty = Y - y0;
       tx = tx * tx * (3 - 2 * tx);
@@ -7500,7 +7500,7 @@ vec3 pedP = position;
     const run = (L3, x, y) => {
       let v = 0, t3 = 0;
       for (const [a, fx2, fy, w] of L3) {
-        v += sm3(a, fx2, fy, x, y) * w;
+        v += sm4(a, fx2, fy, x, y) * w;
         t3 += w;
       }
       return v / t3;
@@ -9482,7 +9482,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     const quay = quayTex(), gtex = groundTexFar();
     const quayMat = new THREE.MeshStandardMaterial({ map: quay, roughness: 0.95 }), farGround = new THREE.MeshStandardMaterial({ map: gtex, roughness: 0.92 });
     const shoreBox = (x0, x1, z0, z1, faceDir) => {
-      const geo = new THREE.BoxGeometry(x1 - x0, 4, z1 - z0), uv = geo.attributes.uv, sx2 = x1 - x0, sz = z1 - z0;
+      const geo2 = new THREE.BoxGeometry(x1 - x0, 4, z1 - z0), uv = geo2.attributes.uv, sx2 = x1 - x0, sz = z1 - z0;
       const set2 = (f, su, sv, ov = 0) => {
         for (let i = f * 4; i < f * 4 + 4; i++) uv.setXY(i, uv.getX(i) * su, uv.getY(i) * sv + ov);
       };
@@ -9492,7 +9492,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
       set2(3, 1, 1);
       set2(4, sx2 / 6, 1.18, -0.086);
       set2(5, sx2 / 6, 1.18, -0.086);
-      const m = new THREE.Mesh(geo, [quayMat, quayMat, farGround, quayMat, quayMat, quayMat]);
+      const m = new THREE.Mesh(geo2, [quayMat, quayMat, farGround, quayMat, quayMat, quayMat]);
       m.position.set((x0 + x1) / 2, -1.5, (z0 + z1) / 2);
       m.receiveShadow = true;
       scene2.add(m);
@@ -9611,8 +9611,8 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
         S2.append(L3, org[0], 0, org[2], rotY, 1);
       }
     }
-    const addInst = (geo, mat, list, place2) => {
-      const m = new THREE.InstancedMesh(geo, mat, Math.max(1, list.length)), o = new THREE.Object3D();
+    const addInst = (geo2, mat, list, place2) => {
+      const m = new THREE.InstancedMesh(geo2, mat, Math.max(1, list.length)), o = new THREE.Object3D();
       list.forEach((it, i) => {
         place2(o, it);
         o.updateMatrix();
@@ -11580,8 +11580,8 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
       M2 = new THREE.Matrix4();
       tmpO = new THREE.Object3D();
       tmpC = new THREE.Color();
-      mkMesh = (geo, n, color = true) => {
-        const m = new THREE.InstancedMesh(geo.toBuffer(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0 }), n);
+      mkMesh = (geo2, n, color = true) => {
+        const m = new THREE.InstancedMesh(geo2.toBuffer(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0 }), n);
         m.frustumCulled = false;
         m.count = 0;
         m.castShadow = false;
@@ -14639,7 +14639,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     }
   }
   function dialogStart() {
-    if (G.state !== "play" || G.cine || cur || gcd > 0 || (kcdAt.dialog || 0) > now2 || Math.random() > 0.35) return false;
+    if (G.state !== "play" || G.cine || G.fiskFight || cur || gcd > 0 || (kcdAt.dialog || 0) > now2 || Math.random() > 0.35) return false;
     if (!dlgBag.length) {
       for (const k2 of byKind.keys()) if (k2.startsWith("dialog_")) dlgBag.push(k2);
       for (let i = dlgBag.length - 1; i > 0; i--) {
@@ -14662,7 +14662,7 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     return true;
   }
   function request(kind, c, force) {
-    if (G.state !== "play" || G.cine) return false;
+    if (G.state !== "play" || G.cine || G.fiskFight) return false;
     const m = meta(kind), prio = c && c.prio != null ? c.prio : m.prio;
     let found = null;
     for (const k of candidates(kind, c)) if (found = linesFor(k)) break;
@@ -16298,12 +16298,12 @@ void main() {`).replace("#include <color_fragment>", `#include <color_fragment>
     return u >= 13.5 && u < 23.5 ? 0 : u >= 23.5 && u < 26 ? 1 : 2;
   }
   function buildLampHeads(lampMat2) {
-    const g = Sph(0.5, 0, 0, 0, 1, 0.22, 0.42, 10, 6), lens2 = B3(0.6, 0.04, 0.3, 0, -0.1, 0), geo = new THREE.BufferGeometry();
+    const g = Sph(0.5, 0, 0, 0, 1, 0.22, 0.42, 10, 6), lens2 = B3(0.6, 0.04, 0.3, 0, -0.1, 0), geo2 = new THREE.BufferGeometry();
     const T2 = tpl([[g, 16777215], [lens2, 16777215]]);
-    geo.setAttribute("position", new THREE.BufferAttribute(T2.p, 3));
-    geo.setAttribute("normal", new THREE.BufferAttribute(T2.n, 3));
-    geo.setIndex(new THREE.BufferAttribute(T2.i, 1));
-    const im = new THREE.InstancedMesh(geo, lampMat2, lampList.length), o = new THREE.Object3D();
+    geo2.setAttribute("position", new THREE.BufferAttribute(T2.p, 3));
+    geo2.setAttribute("normal", new THREE.BufferAttribute(T2.n, 3));
+    geo2.setIndex(new THREE.BufferAttribute(T2.i, 1));
+    const im = new THREE.InstancedMesh(geo2, lampMat2, lampList.length), o = new THREE.Object3D();
     lampList.forEach(([x, z, yaw, h], i) => {
       o.position.set(x + Math.cos(yaw) * 2.45, SW + h, z - Math.sin(yaw) * 2.45);
       o.rotation.set(0, yaw, 0);
@@ -17695,11 +17695,11 @@ vec3 dtPerturb(vec3 sp, vec3 sn, vec2 dH, float fd) {
   }
   function blobMesh(n) {
     if (!blobTex) blobTex = radialTex([[0, "rgba(0,0,0,.62)"], [0.45, "rgba(0,0,0,.4)"], [0.8, "rgba(0,0,0,.1)"], [1, "rgba(0,0,0,0)"]]);
-    const geo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+    const geo2 = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
     const mat = new THREE.MeshBasicMaterial({ map: blobTex, color: 658972, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
     mat.userData.lin = true;
     mat.color.setHex(658972).convertSRGBToLinear();
-    const m = new THREE.InstancedMesh(geo, mat, n);
+    const m = new THREE.InstancedMesh(geo2, mat, n);
     m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     m.frustumCulled = false;
     m.count = 0;
@@ -17755,26 +17755,26 @@ vec3 dtPerturb(vec3 sp, vec3 sn, vec2 dH, float fd) {
   function swBuildStatic(lamps) {
     if (!lamps || !lamps.length) return;
     const n = lamps.length;
-    const sm3 = blobMesh(n);
-    sm3.frustumCulled = false;
+    const sm4 = blobMesh(n);
+    sm4.frustumCulled = false;
     lamps.forEach(([x, z], i) => {
       _o2.position.set(x, SW_H + 0.025, z);
       _o2.rotation.set(0, 0, 0);
       _o2.scale.set(1.5, 1, 1.5);
       _o2.updateMatrix();
-      sm3.setMatrixAt(i, _o2.matrix);
+      sm4.setMatrixAt(i, _o2.matrix);
     });
-    sm3.count = n;
-    sm3.instanceMatrix.needsUpdate = true;
-    sm3.instanceMatrix.setUsage(THREE.StaticDrawUsage);
+    sm4.count = n;
+    sm4.instanceMatrix.needsUpdate = true;
+    sm4.instanceMatrix.setUsage(THREE.StaticDrawUsage);
     if (!poolTex) poolTex = radialTex([[0, "rgba(255,196,120,.85)"], [0.25, "rgba(255,170,90,.5)"], [0.6, "rgba(255,140,60,.16)"], [1, "rgba(255,120,40,0)"]]);
     const mat = new THREE.MeshBasicMaterial({ map: poolTex, color: 16777215, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: true, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
     mat.userData.lin = true;
     mat.onBeforeCompile = (sh2) => {
       sh2.fragmentShader = sh2.fragmentShader.replace("#include <fog_fragment>", "gl_FragColor.a *= 1.0 - smoothstep(35.0, 150.0, fogDepth);");
     };
-    const geo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
-    const m = new THREE.InstancedMesh(geo, mat, n);
+    const geo2 = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+    const m = new THREE.InstancedMesh(geo2, mat, n);
     lamps.forEach(([x, z, yaw], i) => {
       _o2.position.set(x + Math.cos(yaw) * 2.45, SW_H + 0.03, z - Math.sin(yaw) * 2.45);
       _o2.rotation.set(0, 0, 0);
@@ -18406,14 +18406,14 @@ vec3 dtPerturb(vec3 sp, vec3 sn, vec2 dH, float fd) {
   }
   function meshFrom(g, mat, cast = true) {
     for (const s of g.chunks.values()) {
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute("position", new THREE.Float32BufferAttribute(s.p, 3));
-      geo.setAttribute("normal", new THREE.Float32BufferAttribute(s.n, 3));
-      geo.setAttribute("uv", new THREE.Float32BufferAttribute(s.u, 2));
-      geo.setAttribute("color", new THREE.Float32BufferAttribute(s.c, 3));
+      const geo2 = new THREE.BufferGeometry();
+      geo2.setAttribute("position", new THREE.Float32BufferAttribute(s.p, 3));
+      geo2.setAttribute("normal", new THREE.Float32BufferAttribute(s.n, 3));
+      geo2.setAttribute("uv", new THREE.Float32BufferAttribute(s.u, 2));
+      geo2.setAttribute("color", new THREE.Float32BufferAttribute(s.c, 3));
       mat.vertexColors = true;
-      geo.computeBoundingSphere();
-      const m = new THREE.Mesh(geo, mat);
+      geo2.computeBoundingSphere();
+      const m = new THREE.Mesh(geo2, mat);
       m.castShadow = cast;
       m.receiveShadow = true;
       m.matrixAutoUpdate = false;
@@ -19719,7 +19719,7 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     P2(r.cu0, ga0, front[0], front[1], y0, y1);
     P2(ga1, r.cu1, front[0], front[1], y0, y1);
     P2(ga0, ga1, front[0], front[1], d.gh, y1);
-    P2(r.cu0, r.cu1, r.cv0, r.cv1, SW + r.ch, y1);
+    P2(r.cu0, r.cu1, r.cv0, r.cv1, SW + (d.type === "fisk" ? (FISK_FLOORS - 1) * FISK_H : 0) + r.ch, y1);
     return { x0, x1, y0, y1, z0, z1 };
   }
   function solid(x0, x1, y0, y1, z0, z1, st, door, plain) {
@@ -20394,8 +20394,8 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     const stone = kind === "stone", deckY = 38, W2 = 13, L3 = xb - xa;
     const tm = new THREE.MeshStandardMaterial(stone ? { color: 11048316, roughness: 0.9 } : { color: 7306374, roughness: 0.5, metalness: 0.5 });
     const dm = new THREE.MeshStandardMaterial({ color: 3816770, roughness: 0.8 }), cm = new THREE.MeshStandardMaterial({ color: stone ? 8159108 : 9082270, roughness: 0.5, metalness: 0.6 });
-    const add = (geo, m, x, y, zz) => {
-      const o = new THREE.Mesh(geo, m);
+    const add = (geo2, m, x, y, zz) => {
+      const o = new THREE.Mesh(geo2, m);
       o.position.set(x, y, zz);
       o.castShadow = false;
       o.receiveShadow = true;
@@ -20549,8 +20549,8 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     addCityTrees(list);
     for (let q = 0; q < (list.length + legacyParkTrees) * 3; q++) srand();
   }
-  function buildInstanced(geo, mat, items, place2, cast = true) {
-    const m = new THREE.InstancedMesh(geo, mat, Math.max(1, items.length)), o = new THREE.Object3D();
+  function buildInstanced(geo2, mat, items, place2, cast = true) {
+    const m = new THREE.InstancedMesh(geo2, mat, Math.max(1, items.length)), o = new THREE.Object3D();
     items.forEach((it, i) => {
       o.position.set(0, 0, 0);
       o.rotation.set(0, 0, 0);
@@ -20986,11 +20986,11 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
       idx.push(...Array.from(g.index.array, (v) => v + off));
       off += g.attributes.position.count;
     }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-    geo.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
-    geo.setIndex(idx);
-    return geo;
+    const geo2 = new THREE.BufferGeometry();
+    geo2.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    geo2.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
+    geo2.setIndex(idx);
+    return geo2;
   }
   function initPeds() {
     const G3 = pedGeometries();
@@ -21470,7 +21470,7 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
     updateCars(dt);
     updatePeds(dt);
   }
-  var BW, BD, ST, NX, NZ, CX, CZ, CW, CD, X0, Z0, LAND, PK, POND, isPark, inPark, isecPos, DIST, doors, boxes, roofs, footprints, spots, perches, START, START_H, HC2, hash, stamp, hk, _s1, _s22, _rl, BRIDGES, BR_DECK, rayN, _rbN, CHUNK, cur3, GLASS_TINTS, ngon, chamferPts, STY, STY_VAR, isGlassy, isOld, CURT2, RM, RM_TOD, SHOPS, SIGNC, SHOP_DECL, SHOP_BLOCK, LOBBY_NAMES, sunDir, sun, sky, skyFX, hemi, amb, water, pondM, waterNormal, TOD, TOD_NAMES, skyU, fogEnc, lastTOD, envRefs, lin32, pmrem, envRT, skyScene, shopU, facMats, shopMat, lampMat, boardMats, glowPts, todName, savedL, facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo, ironGeo, pitchGeo, metalGeo, slateGeo, SW, tanks, awnings, masts, boards, DOOR_TYPES, ROOMSPEC, acUnits, balconyCount, streetFaces, FISK_DOOR, LANDMARKS, legacyParkTrees, export_arena, ARENA, ventList, _o5, _c2, steam2, birds2, BIRD_N, birdData, _bo, PED_N, PED_R, PED_HI, peds, pedSets, _fw2, benches, MODE, pedsFresh, _ca;
+  var BW, BD, ST, NX, NZ, CX, CZ, CW, CD, X0, Z0, LAND, PK, POND, isPark, inPark, isecPos, DIST, doors, boxes, roofs, footprints, spots, perches, START, START_H, HC2, hash, stamp, hk, _s1, _s22, _rl, BRIDGES, BR_DECK, rayN, _rbN, CHUNK, cur3, GLASS_TINTS, ngon, chamferPts, STY, STY_VAR, isGlassy, isOld, CURT2, RM, RM_TOD, SHOPS, SIGNC, SHOP_DECL, SHOP_BLOCK, LOBBY_NAMES, sunDir, sun, sky, skyFX, hemi, amb, water, pondM, waterNormal, TOD, TOD_NAMES, skyU, fogEnc, lastTOD, envRefs, lin32, pmrem, envRT, skyScene, shopU, facMats, shopMat, lampMat, boardMats, glowPts, todName, savedL, facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo, ironGeo, pitchGeo, metalGeo, slateGeo, SW, FISK_H, FISK_FLOORS, tanks, awnings, masts, boards, DOOR_TYPES, ROOMSPEC, acUnits, balconyCount, streetFaces, FISK_DOOR, LANDMARKS, legacyParkTrees, export_arena, ARENA, ventList, _o5, _c2, steam2, birds2, BIRD_N, birdData, _bo, PED_N, PED_R, PED_HI, peds, pedSets, _fw2, benches, MODE, pedsFresh, _ca;
   var init_miasto = __esm({
     "js/miasto.js"() {
       init_util();
@@ -21742,6 +21742,8 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
       todName = "sunset";
       savedL = null;
       SW = 0.15;
+      FISK_H = 8.6;
+      FISK_FLOORS = 5;
       tanks = [];
       awnings = [];
       masts = [];
@@ -22198,8 +22200,8 @@ float rmH(vec3 p) { p = fract(p * vec3(.1031, .1030, .0973)); p += dot(p, p.yxz 
   });
 
   // js/postac.js
-  function el2(mat, sx2, sy, sz, x = 0, y = 0, z = 0, geo = SG) {
-    const m = new THREE.Mesh(geo, mat);
+  function el2(mat, sx2, sy, sz, x = 0, y = 0, z = 0, geo2 = SG) {
+    const m = new THREE.Mesh(geo2, mat);
     m.scale.set(sx2, sy, sz);
     m.position.set(x, y, z);
     m.castShadow = true;
@@ -23358,7 +23360,85 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     }
   });
 
+  // js/umiejetnosci.js
+  function canBuy(s) {
+    return !has(s.id) && skillPoints() > 0 && (!s.req || has(s.req));
+  }
+  function buy(s) {
+    if (!canBuy(s)) return false;
+    save.skills.push(s.id);
+    doSave();
+    return true;
+  }
+  var SKILLS, COLS, has, skillPoints, maxHp, buffs, dmgMul, swingMul, zipMax, websToWrap, perchRange;
+  var init_umiejetnosci = __esm({
+    "js/umiejetnosci.js"() {
+      init_util();
+      SKILLS = [
+        { id: "hp1", col: 0, name: "TWARDZIEL I", desc: "+25 zdrowia." },
+        { id: "hp2", col: 0, name: "TWARDZIEL II", desc: "+25 zdrowia.", req: "hp1" },
+        { id: "regen", col: 0, name: "REGENERACJA", desc: "Zdrowie wraca dwa razy szybciej.", req: "hp2" },
+        { id: "hp3", col: 0, name: "TWARDZIEL III", desc: "+25 zdrowia.", req: "regen" },
+        { id: "pow", col: 1, name: "MOCNE CIOSY", desc: "Ciosy zadaj\u0105 o po\u0142ow\u0119 wi\u0119cej obra\u017Ce\u0144." },
+        { id: "focus", col: 1, name: "SKUPIENIE", desc: "Pasek skupienia \u0142aduje si\u0119 o po\u0142ow\u0119 szybciej.", req: "pow" },
+        { id: "fin", col: 1, name: "PODW\xD3JNE WYKO\u0143CZENIE", desc: "Wyko\u0144czenie zawija w sie\u0107 tak\u017Ce najbli\u017Cszego bandyt\u0119 obok.", req: "focus" },
+        { id: "pow2", col: 1, name: "PI\u0118\u015A\u0106 TYTANA", desc: "Jeszcze +50% obra\u017Ce\u0144. Osi\u0142ki szybciej padaj\u0105.", req: "fin" },
+        { id: "web", col: 2, name: "MOCNA SIE\u0106", desc: "Bandyt\u0119 zawiniesz w kokon ju\u017C dwoma strza\u0142ami." },
+        { id: "sense", col: 2, name: "PAJ\u0118CZY ZMYS\u0141", desc: "Idealny unik spowalnia czas dwa razy d\u0142u\u017Cej.", req: "web" },
+        { id: "launch", col: 2, name: "DALEKI ZACZEP", desc: "Zaczep dzia\u0142a z 90 m zamiast 60 m.", req: "sense" },
+        { id: "swing", col: 3, name: "SZYBKIE BUJANIE", desc: "Bujasz si\u0119 o 15% szybciej." },
+        { id: "zip", col: 3, name: "TRZECI ZIP", desc: "Trzy zipy sieci\u0105 w powietrzu zamiast dw\xF3ch.", req: "swing" },
+        { id: "swing2", col: 3, name: "MISTRZ SIECI", desc: "Jeszcze +15% pr\u0119dko\u015Bci i wy\u017Cszy skok z sieci.", req: "zip" }
+      ];
+      COLS = ["ZDROWIE", "WALKA", "SIE\u0106 I ZMYS\u0141", "RUCH"];
+      has = (id) => save.skills.includes(id);
+      skillPoints = () => Math.max(0, save.lvl - save.skills.length);
+      maxHp = () => 100 + (has("hp1") ? 25 : 0) + (has("hp2") ? 25 : 0) + (has("hp3") ? 25 : 0);
+      buffs = { dmg: 1 };
+      dmgMul = () => (1 + (has("pow") ? 0.5 : 0) + (has("pow2") ? 0.5 : 0)) * buffs.dmg;
+      swingMul = () => 1 + (has("swing") ? 0.15 : 0) + (has("swing2") ? 0.15 : 0);
+      zipMax = () => has("zip") ? 3 : 2;
+      websToWrap = () => has("web") ? 2 : 3;
+      perchRange = () => has("launch") ? 90 : 60;
+    }
+  });
+
   // js/fisk.js
+  function RK(room2) {
+    let r = _rk.get(room2);
+    if (r) return r;
+    const [ox, oz] = room2.W(0, 0), ns = Math.abs(room2.W(1, 0)[0] - ox) > 0.5;
+    r = {
+      ns,
+      hw: room2.cw / 2,
+      vg: room2.cd - 7,
+      uv: (x, z) => ns ? [x - room2.uc, (z - room2.cvDoor) * room2.sIn] : [z - room2.uc, (x - room2.cvDoor) * room2.sIn],
+      wp: (u, v, y = 0) => {
+        const [x, z] = room2.W(u, v);
+        return new V3(x, y, z);
+      },
+      yaw: (du, dv) => {
+        const [x, z] = room2.W(du, dv);
+        return Math.atan2(x - ox, z - oz);
+      }
+    };
+    _rk.set(room2, r);
+    return r;
+  }
+  function fade(a, col2 = "#000", ms = 500) {
+    if (!fadeEl) {
+      fadeEl = document.createElement("div");
+      fadeEl.style.cssText = "position:fixed;inset:0;z-index:20;pointer-events:none;opacity:0;background:#000";
+      document.body.appendChild(fadeEl);
+    }
+    fadeEl.style.transition = `opacity ${ms}ms ease`;
+    fadeEl.style.background = col2;
+    fadeEl.style.opacity = a;
+  }
+  function flash3() {
+    fade(1, "#fff", 40);
+    setTimeout(() => fade(0, "#fff", 500), 90);
+  }
   function makeKingpin(room2) {
     const H3 = buildKingpin();
     H3.root.scale.setScalar(1.1);
@@ -23455,10 +23535,13 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     save.fisk = (save.fisk || 0) + 1;
     addXP(3e3);
     doSave();
+    CP = 1;
+    SEEN5 = false;
     sfx("level");
     G.slowT = 1.2;
     G.shake = 0.6;
     F.phase = "done";
+    setMissionBar(TOTAL, TOTAL, "UKO\u0143CZONO");
     setTimeout(() => {
       if (F && !G.cine) playCine("fiskEnd", { b: b.pos, room: F.room, onEnd: () => showMsg("KINGPIN POKONANY!", "+3000 PD \xB7 Wyjd\u017A drzwiami na ulic\u0119", 5) });
     }, 900);
@@ -23467,8 +23550,563 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     if (F) return;
     const room2 = d.room;
     room2.o = [(room2.bx0 + room2.bx1) / 2, SW, (room2.bz0 + room2.bz1) / 2];
-    F = { d, room: room2, boss: makeKingpin(room2), phase: "intro", crime: null };
-    playCine("fisk", { b: F.boss.pos, room: room2, onEnd: () => spawnGuards(3 + (save.lvl > 3 ? 1 : 0), true) });
+    F = { d, room: room2, level: 0, boss: makeKingpin(room2), crime: null, crimes: [], cleared: false, busy: false, phase: "", lifts: {}, glass: null, cannons: [], bullets: [], liftT: 0, quitT: 0, hk: null };
+    F.boss.H.root.visible = false;
+    F.hk = makeHooks();
+    setMissionBar(0);
+    beginLevel(CP, true);
+  }
+  function abortFisk() {
+    if (!F) return;
+    const f = F;
+    wipeLevel();
+    F = null;
+    G.fiskFight = false;
+    for (const k in f.lifts) scene.remove(f.lifts[k].g);
+    if (enemies.includes(f.boss)) removeEnemy(f.boss);
+    else scene.remove(f.boss.H.root);
+    if (G.boss === f.boss) G.boss = null;
+    setMissionBar(0);
+    if (fadeEl) fade(0, "#000", 200);
+  }
+  function wipeLevel() {
+    const f = F;
+    if (!f) return;
+    for (const cr2 of f.crimes) {
+      for (const e of cr2.list) removeEnemy(e);
+      const i = crimes.indexOf(cr2);
+      if (i >= 0) crimes.splice(i, 1);
+    }
+    f.crimes = [];
+    f.crime = null;
+    for (const c of f.cannons) killCannon(c, false);
+    f.cannons = [];
+    for (const b of f.bullets) scene.remove(b.m);
+    f.bullets = [];
+    if (f.glass) {
+      scene.remove(f.glass.g);
+      const i = throwTargets.indexOf(f.glass.target);
+      if (i >= 0) throwTargets.splice(i, 1);
+      f.glass = null;
+    }
+    {
+      const i = enemies.indexOf(f.boss);
+      if (i >= 0) enemies.splice(i, 1);
+    }
+    if (G.boss === f.boss) G.boss = null;
+  }
+  function placePlayer(pos, heading) {
+    P.pos.copy(pos);
+    P.prev.copy(pos);
+    P.vel.set(0, 0, 0);
+    P.state = "ground";
+    P.heading = heading;
+    P.invT = Math.max(P.invT, 1.5);
+    cam.yaw = heading + Math.PI;
+    cam.pitch = -0.15;
+    cam.tgt.copy(P.pos);
+  }
+  function arrival(k) {
+    const R4 = RK(F.room);
+    return R4.wp(-R4.hw + 3.4, 3.5, floorY(k) + 0.05);
+  }
+  function beginLevel(L3, first, restart) {
+    const room2 = F.room, R4 = RK(room2), k = floorOf(L3), fy = floorY(k);
+    F.level = L3;
+    CP = L3;
+    F.cleared = false;
+    F.phase = "";
+    F.quitT = 0;
+    F.armed = false;
+    setMissionBar(L3, TOTAL, LABEL[L3]);
+    if (k > 0) buildFiskFloor(F.d, k);
+    ensureLift(k);
+    F.lift = F.lifts[k];
+    F.liftT = 3;
+    F.lift.target = 1;
+    F.boss.H.root.visible = L3 >= 5;
+    if (!(first && L3 === 1)) placePlayer(arrival(k), R4.yaw(1, 0));
+    if (L3 <= 4) {
+      spawnWave(WAVE[L3], k);
+      showMsg(`POZIOM ${L3}/${TOTAL}`, LABEL[L3] + " \u2014 pokonaj wszystkich", 3.2);
+      if (L3 === 1) hint("fisk_lift", "Po pokonaniu fali otworzy si\u0119 winda przy lewej \u015Bcianie. Wejd\u017A do niej, \u017Ceby wjecha\u0107 wy\u017Cej.");
+    } else if (L3 === 5) {
+      setupLevel5(restart);
+    } else {
+      setupLevel6();
+    }
+  }
+  function nextLevel() {
+    if (F.busy) return;
+    F.busy = true;
+    F.lift.target = 0;
+    sfx("ui");
+    fade(1, "#000", 600);
+    const me = F;
+    setTimeout(() => {
+      if (F !== me) return;
+      wipeLevel();
+      beginLevel(F.level + 1);
+      fade(0, "#000", 700);
+      F.busy = false;
+    }, 800);
+  }
+  function quitMission() {
+    if (F.busy) return;
+    F.busy = true;
+    fade(1, "#000", 500);
+    const me = F, d = F.d;
+    setTimeout(() => {
+      if (F !== me) return;
+      placePlayer(new V3(d.x + d.nx * 3.2, 0.05, d.z + d.nz * 3.2), Math.atan2(d.nx, d.nz));
+      abortFisk();
+      fade(0, "#000", 600);
+      showMsg("FISK TOWER", CP > 1 ? `Wr\xF3cisz do poziomu ${CP}/${TOTAL}, gdy zn\xF3w wejdziesz do holu.` : "Misja przerwana.", 3.5);
+    }, 650);
+  }
+  function revive() {
+    P.dead = false;
+    P.hp = maxHp();
+    P.invT = 2.5;
+    P.deadT = 0;
+    P.atk = null;
+    P.lunge = null;
+    P.flipT = -1;
+    P.fin = null;
+    P.car = null;
+    P.focus = 0;
+    P.vel.set(0, 0, 0);
+    P.state = "ground";
+    P.pc.bp = 0;
+    P.pc.br = 0;
+    P.pc.bw = 0;
+    F.busy = true;
+    fade(1, "#000", 400);
+    const me = F;
+    setTimeout(() => {
+      if (F !== me) return;
+      wipeLevel();
+      beginLevel(F.level, false, true);
+      fade(0, "#000", 700);
+      F.busy = false;
+      showMsg("PUNKT KONTROLNY", `Wracasz na pocz\u0105tek poziomu ${F.level}/${TOTAL}.`, 3);
+    }, 550);
+  }
+  function spawnWave(types, k) {
+    const room2 = F.room, R4 = RK(room2), fy = floorY(k);
+    const cr2 = { spot: null, list: [], active: true, alert: true, clearT: 0, x: 0, y: fy, z: 0 };
+    const lobby = k === 0, du = lobby ? 5 : 3.6, v0 = lobby ? 9 : 8, v1 = lobby ? 18 : 18.5;
+    for (const type of types) {
+      const e = makeEnemy(type);
+      let p = null;
+      for (let i = 0; i < 14; i++) {
+        const u = rnd(-du, du), v = rnd(v0, v1);
+        p = R4.wp(u, v, fy);
+        if (!solidAt(p.x, fy + 1, p.z)) break;
+      }
+      e.pos.copy(p);
+      e.groundY = fy;
+      e.crime = cr2;
+      e.state = "fight";
+      cr2.list.push(e);
+      enemies.push(e);
+    }
+    cr2.x = F.d.x;
+    cr2.z = F.d.z;
+    crimes.push(cr2);
+    F.crime = cr2;
+    F.crimes.push(cr2);
+  }
+  function levelCleared() {
+    F.cleared = true;
+    F.lift.target = 1;
+    F.liftT = 1e9;
+    sfx("win");
+    addXP(150 * F.level);
+    showMsg(`POZIOM ${F.level}/${TOTAL} UKO\u0143CZONY`, `+${150 * F.level} PD \xB7 Wejd\u017A do windy przy lewej \u015Bcianie`, 4);
+    hint("fisk_lift2", "Winda otwarta \u2014 wejd\u017A do niej, aby wjecha\u0107 na kolejne pi\u0119tro.");
+    F.lift.light.color.setHex(3211104);
+  }
+  function ensureLift(k) {
+    if (F.lifts[k]) return;
+    const R4 = RK(F.room), hw = R4.hw, g = new THREE.Group();
+    const M = (c2, m, r) => new THREE.MeshStandardMaterial({ color: c2, metalness: m, roughness: r });
+    const frame = M(1842722, 0.8, 0.4), doorM = M(12106946, 0.9, 0.3), dark = new THREE.MeshBasicMaterial({ color: 658188 });
+    const lightM = new THREE.MeshBasicMaterial({ color: 16722474 });
+    const box3 = (w, h, d, x2, y, z, m) => {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+      b.position.set(x2, y, z);
+      g.add(b);
+      return b;
+    };
+    box3(0.22, 3.1, 0.3, -1.3, 1.55, 0.15, frame);
+    box3(0.22, 3.1, 0.3, 1.3, 1.55, 0.15, frame);
+    box3(2.84, 0.3, 0.3, 0, 3.05, 0.15, frame);
+    box3(2.4, 2.9, 0.04, 0, 1.45, 0.02, dark);
+    const light = box3(2.4, 0.1, 0.05, 0, 3.26, 0.31, lightM);
+    const dl = box3(1.2, 2.85, 0.06, -0.6, 1.43, 0.1, doorM), dr = box3(1.2, 2.85, 0.06, 0.6, 1.43, 0.1, doorM);
+    const c = document.createElement("canvas");
+    c.width = 128;
+    c.height = 64;
+    const x = c.getContext("2d");
+    x.fillStyle = "#0a0b0c";
+    x.fillRect(0, 0, 128, 64);
+    x.fillStyle = "#ffc93c";
+    x.font = "bold 44px monospace";
+    x.textAlign = "center";
+    x.textBaseline = "middle";
+    x.fillText(k === 0 ? "P" : String(k), 64, 34);
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.25), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c) }));
+    sign.position.set(0, 3.55, 0.31);
+    g.add(sign);
+    const p = R4.wp(-hw + 0.04, 3.5, floorY(k));
+    g.position.copy(p);
+    g.rotation.y = R4.yaw(1, 0);
+    scene.add(g);
+    F.lifts[k] = { g, dl, dr, light: lightM, open: 0, target: 0 };
+  }
+  function updateLift(dt) {
+    const L3 = F.lift;
+    if (!L3) return;
+    L3.open += (L3.target - L3.open) * damp(2.4, dt);
+    const s = 1 - 0.93 * L3.open;
+    L3.dl.scale.x = s;
+    L3.dl.position.x = -1.2 + 0.6 * s;
+    L3.dr.scale.x = s;
+    L3.dr.position.x = 1.2 - 0.6 * s;
+    if (F.liftT > 0 && F.liftT < 1e8) {
+      F.liftT -= dt;
+      if (F.liftT <= 0 && !F.cleared && F.level <= 4) L3.target = 0;
+    }
+    if (!F.cleared && F.level <= 4) L3.light.color.setHex(16722474);
+  }
+  function makeCannonMesh() {
+    if (!cMat) cMat = { steel: new THREE.MeshStandardMaterial({ color: 2830133, metalness: 0.85, roughness: 0.35 }), dark: new THREE.MeshStandardMaterial({ color: 1316378, metalness: 0.6, roughness: 0.5 }), glow: new THREE.MeshBasicMaterial({ color: 16742938 }), red: new THREE.MeshStandardMaterial({ color: 9051678, metalness: 0.5, roughness: 0.5 }) };
+    const g = new THREE.Group(), head = new THREE.Group();
+    const add = (geo2, m, x, y, z, par = g) => {
+      const o = new THREE.Mesh(geo2, m);
+      o.position.set(x, y, z);
+      par.add(o);
+      return o;
+    };
+    add(new THREE.CylinderGeometry(0.5, 0.62, 0.34, 16), cMat.dark, 0, -0.78, 0);
+    add(new THREE.CylinderGeometry(0.22, 0.3, 0.7, 12), cMat.steel, 0, -0.45, 0);
+    g.add(head);
+    head.position.y = 0;
+    add(new THREE.BoxGeometry(0.85, 0.6, 0.95), cMat.steel, 0, 0, 0, head);
+    add(new THREE.BoxGeometry(0.9, 0.12, 0.6), cMat.red, 0, 0.36, -0.1, head);
+    const barrel = add(new THREE.CylinderGeometry(0.13, 0.16, 1.2, 12), cMat.dark, 0, 0.02, 0.95, head);
+    barrel.rotation.x = Math.PI / 2;
+    const muz = add(new THREE.CylinderGeometry(0.17, 0.17, 0.1, 12), cMat.glow, 0, 0.02, 1.58, head);
+    muz.rotation.x = Math.PI / 2;
+    add(new THREE.BoxGeometry(0.06, 0.1, 0.5), cMat.glow, 0.44, 0.1, 0, head);
+    add(new THREE.BoxGeometry(0.06, 0.1, 0.5), cMat.glow, -0.44, 0.1, 0, head);
+    g.traverse((o) => {
+      if (o.isMesh) o.castShadow = true;
+    });
+    return { g, head, muz };
+  }
+  function addCannon(mi2) {
+    const R4 = RK(F.room), fy = floorY(4), [u, v] = CMOUNT[mi2 % CMOUNT.length];
+    const { g, head, muz } = makeCannonMesh(), home = R4.wp(u, v, fy + 0.95);
+    g.position.copy(home);
+    g.scale.setScalar(1e-3);
+    scene.add(g);
+    const c = { pos: home.clone(), home, mesh: g, head, muz, radius: 0.9, mass: 4, kind: "cannon", dead: false, det: false, cd: rnd(1.4, 2.6) + mi2 * 0.5, tele: 0, up: 0, onHit: (power, other) => {
+    } };
+    registerThrowable(c);
+    F.cannons.push(c);
+    return c;
+  }
+  function killCannon(c, fx2 = true) {
+    if (c.dead) return;
+    c.dead = true;
+    if (fx2) {
+      explosion(c.mesh.position.x, c.mesh.position.y, c.mesh.position.z, 26);
+      sfx("slam", 0.8);
+    }
+    scene.remove(c.mesh);
+    const i = throwables.indexOf(c);
+    if (i >= 0) throwables.splice(i, 1);
+  }
+  function cannonsAnim(p) {
+    if (!F) return;
+    for (const c of F.cannons) {
+      c.up = p;
+      if (!c.det) {
+        c.mesh.scale.setScalar(Math.max(1e-3, p));
+        c.mesh.position.set(c.home.x, c.home.y - (1 - p) * 1.2, c.home.z);
+        c.pos.copy(c.home);
+      }
+      c.mesh.visible = p > 0 || c.det;
+    }
+  }
+  function makeGlass() {
+    const R4 = RK(F.room), fy = floorY(4), W2 = F.room.cw - 0.1, Hh = 7.3;
+    const cvs2 = document.createElement("canvas");
+    cvs2.width = 1536;
+    cvs2.height = 512;
+    const tex3 = new THREE.CanvasTexture(cvs2);
+    tex3.minFilter = THREE.LinearFilter;
+    tex3.generateMipmaps = false;
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(W2, Hh), new THREE.MeshBasicMaterial({ map: tex3, transparent: true, depthWrite: false, side: THREE.DoubleSide }));
+    const g = new THREE.Group();
+    g.add(mesh);
+    const c0 = R4.wp(0, R4.vg, fy + 0.04 + Hh / 2);
+    g.position.copy(c0);
+    g.rotation.y = R4.yaw(0, 1);
+    g.visible = false;
+    scene.add(g);
+    const a = R4.wp(-R4.hw, R4.vg - 0.35, 0), b = R4.wp(R4.hw, R4.vg + 0.35, 0);
+    const gl = { g, mesh, cvs: cvs2, tex: tex3, W: W2, H: Hh, c0, hits: 0, list: [], broken: false, y0: c0.y, drop: 0 };
+    gl.target = { kind: "glass", box: { x0: Math.min(a.x, b.x), x1: Math.max(a.x, b.x), z0: Math.min(a.z, b.z), z1: Math.max(a.z, b.z), y0: fy, y1: fy + 7.4 }, onHit: (power, obj) => glassHit(power, obj) };
+    throwTargets.push(gl.target);
+    drawGlass(gl);
+    return gl;
+  }
+  function genCrack(x, y) {
+    const rays = [], n = 12 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < n; i++) {
+      let a = i / n * 6.283 + rnd(-0.2, 0.2), px = x, py = y;
+      const pts = [[px, py]], br = [];
+      for (let s = 0; s < 10; s++) {
+        a += rnd(-0.35, 0.35);
+        const l = rnd(24, 48) * (1 + s * 0.05);
+        px += Math.cos(a) * l;
+        py += Math.sin(a) * l * 0.9;
+        pts.push([px, py]);
+        if (s >= 2 && s <= 6 && Math.random() < 0.4) {
+          let b = a + rnd(0.5, 1) * (Math.random() < 0.5 ? 1 : -1), qx = px, qy = py;
+          const bp = [[qx, qy]];
+          for (let t2 = 0; t2 < 4; t2++) {
+            b += rnd(-0.3, 0.3);
+            qx += Math.cos(b) * rnd(18, 36);
+            qy += Math.sin(b) * rnd(18, 36) * 0.9;
+            bp.push([qx, qy]);
+          }
+          br.push(bp);
+        }
+      }
+      rays.push({ pts, br });
+    }
+    return { x, y, rays };
+  }
+  function drawGlass(gl) {
+    const c = gl.cvs.getContext("2d"), W2 = gl.cvs.width, H3 = gl.cvs.height;
+    c.clearRect(0, 0, W2, H3);
+    const g = c.createLinearGradient(0, 0, W2, H3);
+    g.addColorStop(0, "rgba(150,205,230,0.34)");
+    g.addColorStop(0.5, "rgba(205,235,250,0.2)");
+    g.addColorStop(1, "rgba(150,205,230,0.36)");
+    c.fillStyle = g;
+    c.fillRect(0, 0, W2, H3);
+    c.fillStyle = "rgba(255,255,255,0.16)";
+    for (const x0 of [220, 640, 1060, 1440]) {
+      c.beginPath();
+      c.moveTo(x0, 0);
+      c.lineTo(x0 + 110, 0);
+      c.lineTo(x0 - 70, H3);
+      c.lineTo(x0 - 180, H3);
+      c.fill();
+    }
+    c.fillStyle = "rgba(25,60,60,0.7)";
+    for (const x0 of [W2 / 4, W2 * 3 / 4]) c.fillRect(x0 - 5, 0, 10, H3);
+    c.fillRect(0, H3 * 0.5 - 4, W2, 8);
+    c.strokeStyle = "rgba(170,235,225,0.8)";
+    c.lineWidth = 10;
+    c.strokeRect(5, 5, W2 - 10, H3 - 10);
+    const fr = gl.hits >= 2 ? 1 : 0.5;
+    for (const h of gl.list) {
+      for (const r of h.rays) {
+        for (const pass of [[6, "rgba(160,215,255,0.22)"], [1.6, "rgba(255,255,255,0.92)"]]) {
+          c.lineWidth = pass[0];
+          c.strokeStyle = pass[1];
+          const n = Math.max(2, Math.floor(r.pts.length * fr));
+          c.beginPath();
+          c.moveTo(r.pts[0][0], r.pts[0][1]);
+          for (let i = 1; i < n; i++) c.lineTo(r.pts[i][0], r.pts[i][1]);
+          c.stroke();
+          if (fr >= 1) for (const bp of r.br) {
+            c.beginPath();
+            c.moveTo(bp[0][0], bp[0][1]);
+            for (let i = 1; i < bp.length; i++) c.lineTo(bp[i][0], bp[i][1]);
+            c.stroke();
+          }
+        }
+      }
+      c.lineWidth = 1.2;
+      c.strokeStyle = "rgba(255,255,255,0.7)";
+      for (const idx of fr >= 1 ? [2, 4, 6] : [2]) {
+        c.beginPath();
+        h.rays.forEach((r, i) => {
+          const p = r.pts[Math.min(idx, r.pts.length - 1)];
+          i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]);
+        });
+        c.closePath();
+        c.stroke();
+      }
+      c.fillStyle = "rgba(255,255,255,0.35)";
+      c.beginPath();
+      c.arc(h.x, h.y, 9, 0, 6.283);
+      c.fill();
+    }
+    gl.tex.needsUpdate = true;
+  }
+  function glassAnim(p) {
+    if (!F || !F.glass) return;
+    const gl = F.glass;
+    gl.drop = p;
+    gl.g.visible = p > 0 && !gl.broken;
+    gl.g.position.y = gl.y0 + (1 - ease(p)) * 7.4;
+  }
+  function glassHit(power, obj) {
+    if (!F || !F.glass || F.glass.broken || F.glass.drop < 1) return;
+    const gl = F.glass, R4 = RK(F.room), fy = floorY(4);
+    gl.hits++;
+    let hu = rnd(-4, 4), hy = rnd(2, 5);
+    if (obj && obj.pos) {
+      const [u] = R4.uv(obj.pos.x, obj.pos.z);
+      hu = clamp(u, -R4.hw + 1, R4.hw - 1);
+      hy = clamp(obj.pos.y - fy, 1, 6.3);
+    }
+    const wpnt = R4.wp(hu, R4.vg, fy + hy), nrm = R4.wp(0, 1, 0).sub(R4.wp(0, 0, 0));
+    let cn = obj && F.cannons.includes(obj) ? obj : null;
+    if (!cn) {
+      let bd = 1e9;
+      for (const c of F.cannons) if (!c.dead && c.det) {
+        const d = c.mesh.position.distanceTo(wpnt);
+        if (d < bd) {
+          bd = d;
+          cn = c;
+        }
+      }
+    }
+    if (cn) {
+      killCannon(cn);
+      F.cannons.splice(F.cannons.indexOf(cn), 1);
+    }
+    G.shake = Math.max(G.shake, 0.5);
+    rumble(0.3, 0.8, 0.5);
+    if (gl.hits >= 3) {
+      breakGlass();
+      return;
+    }
+    gl.list.push(genCrack((hu / (gl.W / 2) * 0.5 + 0.5) * gl.cvs.width, (1 - hy / gl.H) * gl.cvs.height));
+    drawGlass(gl);
+    glassBurst(wpnt.x, wpnt.y, wpnt.z, -nrm.x, 0.1, -nrm.z, 14);
+    sfx("glass", 0.7);
+    sfx("slam", 0.6);
+    popText(gl.hits === 1 ? "SZYBA P\u0118KA!" : "SZYBA POP\u0118KANA \u2014 JESZCZE RAZ!");
+    hint("fisk_glass2", "Kolejne dzia\u0142ko w szyb\u0119! Zosta\u0142o trafie\u0144: " + (3 - gl.hits));
+  }
+  function breakGlass() {
+    const gl = F.glass, R4 = RK(F.room), fy = floorY(4);
+    gl.broken = true;
+    gl.g.visible = false;
+    const i = throwTargets.indexOf(gl.target);
+    if (i >= 0) throwTargets.splice(i, 1);
+    const nrm = R4.wp(0, 1, 0).sub(R4.wp(0, 0, 0));
+    for (let k = 0; k < 14; k++) {
+      const w = R4.wp(rnd(-R4.hw + 1, R4.hw - 1), R4.vg, fy + rnd(0.6, 6.8));
+      glassBurst(w.x, w.y, w.z, nrm.x * -1, 0.2, nrm.z * -1, 22);
+    }
+    sfx("glass", 1.3);
+    sfx("slam", 0.9);
+    G.shake = 0.9;
+    flash3();
+    for (const c of F.cannons) killCannon(c, true);
+    F.cannons = [];
+    for (const b2 of F.bullets) scene.remove(b2.m);
+    F.bullets = [];
+    F.armed = false;
+    F.phase = "cine5b";
+    addXP(400);
+    const b = F.boss;
+    b.pos.copy(R4.wp(0, F.room.cd - 4.6, fy));
+    b.yaw = R4.yaw(0, -1);
+    const me = F;
+    setTimeout(() => {
+      if (F !== me || G.cine) return;
+      playCine("fisk5b", { room: F.room, fy, fisk: F.boss.H, hooks: F.hk, onEnd: () => {
+        if (F !== me) return;
+        playCine("fiskFall", { room: F.room, fy, fisk: F.boss.H, hooks: F.hk, onEnd: () => {
+          if (F === me) toLevel6();
+        } });
+      } });
+    }, 500);
+  }
+  function toLevel6() {
+    F.busy = true;
+    fade(1, "#000", 250);
+    const me = F;
+    setTimeout(() => {
+      if (F !== me) return;
+      wipeLevel();
+      beginLevel(6);
+      fade(0, "#000", 900);
+      F.busy = false;
+    }, 400);
+  }
+  function makeHooks() {
+    return { glassDrop: (p) => glassAnim(p), cannonsUp: (p) => cannonsAnim(p), cannonsHide: () => cannonsAnim(0), flashFront: () => flash3() };
+  }
+  function setupLevel5(restart) {
+    const room2 = F.room, R4 = RK(room2), fy = floorY(4), b = F.boss;
+    F.glass = makeGlass();
+    for (let i = 0; i < 3; i++) addCannon(i);
+    b.hp = b.max;
+    b.dead = false;
+    b.down = 0;
+    b.st = "idle";
+    b.pos.copy(R4.wp(0, R4.vg + 2.4, fy));
+    b.yaw = R4.yaw(0, -1);
+    b.H.root.visible = true;
+    F.phase = "l5";
+    const ready = () => {
+      SEEN5 = true;
+      F.phase = "l5";
+      F.glass.drop = 1;
+      glassAnim(1);
+      cannonsAnim(1);
+      F.armed = true;
+      F.supplyT = 0;
+      showMsg("POZIOM 5/6", "Namierz dzia\u0142ko i rzu\u0107 nim (L1 + R1) w szyb\u0119 pancern\u0105. Unikaj pocisk\xF3w!", 5);
+      hint("fisk_throw", "Dzia\u0142ko podnosisz i rzucasz przytrzymuj\u0105c L1 i R1 (klawiatura: T). Trzy trafienia w szyb\u0119 rozbijaj\u0105 j\u0105.");
+    };
+    if (restart || SEEN5) {
+      cannonsAnim(0);
+      ready();
+      return;
+    }
+    F.phase = "cine5a";
+    cannonsAnim(0);
+    glassAnim(0);
+    const me = F;
+    playCine("fisk5a", { room: room2, fy, fisk: b.H, hooks: F.hk, onEnd: () => {
+      if (F === me) ready();
+    } });
+  }
+  function setupLevel6() {
+    const room2 = F.room, R4 = RK(room2), b = F.boss, fy = floorY(0);
+    const [x, z] = room2.W(0, room2.cd - 3.8);
+    b.pos.set(x, SW, z);
+    b.yaw = R4.yaw(0, -1);
+    b.hp = b.max;
+    b.dead = false;
+    b.down = 0;
+    b.st = "walk";
+    b.cd = 1.6;
+    b.summoned = [false, false];
+    b.webs = 0;
+    b.hits = 0;
+    b.pc = newPose();
+    b.H.root.visible = true;
+    enemies.push(b);
+    placePlayer(R4.wp(0, 3.6, fy + 0.05), R4.yaw(0, 1));
+    F.phase = "boss";
+    G.boss = b;
+    showMsg(`POZIOM 6/6 \u2014 KINGPIN`, "Blokuje z przodu \u2014 zachod\u017A go od ty\u0142u! Trzy fazy, z ka\u017Cd\u0105 szybszy.", 4.5);
+    sfx("alarm");
   }
   function spawnGuards(n, first) {
     const room2 = F.room, [ax, az] = room2.W(-7, room2.cd * 0.35), [bx, bz] = room2.W(7, room2.cd * 0.62);
@@ -23476,44 +24114,51 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     cr2.alert = true;
     for (const e of cr2.list) e.state = "fight";
     F.crime = cr2;
-    if (first) F.phase = "guards";
-    showMsg(first ? "STRA\u017B KINGPINA" : "KINGPIN WZYWA STRA\u017B", first ? "Pokonaj ochroniarzy, zanim dotrzesz do Fiska." : "Pokonaj ich, ale nie odwracaj si\u0119 od Kingpina!", 3.5);
-  }
-  function startBossFight() {
-    F.phase = "boss";
-    F.boss.st = "walk";
-    F.boss.cd = 1.2;
-    enemies.push(F.boss);
-    showMsg("KINGPIN", "Blokuje z przodu \u2014 zachod\u017A go od ty\u0142u! Trzy fazy, z ka\u017Cd\u0105 szybszy.", 4.5);
-    sfx("alarm");
-  }
-  function abortFisk() {
-    if (!F) return;
-    const f = F;
-    F = null;
-    if (f.crime) for (const e of f.crime.list) removeEnemy(e);
-    if (f.crime) {
-      const i = crimes.indexOf(f.crime);
-      if (i >= 0) crimes.splice(i, 1);
-    }
-    if (enemies.includes(f.boss)) removeEnemy(f.boss);
-    else scene.remove(f.boss.H.root);
-    if (G.boss === f.boss) G.boss = null;
+    F.crimes.push(cr2);
+    showMsg("KINGPIN WZYWA STRA\u017B", "Pokonaj ich, ale nie odwracaj si\u0119 od Kingpina!", 3.5);
   }
   function updateFisk(dt) {
     if (!F) return;
-    const room2 = F.room;
-    const inRoom = P.pos.x > room2.bx0 - 1.5 && P.pos.x < room2.bx1 + 1.5 && P.pos.z > room2.bz0 - 4 && P.pos.z < room2.bz1 + 4 && P.pos.y < SW + room2.ch + 1;
-    if (!inRoom || P.dead) {
-      abortFisk();
+    syncFight();
+    const room2 = F.room, R4 = RK(room2), L3 = F.level, fy = floorY(floorOf(L3));
+    if (P.dead) {
+      if (P.deadT < 0.7 && !F.busy) revive();
       return;
     }
-    const b = F.boss, H3 = b.H;
-    if (F.phase === "guards" && F.crime && F.crime.list.every((e) => e.dead)) {
-      F.phase = "intro2";
-      playCine("fisk2", { b: b.pos, room: room2, onEnd: startBossFight });
+    if (!F.busy) {
+      const inRoom = P.pos.x > room2.bx0 - 1.5 && P.pos.x < room2.bx1 + 1.5 && P.pos.z > room2.bz0 - 4 && P.pos.z < room2.bz1 + 4 && P.pos.y < fy + room2.ch + 1.5 && P.pos.y > fy - 4;
+      if (!inRoom) {
+        abortFisk();
+        return;
+      }
     }
-    if (F.phase === "boss" || F.phase === "done") G.boss = b.dead ? null : b;
+    const b = F.boss, H3 = b.H;
+    updateLift(dt);
+    if (!F.busy && L3 <= 5 && P.state !== "swing") {
+      const lp = R4.wp(-R4.hw + 1, 3.5), d = Math.hypot(P.pos.x - lp.x, P.pos.z - lp.z);
+      if (d < 1.3 && Math.abs(P.pos.y - fy) < 1.5) {
+        if (F.cleared && L3 <= 4) nextLevel();
+        else {
+          if (F.quitT === 0) popText("ZOSTA\u0143 W WINDZIE, ABY ZJECHA\u0106 NA ULIC\u0118");
+          F.quitT += dt;
+          if (F.quitT > 2.2) quitMission();
+        }
+      } else F.quitT = 0;
+    }
+    if (L3 <= 4 && !F.cleared && F.crime && F.crime.list.every((e) => e.dead)) levelCleared();
+    if (L3 === 5) updateLevel5(dt, R4, fy);
+    if (L3 === 6) {
+      if (F.phase === "boss" || F.phase === "done") G.boss = b.dead ? null : b;
+    }
+    if (L3 < 5) {
+      H3.root.visible = false;
+      return;
+    }
+    if (L3 === 5) {
+      const dx = P.pos.x - b.pos.x, dz = P.pos.z - b.pos.z;
+      b.yaw = angLerp(b.yaw, Math.atan2(dx, dz), damp(2, dt));
+      b.pos.y = fy;
+    }
     const t2 = b.pt;
     zeroPose(t2);
     if (b.dead) {
@@ -23522,7 +24167,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       t2.bp = 0.5;
       t2.sLz = 0.8;
       t2.sRz = -0.8;
-    } else if (F.phase === "boss") {
+    } else if (L3 === 6 && F.phase === "boss") {
       const ph = PH(b), sp2 = SPD[ph];
       for (let k = 0; k < 2; k++) if (!b.summoned[k] && b.hp <= b.max * (k ? 0.33 : 0.66)) {
         b.summoned[k] = true;
@@ -23667,9 +24312,6 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       b.pos.x = Math.max(room2.bx0 + 1.4, Math.min(room2.bx1 - 1.4, b.pos.x));
       b.pos.z = Math.max(room2.bz0 + 1.4, Math.min(room2.bz1 - 1.4, b.pos.z));
       b.pos.y = SW;
-    } else if (F.phase === "intro" || F.phase === "guards" || F.phase === "intro2") {
-      const dx = P.pos.x - b.pos.x, dz = P.pos.z - b.pos.z;
-      b.yaw = angLerp(b.yaw, Math.atan2(dx, dz), damp(2, dt));
     }
     switch (b.st) {
       case "idle":
@@ -23768,6 +24410,100 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     H3.root.position.y += 0.2 * b.down;
     H3.root.rotation.set(-Math.PI / 2 * b.down, b.yaw, 0, "YXZ");
   }
+  function fireCannon(c) {
+    const dir = new V3(P.pos.x + P.vel.x * 0.3 - c.pos.x, P.pos.y + 1.1 + P.vel.y * 0.1 - c.pos.y, P.pos.z + P.vel.z * 0.3 - c.pos.z).normalize();
+    const m = new THREE.Mesh(bGeo, bMat);
+    m.add(new THREE.Mesh(bGeo, bHalo));
+    m.children[0].scale.setScalar(1.9);
+    const p = c.pos.clone().addScaledVector(dir, 1.6);
+    m.position.copy(p);
+    scene.add(m);
+    F.bullets.push({ m, pos: p, vel: dir.multiplyScalar(9.5), life: 5, t: 0 });
+    sfx("shot", 0.7);
+    burst(p.x, p.y, p.z, 8, 16752704, 4);
+    c.muz.scale.setScalar(1);
+  }
+  function updateLevel5(dt, R4, fy) {
+    const gl = F.glass;
+    if (gl && !gl.broken && gl.drop >= 1) {
+      const [u, v] = R4.uv(P.pos.x, P.pos.z);
+      if (v > R4.vg - 0.4 && P.pos.y < fy + 8) {
+        const w = R4.wp(u, R4.vg - 0.42, P.pos.y);
+        P.pos.x = w.x;
+        P.pos.z = w.z;
+        const n = R4.wp(0, 1, 0).sub(R4.wp(0, 0, 0)), vn = P.vel.x * n.x + P.vel.z * n.z;
+        if (vn > 0) {
+          P.vel.x -= n.x * vn;
+          P.vel.z -= n.z * vn;
+        }
+      }
+    }
+    if (!F.armed) return;
+    for (const c of F.cannons) {
+      if (c.dead) continue;
+      const det = c.pos.distanceTo(c.home) > 0.45 || c.mesh.position.distanceTo(c.home) > 0.45;
+      if (det && !c.det) {
+        c.det = true;
+        c.mesh.visible = true;
+        c.mesh.scale.setScalar(1);
+      }
+      if (c.det) {
+        c.muz.scale.setScalar(0.6);
+        continue;
+      }
+      c.mesh.position.copy(c.home);
+      c.pos.copy(c.home);
+      const dx = P.pos.x - c.pos.x, dz = P.pos.z - c.pos.z, want = Math.atan2(dx, dz);
+      c.head.rotation.y = angLerp(c.head.rotation.y, want, damp(5, dt));
+      c.cd -= dt;
+      if (c.tele > 0) {
+        c.tele -= dt;
+        c.muz.scale.setScalar(1 + (0.8 - c.tele) * 1.4);
+        if (c.tele <= 0) {
+          fireCannon(c);
+          c.cd = rnd(2.6, 3.6);
+        }
+      } else if (c.cd <= 0) {
+        c.tele = 0.8;
+        sfx("reload", 0.5);
+      } else c.muz.scale.setScalar(0.8 + Math.sin(G.time * 5) * 0.1);
+    }
+    for (let i = F.bullets.length - 1; i >= 0; i--) {
+      const bl = F.bullets[i];
+      bl.life -= dt;
+      bl.t += dt;
+      bl.pos.addScaledVector(bl.vel, dt);
+      bl.m.position.copy(bl.pos);
+      bl.m.scale.setScalar(1 + Math.sin(bl.t * 20) * 0.12);
+      let end2 = bl.life <= 0 || solidAt(bl.pos.x, bl.pos.y, bl.pos.z);
+      const dxp = bl.pos.x - P.pos.x, dyp = bl.pos.y - (P.pos.y + 1), dzp = bl.pos.z - P.pos.z;
+      if (!end2 && dxp * dxp + dyp * dyp + dzp * dzp < 0.8 * 0.8) {
+        if (hurtPlayer(9, { pos: bl.pos }, 6)) end2 = true;
+        else if (P.dodgeT > 0) popText("UNIK!");
+      }
+      if (end2) {
+        burst(bl.pos.x, bl.pos.y, bl.pos.z, 12, 16747056, 5);
+        sfx("hit_wall", 0.5);
+        scene.remove(bl.m);
+        F.bullets.splice(i, 1);
+      }
+    }
+    if (gl && !gl.broken) {
+      const need2 = 3 - gl.hits, have = F.cannons.filter((c) => !c.dead).length;
+      if (have < need2) {
+        F.supplyT += dt;
+        if (F.supplyT > 4) {
+          F.supplyT = 0;
+          const c = addCannon(F.cannons.length + gl.hits);
+          c.mesh.scale.setScalar(1);
+          c.mesh.position.copy(c.home);
+          c.mesh.visible = true;
+          popText("NOWE DZIA\u0141KO!");
+          sfx("slam", 0.5);
+        }
+      } else F.supplyT = 0;
+    }
+  }
   function swingCane(b, dist2) {
     sfx("slam", 0.7);
     G.shake = Math.max(G.shake, 0.4);
@@ -23783,7 +24519,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       }
     } else popText("UNIK!");
   }
-  var F, fiskActive, PH, SPD, CDM, TIRED, behind, vulnerable;
+  var F, CP, SEEN5, fiskActive, fiskBossFight, syncFight, PH, SPD, CDM, TIRED, TOTAL, LABEL, WAVE, floorOf, floorY, _rk, fadeEl, behind, vulnerable, CMOUNT, cMat, ease, bGeo, bMat, bHalo;
   var init_fisk = __esm({
     "js/fisk.js"() {
       init_util();
@@ -23796,17 +24532,45 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       init_wejscie();
       init_ui();
       init_scenki();
+      init_wnetrza();
+      init_umiejetnosci();
+      init_rzucanie();
+      init_efekty();
       F = null;
+      CP = 1;
+      SEEN5 = false;
       fiskActive = () => !!F;
+      fiskBossFight = () => !!F && F.level === 6 && (F.phase === "boss" || F.phase === "done");
+      syncFight = () => {
+        G.fiskFight = fiskBossFight();
+      };
       PH = (b) => b.hp > b.max * 0.66 ? 0 : b.hp > b.max * 0.33 ? 1 : 2;
       SPD = [1, 1.2, 1.5];
       CDM = [1, 0.7, 0.45];
       TIRED = [2.6, 2, 1.4];
+      TOTAL = 6;
+      LABEL = ["", "Hol g\u0142\xF3wny \u2014 stra\u017C Kingpina", "Biura \u2014 ochrona", "Kasyno \u2014 ludzie Fiska", "Arsena\u0142 \u2014 osi\u0142ki", "Gabinet Kingpina", "KINGPIN"];
+      WAVE = {
+        1: ["melee", "melee", "gun"],
+        2: ["melee", "melee", "melee", "gun", "gun"],
+        3: ["melee", "melee", "melee", "gun", "gun", "gun", "brute"],
+        4: ["melee", "melee", "melee", "melee", "gun", "gun", "gun", "gun", "brute", "brute"]
+      };
+      floorOf = (L3) => L3 <= 4 ? L3 - 1 : L3 === 5 ? 4 : 0;
+      floorY = (k) => SW + k * FISK_H;
+      _rk = /* @__PURE__ */ new WeakMap();
+      fadeEl = null;
       behind = (b) => {
         const dx = P.pos.x - b.pos.x, dz = P.pos.z - b.pos.z, l = Math.hypot(dx, dz) || 1;
         return (dx * Math.sin(b.yaw) + dz * Math.cos(b.yaw)) / l < -0.25;
       };
       vulnerable = (b) => b.st === "tired" || b.st === "stun" || behind(b);
+      CMOUNT = [[-8, 9.2], [8, 9.2], [0, 12.4], [-5.4, 4.3], [5.4, 4.3]];
+      cMat = null;
+      ease = (t2) => t2 * t2 * (3 - 2 * t2);
+      bGeo = new THREE.SphereGeometry(0.2, 10, 8);
+      bMat = new THREE.MeshBasicMaterial({ color: 16752704 });
+      bHalo = new THREE.MeshBasicMaterial({ color: 16738832, transparent: true, opacity: 0.28, depthWrite: false });
     }
   });
 
@@ -23828,6 +24592,14 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
         { id: "cine_fisk_03", kind: "cine", text: "\u0141adny gabinet. Zawsze chcia\u0142em co\u015B w tym stylu. Z wyj\u0105tkiem kolekcji nielegalnych rzeczy.", voice: "peter", mood: "dry" },
         { id: "cine_fisk2_01", kind: "cine", text: "Skoro nalegasz\u2026 Stra\u017Ce to dopiero rozgrzewka.", voice: "fisk", mood: "normal" },
         { id: "cine_fisk2_02", kind: "cine", text: "B\u0105d\u017A got\xF3w. Ja jestem zawsze.", voice: "fisk", mood: "dry" },
+        // Fisk Tower, poziom 5 (gabinet za szyba pancerna) i upadek z wiezy
+        { id: "fisk5_01", kind: "fisk_cutscene", text: "Piszesz notatnik? Nie zapomnij o dywizie mi\u0119dzy Spider a Man.", voice: "peter", mood: "dry" },
+        { id: "fisk5_02", kind: "fisk_cutscene", text: "Odpalcie \u015Bmig\u0142owiec. Zaraz przyjd\u0119.", voice: "fisk", mood: "normal" },
+        { id: "fisk5_03", kind: "fisk_cutscene", text: "Wiesz, \u017Ce doskonale ci\u0119 widz\u0119.", voice: "peter", mood: "dry" },
+        { id: "fisk5_04", kind: "fisk_cutscene", text: "Osiem lat u\u017Cerania si\u0119 z nim.", voice: "fisk", mood: "dry" },
+        { id: "fisk5_05", kind: "fisk_cutscene", text: "Jak to mo\u017Cliwe?", voice: "fisk", mood: "excited" },
+        { id: "fisk5_06", kind: "fisk_cutscene", text: "Co si\u0119 sta\u0142o? Wydajesz si\u0119 zdenerwowany.", voice: "peter", mood: "dry" },
+        { id: "fisk5_07", kind: "fisk_cutscene", text: "Zniszcz\u0119 ci\u0119!", voice: "fisk", mood: "excited" },
         { id: "cine_fiskend_01", kind: "cine", text: "Pa\u0144ski interes w\u0142a\u015Bnie si\u0119 sko\u0144czy\u0142, panie Fisk.", voice: "peter", mood: "normal" },
         { id: "cine_fiskend_02", kind: "cine", text: "Wszystkie jednostki, Kingpin zatrzymany. Powtarzam, Kingpin zatrzymany.", voice: "radio", mood: "normal" },
         // ---------------------------------------------------------------- ciocia May
@@ -24216,6 +24988,369 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     }
   });
 
+  // js/scenki_fisk.js
+  function geo(ctx2) {
+    const R4 = ctx2.room, fy = ctx2.fy, [ox, oz] = R4.W(0, 0);
+    const wp = (u, v, h = 0) => {
+      const [x, z] = R4.W(u, v);
+      return new V3(x, fy + h, z);
+    };
+    const yaw = (du, dv) => {
+      const [x, z] = R4.W(du, dv);
+      return Math.atan2(x - ox, z - oz);
+    };
+    return { R: R4, fy, wp, yaw, cd: R4.cd, vg: R4.cd - 7, set: (u, v, h) => camera.position.copy(wp(u, v, h)), look: (u, v, h) => camera.lookAt(wp(u, v, h)) };
+  }
+  function fiskPose(H3, w, T2, arm = 0, shock = 0) {
+    zeroPose(FP2);
+    zeroPose(FS3);
+    FP2.by = -0.46;
+    FP2.bp = 0.22;
+    FP2.hLx = -1.5;
+    FP2.hRx = -1.5;
+    FP2.kL = 1.5;
+    FP2.kR = 1.5;
+    FP2.sLx = -0.85;
+    FP2.eL = -1.15;
+    FP2.sRx = -1;
+    FP2.eR = -1.25 + Math.sin(T2 * 9) * 0.07;
+    FP2.hx = 0.5;
+    FP2.hLz = 0.08;
+    FP2.hRz = -0.08;
+    idlePose(FS3, T2, false);
+    FS3.sLz = 0.3;
+    FS3.sRz = -0.3;
+    FS3.eL = -0.3;
+    FS3.eR = -0.3;
+    FS3.hx = -0.05;
+    mixPose(FP2, FS3, w);
+    if (arm > 0) {
+      FP2.sRx += (-1.5 - FP2.sRx) * arm;
+      FP2.eR += (-1 - FP2.eR) * arm;
+      FP2.sRz += (-0.25 - FP2.sRz) * arm;
+      FP2.hx -= 0.2 * arm;
+    }
+    if (shock > 0) {
+      FP2.sLz += (0.95 - FP2.sLz) * shock;
+      FP2.sRz += (-0.95 - FP2.sRz) * shock;
+      FP2.eL = -0.5;
+      FP2.eR = -0.5;
+      FP2.hx -= 0.25 * shock;
+      FP2.bp -= 0.15 * shock;
+    }
+    applyPose(H3, FP2);
+  }
+  function sceneFisk5() {
+    return {
+      // ---------------------------------------------------------------- wstep: notatnik, szyba, pilot, dzialka
+      fisk5a: (ctx2) => {
+        const g = geo(ctx2), { R: R4, wp, yaw, set: set2, look, vg, cd: cd2 } = g, H3 = ctx2.fisk, hk2 = ctx2.hooks, fpos = wp(0, cd2 - 1.95, 0), FY = yaw(0, -1);
+        const peter = (v) => {
+          P.pos.copy(wp(0, v, 0.02));
+          P.heading = yaw(0, 1);
+          P.state = "ground";
+        };
+        const walk = (on) => {
+          const f = wp(0, 1, 0).sub(wp(0, 0, 0));
+          P.vel.copy(f).multiplyScalar(on ? 3.4 : 0);
+        };
+        const fisk = (w, arm = 0) => {
+          H3.root.visible = true;
+          H3.root.position.copy(fpos);
+          H3.root.rotation.set(0, FY, 0);
+          fiskPose(H3, w, G.time, arm);
+        };
+        return [
+          { dur: 4.6, say: ["fisk5_01"], text: "SZCZYT FISK TOWER", sub: "Ostatnie pi\u0119tro. Gabinet Kingpina.", enter: () => {
+            peter(4.8);
+            walk(false);
+            hk2.glassDrop(0);
+            hk2.cannonsUp(0);
+          }, at: (t2) => {
+            peter(4.8);
+            fisk(0);
+            set2(-1.9, lerp(1.2, 6, ease2(t2)), 1.65);
+            look(0, cd2 - 2.1, 1.25);
+            camera.fov = 38;
+          } },
+          { dur: 3.4, say: ["fisk5_02"], text: "", sub: "", at: (t2) => {
+            peter(lerp(4.8, 8.2, t2));
+            walk(t2 < 0.9);
+            fisk(sm3(0.12, 0.6, t2));
+            set2(-2.7, cd2 - 6.4, 1.5);
+            look(0, cd2 - 2, lerp(1, 1.6, ease2(t2)));
+            camera.fov = 40;
+            hk2.glassDrop(sm3(0.4, 1, t2));
+          } },
+          { dur: 3, say: ["fisk5_03"], text: "", sub: "", enter: () => {
+            sfx("slam", 0.5);
+          }, at: (t2) => {
+            peter(lerp(8.2, vg - 3.2, sm3(0, 0.7, t2)));
+            walk(t2 < 0.7);
+            fisk(1);
+            hk2.glassDrop(1);
+            set2(1.1, vg - 6.2, 1.85);
+            look(0, vg + 1.8, 1.45);
+            camera.fov = 44;
+          } },
+          { dur: 3.6, say: ["fisk5_04"], text: "", sub: "", at: (t2) => {
+            peter(vg - 3.2);
+            walk(false);
+            fisk(1, sm3(0.25, 0.5, t2));
+            hk2.glassDrop(1);
+            set2(lerp(-5.4, -4.2, ease2(t2)), vg - 1, 1.35);
+            look(0, cd2 - 2.2, 1.5);
+            camera.fov = 40;
+            hk2.cannonsUp(sm3(0.55, 1, t2));
+          } }
+        ];
+      },
+      // ---------------------------------------------------------------- szyba pekla: Fisk rzuca sie na Spider-Mana i wypadaja przez okno
+      fisk5b: (ctx2) => {
+        const g = geo(ctx2), { R: R4, wp, yaw, set: set2, look, vg, cd: cd2 } = g, H3 = ctx2.fisk, hk2 = ctx2.hooks, FY = yaw(0, -1);
+        const peter = (v, u = 0) => {
+          P.pos.copy(wp(u, v, 0.02));
+          P.heading = yaw(0, 1);
+        };
+        let burstDone = false;
+        const fisk = (v, mode2, T2) => {
+          H3.root.visible = true;
+          H3.root.position.copy(wp(0, v, 0));
+          H3.root.rotation.set(0, FY, 0);
+          if (mode2 === "shock") fiskPose(H3, 1, G.time, 0, 1);
+          else {
+            const q = FP2;
+            zeroPose(q);
+            runPose(q, T2 * 11, 1, true);
+            q.bp = 0.7;
+            q.sLx = -1.3;
+            q.sRx = -1.3;
+            q.eL = -0.3;
+            q.eR = -0.3;
+            q.hx = 0.1;
+            applyPose(H3, q);
+          }
+        };
+        return [
+          { dur: 2.8, say: ["fisk5_05"], text: "", sub: "", enter: () => {
+            hk2.cannonsHide();
+            peter(vg - 3);
+            P.vel.set(0, 0, 0);
+            P.state = "ground";
+          }, at: (t2) => {
+            fisk(cd2 - 4.6, "shock");
+            peter(vg - 3);
+            set2(lerp(2.6, 1.3, ease2(t2)), vg + 0.2, 1.75);
+            look(0, cd2 - 4.6, 1.75);
+            camera.fov = lerp(44, 36, t2);
+          } },
+          { dur: 3.2, say: ["fisk5_06"], text: "", sub: "", at: (t2) => {
+            fisk(cd2 - 4.6, "shock");
+            peter(vg - 3);
+            set2(2.6, vg + 0.3, 1.5);
+            look(0.1, vg - 3, 1.62 + t2 * 0.05);
+            camera.fov = 36;
+          } },
+          { dur: 2.4, say: ["fisk5_07"], text: "", sub: "", at: (t2) => {
+            const v = lerp(cd2 - 4.6, vg - 1.6, sm3(0.3, 1, t2));
+            fisk(v, t2 < 0.3 ? "shock" : "run", t2);
+            peter(vg - 3);
+            set2(lerp(-0.9, -0.5, t2), vg - 5.4, lerp(0.7, 1, t2));
+            look(0, v, 1.6);
+            camera.fov = lerp(48, 58, ease2(t2));
+          } },
+          { dur: 1.8, say: [], text: "", sub: "", enter: () => {
+            sfx("slam", 0.8);
+          }, at: (t2) => {
+            const pv = lerp(vg - 2.6, 1, ease2(t2)), fv = pv + 1.15;
+            peter(pv);
+            fisk(fv, "run", t2);
+            P.state = "air";
+            P.vel.set(0, 0, 0);
+            P.heading = yaw(0, -1);
+            set2(8.5, lerp(vg - 4, 3, ease2(t2)), 1.5);
+            look(0, lerp(vg - 2.6, 1, ease2(t2)) + 0.6, 1.45);
+            camera.fov = 50;
+            if (t2 > 0.9 && !burstDone) {
+              burstDone = true;
+              const w = wp(0, 0.1, 2.3), q = wp(0, -1, 2.3).sub(w).normalize();
+              glassBurst(w.x, w.y, w.z, q.x, 0.2, q.z, 70);
+              glassBurst(w.x, w.y - 1, w.z, q.x, 0.1, q.z, 50);
+              sfx("glass", 1.2);
+              G.shake = 0.7;
+              hk2.flashFront();
+            }
+          } }
+        ];
+      },
+      // ---------------------------------------------------------------- DLUGI upadek z wiezy: walka w locie, ujecia z boku, z gory, zwolnione tempo, ladowanie
+      fiskFall: (ctx2) => {
+        const g = geo(ctx2), { R: R4, wp, yaw, fy } = g, H3 = ctx2.fisk;
+        const o = wp(0, 0, 0), q = wp(0, -1, 0), out = new V3(q.x - o.x, 0, q.z - o.z).normalize(), side = new V3(-out.z, 0, out.x);
+        const start3 = wp(0, -0.8, 1.3), y0 = fy + 1.3, GY = 1;
+        const sp2 = buildSpider(P.suit);
+        sp2.setHands("fist", "fist");
+        scene.add(sp2.root);
+        P.H.root.visible = false;
+        const pf = newPose(), pp2 = newPose();
+        const wind2 = [];
+        {
+          const gm = new THREE.BoxGeometry(0.02, 2.6, 0.02), mt = new THREE.MeshBasicMaterial({ color: 16777215, transparent: true, opacity: 0.32, depthWrite: false });
+          for (let i = 0; i < 34; i++) {
+            const m = new THREE.Mesh(gm, mt);
+            m.userData.o = new V3((Math.random() - 0.5) * 16, (Math.random() - 0.5) * 18, (Math.random() - 0.5) * 16);
+            m.visible = false;
+            m.frustumCulled = false;
+            scene.add(m);
+            wind2.push(m);
+          }
+        }
+        let lastNow = performance.now(), landed = false, shardT = 0;
+        const starts = [0, 2.8, 6, 9.2, 11.8];
+        const Tp = (T2) => T2 < 9.2 ? T2 : T2 < 11.8 ? 9.2 + (T2 - 9.2) * 0.3 : 9.98 + (T2 - 11.8);
+        const TL = 10.5, prog = (T2) => clamp(Tp(T2) / TL, 0, 1);
+        const Cpos = (T2) => {
+          const x = prog(T2), h = 6.5 * (1 - Math.pow(1 - x, 3)), y = lerp(y0, GY, Math.pow(x, 1.7));
+          return new V3(start3.x + out.x * h, y, start3.z + out.z * h);
+        };
+        const body = (Hh, C7, off, rx, ry, rz) => {
+          const e = new THREE.Euler(rx, ry, rz, "YXZ"), qq = new THREE.Quaternion().setFromEuler(e), sc = Hh.root.scale.y, d = new V3(0, -0.95 * sc, 0).applyQuaternion(qq);
+          Hh.root.position.copy(C7).add(off).add(d);
+          Hh.root.quaternion.copy(qq);
+        };
+        const frame = (T2, i, t2) => {
+          const now4 = performance.now(), dt = Math.min(0.1, (now4 - lastNow) / 1e3);
+          lastNow = now4;
+          const C7 = Cpos(T2), x = prog(T2), ph = Tp(T2) * 1.3;
+          H3.root.visible = true;
+          sp2.root.visible = true;
+          if (x < 1) {
+            const rx = new V3(Math.cos(ph), 0.12 * Math.sin(2 * ph), Math.sin(ph)).multiplyScalar(0.62);
+            const fyaw = Math.atan2(-rx.x, -rx.z), pyaw = fyaw + Math.PI;
+            punch(pf, T2, 0, 0.45);
+            punch(pp2, T2, 1.7, 0.3);
+            applyPose(H3, pf);
+            applyPose(sp2, pp2);
+            body(H3, C7, rx, 0.35 + 0.25 * Math.sin(T2 * 0.8), fyaw + 0.4, 0.5 * Math.sin(T2 * 0.6));
+            body(sp2, C7, rx.clone().negate(), -0.25 + 0.3 * Math.sin(T2 * 0.9 + 1), pyaw - 0.4, 0.6 * Math.sin(T2 * 0.7 + 2));
+            shardT -= dt;
+            if (shardT <= 0 && i >= 1 && i <= 3) {
+              shardT = 0.55;
+              glassBurst(C7.x, C7.y + 0.3, C7.z, -out.x * 0.3, 0.1, -out.z * 0.3, 8);
+            }
+          } else {
+            const Cg = Cpos(99);
+            zeroPose(pf);
+            pf.by = 0;
+            applyPose(H3, pf);
+            H3.root.position.set(Cg.x + side.x * 1.1, 0.15 + 0.2, Cg.z + side.z * 1.1);
+            H3.root.rotation.set(-Math.PI / 2, Math.atan2(out.x, out.z), 0, "YXZ");
+            zeroPose(pp2);
+            heroLandPose(pp2);
+            applyPose(sp2, pp2);
+            sp2.root.position.set(Cg.x - side.x * 1, 0, Cg.z - side.z * 1);
+            sp2.root.rotation.set(0, Math.atan2(side.x, side.z), 0);
+          }
+          const on = i >= 1 && i <= 3 && x < 1;
+          for (const m of wind2) {
+            m.visible = on;
+            if (!on) continue;
+            const oo = m.userData.o;
+            oo.y += dt * (14 + Math.abs(oo.x) * 0.4);
+            if (oo.y > 9) oo.y -= 18;
+            m.position.set(camera.position.x + oo.x, camera.position.y + oo.y, camera.position.z + oo.z);
+            m.scale.y = 0.7 + Math.abs(oo.x) * 0.06;
+          }
+          if (!landed && i === 4 && t2 > 0.3) {
+            landed = true;
+            const Cg = Cpos(99);
+            heroLand(Cg.x, 0.15, Cg.z, 1.7);
+            burst(Cg.x, 0.6, Cg.z, 30, 14275268, 7);
+            sfx("slam", 1);
+            sfx("land", 1);
+            G.shake = 1;
+          }
+          return C7;
+        };
+        ctx2.cleanup = () => {
+          scene.remove(sp2.root);
+          for (const m of wind2) scene.remove(m);
+          P.H.root.visible = true;
+        };
+        const tt = (i, t2, durs) => starts[i] + t2 * durs;
+        return [
+          { dur: 2.8, say: [], text: "", sub: "", enter: () => {
+            const w = wp(0, -0.3, 1.8);
+            glassBurst(w.x, w.y, w.z, out.x, 0.1, out.z, 80);
+            sfx("glass", 1.1);
+          }, at: (t2) => {
+            const C7 = frame(tt(0, t2, 2.8), 0, t2);
+            camera.position.set(start3.x + out.x * 17 + side.x * 3.5, 4, start3.z + out.z * 17 + side.z * 3.5);
+            camera.lookAt(C7.x, lerp(C7.y + 3, C7.y, ease2(t2)), C7.z);
+            camera.fov = 56;
+          } },
+          { dur: 3.2, say: [], text: "", sub: "", at: (t2) => {
+            const C7 = frame(tt(1, t2, 3.2), 1, t2);
+            camera.position.set(C7.x + side.x * 9.5 - out.x * 0.5, C7.y + 0.6, C7.z + side.z * 9.5 - out.z * 0.5);
+            camera.lookAt(C7);
+            camera.fov = 48;
+          } },
+          { dur: 3.2, say: [], text: "", sub: "", at: (t2) => {
+            const C7 = frame(tt(2, t2, 3.2), 2, t2);
+            camera.position.set(C7.x - out.x * 0.9, C7.y + 6.6, C7.z - out.z * 0.9);
+            camera.lookAt(C7.x, C7.y - 3, C7.z);
+            camera.fov = 64;
+          } },
+          { dur: 2.6, say: [], text: "", sub: "", at: (t2) => {
+            const C7 = frame(tt(3, t2, 2.6), 3, t2), a = lerp(0.2, 1.5, ease2(t2));
+            camera.position.set(C7.x + (side.x * Math.cos(a) + out.x * Math.sin(a)) * 4.2, C7.y + 0.4, C7.z + (side.z * Math.cos(a) + out.z * Math.sin(a)) * 4.2);
+            camera.lookAt(C7);
+            camera.fov = 38;
+          } },
+          { dur: 1.9, say: [], text: "", sub: "", at: (t2) => {
+            const C7 = frame(tt(4, t2, 1.9), 4, t2), Cg = Cpos(99);
+            camera.position.set(Cg.x + side.x * 2.5 + out.x * 9, 3.6, Cg.z + side.z * 2.5 + out.z * 9);
+            camera.lookAt(Cg.x, lerp(C7.y, 1, t2), Cg.z);
+            camera.fov = 46;
+          } }
+        ].map((s) => s);
+      }
+    };
+  }
+  var ease2, sm3, FP2, FS3, punch;
+  var init_scenki_fisk = __esm({
+    "js/scenki_fisk.js"() {
+      init_util();
+      init_stan();
+      init_dzwiek();
+      init_postac();
+      init_efekty();
+      ease2 = (t2) => t2 * t2 * (3 - 2 * t2);
+      sm3 = (a, b, x) => ease2(clamp((x - a) / (b - a), 0, 1));
+      FP2 = newPose();
+      FS3 = newPose();
+      punch = (p, T2, ph, lean) => {
+        zeroPose(p);
+        p.bp = lean;
+        p.hLx = -0.75;
+        p.kL = 0.95;
+        p.hRx = -0.25;
+        p.kR = 0.5;
+        p.hLz = 0.15;
+        p.hRz = -0.15;
+        const a = Math.sin(T2 * 5.2 + ph), b = Math.sin(T2 * 5.2 + ph + Math.PI);
+        p.sRx = -1.25 - Math.max(0, a) * 0.95;
+        p.eR = -0.3 - Math.max(0, -a) * 0.9;
+        p.sLx = -1.25 - Math.max(0, b) * 0.95;
+        p.eL = -0.3 - Math.max(0, -b) * 0.9;
+        p.hx = -0.2;
+        p.spy = a * 0.35;
+        p.sRz = -0.2;
+        p.sLz = 0.2;
+      };
+    }
+  });
+
   // js/scenki.js
   function ui3() {
     if (bars2) return;
@@ -24252,7 +25387,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     ui3();
     ctx2.p = P.pos.clone();
     if (ctx2.b) ctx2.b = ctx2.b.clone();
-    cine = { name, shots: SCENES[name](ctx2), i: 0, t: 0, onEnd: ctx2.onEnd, sk: 0, sid: 0, talking: false, need: 0, h: null };
+    cine = { name, ctx: ctx2, shots: SCENES[name](ctx2), i: 0, t: 0, onEnd: ctx2.onEnd, sk: 0, sid: 0, talking: false, need: 0, h: null };
     G.cine = name;
     const h = document.getElementById("hud");
     if (h) h.style.visibility = "hidden";
@@ -24292,6 +25427,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
   function setShotText() {
     const s = cine.shots[cine.i];
     startTalk(s.say);
+    if (s.enter) s.enter();
     if (s.text) {
       subT.textContent = s.text;
       subS.textContent = s.sub || "";
@@ -24301,9 +25437,10 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
   function endCine() {
     if (!cine) return;
     stopTalk();
-    const cb = cine.onEnd;
+    const cb = cine.onEnd, cl2 = cine.ctx && cine.ctx.cleanup;
     cine = null;
     G.cine = null;
+    if (cl2) cl2();
     bars2[0].style.height = bars2[1].style.height = "0";
     sub.style.opacity = 0;
     document.getElementById("cSkip").style.opacity = 0;
@@ -24333,7 +25470,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     }
     return true;
   }
-  var talk, bars2, sub, subT, subS, cine, ease, _a2, _b2, SCENES;
+  var talk, bars2, sub, subT, subS, cine, ease3, _a2, _b2, SCENES;
   var init_scenki = __esm({
     "js/scenki.js"() {
       init_util();
@@ -24343,29 +25480,32 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       init_dzwiek();
       init_rozmowy();
       init_rozmowy_glos();
+      init_scenki_fisk();
       talk = null;
       bars2 = null;
       sub = null;
       subT = null;
       subS = null;
       cine = null;
-      ease = (t2) => t2 * t2 * (3 - 2 * t2);
+      ease3 = (t2) => t2 * t2 * (3 - 2 * t2);
       _a2 = new V3();
       _b2 = new V3();
       SCENES = {
+        ...sceneFisk5(),
+        // poziom 5 Fisk Tower: wstep, rozbicie szyby, upadek z wiezy (scenki_fisk.js)
         intro: (ctx2) => {
           const f = new V3(Math.sin(START_H), 0, Math.cos(START_H)), r = new V3(f.z, 0, -f.x), p = ctx2.p;
           return [
             { dur: 4.2, say: ["cine_intro_01"], text: "NOWY JORK", sub: "Miasto, kt\xF3re nigdy nie \u015Bpi.", at: (t2) => {
-              const a = lerp(0.5, -0.7, ease(t2));
+              const a = lerp(0.5, -0.7, ease3(t2));
               camera.position.copy(p).addScaledVector(f, -Math.cos(a) * 4.4).addScaledVector(r, Math.sin(a) * 4.4);
               camera.position.y = p.y + 1.1 + t2 * 0.6;
               camera.lookAt(p.x, p.y + 0.9, p.z);
               camera.fov = 50;
             } },
             { dur: 4.2, say: ["cine_intro_02"], text: "", sub: "", at: (t2) => {
-              camera.position.copy(p).addScaledVector(f, lerp(3, 16, ease(t2)));
-              camera.position.y = p.y + lerp(0.4, 9, ease(t2));
+              camera.position.copy(p).addScaledVector(f, lerp(3, 16, ease3(t2)));
+              camera.position.y = p.y + lerp(0.4, 9, ease3(t2));
               camera.lookAt(_a2.copy(p).addScaledVector(f, 320).add(_b2.set(0, -75, 0)));
               camera.fov = 62;
             } },
@@ -24381,7 +25521,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
           const b = ctx2.b, p = ctx2.p, d = _a2.subVectors(p, b).setY(0).normalize().clone(), r = new V3(d.z, 0, -d.x);
           return [
             { dur: 3.8, say: ["cine_boss_01"], text: "NOSORO\u017BEC", sub: "Cz\u0142owiek w pancerzu, kt\xF3rego nic nie zatrzyma.", at: (t2) => {
-              camera.position.copy(b).addScaledVector(d, lerp(11, 6.5, ease(t2))).addScaledVector(r, lerp(-3, 1, t2));
+              camera.position.copy(b).addScaledVector(d, lerp(11, 6.5, ease3(t2))).addScaledVector(r, lerp(-3, 1, t2));
               camera.position.y = b.y + lerp(0.5, 1.2, t2);
               camera.lookAt(b.x, b.y + 2.6, b.z);
               camera.fov = lerp(52, 44, t2);
@@ -24403,12 +25543,12 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
           };
           return [
             { dur: 4, say: ["cine_fisk_01"], text: "WILSON FISK", sub: "Kingpin. Prawie ca\u0142e miasto jest jego.", at: (t2) => {
-              at2(lerp(-6, -3.5, ease(t2)), lerp(R4.cd * 0.3, R4.cd * 0.45, ease(t2)), 1.7);
+              at2(lerp(-6, -3.5, ease3(t2)), lerp(R4.cd * 0.3, R4.cd * 0.45, ease3(t2)), 1.7);
               camera.lookAt(b.x, y + 1.5, b.z);
               camera.fov = 50;
             } },
             { dur: 3.4, say: ["cine_fisk_02", "cine_fisk_03"], text: "", sub: "", at: (t2) => {
-              at2(0.9, bv - lerp(5.2, 3.6, ease(t2)), 1.6);
+              at2(0.9, bv - lerp(5.2, 3.6, ease3(t2)), 1.6);
               camera.lookAt(b.x, y + 1.55, b.z);
               camera.fov = 42;
             } }
@@ -24417,7 +25557,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
         fisk2: (ctx2) => {
           const b = ctx2.b, R4 = ctx2.room, y = b.y, bv = R4.cd - 3.8;
           return [{ dur: 3.4, say: ["cine_fisk2_01", "cine_fisk2_02"], text: "", sub: "", at: (t2) => {
-            const [x, z] = R4.W(-2.6, bv - lerp(6, 4.4, ease(t2)));
+            const [x, z] = R4.W(-2.6, bv - lerp(6, 4.4, ease3(t2)));
             camera.position.set(x, y + lerp(0.6, 1.3, t2), z);
             camera.lookAt(b.x, y + 1.9, b.z);
             camera.fov = 46;
@@ -24426,7 +25566,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
         fiskEnd: (ctx2) => {
           const b = ctx2.b, R4 = ctx2.room, y = b.y, bv = R4.cd - 3.8;
           return [{ dur: 4.2, say: ["cine_fiskend_01", "cine_fiskend_02"], text: "KINGPIN POKONANY", sub: "Nowy Jork odetchn\u0105\u0142 z ulg\u0105.", at: (t2) => {
-            const a = lerp(0.3, 2.6, ease(t2)), [x, z] = R4.W(5 * Math.cos(a), bv - 5 * Math.sin(a));
+            const a = lerp(0.3, 2.6, ease3(t2)), [x, z] = R4.W(5 * Math.cos(a), bv - 5 * Math.sin(a));
             camera.position.set(x, y + lerp(1.3, 3, t2), z);
             camera.lookAt(b.x, y + 0.8, b.z);
             camera.fov = 48;
@@ -24436,7 +25576,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
           const b = ctx2.b;
           return [
             { dur: 4.2, say: ["cine_bossend_01", "cine_bossend_02"], text: "NOSORO\u017BEC POKONANY", sub: "Central Park zn\xF3w jest bezpieczny.", at: (t2) => {
-              const a = lerp(0.3, 2.2, ease(t2));
+              const a = lerp(0.3, 2.2, ease3(t2));
               camera.position.set(b.x + Math.cos(a) * 9, b.y + lerp(1.4, 4.2, t2), b.z + Math.sin(a) * 9);
               camera.lookAt(b.x, b.y + 0.8, b.z);
               camera.fov = 48;
@@ -25100,49 +26240,6 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       chase = null;
       chaseWait = 45;
       police = null;
-    }
-  });
-
-  // js/umiejetnosci.js
-  function canBuy(s) {
-    return !has(s.id) && skillPoints() > 0 && (!s.req || has(s.req));
-  }
-  function buy(s) {
-    if (!canBuy(s)) return false;
-    save.skills.push(s.id);
-    doSave();
-    return true;
-  }
-  var SKILLS, COLS, has, skillPoints, maxHp, buffs, dmgMul, swingMul, zipMax, websToWrap, perchRange;
-  var init_umiejetnosci = __esm({
-    "js/umiejetnosci.js"() {
-      init_util();
-      SKILLS = [
-        { id: "hp1", col: 0, name: "TWARDZIEL I", desc: "+25 zdrowia." },
-        { id: "hp2", col: 0, name: "TWARDZIEL II", desc: "+25 zdrowia.", req: "hp1" },
-        { id: "regen", col: 0, name: "REGENERACJA", desc: "Zdrowie wraca dwa razy szybciej.", req: "hp2" },
-        { id: "hp3", col: 0, name: "TWARDZIEL III", desc: "+25 zdrowia.", req: "regen" },
-        { id: "pow", col: 1, name: "MOCNE CIOSY", desc: "Ciosy zadaj\u0105 o po\u0142ow\u0119 wi\u0119cej obra\u017Ce\u0144." },
-        { id: "focus", col: 1, name: "SKUPIENIE", desc: "Pasek skupienia \u0142aduje si\u0119 o po\u0142ow\u0119 szybciej.", req: "pow" },
-        { id: "fin", col: 1, name: "PODW\xD3JNE WYKO\u0143CZENIE", desc: "Wyko\u0144czenie zawija w sie\u0107 tak\u017Ce najbli\u017Cszego bandyt\u0119 obok.", req: "focus" },
-        { id: "pow2", col: 1, name: "PI\u0118\u015A\u0106 TYTANA", desc: "Jeszcze +50% obra\u017Ce\u0144. Osi\u0142ki szybciej padaj\u0105.", req: "fin" },
-        { id: "web", col: 2, name: "MOCNA SIE\u0106", desc: "Bandyt\u0119 zawiniesz w kokon ju\u017C dwoma strza\u0142ami." },
-        { id: "sense", col: 2, name: "PAJ\u0118CZY ZMYS\u0141", desc: "Idealny unik spowalnia czas dwa razy d\u0142u\u017Cej.", req: "web" },
-        { id: "launch", col: 2, name: "DALEKI ZACZEP", desc: "Zaczep dzia\u0142a z 90 m zamiast 60 m.", req: "sense" },
-        { id: "swing", col: 3, name: "SZYBKIE BUJANIE", desc: "Bujasz si\u0119 o 15% szybciej." },
-        { id: "zip", col: 3, name: "TRZECI ZIP", desc: "Trzy zipy sieci\u0105 w powietrzu zamiast dw\xF3ch.", req: "swing" },
-        { id: "swing2", col: 3, name: "MISTRZ SIECI", desc: "Jeszcze +15% pr\u0119dko\u015Bci i wy\u017Cszy skok z sieci.", req: "zip" }
-      ];
-      COLS = ["ZDROWIE", "WALKA", "SIE\u0106 I ZMYS\u0141", "RUCH"];
-      has = (id) => save.skills.includes(id);
-      skillPoints = () => Math.max(0, save.lvl - save.skills.length);
-      maxHp = () => 100 + (has("hp1") ? 25 : 0) + (has("hp2") ? 25 : 0) + (has("hp3") ? 25 : 0);
-      buffs = { dmg: 1 };
-      dmgMul = () => (1 + (has("pow") ? 0.5 : 0) + (has("pow2") ? 0.5 : 0)) * buffs.dmg;
-      swingMul = () => 1 + (has("swing") ? 0.15 : 0) + (has("swing2") ? 0.15 : 0);
-      zipMax = () => has("zip") ? 3 : 2;
-      websToWrap = () => has("web") ? 2 : 3;
-      perchRange = () => has("launch") ? 90 : 60;
     }
   });
 
@@ -26567,12 +27664,12 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       scene.add(mesh);
       rings2.push({ mesh, t: 9, dur: 1, maxR: 1 });
     }
-    const geo = new THREE.BufferGeometry();
+    const geo2 = new THREE.BufferGeometry();
     beamPos = new Float32Array(MAXB * SEG * 6);
     beamCol = new Float32Array(MAXB * SEG * 6);
-    geo.setAttribute("position", new THREE.BufferAttribute(beamPos, 3));
-    geo.setAttribute("color", new THREE.BufferAttribute(beamCol, 3));
-    beamLines = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+    geo2.setAttribute("position", new THREE.BufferAttribute(beamPos, 3));
+    geo2.setAttribute("color", new THREE.BufferAttribute(beamCol, 3));
+    beamLines = new THREE.LineSegments(geo2, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
     beamLines.frustumCulled = false;
     beamLines.visible = false;
     beamLines.renderOrder = 6;
@@ -26779,7 +27876,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     }
   }
   function msg(t2) {
-    flash3 = t2;
+    flash4 = t2;
     flashT2 = 1.6;
   }
   function usePower() {
@@ -26900,13 +27997,13 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     }
     if (flashT2 > 0) {
       flashT2 -= dt;
-      if (flashT2 <= 0) flash3 = "";
+      if (flashT2 <= 0) flash4 = "";
     }
     const S2 = powerState, key2 = G.lastDev === "pad" ? "L3 + R3" : "V";
-    const sig = S2.id + key2 + flash3 + (S2.active ? "a" : S2.ready ? "r" : "c");
+    const sig = S2.id + key2 + flash4 + (S2.active ? "a" : S2.ready ? "r" : "c");
     if (sig !== lastSig) {
       lastSig = sig;
-      hudEl.querySelector(".pm").textContent = flash3;
+      hudEl.querySelector(".pm").textContent = flash4;
       hudEl.querySelector(".pn").innerHTML = `${S2.name}<span class="pi">${S2.icon}</span>`;
       hudEl.querySelector(".pk").textContent = (S2.active ? "AKTYWNA" : S2.ready ? "GOTOWA" : "ODNOWIENIE") + " \xB7 " + key2;
       hudEl.className = S2.active ? "act" : S2.ready ? "rdy" : "";
@@ -26914,7 +28011,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     const f = S2.active ? 1 - S2.t / (S2.dur || 1) : S2.cdMax ? 1 - S2.cd / S2.cdMax : 1;
     hudEl.querySelector(".pb i").style.width = clamp(f, 0, 1) * 100 + "%";
   }
-  var POWERS, powerOf, powerState, cd, cdMax, act, actT, actDur, t10, t11, fired, flash3, flashT2, hudEl, useCount, hasteTS, myTS, cloakH, cloakMats, _v2, fxInit, aura, auraMat, rings2, beamLines, beamPos, beamCol, beams, MAXB, SEG, live2, chest, lastSig, lastB;
+  var POWERS, powerOf, powerState, cd, cdMax, act, actT, actDur, t10, t11, fired, flash4, flashT2, hudEl, useCount, hasteTS, myTS, cloakH, cloakMats, _v2, fxInit, aura, auraMat, rings2, beamLines, beamPos, beamCol, beams, MAXB, SEG, live2, chest, lastSig, lastB;
   var init_moce = __esm({
     "js/moce.js"() {
       init_util();
@@ -26945,7 +28042,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
       t10 = -9999;
       t11 = -9999;
       fired = false;
-      flash3 = "";
+      flash4 = "";
       flashT2 = 0;
       hudEl = null;
       useCount = 0;
@@ -26976,6 +28073,24 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     $("msgS").innerHTML = s || "";
     $("msg").style.opacity = 1;
     msgT = dur;
+  }
+  function setMissionBar(level, total = 6, label = "") {
+    if (!mbar) {
+      const st = document.createElement("style");
+      st.textContent = '#mbar{position:absolute;left:50%;top:100px;transform:translateX(-50%);text-align:center;opacity:0;transition:opacity .4s;text-shadow:0 2px 6px #000}#mbar b{font-family:"Bebas Neue",Impact,sans-serif;font-size:26px;letter-spacing:4px}#mbar small{display:block;font-weight:700;font-size:12px;letter-spacing:3px;color:#c6a2ff;margin-top:-2px}#mbar .mp{display:flex;gap:5px;justify-content:center;margin-top:3px}#mbar .mp i{width:34px;height:6px;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.45);transform:skewX(-24deg)}#mbar .mp i.on{background:#c6a2ff;box-shadow:0 0 8px #c6a2ff}#mbar .mp i.cur{background:#ffc93c;box-shadow:0 0 8px #ffc93c}';
+      document.head.appendChild(st);
+      mbar = document.createElement("div");
+      mbar.id = "mbar";
+      mbar.innerHTML = '<b></b><small></small><div class="mp"></div>';
+      (document.getElementById("hud") || document.body).appendChild(mbar);
+    }
+    mbar.style.opacity = level > 0 ? 1 : 0;
+    if (level <= 0) return;
+    mbar.querySelector("b").textContent = `POZIOM ${level}/${total}`;
+    mbar.querySelector("small").textContent = label;
+    let h = "";
+    for (let i = 1; i <= total; i++) h += `<i class="${i < level ? "on" : i === level ? "cur" : ""}"></i>`;
+    mbar.querySelector(".mp").innerHTML = h;
   }
   function flashDamage() {
     dmgT = 0.25;
@@ -28051,7 +29166,7 @@ void main(){ vec2 q = gl_PointCoord - 0.5; float cs = cos(vS * 6.283), sn = sin(
     $("menu").classList.toggle("hidden", on);
     if (!on) renderMenu();
   }
-  var CSS, HTML, GLY2, kk, msgT, dmgT, distT3, distChk, promptT, lastPrompt, lastDist2, popT, hintT, hintsShown, icoCrime, icoWP, progress, miniBase, MM, LN, _p3, set, _sf, _so, flareK, gfxLabel, todLabel, wxLabel, VMODE_NAMES, voiceLabel, vvolLabel, musLabel, SLOTS, slotKey, fmtT, askNew, newLabel, footTxt, TABS, mapV, SV;
+  var CSS, HTML, GLY2, kk, msgT, dmgT, distT3, distChk, promptT, lastPrompt, lastDist2, popT, hintT, mbar, hintsShown, icoCrime, icoWP, progress, miniBase, MM, LN, _p3, set, _sf, _so, flareK, gfxLabel, todLabel, wxLabel, VMODE_NAMES, voiceLabel, vvolLabel, musLabel, SLOTS, slotKey, fmtT, askNew, newLabel, footTxt, TABS, mapV, SV;
   var init_ui = __esm({
     "js/ui.js"() {
       init_util();
@@ -28261,6 +29376,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       lastDist2 = "";
       popT = 0;
       hintT = 0;
+      mbar = null;
       hintsShown = /* @__PURE__ */ new Set();
       icoCrime = (x, a, b, s) => icoDiamond(x, a, b, s, "#e3242b", "!");
       icoWP = (x, a, b, s) => icoDiamond(x, a, b, s, "#3fe3ff");
@@ -28429,18 +29545,18 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     }
     c.bk.clear();
   }
-  function makeCtx(d) {
+  function makeCtx(d, yo = 0) {
     const r = d.room, ns = d.ns, g = new THREE.Group(), rm = { d, g, npcs: [], entered: false, yaw: 0 };
     const ud = ns ? new V3(1, 0, 0) : new V3(0, 0, 1), vd = ns ? new V3(0, 0, r.sIn) : new V3(r.sIn, 0, 0);
     const s = new V3().crossVectors(ud, new V3(0, 1, 0)).dot(vd) > 0 ? 1 : -1;
     const [ox, oz] = r.W(0, 0);
-    const F2 = new THREE.Matrix4().makeBasis(ud.clone().multiplyScalar(s), new V3(0, 1, 0), vd).setPosition(ox, SW, oz);
+    const F2 = new THREE.Matrix4().makeBasis(ud.clone().multiplyScalar(s), new V3(0, 1, 0), vd).setPosition(ox, SW + yo, oz);
     const env = ENV_OF[d.type];
     const c = { r, ns, rm, s, F: F2, env, bk: /* @__PURE__ */ new Map(), hw: r.cw / 2, cd: r.cd, ch: r.ch, du: d.c - r.uc, gw: d.gw, gh: d.gh - SW, world: (u, v) => r.W(u, v) };
     const M = (name) => matFor(name, env);
     c.solid = (u0, u1, v0, v1, y0, y1) => {
       const [ax0, az0] = r.W(u0, v0), [ax1, az1] = r.W(u1, v1);
-      addBox({ x0: Math.min(ax0, ax1), x1: Math.max(ax0, ax1), y0: SW + y0, y1: SW + y1, z0: Math.min(az0, az1), z1: Math.max(az0, az1) });
+      addBox({ x0: Math.min(ax0, ax1), x1: Math.max(ax0, ax1), y0: SW + yo + y0, y1: SW + yo + y1, z0: Math.min(az0, az1), z1: Math.max(az0, az1) });
     };
     const uvOf = (m, o, sx2, sy, sz) => {
       if (o && o.cell) {
@@ -28708,12 +29824,72 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     const [p0, q0] = c.at(L3, a0, 0), [p1, q1] = c.at(L3, a1, dep);
     c.blob(Math.min(p0, p1), Math.max(p0, p1), Math.min(q0, q1), Math.max(q0, q1), 9e-3, 0.3);
   }
+  function fiskColumns(c, pts) {
+    const { B: B4, ch } = c;
+    for (const [u, v] of pts) {
+      B4(u - 0.6, u + 0.6, v - 0.6, v + 0.6, 0, 0.35, "marble", "#ffffff");
+      c.Cy(u, v, 0.35, ch - 0.5, 0.44, "marble", "#d8d0c4", { seg: 18 });
+      c.Cy(u, v, 0.35, 0.45, 0.48, "brass", "#c9a25a", { seg: 18 });
+      c.Cy(u, v, ch - 0.6, ch - 0.5, 0.48, "brass", "#c9a25a", { seg: 18 });
+      B4(u - 0.6, u + 0.6, v - 0.6, v + 0.6, ch - 0.5, ch - 0.05, "grainG", "#3a2416");
+      c.solid(u - 0.6, u + 0.6, v - 0.6, v + 0.6, 0, ch);
+      c.blob(u - 0.6, u + 0.6, v - 0.6, v + 0.6, 8e-3, 0.4);
+    }
+  }
+  function deskSet(c, u, v, face = 1) {
+    const top2 = "#6b6f75";
+    table2(c, u, v, "rect", top2, 1.8, 0.85, 0.76, "#2a2c30");
+    c.B(u - 0.28, u + 0.28, v - 0.12 * face - 0.04, v - 0.12 * face + 0.04, 0.76, 1.08, "gloss", "#17181b");
+    c.Pl(u, v - 0.12 * face + 0.045 * face, 0.93, 0.5, 0.3, face > 0 ? "+v" : "-v", "screen", "#ffffff", { cell: cellUV(R3() < 0.5 ? 0 : 3, 2, 2) });
+    c.B(u + 0.5, u + 0.9, v - 0.2, v + 0.15, 0.76, 0.8, "paint", "#e6e3dc");
+    chair(c, u, v + 0.95 * face, 0, -face, "#2a2c30", "pad");
+  }
+  function pokerTable(c, u, v) {
+    c.Cy(u, v, 0.7, 0.78, 0.95, "gloss", "#1d1410", { seg: 22 });
+    c.Cy(u, v, 0.78, 0.8, 0.85, "fabric", "#1f6a3a", { seg: 22 });
+    c.Cy(u, v, 0, 0.7, 0.12, "brass", "#c9a25a", { seg: 8 });
+    c.solid(u - 0.95, u + 0.95, v - 0.95, v + 0.95, 0, 0.8);
+    c.blob(u - 0.95, u + 0.95, v - 0.95, v + 0.95, 8e-3, 0.3);
+    for (let i = 0; i < 5; i++) {
+      const a = i / 5 * 6.283 + 0.4;
+      c.Cy(u + Math.cos(a) * 0.4, v + Math.sin(a) * 0.4, 0.8, 0.85, 0.05, "matte", pick7(["#c8302a", "#1a1a1a", "#e8e2d4", "#2a4a9a"]), { seg: 8 });
+    }
+    for (let i = 0; i < 4; i++) {
+      const a = i / 4 * 6.283 + 0.8, x = u + Math.cos(a) * 1.5, z = v + Math.sin(a) * 1.5;
+      chair(c, x, z, -Math.cos(a) > 0 ? 1 : -1, 0, "#1d1410", "pad");
+    }
+  }
+  function crate(c, u, v, s = 1.1, h = 1, col2 = "#4a3a22") {
+    c.B(u - s / 2, u + s / 2, v - s / 2, v + s / 2, 0, h, "grain", col2, true);
+    c.B(u - s / 2 - 0.02, u + s / 2 + 0.02, v - 0.04, v + 0.04, 0.1, h - 0.1, "steel", "#2a2a2a");
+    c.B(u - 0.04, u + 0.04, v - s / 2 - 0.02, v + s / 2 + 0.02, 0.1, h - 0.1, "steel", "#2a2a2a");
+    c.blob(u - s / 2, u + s / 2, v - s / 2, v + s / 2, 8e-3, 0.25);
+  }
+  function buildFiskFloor(d, k) {
+    d.floors = d.floors || {};
+    if (d.floors[k]) return d.floors[k];
+    const c = makeCtx(d, k * FISK_H);
+    c.k = k;
+    BUILD.fiskFloor(c);
+    flush(c);
+    const f = { k, g: c.rm.g, y: SW + k * FISK_H, npcs: c.rm.npcs };
+    scene.add(f.g);
+    d.floors[k] = f;
+    return f;
+  }
+  function fiskSlabs(d) {
+    if (d.slabs) return;
+    d.slabs = true;
+    const r = d.room;
+    for (let k = 1; k < FISK_FLOORS; k++) addBox({ x0: r.bx0, x1: r.bx1, z0: r.bz0, z1: r.bz1, y0: SW + k * FISK_H - 0.62, y1: SW + k * FISK_H });
+  }
   function buildRoom(d) {
     const c = makeCtx(d);
     BUILD[d.type](c);
     flush(c);
     d.rm = c.rm;
     scene.add(c.rm.g);
+    if (d.type === "fisk") fiskSlabs(d);
     return c.rm;
   }
   function takeCola() {
@@ -30108,9 +31284,113 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
           }
         }
       };
+      BUILD.fiskFloor = function(c) {
+        const { B: B4, hw, cd: cd2, ch, L: L3 } = c, k = c.k;
+        c.gw = 0;
+        c.gh = -1;
+        const P_ = {
+          1: { floor: ["carpet", "#98a3b0"], wall: ["plaster", "#d3cdc0"], ceil: ["acoustic", "#cfcac0"], base: "#1d1d20", crown: "#9aa0a8" },
+          2: { floor: ["marble", "#ffffff"], wall: ["plaster", "#2a2a2e"], ceil: ["plaster", "#24201c"], wains: ["panel", "#5a3a26", 2.4], base: "#120e0a", crown: "#c9a25a" },
+          3: { floor: ["rubber", "#b4babf"], wall: ["brick", "#a99e90"], ceil: ["acoustic", "#9a968e"], base: "#1a1a1c", crown: "#5c6066" },
+          4: { floor: ["marble", "#ffffff"], wall: ["plaster", "#3a2a22"], back: ["plaster", "#2a1e18"], ceil: ["plaster", "#2a221d"], wains: ["panel", "#7a4a2c", 3.2], base: "#1a120c", crown: "#c9a25a" }
+        }[k];
+        shell(c, P_);
+        const pw = c.r.cw - 4;
+        const pano = (Lw) => {
+          c.LP(Lw, 0, 0.03, 4, pw, 5.4, "view", "#d8d0c8");
+          for (let a = -pw / 2; a <= pw / 2 + 0.01; a += pw / Math.round(pw / 2.4)) c.LB(Lw, a - 0.06, a + 0.06, 0, 0.12, 1.3, 6.7, "steel", "#141414");
+          for (const y of [1.3, 3.9, 6.7]) c.LB(Lw, -pw / 2 - 0.06, pw / 2 + 0.06, 0, 0.12, y - 0.06, y + 0.06, "steel", "#141414");
+        };
+        pano(L3.back);
+        if (k === 4) pano(L3.front);
+        if (k === 1 || k === 3) for (let u = -6; u <= 6; u += 4) for (let v = 3.6; v < cd2 - 1; v += 4.6) lampPanel(c, u, v, 1.5, 0.5, 2.2, k === 3 ? "#e8f0ff" : "#fff2dc", 1.1);
+        else {
+          for (let u = -hw + 1.8; u < hw; u += 3.6) for (let v = 1.8; v < cd2; v += 3.6) {
+            B4(u - 0.7, u + 0.7, v - 0.7, v + 0.7, ch - 0.07, ch - 0.05, "panelL", "#ffe2b0", { k: 1.5 });
+            c.pool(u, v, 4.5, 4.5, "#ffd8a0", 0.07);
+          }
+        }
+        if (k === 1) {
+          fiskColumns(c, [[-5.2, 7.5], [5.2, 7.5], [-5.2, 15.5], [5.2, 15.5]]);
+          for (const s of [-1, 1]) for (const v of [5.2, 9.6, 14, 18.4]) {
+            deskSet(c, s * 8, v, 1);
+          }
+          for (const s of [-1, 1]) for (const [a, b] of [[10.8, 12.6], [16.2, 20.8]]) B4(s * 5.6 - 0.04, s * 5.6 + 0.04, a, b, 0, 1.45, "acoustic", "#8d9298", true);
+          for (const s of [-1, 1]) plant(c, s * (hw - 0.9), cd2 - 0.9, 1.2, "#2a2a2a", "snake");
+          c.Cy(hw - 1, 8, 0, 1, 0.18, "gloss", "#cfe0ea", { seg: 12 });
+          c.solid(hw - 1.2, hw - 0.8, 7.8, 8.2, 0, 1);
+          picture(c, L3.right, 12.5, 4.6, 2.2, 1.6, "art", cellUV(1, 2, 2), "#1a1a1a", 0.08);
+        } else if (k === 2) {
+          fiskColumns(c, [[-5.5, 6], [5.5, 6], [-5.5, 16], [5.5, 16]]);
+          for (const [u, v] of [[-7.4, 9.5], [7.4, 9.5], [-7.4, 13.2], [7.4, 13.2], [-4.6, 19.5], [4.6, 19.5]]) pokerTable(c, u, v);
+          for (const s of [-1, 1]) for (let i = 0; i < 3; i++) {
+            const v = 3.3 + i * 1.3, u = s * (hw - 1);
+            B4(u - 0.4, u + 0.4, v - 0.5, v + 0.5, 0, 1.85, "gloss", "#1a1218", true);
+            c.Pl(s * (hw - 1.41), v, 1.3, 0.8, 0.5, s > 0 ? "-u" : "+u", "screen", "#ffffff", { cell: cellUV(3, 2, 2) });
+            B4(s * (hw - 1.42) - 0.01, s * (hw - 1.4) + 0.01, v - 0.4, v + 0.4, 1, 1.6, "lamp", "#ff4aa8", { k: 1.4 });
+          }
+          picture(c, L3.back, -hw + 3.2, 4.8, 2.2, 1.6, "art", cellUV(0, 2, 2), "#c9a25a", 0.08);
+          picture(c, L3.back, hw - 3.2, 4.8, 2.2, 1.6, "art", cellUV(1, 2, 2), "#c9a25a", 0.08);
+        } else if (k === 3) {
+          fiskColumns(c, [[-5.4, 7], [5.4, 7], [-5.4, 15], [5.4, 15]]);
+          for (const [u, v, s, h] of [[-7.2, 5.4, 1.2, 1.1], [-8.6, 5.4, 1.1, 1], [-7.6, 9.4, 1.3, 1.2], [7, 5.6, 1.2, 1.1], [8.4, 6.8, 1, 0.9], [7.4, 10.6, 1.3, 1.2], [-8.2, 14, 1.2, 1], [8, 15, 1.4, 1.2], [-6.8, 18.6, 1.2, 1.1], [7, 19, 1.2, 1.1]]) crate(c, u, v, s, h, pick7(["#4a3a22", "#3a4a2a", "#2a3a4a"]));
+          for (const [u, v] of [[-7.2, 5.4], [7, 5.6], [-7.6, 9.4]]) crate(c, u, v, 0.8, 0.8 + 1.1, "#3f3524");
+          for (const s of [-1, 1]) {
+            c.LB(s < 0 ? L3.left : L3.right, 14.5, 21, 0, 0.5, 0, 2.4, "steel", "#2e3236", true);
+            for (let y = 0.3; y < 2.3; y += 0.5) c.LB(s < 0 ? L3.left : L3.right, 14.6, 20.9, 0.02, 0.45, y, y + 0.03, "steel", "#4a4f54");
+          }
+          for (const [u, v] of [[-hw + 1, 4.2], [-hw + 1, 5.1], [hw - 1, 12]]) {
+            c.Cy(u, v, 0, 0.95, 0.3, "steel", "#8a2a1e", { seg: 14 });
+            c.solid(u - 0.3, u + 0.3, v - 0.3, v + 0.3, 0, 0.95);
+          }
+        } else if (k === 4) {
+          const vg = cd2 - 7;
+          fiskColumns(c, [[-5.6, 6.5], [5.6, 6.5]]);
+          B4(-hw, hw, vg - 0.14, vg + 0.14, ch - 0.7, ch - 0.05, "steel", "#16181b");
+          B4(-hw, hw, vg - 0.08, vg + 0.08, 0, 0.035, "steel", "#16181b");
+          B4(-hw, hw, vg - 0.1, vg + 0.1, ch - 0.76, ch - 0.7, "brass", "#c9a25a");
+          B4(-2.4, 2.4, cd2 - 3.6, cd2 - 2.6, 0, 0.78, "panel", "#5a3420", true);
+          B4(-2.5, 2.5, cd2 - 3.7, cd2 - 2.5, 0.78, 0.84, "grainG", "#2a160c");
+          B4(-1.6, 1.6, cd2 - 3.4, cd2 - 2.7, 0.84, 0.845, "leather", "#1f3a2a");
+          c.Ch(-2.5, 2.5, cd2 - 3.7, 0.81, 0.02, "brass", "#c9a25a");
+          c.Cy(1.6, cd2 - 2.85, 0.84, 0.86, 0.1, "brass", "#c9a25a");
+          c.Cy(1.6, cd2 - 2.85, 0.86, 1.2, 0.012, "brass", "#c9a25a");
+          c.Ch(1.35, 1.85, cd2 - 2.95, 1.22, 0.07, "gloss", "#1f6a3a", { seg: 12 });
+          c.Ch(1.37, 1.83, cd2 - 2.95, 1.19, 0.05, "lamp", "#ffe8b0", { k: 1.5 });
+          c.pool(1.6, cd2 - 3.05, 1.6, 1, "#ffe0a0", 0.25, 0.85);
+          c.B(-0.9, -0.2, cd2 - 3.35, cd2 - 2.85, 0.845, 0.86, "matte", "#efe9d8");
+          c.Cy(-0.05, cd2 - 3, 0.845, 0.87, 0.012, "matte", "#111111");
+          c.B(0.35, 0.7, cd2 - 3.2, cd2 - 2.95, 0.845, 0.9, "gloss", "#111111");
+          c.B(-0.4, 0.4, cd2 - 2.05, cd2 - 1.35, 0, 0.52, "leather", "#1a1414", true);
+          c.B(-0.42, 0.42, cd2 - 1.4, cd2 - 1.25, 0.52, 1.75, "leather", "#1a1414");
+          for (const s of [-1, 1]) c.B(s * 0.44 - 0.07, s * 0.44 + 0.07, cd2 - 2.05, cd2 - 1.35, 0.52, 0.78, "leather", "#1a1414");
+          B4(-3.2, 3.2, cd2 - 5, cd2 - 1, 4e-3, 0.012, "rug", "#ffffff");
+          c.pool(0, cd2 - 2.5, pw, 5, "#ffb070", 0.08);
+          for (const s of [-1, 1]) {
+            const W2 = s < 0 ? L3.left : L3.right;
+            c.LB(W2, vg + 1.6, cd2 - 1.4, 0, 0.42, 0, 3.4, "grainG", "#3a2214", true);
+            for (let y = 0.1; y < 3.2; y += 0.55) {
+              c.LB(W2, vg + 1.64, cd2 - 1.44, 0.02, 0.4, y - 0.03, y, "grainG", "#3a2214");
+              for (let a = vg + 1.7; a < cd2 - 1.6; ) {
+                const w = rr4(0.03, 0.06), h = rr4(0.28, 0.45);
+                c.LB(W2, a, a + w, 0.08, 0.36, y, y + h, "leather", pick7(["#5a1414", "#1a2a3a", "#2a3a1a", "#4a3a20", "#3a1a2a", "#6a5030"]));
+                a += w + 4e-3;
+              }
+            }
+            plant(c, s * (hw - 1), cd2 - 0.9, 1.4, "#2a2a2a", "palm");
+          }
+          B4(-1.6, 1.6, 0.4, vg - 0.5, 4e-3, 0.02, "fabric", "#7a1616");
+          for (const s of [-1, 1]) B4(s * 1.6 - 0.08, s * 1.6 + 0.08, 0.4, vg - 0.5, 4e-3, 0.021, "fabric", "#c9a25a");
+          picture(c, L3.left, 9, 4.6, 2.4, 1.8, "art", cellUV(0, 2, 2), "#c9a25a", 0.08);
+          picture(c, L3.right, 9, 4.6, 2.4, 1.8, "art", cellUV(1, 2, 2), "#c9a25a", 0.08);
+        }
+        c.LB(L3.left, 2.2, 2.4, 0, 0.14, 0, 3, "steel", "#1c1e22");
+        c.LB(L3.left, 4.6, 4.8, 0, 0.14, 0, 3, "steel", "#1c1e22");
+        c.LB(L3.left, 2.2, 4.8, 0, 0.14, 2.9, 3.05, "steel", "#1c1e22");
+      };
       playerInRoom = (d, m = 0) => {
         const r = d.room;
-        return P.pos.x > r.bx0 - m && P.pos.x < r.bx1 + m && P.pos.z > r.bz0 - m && P.pos.z < r.bz1 + m && P.pos.y > -1 && P.pos.y < SW + r.ch + 0.6;
+        return P.pos.x > r.bx0 - m && P.pos.x < r.bx1 + m && P.pos.z > r.bz0 - m && P.pos.z < r.bz1 + m && P.pos.y > -1 && P.pos.y < SW + r.ch + 0.6 + (d.type === "fisk" ? (FISK_FLOORS - 1) * FISK_H : 0);
       };
       acc = 0;
       wasInFisk = false;
@@ -30411,13 +31691,13 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     if (thread) thread.visible = false;
   }
   function timeScaleAt(t2) {
-    if (t2 < 0.25) return lerp(1, TS_MIN, ease2(t2 / 0.25));
-    if (t2 > DUR - 0.3) return lerp(TS_MIN, 1, ease2((t2 - (DUR - 0.3)) / 0.3));
+    if (t2 < 0.25) return lerp(1, TS_MIN, ease4(t2 / 0.25));
+    if (t2 > DUR - 0.3) return lerp(TS_MIN, 1, ease4((t2 - (DUR - 0.3)) / 0.3));
     return TS_MIN;
   }
   function orbitA(F2, t2) {
     const u = clamp((t2 - T0) / (THIT - T0), 0, 1);
-    return F2.a0 + F2.sg * F2.sweep * (u * 0.65 + 0.35 * ease2(u));
+    return F2.a0 + F2.sg * F2.sweep * (u * 0.65 + 0.35 * ease4(u));
   }
   function stepFinisher(dt) {
     const F2 = FIN;
@@ -30438,21 +31718,21 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     const hFace = Math.atan2(c.x - P.pos.x, c.z - P.pos.z);
     let w, a;
     if (F2.simple) {
-      const k = ease2(t2 / 0.4);
+      const k = ease4(t2 / 0.4);
       w = 0;
       _a5.copy(F2.from).lerp(F2.land, k);
       _a5.y += 0.95 + Math.sin(k * Math.PI) * 0.5;
       F2.cp.copy(_a5);
       a = F2.a0;
       _up2.copy(UP);
-      const h = angLerp(F2.h0, Math.atan2(c.x - F2.land.x, c.z - F2.land.z), ease2(t2 / 0.3));
+      const h = angLerp(F2.h0, Math.atan2(c.x - F2.land.x, c.z - F2.land.z), ease4(t2 / 0.3));
       _fw3.set(Math.sin(h), 0, Math.cos(h));
       basisQ(_qa, _up2, _fw3);
       F2.q.copy(_qa);
       F2.heading = h;
     } else {
       if (t2 < T0) {
-        const k = ease2(t2 / T0);
+        const k = ease4(t2 / T0);
         a = F2.a0;
         _b4.set(c.x + Math.sin(a) * F2.R, F2.hy, c.z + Math.cos(a) * F2.R);
         _a5.set(F2.from.x, F2.from.y + 0.95, F2.from.z).lerp(_b4, k);
@@ -30463,15 +31743,15 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
         w = 1;
         _a5.set(c.x + Math.sin(a) * F2.R, F2.hy + Math.sin((t2 - T0) / (THIT - T0) * Math.PI) * 0.12, c.z + Math.cos(a) * F2.R);
       } else {
-        const k = ease2((t2 - THIT) / (DUR - THIT - 0.12));
+        const k = ease4((t2 - THIT) / (DUR - THIT - 0.12));
         a = orbitA(F2, THIT) + F2.sg * 0.5 * k;
-        w = 1 - ease2((t2 - THIT - 0.1) / 0.5);
+        w = 1 - ease4((t2 - THIT - 0.1) / 0.5);
         _b4.set(c.x + Math.sin(F2.a0 + F2.sg * F2.sweep) * F2.R, F2.hy, c.z + Math.cos(F2.a0 + F2.sg * F2.sweep) * F2.R);
         _a5.copy(_b4).lerp(_c5.set(F2.land.x, F2.land.y + 0.95, F2.land.z), k);
         _a5.y += Math.sin(k * Math.PI) * 0.35;
       }
       F2.cp.copy(_a5);
-      const hh = angLerp(F2.h0, hFace, ease2(t2 / 0.3));
+      const hh = angLerp(F2.h0, hFace, ease4(t2 / 0.3));
       _up2.copy(UP);
       _fw3.set(Math.sin(hh), 0, Math.cos(hh));
       basisQ(_qa, _up2, _fw3);
@@ -30548,7 +31828,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     } else {
       const kt = t2 - THIT;
       e.yaw = angLerp(e.yaw, Math.atan2(-F2.away.x, -F2.away.z), damp(20, rdt));
-      e.down = ease2(kt / 0.55);
+      e.down = ease4(kt / 0.55);
       const sp2 = 5.5 * Math.pow(clamp(1 - kt / 0.7, 0, 1), 2);
       if (sp2 > 0.05) {
         const nx = e.pos.x + F2.away.x * sp2 * rdt, nz2 = e.pos.z + F2.away.z * sp2 * rdt;
@@ -30563,7 +31843,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     const F2 = FIN;
     if (!F2) return;
     if (!F2.done) {
-      const k = ease2(F2.t / 0.5);
+      const k = ease4(F2.t / 0.5);
       t2.sLz = 0.9 * k;
       t2.sRz = -0.9 * k;
       t2.eL = -0.9 * k;
@@ -30571,7 +31851,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       t2.hx = -0.25 * k;
       t2.bp = -0.1 * k;
     } else {
-      const kt = ease2((F2.t - THIT) / 0.25);
+      const kt = ease4((F2.t - THIT) / 0.25);
       t2.hx = -0.7 * kt;
       t2.sLz = 1.5;
       t2.sRz = -1.5;
@@ -30622,7 +31902,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     H3.root.updateMatrixWorld(true);
     _b4.copy(F2.head);
     if (F2.hand) aimArm(H3, "R", _b4, 1);
-    else aimArm(H3, "L", _b4, ease2((F2.t - (THIT - 0.2)) / 0.2));
+    else aimArm(H3, "L", _b4, ease4((F2.t - (THIT - 0.2)) / 0.2));
     H3.root.updateMatrixWorld(true);
     if (!thread) thread = mkLine();
     if (F2.t > T0 && F2.t < THIT + 0.25) {
@@ -30645,9 +31925,9 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       _a5.set(camera.position.x - cx, 0, camera.position.z - cz);
       F2.cam = { ang: Math.atan2(_a5.x, _a5.z), d: clamp(_a5.length(), 2.5, 9), h: camera.position.y - cy, fov: camera.fov };
     }
-    const C7 = F2.cam, push = ease2(t2 / 0.5), kb = ease2((t2 - (DUR - 0.4)) / 0.4);
-    const ang = C7.ang + F2.sg * Math.PI * 0.75 * ease2((t2 - 0.1) / (THIT + 0.4));
-    const low2 = ease2((t2 - (THIT - 0.2)) / 0.35) * (1 - ease2((t2 - (THIT + 0.35)) / 0.4));
+    const C7 = F2.cam, push = ease4(t2 / 0.5), kb = ease4((t2 - (DUR - 0.4)) / 0.4);
+    const ang = C7.ang + F2.sg * Math.PI * 0.75 * ease4((t2 - 0.1) / (THIT + 0.4));
+    const low2 = ease4((t2 - (THIT - 0.2)) / 0.35) * (1 - ease4((t2 - (THIT + 0.35)) / 0.4));
     let d = lerp(C7.d, 3 * sc, push);
     d = lerp(d, 4.2 * sc, low2);
     const h = lerp(lerp(C7.h, 0.55, push), -0.6, low2);
@@ -30675,7 +31955,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     fxBoost.zoom = 0.06 * bump * (1 - kb) + 0.015 * push * (1 - kb);
     fxBoost.ca = 4e-3 * bump;
   }
-  var DUR, T0, THIT, TS_MIN, ease2, _a5, _b4, _c5, _up2, _fw3, _qa, _qb, FIN, thread;
+  var DUR, T0, THIT, TS_MIN, ease4, _a5, _b4, _c5, _up2, _fw3, _qa, _qb, FIN, thread;
   var init_wykonczenie = __esm({
     "js/wykonczenie.js"() {
       init_util();
@@ -30692,7 +31972,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       T0 = 0.38;
       THIT = 1.15;
       TS_MIN = 0.25;
-      ease2 = (x) => {
+      ease4 = (x) => {
         x = clamp(x, 0, 1);
         return x * x * (3 - 2 * x);
       };
@@ -31155,12 +32435,12 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
       return;
     }
     if (P.state === "swing") {
-      const sm3 = swingMul();
+      const sm4 = swingMul();
       P.vel.y -= 32 * h;
       P.vel.x += wx * 9 * h;
       P.vel.z += wz * 9 * h;
       const sp2 = P.vel.length();
-      if (sp2 > 1 && sp2 < 38 * sm3 && P.vel.y < 0) P.vel.multiplyScalar(1 + 0.3 * sm3 * h);
+      if (sp2 > 1 && sp2 < 38 * sm4 && P.vel.y < 0) P.vel.multiplyScalar(1 + 0.3 * sm4 * h);
       if (P.rope > P.ropeT) P.rope = Math.max(P.ropeT, P.rope - 14 * h);
       P.pos.addScaledVector(P.vel, h);
       _t3.subVectors(P.pos, P.anchor);
@@ -31171,7 +32451,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
         const vn = P.vel.dot(_t3);
         if (vn > 0) P.vel.addScaledVector(_t3, -vn);
       }
-      if (sp2 > 65 * sm3) P.vel.multiplyScalar(65 * sm3 / sp2);
+      if (sp2 > 65 * sm4) P.vel.multiplyScalar(65 * sm4 / sp2);
       const vy = P.vel.y;
       const c = collide();
       if (c.top) {
