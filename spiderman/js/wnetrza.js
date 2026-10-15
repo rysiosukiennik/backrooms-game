@@ -6,7 +6,7 @@
 // Cala geometria pokoju jest scalana: jedna siatka na material (malo wywolan rysowania mimo wielu detali).
 import { V3, cv, canvasTex, rnd } from './util.js';
 import { G, P, scene, renderer } from './stan.js';
-import { addBox, SW, doors } from './miasto.js';
+import { addBox, SW, doors, FISK_H, FISK_FLOORS } from './miasto.js';
 import { buildThug, newPose, applyPose, idlePose } from './postac.js';
 import { randomOutfit } from './model.js';
 import { showMsg, popText } from './ui.js';
@@ -388,19 +388,19 @@ function flush(c) {
 
 // ---------------------------------------------------------------- pokoj: narzedzia
 const civ = () => Object.assign(randomOutfit('thug'), { mask: false, hat: R() < 0.75 ? 'none' : 'cap', top: R() < 0.6 ? 'tshirt' : 'hoodie', topCol: pick(['#c9c2b3', '#3a3a3a', '#6b1a1a', '#1d3050', '#5b5f66', '#2d4a3a', '#8a6a3a']) });
-function makeCtx(d) {
+function makeCtx(d, yo = 0) { // yo: przesuniecie pionowe (pietra Fisk Tower)
   const r = d.room, ns = d.ns, g = new THREE.Group(), rm = { d, g, npcs: [], entered: false, yaw: 0 };
   const ud = ns ? new V3(1, 0, 0) : new V3(0, 0, 1), vd = ns ? new V3(0, 0, r.sIn) : new V3(r.sIn, 0, 0);
   // znak osi u tak, by uklad (s*u, y, v) byl prawoskretny: meble i napisy nigdy nie sa odbite lustrzanie
   const s = new V3().crossVectors(ud, new V3(0, 1, 0)).dot(vd) > 0 ? 1 : -1;
   const [ox, oz] = r.W(0, 0);
-  const F = new THREE.Matrix4().makeBasis(ud.clone().multiplyScalar(s), new V3(0, 1, 0), vd).setPosition(ox, SW, oz);
+  const F = new THREE.Matrix4().makeBasis(ud.clone().multiplyScalar(s), new V3(0, 1, 0), vd).setPosition(ox, SW + yo, oz);
   const env = ENV_OF[d.type];
   const c = { r, ns, rm, s, F, env, bk: new Map(), hw: r.cw / 2, cd: r.cd, ch: r.ch, du: d.c - r.uc, gw: d.gw, gh: d.gh - SW, world: (u, v) => r.W(u, v) };
   const M = name => matFor(name, env);
   c.solid = (u0, u1, v0, v1, y0, y1) => {
     const [ax0, az0] = r.W(u0, v0), [ax1, az1] = r.W(u1, v1);
-    addBox({ x0: Math.min(ax0, ax1), x1: Math.max(ax0, ax1), y0: SW + y0, y1: SW + y1, z0: Math.min(az0, az1), z1: Math.max(az0, az1) });
+    addBox({ x0: Math.min(ax0, ax1), x1: Math.max(ax0, ax1), y0: SW + yo + y0, y1: SW + yo + y1, z0: Math.min(az0, az1), z1: Math.max(az0, az1) });
   };
   const uvOf = (m, o, sx, sy, sz) => {
     if (o && o.cell) { const [x0, y0, x1, y1] = o.cell; return (i, u, v, out) => out.push(x0 + u * (x1 - x0), y0 + v * (y1 - y0)); }
@@ -934,12 +934,115 @@ const BUILD = {
   },
 };
 
+// ---------------------------------------------------------------- pietra Fisk Tower (poziomy 2-5 misji)
+// k = numer pietra (1..4); parter (k = 0) to dawna sala "fisk". Srodkiem pietra biegnie wolny przejazd (u od -4 do 4),
+// po bokach biurka / stoly / skrzynie i kolumny jako oslony. Winda stoi przy lewej scianie (u = -hw, v = 3.5) — buduje ja fisk.js.
+function fiskColumns(c, pts) {
+  const { B, ch } = c;
+  for (const [u, v] of pts) {
+    B(u - 0.6, u + 0.6, v - 0.6, v + 0.6, 0, 0.35, 'marble', '#ffffff'); c.Cy(u, v, 0.35, ch - 0.5, 0.44, 'marble', '#d8d0c4', { seg: 18 });
+    c.Cy(u, v, 0.35, 0.45, 0.48, 'brass', '#c9a25a', { seg: 18 }); c.Cy(u, v, ch - 0.6, ch - 0.5, 0.48, 'brass', '#c9a25a', { seg: 18 }); B(u - 0.6, u + 0.6, v - 0.6, v + 0.6, ch - 0.5, ch - 0.05, 'grainG', '#3a2416');
+    c.solid(u - 0.6, u + 0.6, v - 0.6, v + 0.6, 0, ch); c.blob(u - 0.6, u + 0.6, v - 0.6, v + 0.6, 0.008, 0.4);
+  }
+}
+function deskSet(c, u, v, face = 1) { // biurko z monitorem i krzeslem; face = 1: siedzacy po stronie +v
+  const top = '#6b6f75';
+  table(c, u, v, 'rect', top, 1.8, 0.85, 0.76, '#2a2c30');
+  c.B(u - 0.28, u + 0.28, v - 0.12 * face - 0.04, v - 0.12 * face + 0.04, 0.76, 1.08, 'gloss', '#17181b'); c.Pl(u, v - 0.12 * face + 0.045 * face, 0.93, 0.5, 0.3, face > 0 ? '+v' : '-v', 'screen', '#ffffff', { cell: cellUV(R() < 0.5 ? 0 : 3, 2, 2) });
+  c.B(u + 0.5, u + 0.9, v - 0.2, v + 0.15, 0.76, 0.8, 'paint', '#e6e3dc');
+  chair(c, u, v + 0.95 * face, 0, -face, '#2a2c30', 'pad');
+}
+function pokerTable(c, u, v) {
+  c.Cy(u, v, 0.7, 0.78, 0.95, 'gloss', '#1d1410', { seg: 22 }); c.Cy(u, v, 0.78, 0.8, 0.85, 'fabric', '#1f6a3a', { seg: 22 }); c.Cy(u, v, 0, 0.7, 0.12, 'brass', '#c9a25a', { seg: 8 });
+  c.solid(u - 0.95, u + 0.95, v - 0.95, v + 0.95, 0, 0.8); c.blob(u - 0.95, u + 0.95, v - 0.95, v + 0.95, 0.008, 0.3);
+  for (let i = 0; i < 5; i++) { const a = i / 5 * 6.283 + 0.4; c.Cy(u + Math.cos(a) * 0.4, v + Math.sin(a) * 0.4, 0.8, 0.85, 0.05, 'matte', pick(['#c8302a', '#1a1a1a', '#e8e2d4', '#2a4a9a']), { seg: 8 }); }
+  for (let i = 0; i < 4; i++) { const a = i / 4 * 6.283 + 0.8, x = u + Math.cos(a) * 1.5, z = v + Math.sin(a) * 1.5; chair(c, x, z, -Math.cos(a) > 0 ? 1 : -1, 0, '#1d1410', 'pad'); }
+}
+function crate(c, u, v, s = 1.1, h = 1.0, col = '#4a3a22') {
+  c.B(u - s / 2, u + s / 2, v - s / 2, v + s / 2, 0, h, 'grain', col, true); c.B(u - s / 2 - 0.02, u + s / 2 + 0.02, v - 0.04, v + 0.04, 0.1, h - 0.1, 'steel', '#2a2a2a'); c.B(u - 0.04, u + 0.04, v - s / 2 - 0.02, v + s / 2 + 0.02, 0.1, h - 0.1, 'steel', '#2a2a2a');
+  c.blob(u - s / 2, u + s / 2, v - s / 2, v + s / 2, 0.008, 0.25);
+}
+BUILD.fiskFloor = function (c) {
+  const { B, hw, cd, ch, L } = c, k = c.k; c.gw = 0; c.gh = -1; // pietra nie maja drzwi na ulice
+  const P_ = {
+    1: { floor: ['carpet', '#98a3b0'], wall: ['plaster', '#d3cdc0'], ceil: ['acoustic', '#cfcac0'], base: '#1d1d20', crown: '#9aa0a8' },
+    2: { floor: ['marble', '#ffffff'], wall: ['plaster', '#2a2a2e'], ceil: ['plaster', '#24201c'], wains: ['panel', '#5a3a26', 2.4], base: '#120e0a', crown: '#c9a25a' },
+    3: { floor: ['rubber', '#b4babf'], wall: ['brick', '#a99e90'], ceil: ['acoustic', '#9a968e'], base: '#1a1a1c', crown: '#5c6066' },
+    4: { floor: ['marble', '#ffffff'], wall: ['plaster', '#3a2a22'], back: ['plaster', '#2a1e18'], ceil: ['plaster', '#2a221d'], wains: ['panel', '#7a4a2c', 3.2], base: '#1a120c', crown: '#c9a25a' },
+  }[k];
+  shell(c, P_);
+  // panorama miasta: tylna sciana (pietra 1-4), na ostatnim pietrze tez frontowa (przez nia wypadaja bohaterowie)
+  const pw = c.r.cw - 4;
+  const pano = (Lw) => {
+    c.LP(Lw, 0, 0.03, 4.0, pw, 5.4, 'view', '#d8d0c8');
+    for (let a = -pw / 2; a <= pw / 2 + 0.01; a += pw / Math.round(pw / 2.4)) c.LB(Lw, a - 0.06, a + 0.06, 0, 0.12, 1.3, 6.7, 'steel', '#141414');
+    for (const y of [1.3, 3.9, 6.7]) c.LB(Lw, -pw / 2 - 0.06, pw / 2 + 0.06, 0, 0.12, y - 0.06, y + 0.06, 'steel', '#141414');
+  };
+  pano(L.back); if (k === 4) pano(L.front);
+  // sufit: swiatla
+  if (k === 1 || k === 3) for (let u = -6; u <= 6; u += 4) for (let v = 3.6; v < cd - 1; v += 4.6) lampPanel(c, u, v, 1.5, 0.5, 2.2, k === 3 ? '#e8f0ff' : '#fff2dc', 1.1);
+  else { for (let u = -hw + 1.8; u < hw; u += 3.6) for (let v = 1.8; v < cd; v += 3.6) { B(u - 0.7, u + 0.7, v - 0.7, v + 0.7, ch - 0.07, ch - 0.05, 'panelL', '#ffe2b0', { k: 1.5 }); c.pool(u, v, 4.5, 4.5, '#ffd8a0', 0.07); } }
+  if (k === 1) {
+    fiskColumns(c, [[-5.2, 7.5], [5.2, 7.5], [-5.2, 15.5], [5.2, 15.5]]);
+    for (const s of [-1, 1]) for (const v of [5.2, 9.6, 14.0, 18.4]) { deskSet(c, s * 8.0, v, 1); }
+    for (const s of [-1, 1]) for (const [a, b] of [[10.8, 12.6], [16.2, 20.8]]) B(s * 5.6 - 0.04, s * 5.6 + 0.04, a, b, 0, 1.45, 'acoustic', '#8d9298', true);
+    for (const s of [-1, 1]) plant(c, s * (hw - 0.9), cd - 0.9, 1.2, '#2a2a2a', 'snake');
+    c.Cy(hw - 1.0, 8.0, 0, 1.0, 0.18, 'gloss', '#cfe0ea', { seg: 12 }); c.solid(hw - 1.2, hw - 0.8, 7.8, 8.2, 0, 1.0);
+    picture(c, L.right, 12.5, 4.6, 2.2, 1.6, 'art', cellUV(1, 2, 2), '#1a1a1a', 0.08);
+  } else if (k === 2) {
+    fiskColumns(c, [[-5.5, 6.0], [5.5, 6.0], [-5.5, 16.0], [5.5, 16.0]]);
+    for (const [u, v] of [[-7.4, 9.5], [7.4, 9.5], [-7.4, 13.2], [7.4, 13.2], [-4.6, 19.5], [4.6, 19.5]]) pokerTable(c, u, v);
+    for (const s of [-1, 1]) for (let i = 0; i < 3; i++) { const v = 3.3 + i * 1.3, u = s * (hw - 1.0); B(u - 0.4, u + 0.4, v - 0.5, v + 0.5, 0, 1.85, 'gloss', '#1a1218', true); c.Pl(s * (hw - 1.41), v, 1.3, 0.8, 0.5, s > 0 ? '-u' : '+u', 'screen', '#ffffff', { cell: cellUV(3, 2, 2) }); B(s * (hw - 1.42) - 0.01, s * (hw - 1.4) + 0.01, v - 0.4, v + 0.4, 1.0, 1.6, 'lamp', '#ff4aa8', { k: 1.4 }); }
+    picture(c, L.back, -hw + 3.2, 4.8, 2.2, 1.6, 'art', cellUV(0, 2, 2), '#c9a25a', 0.08); picture(c, L.back, hw - 3.2, 4.8, 2.2, 1.6, 'art', cellUV(1, 2, 2), '#c9a25a', 0.08);
+  } else if (k === 3) {
+    fiskColumns(c, [[-5.4, 7.0], [5.4, 7.0], [-5.4, 15.0], [5.4, 15.0]]);
+    for (const [u, v, s, h] of [[-7.2, 5.4, 1.2, 1.1], [-8.6, 5.4, 1.1, 1.0], [-7.6, 9.4, 1.3, 1.2], [7.0, 5.6, 1.2, 1.1], [8.4, 6.8, 1.0, 0.9], [7.4, 10.6, 1.3, 1.2], [-8.2, 14.0, 1.2, 1.0], [8.0, 15.0, 1.4, 1.2], [-6.8, 18.6, 1.2, 1.1], [7.0, 19.0, 1.2, 1.1]]) crate(c, u, v, s, h, pick(['#4a3a22', '#3a4a2a', '#2a3a4a']));
+    for (const [u, v] of [[-7.2, 5.4], [7.0, 5.6], [-7.6, 9.4]]) crate(c, u, v, 0.8, 0.8 + 1.1, '#3f3524');
+    for (const s of [-1, 1]) { c.LB(s < 0 ? L.left : L.right, 14.5, 21.0, 0, 0.5, 0, 2.4, 'steel', '#2e3236', true); for (let y = 0.3; y < 2.3; y += 0.5) c.LB(s < 0 ? L.left : L.right, 14.6, 20.9, 0.02, 0.45, y, y + 0.03, 'steel', '#4a4f54'); }
+    for (const [u, v] of [[-hw + 1.0, 4.2], [-hw + 1.0, 5.1], [hw - 1.0, 12.0]]) { c.Cy(u, v, 0, 0.95, 0.3, 'steel', '#8a2a1e', { seg: 14 }); c.solid(u - 0.3, u + 0.3, v - 0.3, v + 0.3, 0, 0.95); }
+  } else if (k === 4) {
+    const vg = cd - 7;
+    fiskColumns(c, [[-5.6, 6.5], [5.6, 6.5]]);
+    // szyna pod szybe pancerna: belka przy suficie i prog w podlodze (sama szyba: fisk.js)
+    B(-hw, hw, vg - 0.14, vg + 0.14, ch - 0.7, ch - 0.05, 'steel', '#16181b'); B(-hw, hw, vg - 0.08, vg + 0.08, 0, 0.035, 'steel', '#16181b');
+    B(-hw, hw, vg - 0.1, vg + 0.1, ch - 0.76, ch - 0.7, 'brass', '#c9a25a');
+    // biurko Kingpina, fotel, lampa bankierska, notatnik
+    B(-2.4, 2.4, cd - 3.6, cd - 2.6, 0, 0.78, 'panel', '#5a3420', true); B(-2.5, 2.5, cd - 3.7, cd - 2.5, 0.78, 0.84, 'grainG', '#2a160c');
+    B(-1.6, 1.6, cd - 3.4, cd - 2.7, 0.84, 0.845, 'leather', '#1f3a2a'); c.Ch(-2.5, 2.5, cd - 3.7, 0.81, 0.02, 'brass', '#c9a25a');
+    c.Cy(1.6, cd - 2.85, 0.84, 0.86, 0.1, 'brass', '#c9a25a'); c.Cy(1.6, cd - 2.85, 0.86, 1.2, 0.012, 'brass', '#c9a25a'); c.Ch(1.35, 1.85, cd - 2.95, 1.22, 0.07, 'gloss', '#1f6a3a', { seg: 12 }); c.Ch(1.37, 1.83, cd - 2.95, 1.19, 0.05, 'lamp', '#ffe8b0', { k: 1.5 });
+    c.pool(1.6, cd - 3.05, 1.6, 1.0, '#ffe0a0', 0.25, 0.85);
+    c.B(-0.9, -0.2, cd - 3.35, cd - 2.85, 0.845, 0.86, 'matte', '#efe9d8'); c.Cy(-0.05, cd - 3.0, 0.845, 0.87, 0.012, 'matte', '#111111'); c.B(0.35, 0.7, cd - 3.2, cd - 2.95, 0.845, 0.9, 'gloss', '#111111');
+    c.B(-0.4, 0.4, cd - 2.05, cd - 1.35, 0, 0.52, 'leather', '#1a1414', true); c.B(-0.42, 0.42, cd - 1.4, cd - 1.25, 0.52, 1.75, 'leather', '#1a1414'); for (const s of [-1, 1]) c.B(s * 0.44 - 0.07, s * 0.44 + 0.07, cd - 2.05, cd - 1.35, 0.52, 0.78, 'leather', '#1a1414');
+    B(-3.2, 3.2, cd - 5.0, cd - 1.0, 0.004, 0.012, 'rug', '#ffffff');
+    c.pool(0, cd - 2.5, pw, 5, '#ffb070', 0.08);
+    for (const s of [-1, 1]) { const W = s < 0 ? L.left : L.right; c.LB(W, vg + 1.6, cd - 1.4, 0, 0.42, 0, 3.4, 'grainG', '#3a2214', true); for (let y = 0.1; y < 3.2; y += 0.55) { c.LB(W, vg + 1.64, cd - 1.44, 0.02, 0.4, y - 0.03, y, 'grainG', '#3a2214'); for (let a = vg + 1.7; a < cd - 1.6;) { const w = rr(0.03, 0.06), h = rr(0.28, 0.45); c.LB(W, a, a + w, 0.08, 0.36, y, y + h, 'leather', pick(['#5a1414', '#1a2a3a', '#2a3a1a', '#4a3a20', '#3a1a2a', '#6a5030'])); a += w + 0.004; } } plant(c, s * (hw - 1.0), cd - 0.9, 1.4, '#2a2a2a', 'palm'); }
+    // czerwony chodnik od windy i sofy po stronie wejscia
+    B(-1.6, 1.6, 0.4, vg - 0.5, 0.004, 0.02, 'fabric', '#7a1616'); for (const s of [-1, 1]) B(s * 1.6 - 0.08, s * 1.6 + 0.08, 0.4, vg - 0.5, 0.004, 0.021, 'fabric', '#c9a25a');
+    picture(c, L.left, 9, 4.6, 2.4, 1.8, 'art', cellUV(0, 2, 2), '#c9a25a', 0.08); picture(c, L.right, 9, 4.6, 2.4, 1.8, 'art', cellUV(1, 2, 2), '#c9a25a', 0.08);
+  }
+  // wnęka windy na lewej scianie (ramka z ciemnej stali); drzwi i swiatlo rysuje fisk.js
+  c.LB(L.left, 2.2, 2.4, 0, 0.14, 0, 3.0, 'steel', '#1c1e22'); c.LB(L.left, 4.6, 4.8, 0, 0.14, 0, 3.0, 'steel', '#1c1e22'); c.LB(L.left, 2.2, 4.8, 0, 0.14, 2.9, 3.05, 'steel', '#1c1e22');
+};
+// budowa pietra k: osobna grupa w scenie, kolizje z podlogi (plyta) dodawane przez fiskSlabs
+export function buildFiskFloor(d, k) {
+  d.floors = d.floors || {};
+  if (d.floors[k]) return d.floors[k];
+  const c = makeCtx(d, k * FISK_H); c.k = k; BUILD.fiskFloor(c); flush(c);
+  const f = { k, g: c.rm.g, y: SW + k * FISK_H, npcs: c.rm.npcs }; scene.add(f.g); d.floors[k] = f; return f;
+}
+// plyty stropowe pomiedzy pietrami (raz): kazde pietro ma wlasna podloge jako kolizje; plyta k lezy tuz pod poziomem pietra k
+export function fiskSlabs(d) {
+  if (d.slabs) return; d.slabs = true; const r = d.room;
+  for (let k = 1; k < FISK_FLOORS; k++) addBox({ x0: r.bx0, x1: r.bx1, z0: r.bz0, z1: r.bz1, y0: SW + k * FISK_H - 0.62, y1: SW + k * FISK_H });
+}
+
 // ---------------------------------------------------------------- zarzadzanie
 function buildRoom(d) {
   const c = makeCtx(d); BUILD[d.type](c); flush(c); d.rm = c.rm; scene.add(c.rm.g);
+  if (d.type === 'fisk') fiskSlabs(d); // wneka wiezy ma kilka pieter: stropy parteru i pieter jako kolizje
   return c.rm;
 }
-export const playerInRoom = (d, m = 0) => { const r = d.room; return P.pos.x > r.bx0 - m && P.pos.x < r.bx1 + m && P.pos.z > r.bz0 - m && P.pos.z < r.bz1 + m && P.pos.y > -1 && P.pos.y < SW + r.ch + 0.6; };
+export const playerInRoom = (d, m = 0) => { const r = d.room; return P.pos.x > r.bx0 - m && P.pos.x < r.bx1 + m && P.pos.z > r.bz0 - m && P.pos.z < r.bz1 + m && P.pos.y > -1 && P.pos.y < SW + r.ch + 0.6 + (d.type === 'fisk' ? (FISK_FLOORS - 1) * FISK_H : 0); };
 let acc = 0, wasInFisk = false;
 // cola z lodowki w sklepie: pelne zdrowie + puszka w dloni
 let canMesh = null, canT = 0;

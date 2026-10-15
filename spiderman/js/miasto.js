@@ -939,6 +939,7 @@ export function updateEnv() {
 // ---------------------------------------------------------------- budowanie miasta
 let facGeo, roofGeo, farGeo, shopGeo, trimGeo, curbGeo, ironGeo, pitchGeo, metalGeo, slateGeo;
 export const SW = 0.15; // wysokosc chodnika
+export const FISK_H = 8.6, FISK_FLOORS = 5; // Fisk Tower: odstep pieter i liczba pieter wneki
 const tanks = [], awnings = [], masts = [], boards = [];
 // sciany budynku z otworem drzwiowym: trzy sciany w calosci, czwarta w trzech kawalkach (po bokach i nad drzwiami)
 function carveWalls(g, x0, x1, y0, y1, z0, z1, d) {
@@ -955,7 +956,7 @@ function carveBoxes(d, x0, x1, y0, y1, z0, z1) {
   const front = r.doorV === r.fd1 ? [r.cv1, r.fd1] : [r.fd0, r.cv0];
   if (r.doorV === r.fd1) P(r.cu0, r.cu1, r.fd0, r.cv0, y0, y1); else P(r.cu0, r.cu1, r.cv1, r.fd1, y0, y1);
   P(r.cu0, ga0, front[0], front[1], y0, y1); P(ga1, r.cu1, front[0], front[1], y0, y1); P(ga0, ga1, front[0], front[1], d.gh, y1);
-  P(r.cu0, r.cu1, r.cv0, r.cv1, SW + r.ch, y1);
+  P(r.cu0, r.cu1, r.cv0, r.cv1, SW + (d.type === 'fisk' ? (FISK_FLOORS - 1) * FISK_H : 0) + r.ch, y1); // Fisk Tower: wneka na kilka pieter (stropy pieter dodaje fisk.js)
   return { x0, x1, y0, y1, z0, z1 };
 }
 function solid(x0, x1, y0, y1, z0, z1, st, door, plain) {
