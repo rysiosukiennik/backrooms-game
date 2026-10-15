@@ -18,6 +18,7 @@ import { finCamera } from './wykonczenie.js';
 import { initGlos, updateGlos, glosStop } from './glos.js';
 import { updateCalls } from './rozmowy.js';
 import { updateBorder } from './granica.js';
+import { updatePowers } from './moce.js';
 
 try {
   buildCity();
@@ -212,7 +213,7 @@ function step(now) {
     else if (I.mapP) openPause('map', false);
     else {
       camLook(rdt, I);
-      updatePlayer(dt, I);
+      updatePlayer(dt, I); updatePowers(rdt);
       updateEnemies(dt); updateCrimes(dt); updateShots(dt); updateBags(dt); updateMissions(dt);
       camFollow(rdt); finCamera();
       updateHUD(rdt);

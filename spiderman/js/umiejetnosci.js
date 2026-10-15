@@ -21,7 +21,8 @@ export const COLS = ['ZDROWIE', 'WALKA', 'SIEĆ I ZMYSŁ', 'RUCH'];
 export const has = id => save.skills.includes(id);
 export const skillPoints = () => Math.max(0, save.lvl - save.skills.length);
 export const maxHp = () => 100 + (has('hp1') ? 25 : 0) + (has('hp2') ? 25 : 0) + (has('hp3') ? 25 : 0);
-export const dmgMul = () => 1 + (has('pow') ? 0.5 : 0) + (has('pow2') ? 0.5 : 0);
+export const buffs = { dmg: 1 }; // mnoznik chwilowy (moce strojow: Szal)
+export const dmgMul = () => (1 + (has('pow') ? 0.5 : 0) + (has('pow2') ? 0.5 : 0)) * buffs.dmg;
 export const swingMul = () => 1 + (has('swing') ? 0.15 : 0) + (has('swing2') ? 0.15 : 0);
 export const zipMax = () => has('zip') ? 3 : 2;
 export const websToWrap = () => has('web') ? 2 : 3;
