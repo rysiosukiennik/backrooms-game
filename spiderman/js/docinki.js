@@ -17,7 +17,6 @@ import { G, P, enemies } from './stan.js';
 import { save } from './util.js';
 import { districtAt } from './miasto.js';
 import { glosPlay, glosStop, glosState } from './glos.js';
-import { fiskBossFight } from './fisk.js';
 import * as T from './docinki_teksty.js';
 import * as DLG from './docinki_dialogi.js';
 
@@ -151,7 +150,7 @@ function finish() {
 // rozmowa z wrogiem: pary dialog_NN (a = bandyta, b = Peter), losowane bez zwracania
 let dlgBag = [];
 function dialogStart() {
-  if (G.state !== 'play' || G.cine || fiskBossFight() || cur || gcd > 0 || (kcdAt.dialog || 0) > now || Math.random() > 0.35) return false;
+  if (G.state !== 'play' || G.cine || G.fiskFight || cur || gcd > 0 || (kcdAt.dialog || 0) > now || Math.random() > 0.35) return false;
   if (!dlgBag.length) { for (const k of byKind.keys()) if (k.startsWith('dialog_')) dlgBag.push(k); for (let i = dlgBag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = dlgBag[i]; dlgBag[i] = dlgBag[j]; dlgBag[j] = t; } }
   const k = dlgBag.pop(); if (!k) return false;
   const a = byKind.get(k).find(l => l.voice === 'thug'), b = byKind.get(k).find(l => l.voice !== 'thug'); if (!a || !b) return false;
@@ -164,7 +163,7 @@ function enqueue(kind, c, prio, ttl) {
   pending = { kind, c, prio, ttl }; return true;
 }
 function request(kind, c, force) {
-  if (G.state !== 'play' || G.cine || fiskBossFight()) return false; // walka z Kingpinem (poziom 6): Spider-Man milczy
+  if (G.state !== 'play' || G.cine || G.fiskFight) return false; // walka z Kingpinem (poziom 6): Spider-Man milczy
   const m = meta(kind), prio = c && c.prio != null ? c.prio : m.prio;
   let found = null; for (const k of candidates(kind, c)) if ((found = linesFor(k))) break;
   if (!found) return false;

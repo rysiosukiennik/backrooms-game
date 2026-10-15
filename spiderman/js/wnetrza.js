@@ -965,9 +965,9 @@ function crate(c, u, v, s = 1.1, h = 1.0, col = '#4a3a22') {
 BUILD.fiskFloor = function (c) {
   const { B, hw, cd, ch, L } = c, k = c.k; c.gw = 0; c.gh = -1; // pietra nie maja drzwi na ulice
   const P_ = {
-    1: { floor: ['carpet', '#56606c'], wall: ['plaster', '#d3cdc0'], ceil: ['acoustic', '#cfcac0'], base: '#1d1d20', crown: '#9aa0a8' },
+    1: { floor: ['carpet', '#98a3b0'], wall: ['plaster', '#d3cdc0'], ceil: ['acoustic', '#cfcac0'], base: '#1d1d20', crown: '#9aa0a8' },
     2: { floor: ['marble', '#ffffff'], wall: ['plaster', '#2a2a2e'], ceil: ['plaster', '#24201c'], wains: ['panel', '#5a3a26', 2.4], base: '#120e0a', crown: '#c9a25a' },
-    3: { floor: ['rubber', '#8a8f94'], wall: ['brick', '#a99e90'], ceil: ['acoustic', '#9a968e'], base: '#1a1a1c', crown: '#5c6066' },
+    3: { floor: ['rubber', '#b4babf'], wall: ['brick', '#a99e90'], ceil: ['acoustic', '#9a968e'], base: '#1a1a1c', crown: '#5c6066' },
     4: { floor: ['marble', '#ffffff'], wall: ['plaster', '#3a2a22'], back: ['plaster', '#2a1e18'], ceil: ['plaster', '#2a221d'], wains: ['panel', '#7a4a2c', 3.2], base: '#1a120c', crown: '#c9a25a' },
   }[k];
   shell(c, P_);

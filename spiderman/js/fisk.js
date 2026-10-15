@@ -27,6 +27,7 @@ let F = null; // { d, room, level, boss, crime, crimes[], cleared, busy, phase, 
 let CP = 1, SEEN5 = false; // punkt kontrolny (poziom) i czy scenka poziomu 5 juz byla
 export const fiskActive = () => !!F;
 export const fiskBossFight = () => !!F && F.level === 6 && (F.phase === 'boss' || F.phase === 'done');
+const syncFight = () => { G.fiskFight = fiskBossFight(); }; // flaga dla docinki.js (Spider-Man milczy w walce z Kingpinem)
 export const fiskLevel = () => F ? F.level : 0;
 
 const PH = b => b.hp > b.max * 0.66 ? 0 : b.hp > b.max * 0.33 ? 1 : 2;       // faza 0, 1, 2
@@ -119,7 +120,7 @@ export function startFisk(d) {
 }
 export function abortFisk() {
   if (!F) return;
-  const f = F; wipeLevel(); F = null;
+  const f = F; wipeLevel(); F = null; G.fiskFight = false;
   for (const k in f.lifts) scene.remove(f.lifts[k].g);
   if (enemies.includes(f.boss)) removeEnemy(f.boss); else scene.remove(f.boss.H.root);
   if (G.boss === f.boss) G.boss = null;
@@ -290,9 +291,10 @@ function genCrack(x, y) { // siatka pekniec: promienie z odgalezieniami + luki
 }
 function drawGlass(gl) {
   const c = gl.cvs.getContext('2d'), W = gl.cvs.width, H = gl.cvs.height; c.clearRect(0, 0, W, H);
-  const g = c.createLinearGradient(0, 0, W, H); g.addColorStop(0, 'rgba(170,215,235,0.20)'); g.addColorStop(0.5, 'rgba(215,238,250,0.09)'); g.addColorStop(1, 'rgba(170,215,235,0.22)'); c.fillStyle = g; c.fillRect(0, 0, W, H);
-  c.fillStyle = 'rgba(255,255,255,0.07)'; for (const x0 of [220, 640, 1060]) { c.beginPath(); c.moveTo(x0, 0); c.lineTo(x0 + 90, 0); c.lineTo(x0 - 70, H); c.lineTo(x0 - 160, H); c.fill(); }
-  c.strokeStyle = 'rgba(190,235,230,0.55)'; c.lineWidth = 8; c.strokeRect(4, 4, W - 8, H - 8);
+  const g = c.createLinearGradient(0, 0, W, H); g.addColorStop(0, 'rgba(150,205,230,0.34)'); g.addColorStop(0.5, 'rgba(205,235,250,0.2)'); g.addColorStop(1, 'rgba(150,205,230,0.36)'); c.fillStyle = g; c.fillRect(0, 0, W, H);
+  c.fillStyle = 'rgba(255,255,255,0.16)'; for (const x0 of [220, 640, 1060, 1440]) { c.beginPath(); c.moveTo(x0, 0); c.lineTo(x0 + 110, 0); c.lineTo(x0 - 70, H); c.lineTo(x0 - 180, H); c.fill(); }
+  c.fillStyle = 'rgba(25,60,60,0.7)'; for (const x0 of [W / 4, W * 3 / 4]) c.fillRect(x0 - 5, 0, 10, H); c.fillRect(0, H * 0.5 - 4, W, 8); // szwy plyt pancernych
+  c.strokeStyle = 'rgba(170,235,225,0.8)'; c.lineWidth = 10; c.strokeRect(5, 5, W - 10, H - 10);
   const fr = gl.hits >= 2 ? 1 : 0.5;
   for (const h of gl.list) {
     for (const r of h.rays) {
@@ -365,7 +367,7 @@ function setupLevel5(restart) {
   b.H.root.visible = true;
   F.phase = 'l5';
   const ready = () => {
-    SEEN5 = true; F.glass.drop = 1; glassAnim(1); cannonsAnim(1); F.armed = true; F.supplyT = 0;
+    SEEN5 = true; F.phase = 'l5'; F.glass.drop = 1; glassAnim(1); cannonsAnim(1); F.armed = true; F.supplyT = 0;
     showMsg('POZIOM 5/6', 'Namierz działko i rzuć nim (L1 + R1) w szybę pancerną. Unikaj pocisków!', 5);
     hint('fisk_throw', 'Działko podnosisz i rzucasz przytrzymując L1 i R1 (klawiatura: T). Trzy trafienia w szybę rozbijają ją.');
   };
@@ -395,6 +397,7 @@ function spawnGuards(n, first) { // straz przywolywana przez Kingpina w trakcie 
 // ---------------------------------------------------------------- aktualizacja
 export function updateFisk(dt) {
   if (!F) return;
+  syncFight();
   const room = F.room, R = RK(room), L = F.level, fy = floorY(floorOf(L));
   if (P.dead) { if (P.deadT < 0.7 && !F.busy) revive(); return; }
   if (!F.busy) {
