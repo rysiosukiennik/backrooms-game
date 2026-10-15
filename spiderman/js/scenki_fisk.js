@@ -160,7 +160,7 @@ export function sceneFisk5() {
         } },
         { dur: 1.9, say: [], text: '', sub: '', at: t => {
           const C = frame(tt(4, t, 1.9), 4, t), Cg = Cpos(99);
-          camera.position.set(Cg.x + side.x * 6.5 + out.x * 5.5, 0.9, Cg.z + side.z * 6.5 + out.z * 5.5); camera.lookAt(Cg.x, lerp(C.y, 1.0, t) , Cg.z); camera.fov = 46;
+          camera.position.set(Cg.x + side.x * 2.5 + out.x * 9, 3.6, Cg.z + side.z * 2.5 + out.z * 9); camera.lookAt(Cg.x, lerp(C.y, 1.0, t) , Cg.z); camera.fov = 46;
         } },
       ].map(s => s);
     },
