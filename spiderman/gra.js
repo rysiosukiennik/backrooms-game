@@ -34717,7 +34717,7 @@ body{overflow:hidden;color:#fff;font-family:'Rajdhani',sans-serif;user-select:no
     }
   }
   requestAnimationFrame(loop);
-  window.SPIDER = { G, P, cam, hooks, res: () => resScale, info: () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles }), tick: (n, ms = 1e3 / 60) => {
+  window.SPIDER = { G, P, cam, hooks, world: { LAND, BRIDGES, bridgeDeckAt }, res: () => resScale, info: () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles }), tick: (n, ms = 1e3 / 60) => {
     for (let i = 0; i < n; i++) step3(last2 + ms);
   } };
   try {

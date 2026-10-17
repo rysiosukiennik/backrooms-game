@@ -1,7 +1,7 @@
 // Start gry i glowna petla: stan menu / gra / pauza, kamera trzecioosobowa, poswiata (bloom).
 import { V3, clamp, lerp, damp, angLerp, save, doSave, dbg, resetProgress } from './util.js';
 import { G, P, enemies, cam, scene, camera, renderer, canvas, hooks, zglosBlad, pixelRatio } from './stan.js';
-import { buildCity, updateTraffic, updateEnv, raycastCity, setTOD, setFogEncoded } from './miasto.js';
+import { buildCity, updateTraffic, updateEnv, raycastCity, setTOD, setFogEncoded, LAND, BRIDGES, bridgeDeckAt } from './miasto.js';
 import { initPlayer, updatePlayer, updatePlayerVisual } from './gracz.js';
 import { initFX, updateFX, spawnCrime, updateEnemies, updateCrimes, updateShots, initBags, updateBags } from './wrogowie.js';
 import { initMissions, updateMissions } from './misje.js';
@@ -257,6 +257,6 @@ function loop(now) {
 }
 requestAnimationFrame(loop);
 // podglad stanu w konsoli przegladarki (do testow)
-window.SPIDER = { G, P, cam, hooks, res: () => resScale, info: () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles }), tick: (n, ms = 1000 / 60) => { for (let i = 0; i < n; i++) step(last + ms); } };
+window.SPIDER = { G, P, cam, hooks, world: { LAND, BRIDGES, bridgeDeckAt }, res: () => resScale, info: () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles }), tick: (n, ms = 1000 / 60) => { for (let i = 0; i < n; i++) step(last + ms); } };
 // wczytany zapis: po przeladowaniu strony od razu do gry (bez menu)
 try { const lm = sessionStorage.getItem('sp_load'); if (lm) { sessionStorage.removeItem('sp_load'); hooks.start(lm); } } catch (e) {}
